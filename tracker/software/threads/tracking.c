@@ -361,7 +361,7 @@ THD_FUNCTION(trackingThread, arg) {
 	writeLogTrackPoint(lastTrackPoint);
 
 	// Wait for position threads to start
-	chThdSleepMilliseconds(100);
+	chThdSleepMilliseconds(500);
 
 	systime_t cycle_time = chVTGetSystemTimeX();
 	while(true)

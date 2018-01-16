@@ -14,6 +14,6 @@ void start_essential_threads(void) {
 	pac1720_init();					// Initialize current measurement
 	init_tracking_manager(false);	// Initialize tracking manager (without GPS, GPS is initialized if needed by position thread)
 	startReceiver();				// Start APRS receiver
-	chThdSleepMilliseconds(500);	// Wait for tracking manager to initialize
+	chThdSleepMilliseconds(300);	// Wait for tracking manager to initialize
 }
 

@@ -25,14 +25,15 @@ bool initSD(void)
 	// Maximum speed SPI configuration
 	static SPIConfig hs_spicfg = {
 		.ssport	= PAL_PORT(LINE_SD_CS),
-		.sspad	= PAL_PAD(LINE_SD_CS)
+		.sspad	= PAL_PAD(LINE_SD_CS),
+		.cr1	= SPI_CR1_MSTR
 	};
 
 	// Low speed SPI configuration
 	static SPIConfig ls_spicfg = {
 		.ssport	= PAL_PORT(LINE_SD_CS),
 		.sspad	= PAL_PAD(LINE_SD_CS),
-		.cr1	= SPI_CR1_BR_2 | SPI_CR1_BR_1
+		.cr1	= SPI_CR1_BR_2 | SPI_CR1_BR_1 | SPI_CR1_MSTR
 	};
 
 	// MMC/SD over SPI driver configuration

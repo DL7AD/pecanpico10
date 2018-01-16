@@ -360,7 +360,7 @@
 #include "chprintf.h"
 
 // Global variables
-systime_t track_cycle_time = S2ST(10);						// Tracking cycle (all peripheral data [airpressure, GPS, temperature, ...] is collected each 60 seconds
+systime_t track_cycle_time = S2ST(60);						// Tracking cycle (all peripheral data [airpressure, GPS, temperature, ...] is collected each 60 seconds
 bool keep_cam_switched_on =	false;							// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time
 uint16_t gps_on_vbat = 1000;								// Battery voltage threshold at which GPS is switched on
 uint16_t gps_off_vbat = 1000;								// Battery voltage threshold at which GPS is switched off
@@ -380,7 +380,7 @@ void start_user_modules(void)
 	/* -------------------------------------------------- POSITION TRANSMISSION -------------------------------------------------- */
 
 	// Module POSITION, APRS 2m AFSK
-	config[0].power = 20;									// Transmission Power
+	config[0].power = 127;									// Transmission Power
 	config[0].protocol = PROT_APRS_AFSK;					// Protocol APRS (AFSK)
 	config[0].frequency.type = FREQ_APRS_REGION;			// Dynamic frequency allocation
 	config[0].frequency.hz = 144800000;						// Default frequency 144.800 MHz
@@ -398,11 +398,11 @@ void start_user_modules(void)
 	/* ---------------------------------------------------- IMAGE TRANSMISSION --------------------------------------------------- */
 
 	// Module IMAGE, APRS 2m AFSK low-duty cycle
-	config[3].power = 1;									// Transmission Power
+	config[3].power = 127;									// Transmission Power
 	config[3].protocol = PROT_APRS_AFSK;					// Protocol APRS/SSDV (AFSK)
 	config[3].frequency.type = FREQ_APRS_REGION;			// Dynamic frequency allocation
 	config[3].frequency.hz = 144800000;						// Transmission frequency 144.800 MHz
-	config[3].packet_spacing = 20000;						// Packet spacing in ms
+	config[3].packet_spacing = 10000;						// Packet spacing in ms
 	config[3].trigger.type = TRIG_CONTINUOUSLY;				// Transmit continuously
 	chsnprintf(config[3].aprs_conf.callsign, 16, "DL7AD");	// APRS Callsign
 	config[3].aprs_conf.ssid = 14;							// APRS SSID
@@ -410,12 +410,12 @@ void start_user_modules(void)
 	config[3].ssdv_conf.ram_buffer = ssdv_buffer;			// Camera buffer
 	config[3].ssdv_conf.ram_size = sizeof(ssdv_buffer);		// Buffer size
 	config[3].ssdv_conf.res = RES_QVGA;						// Resolution QVGA
-	config[3].redundantTx = true;							// Redundant transmission (transmit packets twice)
+	//config[3].redundantTx = true;							// Redundant transmission (transmit packets twice)
 	config[3].ssdv_conf.quality = 4;						// Image quality
-	//start_image_thread(&config[3]);
+	start_image_thread(&config[3]);
 
 	// Module IMAGE, APRS 2m 2FSK
-	config[4].power = 80;									// Transmission Power
+	config[4].power = 127;									// Transmission Power
 	config[4].protocol = PROT_APRS_2FSK;					// Protocol APRS/SSDV (2FSK)
 	config[4].fsk_conf.speed = 9600;						// 2FSK Speed
 	config[4].frequency.type = FREQ_STATIC;					// Static frequency allocation
