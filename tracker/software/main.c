@@ -13,6 +13,7 @@ static const ShellCommand commands[] = {
 	{"log", readLog},
 	{"config", printConfig},
 	{"command", command2Camera},
+	{"aprs_message", send_aprs_message},
 	{NULL, NULL}
 };
 

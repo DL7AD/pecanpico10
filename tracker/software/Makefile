@@ -5,7 +5,7 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16
+  USE_OPT = -std=gnu99 -O2 -ggdb -fomit-frame-pointer -falign-functions=16
 endif
 
 # C specific options here (added to USE_OPT).
@@ -128,8 +128,10 @@ CSRC = $(STARTUPSRC) \
        threads/radio/modulation.c \
        protocols/ssdv/ssdv.c \
        protocols/ssdv/rs8.c \
-       protocols/aprs/aprs.c \
-       protocols/aprs/ax25.c \
+       protocols/aprs2/ax25_pad.c \
+       protocols/aprs2/dedupe.c \
+       protocols/aprs2/fcs_calc.c \
+       protocols/aprs2/aprs.c \
        drivers/wrapper/pi2c.c \
        drivers/wrapper/ei2c.c \
        drivers/wrapper/padc.c \
@@ -152,7 +154,7 @@ CSRC = $(STARTUPSRC) \
        config.c \
        watchdog.c \
        usbcfg.c \
-       main.c
+       main.c \
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -236,13 +238,13 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS =
+UDEFS = -D_GNU_SOURCE
 
 # Define ASM defines here
 UADEFS =
 
 # List all user directories here
-UINCDIR = threads/ drivers/ drivers/wrapper/ protocols/aprs \
+UINCDIR = threads/ drivers/ drivers/wrapper/ protocols/aprs2 \
           protocols/ssdv protocols/morse math/ drivers/flash/ \
           fatfs/src/ threads/radio/
 

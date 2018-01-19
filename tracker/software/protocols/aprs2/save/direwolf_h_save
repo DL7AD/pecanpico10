@@ -1,0 +1,18 @@
+/* direwolf.h - Common stuff used many places. */
+
+#ifndef DIREWOLF_H
+#define DIREWOLF_H 1
+
+#include <stddef.h>
+
+#define DEBUG_STRL 1
+
+//#define strlcpy(dst,src,siz) strlcpy_debug(dst,src,siz,__FILE__,__func__,__LINE__)
+//#define strlcat(dst,src,siz) strlcat_debug(dst,src,siz,__FILE__,__func__,__LINE__)
+
+//size_t strlcpy_debug(char *__restrict__ dst, const char *__restrict__ src, size_t siz, const char *file, const char *func, int line);
+//size_t strlcat_debug(char *__restrict__ dst, const char *__restrict__ src, size_t siz, const char *file, const char *func, int line);
+
+
+#endif   /* ifndef DIREWOLF_H */
+

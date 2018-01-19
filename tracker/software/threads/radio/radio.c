@@ -9,35 +9,37 @@
 
 // Thread
 static thread_t* si4464_rx_thd = NULL;
-static THD_WORKING_AREA(si4464_rx_wa, 16*1024);
+static THD_WORKING_AREA(si4464_rx_wa, 32*1024);
 
 static const char *getModulation(uint8_t key) {
 	const char *val[] = {"unknown", "2FSK", "AFSK"};
 	return val[key];
 };
 
-bool transmitOnRadio(radioMSG_t *msg)
+bool transmitOnRadio(packet_t packet, freq_conf_t *freq_conf, uint8_t pwr, mod_t mod)
 {
-	uint32_t freq = getFrequency(msg->freq); // Get transmission frequency
+	uint32_t freq = getFrequency(freq_conf); // Get transmission frequency
+	uint8_t *c;
+	uint32_t len = ax25_get_info(packet, &c);
 
-	if(msg->bin_len > 0) // Message length is not zero
+	if(len) // Message length is not zero
 	{
 		lockRadio(); // Lock radio
 
-		TRACE_INFO(	"RAD  > Transmit %d.%03d MHz, Pwr %d, %s, %d bits",
-					freq/1000000, (freq%1000000)/1000, msg->power,
-					getModulation(msg->mod), msg->bin_len
+		TRACE_INFO(	"RAD  > Transmit %d.%03d MHz, Pwr %d, %s, %d byte",
+					freq/1000000, (freq%1000000)/1000, pwr,
+					getModulation(mod), len
 		);
 
-		switch(msg->mod)
+		switch(mod)
 		{
 			case MOD_2FSK:
-				init2FSK(msg);
-				send2FSK(freq);
+				init2FSK();
+				send2FSK(packet, freq, pwr);
 				break;
 			case MOD_AFSK:
-				initAFSK(msg);
-				sendAFSK(freq);
+				initAFSK();
+				sendAFSK(packet, freq, pwr);
 				break;
 			case MOD_NOT_SET:
 				TRACE_ERROR("RAD  > Modulation not set");
@@ -48,8 +50,8 @@ bool transmitOnRadio(radioMSG_t *msg)
 
 	} else {
 
-		TRACE_ERROR("RAD  > It is nonsense to transmit 0 bits, %d.%03d MHz, Pwr dBm, %s, %d bits",
-					freq/1000000, (freq%1000000)/1000, msg->power, getModulation(msg->mod), msg->bin_len
+		TRACE_ERROR("RAD  > It is nonsense to transmit 0 bits, %d.%03d MHz, Pwr dBm, %s, %d byte",
+					freq/1000000, (freq%1000000)/1000, pwr, getModulation(mod), len
 		);
 
 	}

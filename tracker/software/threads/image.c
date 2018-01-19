@@ -280,20 +280,10 @@ uint32_t gimage_id; // Global image ID (for all image threads)
 mutex_t camera_mtx;
 bool camera_mtx_init = false;
 
-/**
-  * At EOI or if picture is cut prematurely, when buffer has to be flushed
-  * so all packets are transmitted.
-  */
-static void flush_ssdv_buffer(prot_t protocol, ax25_t *ax25_handle, radioMSG_t *msg)
-{
-	if(isAPRS(protocol)) {
-		msg->bin_len = aprs_encode_finalize(ax25_handle);
-		transmitOnRadio(msg);
-	}
-}
-
 void encode_ssdv(const uint8_t *image, uint32_t image_len, module_conf_t* conf, uint8_t image_id, bool redudantTx)
 {
+	(void)redudantTx;
+
 	ssdv_t ssdv;
 	uint8_t pkt[SSDV_PKT_SIZE];
 	uint8_t pkt_base91[256];
@@ -306,23 +296,6 @@ void encode_ssdv(const uint8_t *image, uint32_t image_len, module_conf_t* conf, 
 	bi = 0;
 	ssdv_enc_init(&ssdv, SSDV_TYPE_PADDING, conf->ssdv_conf.callsign, image_id, conf->ssdv_conf.quality);
 	ssdv_enc_set_buffer(&ssdv, pkt);
-
-	// Init transmission packet
-	radioMSG_t msg;
-	uint8_t buffer[conf->packet_spacing ? 2048 : 8192];
-	msg.buffer = buffer;
-	msg.bin_len = 0;
-	msg.freq = &conf->frequency;
-	msg.power = conf->power;
-
-	ax25_t ax25_handle;
-	if(conf->protocol == PROT_APRS_2FSK || conf->protocol == PROT_APRS_AFSK)
-	{
-		msg.mod = conf->protocol == PROT_APRS_AFSK ? MOD_AFSK : MOD_2FSK;
-		msg.afsk_conf = &(conf->afsk_conf);
-		msg.fsk_conf = &(conf->fsk_conf);
-		aprs_encode_init(&ax25_handle, buffer, sizeof(buffer), msg.mod);
-	}
 
 	while(true)
 	{
@@ -337,7 +310,6 @@ void encode_ssdv(const uint8_t *image, uint32_t image_len, module_conf_t* conf, 
 			if(r <= 0)
 			{
 				TRACE_ERROR("SSDV > Premature end of file");
-				flush_ssdv_buffer(conf->protocol, &ax25_handle, &msg);
 				break;
 			}
 			ssdv_enc_feed(&ssdv, b, r);
@@ -346,40 +318,20 @@ void encode_ssdv(const uint8_t *image, uint32_t image_len, module_conf_t* conf, 
 		if(c == SSDV_EOI)
 		{
 			TRACE_INFO("SSDV > ssdv_enc_get_packet said EOI");
-			flush_ssdv_buffer(conf->protocol, &ax25_handle, &msg);
 			break;
 		} else if(c != SSDV_OK) {
 			TRACE_ERROR("SSDV > ssdv_enc_get_packet failed: %i", c);
-			flush_ssdv_buffer(conf->protocol, &ax25_handle, &msg);
 			return;
 		}
 
-		if(isAPRS(conf->protocol)) {
+		// Encode packet
+		TRACE_INFO("IMG  > Encode APRS/SSDV packet");
 
-			// Encode packet
-			TRACE_INFO("IMG  > Encode APRS/SSDV packet");
+		// Sync byte, CRC and FEC of SSDV not transmitted (because its not neccessary inside an APRS packet)
+		base91_encode(&pkt[6], pkt_base91, 174);
 
-			// Sync byte, CRC and FEC of SSDV not transmitted (because its not neccessary inside an APRS packet)
-			base91_encode(&pkt[6], pkt_base91, 174);
-
-			aprs_encode_data_packet(&ax25_handle, 'I', &conf->aprs_conf, pkt_base91, strlen((char*)pkt_base91));
-			if(redudantTx)
-				aprs_encode_data_packet(&ax25_handle, 'I', &conf->aprs_conf, pkt_base91, strlen((char*)pkt_base91));
-
-			// Transmit if buffer is almost full or if single packet transmission is activated (packet_spacing != 0)
-			// or if AFSK is selected (because the encoding takes a lot of buffer)
-			if(ax25_handle.size >= 58000 || conf->packet_spacing || conf->protocol == PROT_APRS_AFSK)
-			{
-				// Transmit packets
-				flush_ssdv_buffer(conf->protocol, &ax25_handle, &msg);
-
-				// Initialize new packet buffer
-				aprs_encode_init(&ax25_handle, buffer, sizeof(buffer), msg.mod);
-			}
-
-		} else {
-			TRACE_ERROR("IMG  > Unsupported protocol selected for module IMAGE");
-		}
+		packet_t packet = aprs_encode_data_packet('I', &conf->aprs_conf, pkt_base91);
+		transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);
 
 		chThdSleepMilliseconds(100); // Leave other threads some time
 

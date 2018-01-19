@@ -4,6 +4,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "config.h"
+#include "ax25_pad.h"
 
 // APRS region frequencies
 #define APRS_FREQ_OTHER				144800000
@@ -17,7 +18,7 @@
 #define APRS_FREQ_ARGENTINA			144930000
 #define APRS_FREQ_BRAZIL			145575000
 
-bool transmitOnRadio(radioMSG_t *msg);
+bool transmitOnRadio(packet_t packet, freq_conf_t *freq_conf, uint8_t pwr, mod_t mod);
 void lockRadio(void);
 void lockRadioByCamera(void);
 void unlockRadio(void);

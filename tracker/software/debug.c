@@ -8,6 +8,7 @@
 #include "pi2c.h"
 #include "ov5640.h"
 #include "geofence.h"
+#include "aprs.h"
 
 const SerialConfig uart_config =
 {
@@ -19,7 +20,7 @@ const SerialConfig uart_config =
 
 mutex_t trace_mtx; // Used internal to synchronize multiple chprintf in debug.h
 
-bool debug_on_usb = true;
+bool debug_on_usb = false;
 
 void debugOnUSB(BaseSequentialStream *chp, int argc, char *argv[])
 {
@@ -112,7 +113,7 @@ void printConfig(BaseSequentialStream *chp, int argc, char *argv[])
 	if(argc < 1)
 	{
 		chprintf(chp, "Argument missing!\r\n");
-		chprintf(chp, "Argument 1: Id of config!\r\n");
+		chprintf(chp, "Argument 1: Id of config\r\n");
 		return;
 	}
 
@@ -132,7 +133,7 @@ void printConfig(BaseSequentialStream *chp, int argc, char *argv[])
 		chprintf(chp, "Frequency: APRS region dependent (currently %d.%03d MHz)\r\n", freq/1000000, (freq%1000000)/1000);
 	}
 
-	chprintf(chp, "Protocol: %d\r\n", config[id].protocol);
+	chprintf(chp, "Modulation: %d\r\n", config[id].modulation);
 	chprintf(chp, "Initial Delay: %d\r\n", config[id].init_delay);
 	chprintf(chp, "Packet Spacing: %d\r\n", config[id].packet_spacing);
 	chprintf(chp, "Sleep config: xx\r\n");
@@ -145,9 +146,34 @@ void printConfig(BaseSequentialStream *chp, int argc, char *argv[])
 	chprintf(chp, "SSDV config: xx\r\n");
 
 	chprintf(chp, "Watchdog timeout: %d\r\n", config[id].wdg_timeout);
-
-
-
-
 }
+
+void send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[])
+{
+	aprs_conf_t aprs_conf;
+	chsnprintf(aprs_conf.callsign, 16, "DL7AD");	// APRS Callsign
+	aprs_conf.ssid = 14;							// APRS SSID
+	chsnprintf(aprs_conf.path, 16, "WIDE1-1");		// APRS Path
+	aprs_conf.preamble = 200;						// APRS Preamble (200ms)
+
+	freq_conf_t frequency;
+	frequency.type = FREQ_APRS_REGION;				// Dynamic frequency allocation
+	frequency.hz = 144800000;						// Default frequency 144.800 MHz
+
+	if(argc < 2)
+	{
+		chprintf(chp, "Argument missing!\r\n");
+		chprintf(chp, "Argument 1: Destination\r\n");
+		chprintf(chp, "Argument 2: Message\r\n");
+		return;
+	}
+	chprintf(chp, "Destination: %s\r\n", argv[0]);
+	chprintf(chp, "Message: %s\r\n", argv[1]);
+
+	packet_t packet = aprs_encode_message(&aprs_conf, argv[0], argv[1], false);
+	transmitOnRadio(packet, &frequency, 127, MOD_AFSK);
+
+	chprintf(chp, "Message sent!\r\n");
+}
+
 

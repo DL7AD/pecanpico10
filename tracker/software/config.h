@@ -6,7 +6,7 @@
 #define LOG_SECTOR_SIZE				0x20000		/* Log flash memory size */
 
 #define TRACE_TIME					TRUE		/* Enables time tracing on debugging port */
-#define TRACE_FILE					FALSE		/* Enables file and line tracing on debugging port */
+#define TRACE_FILE					TRUE		/* Enables file and line tracing on debugging port */
 
 #define ACTIVATE_USB				TRUE		/* If set to true, the USB interface will be switched on. The tracker is also switched to
 												 * 3V, because USB would not work at 1.8V. Note that the transmission power is increased

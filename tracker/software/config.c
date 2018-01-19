@@ -360,7 +360,7 @@
 #include "chprintf.h"
 
 // Global variables
-systime_t track_cycle_time = S2ST(60);						// Tracking cycle (all peripheral data [airpressure, GPS, temperature, ...] is collected each 60 seconds
+systime_t track_cycle_time = S2ST(30);						// Tracking cycle (all peripheral data [airpressure, GPS, temperature, ...] is collected each 60 seconds
 bool keep_cam_switched_on =	false;							// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time
 uint16_t gps_on_vbat = 1000;								// Battery voltage threshold at which GPS is switched on
 uint16_t gps_off_vbat = 1000;								// Battery voltage threshold at which GPS is switched off
@@ -369,7 +369,7 @@ uint16_t gps_onper_vbat = 1000;								// Battery voltage threshold at which GPS
 
 
 module_conf_t config[7];
-uint8_t ssdv_buffer[245*1024] __attribute__((aligned(32)));	// Image buffer
+uint8_t ssdv_buffer[128*1024] __attribute__((aligned(32)));	// Image buffer
 
 void start_user_modules(void)
 {
@@ -381,7 +381,7 @@ void start_user_modules(void)
 
 	// Module POSITION, APRS 2m AFSK
 	config[0].power = 127;									// Transmission Power
-	config[0].protocol = PROT_APRS_AFSK;					// Protocol APRS (AFSK)
+	config[0].modulation = MOD_AFSK;						// Protocol APRS (AFSK)
 	config[0].frequency.type = FREQ_APRS_REGION;			// Dynamic frequency allocation
 	config[0].frequency.hz = 144800000;						// Default frequency 144.800 MHz
 	config[0].trigger.type = TRIG_NEW_POINT;				// Transmit when tracking manager samples new tracking point
@@ -392,14 +392,14 @@ void start_user_modules(void)
 	config[0].aprs_conf.preamble = 200;						// APRS Preamble (200ms)
 	config[0].aprs_conf.tel_enc_cycle = 3600;				// Transmit Telemetry encoding information every 3600sec
 	chsnprintf(config[0].aprs_conf.tel_comment, 64, "http://ssdv.habhub.org/DL7AD");// Telemetry comment
-	start_position_thread(&config[0]);
+	//start_position_thread(&config[0]);
 
 
 	/* ---------------------------------------------------- IMAGE TRANSMISSION --------------------------------------------------- */
 
 	// Module IMAGE, APRS 2m AFSK low-duty cycle
 	config[3].power = 127;									// Transmission Power
-	config[3].protocol = PROT_APRS_AFSK;					// Protocol APRS/SSDV (AFSK)
+	config[3].modulation = MOD_AFSK;						// Protocol APRS/SSDV (AFSK)
 	config[3].frequency.type = FREQ_APRS_REGION;			// Dynamic frequency allocation
 	config[3].frequency.hz = 144800000;						// Transmission frequency 144.800 MHz
 	config[3].packet_spacing = 10000;						// Packet spacing in ms
@@ -416,7 +416,7 @@ void start_user_modules(void)
 
 	// Module IMAGE, APRS 2m 2FSK
 	config[4].power = 127;									// Transmission Power
-	config[4].protocol = PROT_APRS_2FSK;					// Protocol APRS/SSDV (2FSK)
+	config[4].modulation = MOD_2FSK;						// Protocol APRS/SSDV (2FSK)
 	config[4].fsk_conf.speed = 9600;						// 2FSK Speed
 	config[4].frequency.type = FREQ_STATIC;					// Static frequency allocation
 	config[4].frequency.hz = 144860000;						// Transmission frequency 144.860 MHz
@@ -436,7 +436,7 @@ void start_user_modules(void)
 
 	// Module LOG, APRS 2m AFSK
 	config[6].power = 127;									// Transmission Power
-	config[6].protocol = PROT_APRS_AFSK;					// Protocol APRS (AFSK)
+	config[6].modulation = MOD_AFSK;						// Protocol APRS (AFSK)
 	config[6].frequency.type = FREQ_APRS_REGION;			// Dynamic frequency allocation
 	config[6].frequency.hz = 144800000;						// Default frequency 144.800 MHz
 	config[6].init_delay = 5000;							// Module startup delay (5 seconds)

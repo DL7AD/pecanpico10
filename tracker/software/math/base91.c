@@ -133,7 +133,7 @@ size_t basE91_encode_end(base91_t *b, void *o)
 	return n;
 }
 
-void base91_encode(const uint8_t *in, uint8_t *out, uint16_t input_length) {
+size_t base91_encode(const uint8_t *in, uint8_t *out, uint16_t input_length) {
 	base91_t handle;
 
 	uint32_t ototal = 0;
@@ -143,5 +143,6 @@ void base91_encode(const uint8_t *in, uint8_t *out, uint16_t input_length) {
 	basE91_init(&handle);
 	ototal += basE91_encode(&handle, in, input_length, out);
 	ototal += basE91_encode_end(&handle, out + ototal);
+	return ototal;
 }
 

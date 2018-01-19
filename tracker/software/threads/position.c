@@ -26,7 +26,7 @@ THD_FUNCTION(posThread, arg)
 	TRACE_INFO("POS  > Startup position thread");
 
 	// Set telemetry configuration transmission variables
-	systime_t last_conf_transmission = chVTGetSystemTimeX();
+	systime_t last_conf_transmission = chVTGetSystemTimeX() - S2ST(conf->aprs_conf.tel_enc_cycle);
 	systime_t time = chVTGetSystemTimeX();
 
 	while(true)
@@ -39,50 +39,27 @@ THD_FUNCTION(posThread, arg)
 
 		if(!p_sleep(&conf->sleep_conf))
 		{
-
 			TRACE_INFO("POS  > Transmit position");
 
-			radioMSG_t msg;
-			uint8_t buffer[512];
-			msg.buffer = buffer;
-			msg.freq = &conf->frequency;
-			msg.power = conf->power;
+			// Encode and transmit position packet
+			packet_t packet = aprs_encode_position(&(conf->aprs_conf), trackPoint); // Encode packet
+			transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);
 
-			if(isAPRS(conf->protocol)) {
+			// Telemetry encoding parameter transmission
+			if(conf->aprs_conf.tel_enc_cycle != 0 && last_conf_transmission + S2ST(conf->aprs_conf.tel_enc_cycle) < chVTGetSystemTimeX())
+			{
+				chThdSleepMilliseconds(5000); // Take a litte break between the packet transmissions
 
-				// Position transmission
-				msg.mod = conf->protocol == PROT_APRS_AFSK ? MOD_AFSK : MOD_2FSK;
-				msg.fsk_conf = &(conf->fsk_conf);
-				msg.afsk_conf = &(conf->afsk_conf);
+				TRACE_INFO("POS  > Transmit telemetry configuration");
 
-				ax25_t ax25_handle;
-
-				// Encode and transmit position packet
-				aprs_encode_init(&ax25_handle, buffer, sizeof(buffer), msg.mod);
-				aprs_encode_position(&ax25_handle, &(conf->aprs_conf), trackPoint); // Encode packet
-				msg.bin_len = aprs_encode_finalize(&ax25_handle);
-				transmitOnRadio(&msg);
-				if(conf->redundantTx) transmitOnRadio(&msg);
-
-				// Telemetry encoding parameter transmission
-				if(conf->aprs_conf.tel_enc_cycle != 0 && last_conf_transmission + S2ST(conf->aprs_conf.tel_enc_cycle) < chVTGetSystemTimeX())
+				// Encode and transmit telemetry config packet
+				for(uint8_t type=0; type<5; type++)
 				{
-					chThdSleepMilliseconds(5000); // Take a litte break between the packet transmissions
-
-					TRACE_INFO("POS  > Transmit telemetry configuration");
-
-					// Encode and transmit telemetry config packet
-					aprs_encode_init(&ax25_handle, buffer, sizeof(buffer), msg.mod);
-					aprs_encode_telemetry_configuration(&ax25_handle, &conf->aprs_conf);
-					msg.bin_len = aprs_encode_finalize(&ax25_handle);
-					transmitOnRadio(&msg);
-					if(conf->redundantTx) transmitOnRadio(&msg);
+					packet = aprs_encode_telemetry_configuration(&conf->aprs_conf, type);
+					transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);
 				}
-					
-			} else {
 
-				TRACE_ERROR("POS  > Unsupported modulation/protocol selected for module POSITION");
-
+				last_conf_transmission += S2ST(conf->aprs_conf.tel_enc_cycle);
 			}
 		}
 
@@ -93,7 +70,7 @@ THD_FUNCTION(posThread, arg)
 void start_position_thread(module_conf_t *conf)
 {
 	chsnprintf(conf->name, sizeof(conf->name), "POS");
-	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(5*1024), "POS", NORMALPRIO, posThread, conf);
+	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(20*1024), "POS", NORMALPRIO, posThread, conf);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread
 		TRACE_ERROR("POS  > Could not startup thread (not enough memory available)");

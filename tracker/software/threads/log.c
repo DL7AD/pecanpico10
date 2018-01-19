@@ -148,42 +148,17 @@ THD_FUNCTION(logThread, arg)
 		{
 			// Get log from memory
 			trackPoint_t log;
+			getNextLogTrackPoint(&log);
 
-			// Encode radio message
-			radioMSG_t msg;
-			uint8_t buffer[512];
-			msg.buffer = buffer;
-			msg.freq = &conf->frequency;
-			msg.power = conf->power;
+			// Encode Base91
+			uint8_t pkt_base91[BASE91LEN(sizeof(log))];
+			base91_encode((uint8_t*)&log, pkt_base91, sizeof(log));
 
-			if(isAPRS(conf->protocol)) {
+			// Encode and transmit log packet
+			packet_t packet = aprs_encode_data_packet('L', &conf->aprs_conf, pkt_base91); // Encode packet
 
-				msg.mod = conf->protocol == PROT_APRS_AFSK ? MOD_AFSK : MOD_2FSK;
-				msg.afsk_conf = &(conf->afsk_conf);
-				msg.fsk_conf = &(conf->fsk_conf);
-
-				// Encode Base91
-				uint8_t pkt_base91[BASE91LEN(sizeof(log))];
-
-				// Encode and transmit log packet
-				ax25_t ax25_handle;
-				aprs_encode_init(&ax25_handle, buffer, sizeof(buffer), msg.mod);
-
-				for(uint8_t i=0; i<2; i++) { // Transmit two log packets
-					getNextLogTrackPoint(&log);
-					base91_encode((uint8_t*)&log, pkt_base91, sizeof(log));
-					aprs_encode_data_packet(&ax25_handle, 'L', &conf->aprs_conf, pkt_base91, strlen((char*)pkt_base91)); // Encode packet
-				}
-
-				msg.bin_len = aprs_encode_finalize(&ax25_handle);
-
-				// Transmit packet
-				transmitOnRadio(&msg);
-				if(conf->redundantTx) transmitOnRadio(&msg);
-
-			} else {
-				TRACE_ERROR("LOG  > Unsupported protocol selected for module LOG");
-			}
+			// Transmit packet
+			transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);
 		}
 
 		time = waitForTrigger(time, &conf->trigger);

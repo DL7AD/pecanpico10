@@ -7,22 +7,6 @@ typedef enum { // Modulation type
 	MOD_AFSK
 } mod_t;
 
-// Protocol type
-typedef enum {
-	PROT_NOT_SET,
-	PROT_APRS_AFSK,
-	PROT_APRS_2FSK
-} prot_t;
-
-#define isAPRS(x)	((x) == PROT_APRS_AFSK || (x) == PROT_APRS_2FSK)
-
-typedef enum {
-	CONF_PARM,
-	CONF_UNIT,
-	CONF_EQNS,
-	CONF_BITS
-} telemetry_conf_t;
-
 typedef struct {
 	char callsign[16];			// APRS callsign
 	uint8_t ssid;				// APRS SSID
@@ -70,7 +54,7 @@ typedef struct {
 typedef struct { // Radio message type
 	uint8_t* 		buffer;			// Message (data)
 	uint32_t		bin_len;		// Binary length (it bits)
-	int8_t			power;			// Power in dBm
+	uint8_t			power;			// Power in dBm
 	mod_t			mod;			// Modulation
 
 	freq_conf_t*	freq;			// Frequency
@@ -116,7 +100,7 @@ typedef struct {
 	// Radio
 	int8_t				power;
 	freq_conf_t			frequency;
-	prot_t				protocol;
+	mod_t				modulation;
 
 	// Timing
 	uint32_t			init_delay;

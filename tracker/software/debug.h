@@ -40,6 +40,7 @@ extern bool debug_on_usb;
 		chprintf((BaseSequentialStream*)&SDU1, " "); \
 		chprintf((BaseSequentialStream*)&SDU1, (format), ##args); \
 		chprintf((BaseSequentialStream*)&SDU1, "\r\n"); \
+		chThdSleepMilliseconds(10); \
 	} \
 }
 
@@ -84,6 +85,7 @@ void printConfig(BaseSequentialStream *chp, int argc, char *argv[]);
 void printPicture(BaseSequentialStream *chp, int argc, char *argv[]);
 void readLog(BaseSequentialStream *chp, int argc, char *argv[]);
 void command2Camera(BaseSequentialStream *chp, int argc, char *argv[]);
+void send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]);
 
 #endif
 
