@@ -44,11 +44,11 @@ void Si4464_Init(void) {
 	// Reset radio
 	palSetLine(LINE_RADIO_SDN);
 	palSetLine(LINE_TCXO_EN); // Activate Oscillator
-	chThdSleepMilliseconds(10);
+	chThdSleep(TIME_MS2I(10));
 
 	// Power up transmitter
 	palClearLine(LINE_RADIO_SDN);	// Radio SDN low (power up transmitter)
-	chThdSleepMilliseconds(10);		// Wait for transmitter to power up
+	chThdSleep(TIME_MS2I(10));		// Wait for transmitter to power up
 
 	// Power up (transmits oscillator type)
 	uint8_t x3 = (RADIO_CLK >> 24) & 0x0FF;
@@ -57,7 +57,7 @@ void Si4464_Init(void) {
 	uint8_t x0 = (RADIO_CLK >>  0) & 0x0FF;
 	uint8_t init_command[] = {0x02, 0x01, 0x01, x3, x2, x1, x0};
 	Si4464_write(init_command, 7);
-	chThdSleepMilliseconds(25);
+	chThdSleep(TIME_MS2I(25));
 
 	// Set transmitter GPIOs
 	uint8_t gpio_pin_cfg_command[] = {
@@ -71,7 +71,7 @@ void Si4464_Init(void) {
 		0x00	// GEN_CONFIG
 	};
 	Si4464_write(gpio_pin_cfg_command, 8);
-	chThdSleepMilliseconds(25);
+	chThdSleep(TIME_MS2I(25));
 
 	// Set FIFO empty interrupt threshold (32 byte)
 	uint8_t set_fifo_irq[] = {0x11, 0x12, 0x01, 0x0B, 0x20};

@@ -122,7 +122,7 @@ typedef struct {
 	bool redundantTx;					// Redundand packet transmission (APRS only)
 
 	// Watchdog
-	systime_t			wdg_timeout;	// Time at which watchdog will reset the STM32, 0 inactive
+	sysinterval_t		wdg_timeout;	// Time at which watchdog will reset the STM32, 0 inactive
 } module_conf_t;
 
 #endif

@@ -18,7 +18,7 @@ void register_thread_at_wdg(module_conf_t *thread_config)
 
 static void flash_led(void) {
 	palSetLine(LINE_IO_GREEN);
-	chThdSleepMilliseconds(50);
+	chThdSleep(TIME_MS2I(50));
 	palClearLine(LINE_IO_GREEN);
 }
 
@@ -31,7 +31,7 @@ THD_FUNCTION(wdgThread, arg) {
 	uint8_t counter = 0;
 	while(true)
 	{
-		chThdSleepMilliseconds(500);
+		chThdSleep(TIME_MS2I(500));
 
 		bool healthy = true;
 		for(uint8_t i=0; i<threads_cnt; i++) {

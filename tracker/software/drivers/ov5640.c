@@ -1063,7 +1063,7 @@ bool OV5640_Capture(uint8_t* buffer, uint32_t size)
 
 	// Capture
 	do {
-		chThdSleepMilliseconds(10);
+		chThdSleep(TIME_MS2I(10));
 	} while(!capture_finished && !dma_error);
 
 	// Capture done, unlock I2C
@@ -1123,13 +1123,13 @@ void OV5640_TransmitConfig(void)
 	TRACE_INFO("CAM  > ... Software reset");
 	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3103, 0x11);
 	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3008, 0x82);
-	chThdSleepMilliseconds(100);
+	chThdSleep(TIME_MS2I(100));
 
 	TRACE_INFO("CAM  > ... Initialization");
 	for(uint32_t i=0; (OV5640YUV_Sensor_Dvp_Init[i].reg != 0xffff) || (OV5640YUV_Sensor_Dvp_Init[i].val != 0xff); i++)
 		I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640YUV_Sensor_Dvp_Init[i].reg, OV5640YUV_Sensor_Dvp_Init[i].val);
 
-	chThdSleepMilliseconds(500);
+	chThdSleep(TIME_MS2I(500));
 
 	TRACE_INFO("CAM  > ... Configure JPEG");
 	for(uint32_t i=0; (OV5640_JPEG_QSXGA[i].reg != 0xffff) || (OV5640_JPEG_QSXGA[i].val != 0xff); i++)
@@ -1230,7 +1230,7 @@ void OV5640_init(void)
 	palSetLine(LINE_CAM_EN); 		// Switch on camera
 	palSetLine(LINE_CAM_RESET); 	// Toggle reset
 
-	chThdSleepMilliseconds(100);
+	chThdSleep(TIME_MS2I(100));
 
 	OV5640_setLightIntensity();
 
@@ -1238,7 +1238,7 @@ void OV5640_init(void)
 	TRACE_INFO("CAM  > Transmit config to camera");
 	OV5640_TransmitConfig();
 
-	chThdSleepMilliseconds(200);
+	chThdSleep(TIME_MS2I(200));
 }
 
 void OV5640_deinit(void)
@@ -1272,7 +1272,7 @@ bool OV5640_isAvailable(void)
 	palSetLine(LINE_CAM_EN); 	// Switch on camera
 	palSetLine(LINE_CAM_RESET); // Toggle reset
 
-	chThdSleepMilliseconds(100);
+	chThdSleep(TIME_MS2I(100));
 
 	uint8_t val, val2;
 	bool ret;

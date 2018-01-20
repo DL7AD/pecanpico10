@@ -67,7 +67,7 @@ THD_FUNCTION(si_receiver, arg)
 
 	while(true)
 	{
-		chThdSleepMilliseconds(1000);
+		chThdSleep(TIME_S2I(1));
 	}
 
 }

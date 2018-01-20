@@ -39,7 +39,7 @@ int main(void) {
 	sduStart(&SDU1, &serusbcfg);
 
 	usbDisconnectBus(serusbcfg.usbp);
-	chThdSleepMilliseconds(100);
+	chThdSleep(TIME_MS2I(100));
 	usbStart(serusbcfg.usbp, &usbcfg);
 	usbConnectBus(serusbcfg.usbp);
 	usb_initialized = true;
@@ -56,7 +56,7 @@ int main(void) {
 			chThdWait(shelltp);
 		}
 		#endif
-		chThdSleepMilliseconds(10000);
+		chThdSleep(TIME_S2I(1));
 	}
 }
 

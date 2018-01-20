@@ -135,14 +135,14 @@ THD_FUNCTION(logThread, arg)
 {
 	module_conf_t* conf = (module_conf_t*)arg;
 
-	if(conf->init_delay) chThdSleepMilliseconds(conf->init_delay);
+	if(conf->init_delay) chThdSleep(TIME_MS2I(conf->init_delay));
 	TRACE_INFO("LOG  > Startup logging thread");
 
-	systime_t time = chVTGetSystemTimeX();
+	sysinterval_t time = chVTGetSystemTimeX();
 	while(true)
 	{
 		TRACE_INFO("LOG  > Do module LOG cycle");
-		conf->wdg_timeout = chVTGetSystemTimeX() + S2ST(600); // TODO: Implement more sophisticated method
+		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(600); // TODO: Implement more sophisticated method
 
 		if(!p_sleep(&conf->sleep_conf))
 		{
@@ -174,7 +174,7 @@ void start_logging_thread(module_conf_t *conf)
 		TRACE_ERROR("LOG  > Could not startup thread (not enough memory available)");
 	} else {
 		register_thread_at_wdg(conf);
-		conf->wdg_timeout = chVTGetSystemTimeX() + S2ST(1);
+		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(1);
 	}
 }
 

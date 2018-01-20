@@ -37,7 +37,7 @@ bool p_sleep(const sleep_conf_t *config)
 	return false;
 }
 
-systime_t waitForTrigger(systime_t prev, trigger_conf_t *config)
+sysinterval_t waitForTrigger(sysinterval_t prev, trigger_conf_t *config)
 {
 	switch(config->type)
 	{
@@ -46,13 +46,16 @@ systime_t waitForTrigger(systime_t prev, trigger_conf_t *config)
 			return chVTGetSystemTimeX();
 		
 		case TRIG_TIMEOUT: // Wait for specified timeout
-			return chThdSleepUntilWindowed(prev, prev + S2ST(config->timeout));
+			return chThdSleepUntilWindowed(prev, prev + TIME_S2I(config->timeout));
 
 		case TRIG_CONTINUOUSLY: // Immediate trigger
 			return chVTGetSystemTimeX();
 
 		case TRIG_ONCE: // No trigger defined
-			chThdSleepMilliseconds(10000);
+			while(true)
+			{
+				chThdSleep(TIME_S2I(10));
+			}
 	}
 
 	return chVTGetSystemTimeX();
@@ -63,7 +66,7 @@ void trigger_new_tracking_point(void)
 	uint32_t oldID = getLastTrackPoint()->id;
 	trackPoint_t *newtp;
 	do { // Wait for new serial ID to be deployed
-		chThdSleepMilliseconds(100);
+		chThdSleep(TIME_MS2I(100));
 		newtp = getLastTrackPoint();
 	} while(newtp->id == oldID);
 }

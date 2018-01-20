@@ -75,13 +75,12 @@ uint8_t gps_receive_ack(uint8_t class_id, uint8_t msg_id, uint16_t timeout) {
 	nak[7] = msg_id;
 
 	// runs until ACK/NAK packet is received
-	systime_t sTimeout = chVTGetSystemTimeX() + MS2ST(timeout);
+	sysinterval_t sTimeout = chVTGetSystemTimeX() + TIME_MS2I(timeout);
 	while(sTimeout >= chVTGetSystemTimeX()) {
 
 		// Receive one byte
-		;
 		if(!gps_receive_byte(&rx_byte)) {
-			chThdSleepMilliseconds(10);
+			chThdSleep(TIME_MS2I(10));
 			continue;
 		}
 
@@ -122,12 +121,12 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id, unsigned char *pa
 	uint16_t payload_cnt = 0;
 	uint16_t payload_len = 0;
 
-	systime_t sTimeout = chVTGetSystemTimeX() + MS2ST(timeout);
+	sysinterval_t sTimeout = chVTGetSystemTimeX() + TIME_MS2I(timeout);
 	while(sTimeout >= chVTGetSystemTimeX()) {
 
 		// Receive one byte
       if(!gps_receive_byte(&rx_byte)) {
-			chThdSleepMilliseconds(10);
+			chThdSleep(TIME_MS2I(10));
 			continue;
 		}
 
@@ -383,7 +382,7 @@ bool GPS_Init(void) {
 	palSetLine(LINE_GPS_EN);	// Switch on GPS
 	
 	// Wait for GPS startup
-	chThdSleepMilliseconds(1000);
+	chThdSleep(TIME_S2I(1));
 
 	// Configure GPS
 	TRACE_INFO("GPS  > Transmit config to GPS");

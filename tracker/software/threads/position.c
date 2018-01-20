@@ -17,7 +17,7 @@ THD_FUNCTION(posThread, arg)
 	module_conf_t* conf = (module_conf_t*)arg;
 
 	// Wait
-	if(conf->init_delay) chThdSleepMilliseconds(conf->init_delay);
+	if(conf->init_delay) chThdSleep(TIME_MS2I(conf->init_delay));
 
 	// Start tracking manager (if not running yet)
 	init_tracking_manager(true);
@@ -26,13 +26,13 @@ THD_FUNCTION(posThread, arg)
 	TRACE_INFO("POS  > Startup position thread");
 
 	// Set telemetry configuration transmission variables
-	systime_t last_conf_transmission = chVTGetSystemTimeX() - S2ST(conf->aprs_conf.tel_enc_cycle);
-	systime_t time = chVTGetSystemTimeX();
+	sysinterval_t last_conf_transmission = chVTGetSystemTimeX() - TIME_S2I(conf->aprs_conf.tel_enc_cycle);
+	sysinterval_t time = chVTGetSystemTimeX();
 
 	while(true)
 	{
 		TRACE_INFO("POS  > Do module POSITION cycle");
-		conf->wdg_timeout = chVTGetSystemTimeX() + S2ST(600); // TODO: Implement more sophisticated method
+		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(600); // TODO: Implement more sophisticated method
 
 		TRACE_INFO("POS  > Get last track point");
 		trackPoint_t* trackPoint = getLastTrackPoint();
@@ -46,9 +46,9 @@ THD_FUNCTION(posThread, arg)
 			transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);
 
 			// Telemetry encoding parameter transmission
-			if(conf->aprs_conf.tel_enc_cycle != 0 && last_conf_transmission + S2ST(conf->aprs_conf.tel_enc_cycle) < chVTGetSystemTimeX())
+			if(conf->aprs_conf.tel_enc_cycle != 0 && last_conf_transmission + TIME_S2I(conf->aprs_conf.tel_enc_cycle) < chVTGetSystemTimeX())
 			{
-				chThdSleepMilliseconds(5000); // Take a litte break between the packet transmissions
+				chThdSleep(TIME_S2I(5)); // Take a litte break between the packet transmissions
 
 				TRACE_INFO("POS  > Transmit telemetry configuration");
 
@@ -59,7 +59,7 @@ THD_FUNCTION(posThread, arg)
 					transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);
 				}
 
-				last_conf_transmission += S2ST(conf->aprs_conf.tel_enc_cycle);
+				last_conf_transmission += TIME_S2I(conf->aprs_conf.tel_enc_cycle);
 			}
 		}
 
@@ -76,7 +76,7 @@ void start_position_thread(module_conf_t *conf)
 		TRACE_ERROR("POS  > Could not startup thread (not enough memory available)");
 	} else {
 		register_thread_at_wdg(conf);
-		conf->wdg_timeout = chVTGetSystemTimeX() + S2ST(1);
+		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(1);
 	}
 }
 

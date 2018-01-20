@@ -40,7 +40,7 @@ extern bool debug_on_usb;
 		chprintf((BaseSequentialStream*)&SDU1, " "); \
 		chprintf((BaseSequentialStream*)&SDU1, (format), ##args); \
 		chprintf((BaseSequentialStream*)&SDU1, "\r\n"); \
-		chThdSleepMilliseconds(10); \
+		chThdSleep(TIME_MS2I(10)); \
 	} \
 }
 

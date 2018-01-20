@@ -62,7 +62,7 @@ void doConversion(void)
 {
 	initADC();
 	adcStartConversion(&ADCD1, &adcgrpcfg, samples, 1);
-	chThdSleepMilliseconds(50); // Wait until conversion is finished
+	chThdSleep(TIME_MS2I(50)); // Wait until conversion is finished
 	deinitADC();
 }
 

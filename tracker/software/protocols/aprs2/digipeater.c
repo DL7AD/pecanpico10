@@ -488,7 +488,7 @@ void processIntelHex(uint8_t *buffer, uint32_t n) {
 	int e;
 	char message[256];
 
-	dedupe_init(S2ST(4));
+	dedupe_init(TIME_S2I(4));
 
 	e = regcomp(&alias_re, "^WIDE[4-7]-[1-7]|CITYD$", REG_EXTENDED|REG_NOSUB);
 	if(e != 0) {

@@ -40,7 +40,7 @@ static uint8_t radio_pwr;
 {
 	// Wait for PH to finish transmission
 	while(Si4464_getState() == SI4464_STATE_TX)
-		chThdSleepMilliseconds(1);
+		chThdSleep(TIME_MS2I(1));
 
 	if(!nextTransmissionWaiting) { // No thread is waiting for radio, so shutdown radio
 		TRACE_INFO("RAD  > Transmission finished");
@@ -266,7 +266,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 
 		Si4464_writeFIFO(localBuffer, more); // Write into FIFO
 		c += more;
-		chThdSleepMilliseconds(15);
+		chThdSleep(TIME_MS2I(15));
 	}
 	// Shutdown radio (and wait for Si4464 to finish transmission)
 	shutdownRadio();
@@ -291,7 +291,7 @@ void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 
 	// Wait for the transmitter to start (because it is used as mutex)
 	while(Si4464_getState() != SI4464_STATE_TX)
-		chThdSleepMilliseconds(1);
+		chThdSleep(TIME_MS2I(1));
 }
 
 /* ========================================================================== 2FSK ========================================================================== */
@@ -333,7 +333,7 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
 		}
 		Si4464_writeFIFO(&radio_msg.buffer[c], more); // Write into FIFO
 		c += more;
-		chThdSleepMilliseconds(15); // That value is ok up to 96k
+		chThdSleep(TIME_MS2I(15)); // That value is ok up to 96k
 	}*/
 
 	// Shutdown radio (and wait for Si4464 to finish transmission)
@@ -353,6 +353,6 @@ void send2FSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 
 	// Wait for the transmitter to start (because it is used as mutex)
 	while(Si4464_getState() != SI4464_STATE_TX)
-		chThdSleepMilliseconds(1);
+		chThdSleep(TIME_MS2I(1));
 }
 

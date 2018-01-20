@@ -157,7 +157,7 @@ THD_FUNCTION(pac1720_thd, arg)
 		pac1720_counter++;
 		pac1720_unlock();
 
-		chThdSleepMilliseconds(200);
+		chThdSleep(TIME_MS2I(200));
 	}
 }
 
@@ -170,7 +170,7 @@ void pac1720_init(void)
 
 	TRACE_INFO("PAC  > Init PAC1720 continuous measurement");
 	chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(512), "PAC1720", LOWPRIO, pac1720_thd, NULL);
-	chThdSleepMilliseconds(10);
+	chThdSleep(TIME_MS2I(10));
 }
 
 uint8_t pac1720_hasError(void)

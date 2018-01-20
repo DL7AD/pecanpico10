@@ -299,7 +299,7 @@ void encode_ssdv(const uint8_t *image, uint32_t image_len, module_conf_t* conf, 
 
 	while(true)
 	{
-		conf->wdg_timeout = chVTGetSystemTimeX() + S2ST(600); // TODO: Implement more sophisticated method
+		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(600); // TODO: Implement more sophisticated method
 
 		while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME)
 		{
@@ -333,11 +333,11 @@ void encode_ssdv(const uint8_t *image, uint32_t image_len, module_conf_t* conf, 
 		packet_t packet = aprs_encode_data_packet('I', &conf->aprs_conf, pkt_base91);
 		transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);
 
-		chThdSleepMilliseconds(100); // Leave other threads some time
+		chThdSleep(TIME_MS2I(100)); // Leave other threads some time
 
 		// Packet spacing (delay)
 		if(conf->packet_spacing)
-			chThdSleepMilliseconds(conf->packet_spacing);
+			chThdSleep(TIME_MS2I(conf->packet_spacing));
 
 		i++;
 	}
@@ -393,7 +393,7 @@ static bool analyze_image(uint8_t *image, uint32_t image_len)
 		}
 
 		i++;
-		chThdSleepMilliseconds(5);
+		chThdSleep(TIME_MS2I(5));
 	}
 }
 
@@ -471,14 +471,14 @@ THD_FUNCTION(imgThread, arg)
 {
 	module_conf_t* conf = (module_conf_t*)arg;
 
-	if(conf->init_delay) chThdSleepMilliseconds(conf->init_delay);
+	if(conf->init_delay) chThdSleep(TIME_MS2I(conf->init_delay));
 	TRACE_INFO("IMG  > Startup image thread");
 
-	systime_t time = chVTGetSystemTimeX();
+	sysinterval_t time = chVTGetSystemTimeX();
 	while(true)
 	{
 		TRACE_INFO("IMG  > Do module IMAGE cycle");
-		conf->wdg_timeout = chVTGetSystemTimeX() + S2ST(600); // TODO: Implement more sophisticated method
+		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(600); // TODO: Implement more sophisticated method
 
 		if(!p_sleep(&conf->sleep_conf))
 		{
@@ -520,7 +520,7 @@ void start_image_thread(module_conf_t *conf)
 		TRACE_ERROR("IMG  > Could not startup thread (not enough memory available)");
 	} else {
 		register_thread_at_wdg(conf);
-		conf->wdg_timeout = chVTGetSystemTimeX() + S2ST(1) + MS2ST(conf->init_delay);
+		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(1) + TIME_MS2I(conf->init_delay);
 	}
 }
 

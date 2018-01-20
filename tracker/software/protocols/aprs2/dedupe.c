@@ -124,7 +124,7 @@
  *		
  *------------------------------------------------------------------------------*/
 
-static systime_t history_time = 30;		/* Number of seconds to keep information */
+static sysinterval_t history_time = 30;		/* Number of seconds to keep information */
 					/* about recent transmissions. */
 
 #define HISTORY_MAX 25			/* Maximum number of transmission */
@@ -137,7 +137,7 @@ static int insert_next;			/* Index, in array below, where next */
 					
 static struct {
 
-	systime_t time_stamp;		/* When the packet was transmitted. */
+	sysinterval_t time_stamp;		/* When the packet was transmitted. */
 
 	unsigned short checksum;	/* Some sort of checksum for the */
 					/* source, destination, and information. */
@@ -148,7 +148,7 @@ static struct {
 } history[HISTORY_MAX];
 
 
-void dedupe_init (systime_t ttl)
+void dedupe_init (sysinterval_t ttl)
 {
 	history_time = ttl;
 	insert_next = 0;

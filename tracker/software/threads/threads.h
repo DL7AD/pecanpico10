@@ -5,7 +5,7 @@
 
 void start_essential_threads(void);
 
-extern systime_t watchdog_tracking;	// Last update time for module TRACKING
+extern sysinterval_t watchdog_tracking; // Last update time for module TRACKING
 
 #endif
 

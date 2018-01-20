@@ -92,7 +92,7 @@ void BME280_Init(bme280_t *handle, uint8_t id)
 
 	(*handle->i2c_write8)(handle->i2c_address, BME280_REGISTER_CONTROLHUMID, 0x03); // Set before CONTROL (DS 5.4.3)
 	(*handle->i2c_write8)(handle->i2c_address, BME280_REGISTER_CONTROL, 0x3F);
-	chThdSleepMilliseconds(50); // Wait for BME280
+	chThdSleep(TIME_MS2I(50)); // Wait for BME280
 
 	BME280_getTemperature(handle); // Set t_fine
 }

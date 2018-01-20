@@ -126,13 +126,13 @@ void waitForNewTrackPoint(void)
 {
 	uint32_t old_id = getLastTrackPoint()->id;
 	while(old_id == getLastTrackPoint()->id)
-		chThdSleepMilliseconds(1000);
+		chThdSleep(TIME_S2I(1));
 }
 
 
-static void aquirePosition(trackPoint_t* tp, trackPoint_t* ltp, systime_t timeout)
+static void aquirePosition(trackPoint_t* tp, trackPoint_t* ltp, sysinterval_t timeout)
 {
-	systime_t start = chVTGetSystemTimeX();
+	sysinterval_t start = chVTGetSystemTimeX();
 
 	gpsFix_t gpsFix;
 	memset(&gpsFix, 0, sizeof(gpsFix_t));
@@ -170,7 +170,7 @@ static void aquirePosition(trackPoint_t* tp, trackPoint_t* ltp, systime_t timeou
 			} else { // GPS locked successfully, switch off GPS (unless cycle is less than 60 seconds)
 
 				// Switch off GPS (if cycle time is more than 60 seconds)
-				if(track_cycle_time < S2ST(60)) {
+				if(track_cycle_time < TIME_S2I(60)) {
 					TRACE_INFO("TRAC > Keep GPS switched on because cycle < 60sec");
 					tp->gps_lock = GPS_LOCKED2;
 				} else if(gps_onper_vbat != 0 && batt >= gps_onper_vbat) {
@@ -208,7 +208,7 @@ static void aquirePosition(trackPoint_t* tp, trackPoint_t* ltp, systime_t timeou
 		}
 	}
 
-	tp->gps_ttff = ST2S(chVTGetSystemTimeX() - start); // Time to first fix
+	tp->gps_ttff = TIME_I2S(chVTGetSystemTimeX() - start); // Time to first fix
 
 	if(tp->gps_lock != GPS_LOCKED1 && tp->gps_lock != GPS_LOCKED2) { // We have no valid GPS fix
 		// Take time from internal RTC
@@ -301,7 +301,7 @@ static void setSystemStatus(trackPoint_t* tp) {
 	tp->sys_error |= (bme280_error & 0x7)        << 8;
 
 	// Set system time
-	tp->sys_time = ST2S(chVTGetSystemTimeX());
+	tp->sys_time = TIME_I2S(chVTGetSystemTimeX());
 }
 
 /**
@@ -361,19 +361,19 @@ THD_FUNCTION(trackingThread, arg) {
 	writeLogTrackPoint(lastTrackPoint);
 
 	// Wait for position threads to start
-	chThdSleepMilliseconds(500);
+	chThdSleep(TIME_MS2I(500));
 
-	systime_t cycle_time = chVTGetSystemTimeX();
+	sysinterval_t cycle_time = chVTGetSystemTimeX();
 	while(true)
 	{
 		TRACE_INFO("TRAC > Do module TRACKING MANAGER cycle");
-		trac_conf.wdg_timeout = chVTGetSystemTimeX() + S2ST(600); // TODO: Implement more sophisticated method
+		trac_conf.wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(600); // TODO: Implement more sophisticated method
 
 		trackPoint_t* tp  = &trackPoints[(id+1) % 2]; // Current track point (the one which is processed now)
 		trackPoint_t* ltp = &trackPoints[ id    % 2]; // Last track point
 
 		// Get GPS position
-		aquirePosition(tp, ltp, track_cycle_time - S2ST(3));
+		aquirePosition(tp, ltp, track_cycle_time - TIME_S2I(3));
 
 		tp->id = ++id; // Serial ID
 
@@ -425,8 +425,8 @@ void init_tracking_manager(bool useGPS)
 			TRACE_ERROR("TRAC > Could not startup thread (not enough memory available)");
 		} else {
 			register_thread_at_wdg(&trac_conf);
-			trac_conf.wdg_timeout = chVTGetSystemTimeX() + S2ST(1);
-			chThdSleepMilliseconds(300); // Wait a little bit until tracking manager has initialized first dataset
+			trac_conf.wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(1);
+			chThdSleep(TIME_MS2I(300)); // Wait a little bit until tracking manager has initialized first dataset
 		}
 	}
 }
