@@ -24,7 +24,7 @@
 /*
  * Board identifier.
  */
-#define BOARD_PECANPICO9A
+#define BOARD_PECANPICO10A
 #define BOARD_NAME                  "Pecan Pico 10a"
 
 /*

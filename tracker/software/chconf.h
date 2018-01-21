@@ -25,8 +25,8 @@
  * @{
  */
 
-#ifndef CHCONF_H
-#define CHCONF_H
+#ifndef _CHCONF_H_
+#define _CHCONF_H_
 
 #define _CHIBIOS_RT_CONF_
 #define _CHIBIOS_RT_CONF_VER_5_0_
@@ -49,7 +49,19 @@
  * @details Frequency of the system timer that drives the system ticks. This
  *          setting also defines the system tick time unit.
  */
-#define CH_CFG_ST_FREQUENCY                 10000
+#define CH_CFG_ST_FREQUENCY                 20000
+
+/**
+ * @brief   Time intervals data size.
+ * @note    Allowed values are 16, 32 or 64 bits.
+ */
+#define CH_CFG_INTERVALS_SIZE               32
+
+/**
+ * @brief   Time types data size.
+ * @note    Allowed values are 16 or 32 bits.
+ */
+#define CH_CFG_TIME_TYPES_SIZE              32
 
 /**
  * @brief   Time delta constant for the tick-less mode.
@@ -133,6 +145,16 @@
  * @{
  */
 /*===========================================================================*/
+
+/**
+ * @brief   Print subsystem.
+ * @details If enabled then the print subsystem supports output
+ *          of float (%f).
+ *
+ * @note    The default is @p FALSE.
+ *
+ */
+#define CHPRINTF_USE_FLOAT                  TRUE
 
 /**
  * @brief   Time Measurement APIs.
@@ -266,6 +288,14 @@
 #define CH_CFG_USE_MAILBOXES                TRUE
 
 /**
+ * @brief   I/O Queues APIs.
+ * @details If enabled then the I/O queues APIs are included in the kernel.
+ *
+ * @note    The default is @p TRUE.
+ */
+#define CH_CFG_USE_QUEUES                   TRUE
+
+/**
  * @brief   Core Memory Manager APIs.
  * @details If enabled then the core memory manager APIs are included
  *          in the kernel.
@@ -305,6 +335,19 @@
 #define CH_CFG_USE_OBJ_FIFOS                TRUE
 
 /**
+ * @name    Objects factory settings.
+ * @{
+ */
+#define CH_CFG_USE_FACTORY                  TRUE
+#define CH_CFG_FACTORY_MAX_NAMES_LENGTH     8
+#define CH_CFG_FACTORY_OBJECTS_REGISTRY     TRUE
+#define CH_CFG_FACTORY_GENERIC_BUFFERS      TRUE
+#define CH_CFG_FACTORY_SEMAPHORES           TRUE
+#define CH_CFG_FACTORY_MAILBOXES            TRUE
+#define CH_CFG_FACTORY_OBJ_FIFOS            TRUE
+/** @} */
+
+/**
  * @brief   Dynamic Threads APIs.
  * @details If enabled then the dynamic threads creation APIs are included
  *          in the kernel.
@@ -314,56 +357,6 @@
  * @note    Requires @p CH_CFG_USE_HEAP and/or @p CH_CFG_USE_MEMPOOLS.
  */
 #define CH_CFG_USE_DYNAMIC                  TRUE
-
-/** @} */
-
-/*===========================================================================*/
-/**
- * @name Objects factory options
- * @{
- */
-/*===========================================================================*/
-
-/**
- * @brief   Objects Factory APIs.
- * @details If enabled then the objects factory APIs are included in the
- *          kernel.
- *
- * @note    The default is @p FALSE.
- */
-#define CH_CFG_USE_FACTORY                  TRUE
-
-/**
- * @brief   Maximum length for object names.
- * @details If the specified length is zero then the name is stored by
- *          pointer but this could have unintended side effects.
- */
-#define CH_CFG_FACTORY_MAX_NAMES_LENGTH     8
-
-/**
- * @brief   Enables the registry of generic objects.
- */
-#define CH_CFG_FACTORY_OBJECTS_REGISTRY     TRUE
-
-/**
- * @brief   Enables factory for generic buffers.
- */
-#define CH_CFG_FACTORY_GENERIC_BUFFERS      TRUE
-
-/**
- * @brief   Enables factory for semaphores.
- */
-#define CH_CFG_FACTORY_SEMAPHORES           TRUE
-
-/**
- * @brief   Enables factory for mailboxes.
- */
-#define CH_CFG_FACTORY_MAILBOXES            TRUE
-
-/**
- * @brief   Enables factory for objects FIFOs.
- */
-#define CH_CFG_FACTORY_OBJ_FIFOS            TRUE
 
 /** @} */
 
@@ -467,6 +460,22 @@
 /*===========================================================================*/
 
 /**
+ * @brief   System structure extension.
+ * @details User fields added to the end of the @p ch_system_t structure.
+ */
+#define CH_CFG_SYSTEM_EXTRA_FIELDS                                          \
+  /* Add threads custom fields here.*/
+
+/**
+ * @brief   System initialization hook.
+ * @details User initialization code added to the @p chSysInit() function
+ *          just before interrupts are enabled globally.
+ */
+#define CH_CFG_SYSTEM_INIT_HOOK(tp) {                                       \
+  /* Add threads initialization code here.*/                                \
+}
+
+/**
  * @brief   Threads descriptor structure extension.
  * @details User fields added to the end of the @p thread_t structure.
  */
@@ -487,6 +496,10 @@
 /**
  * @brief   Threads finalization hook.
  * @details User finalization code added to the @p chThdExit() API.
+ *
+ * @note    It is inserted into lock zone.
+ * @note    It is also invoked when the threads simply return in order to
+ *          terminate.
  */
 #define CH_CFG_THREAD_EXIT_HOOK(tp) {                                       \
   /* Add threads finalization code here.*/                                  \
@@ -521,7 +534,6 @@
  * @note    This macro can be used to activate a power saving mode.
  */
 #define CH_CFG_IDLE_ENTER_HOOK() {                                          \
-  /* Idle-enter code here.*/                                                \
 }
 
 /**
@@ -531,7 +543,6 @@
  * @note    This macro can be used to deactivate a power saving mode.
  */
 #define CH_CFG_IDLE_LEAVE_HOOK() {                                          \
-  /* Idle-leave code here.*/                                                \
 }
 
 /**
@@ -560,6 +571,9 @@
   /* System halt code here.*/                                               \
 }
 
+/** @} */
+
+
 /**
  * @brief   Trace hook.
  * @details This hook is invoked each time a new record is written in the
@@ -575,6 +589,7 @@
 /* Port-specific settings (override port settings defaulted in chcore.h).    */
 /*===========================================================================*/
 
-#endif  /* CHCONF_H */
+#endif  /* _CHCONF_H_ */
 
 /** @} */
+

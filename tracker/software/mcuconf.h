@@ -14,8 +14,8 @@
     limitations under the License.
 */
 
-#ifndef MCUCONF_H
-#define MCUCONF_H
+#ifndef _MCUCONF_H_
+#define _MCUCONF_H_
 
 #include "config.h"
 
@@ -277,4 +277,4 @@
  */
 #define STM32_WDG_USE_IWDG                  TRUE
 
-#endif /* MCUCONF_H */
+#endif /* _MCUCONF_H_ */
