@@ -70,7 +70,7 @@
  * PAL driver system settings.
  */
 #define STM32_DISABLE_EXTI1_HANDLER
-#define STM32_DISABLE_EXTI10_15_HANDLER
+#define STM32_DISABLE_EXTI5_9_HANDLER
 
 /*
  * ADC driver system settings.

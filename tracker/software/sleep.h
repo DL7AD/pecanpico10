@@ -9,7 +9,7 @@
 #define TX_CONTINUOSLY				trigger_immediately
 
 bool p_sleep(const sleep_conf_t *config);
-interval_t waitForTrigger(interval_t prev, trigger_conf_t *config);
+sysinterval_t waitForTrigger(sysinterval_t prev, trigger_conf_t *config);
 void trigger_new_tracking_point(void);
 void trigger_immediately(void);
 
