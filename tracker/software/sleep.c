@@ -52,10 +52,7 @@ sysinterval_t waitForTrigger(sysinterval_t prev, trigger_conf_t *config)
 			return chVTGetSystemTimeX();
 
 		case TRIG_ONCE: // No trigger defined
-			while(true)
-			{
-				chThdSleep(TIME_S2I(10));
-			}
+			chThdSleep(TIME_S2I(10));
 	}
 
 	return chVTGetSystemTimeX();

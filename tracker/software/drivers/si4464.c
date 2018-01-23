@@ -22,99 +22,7 @@ static uint32_t outdiv;
 static bool initialized = false;
 static int16_t lastTemp;
 
-/**
- * Initializes Si4464 transceiver chip. Adjustes the frequency which is shifted by variable
- * oscillator voltage.
- * @param mv Oscillator voltage in mv
- */
-void Si4464_Init(void) {
-	// Configure Radio pins
-	palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);		// SCK
-	palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MISO
-	palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MOSI
-	palSetLineMode(LINE_RADIO_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// RADIO CS
-	palSetLineMode(LINE_SD_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// SD CS
-	palSetLineMode(LINE_RADIO_SDN, PAL_MODE_OUTPUT_PUSHPULL);							// RADIO SDN
-	palSetLineMode(LINE_TCXO_EN, PAL_MODE_OUTPUT_PUSHPULL);								// Oscillator
-
-	// Pull CS of all SPI slaves high
-	palSetLine(LINE_SD_CS);
-	palSetLine(LINE_RADIO_CS);
-
-	// Reset radio
-	palSetLine(LINE_RADIO_SDN);
-	palSetLine(LINE_TCXO_EN); // Activate Oscillator
-	chThdSleep(TIME_MS2I(10));
-
-	// Power up transmitter
-	palClearLine(LINE_RADIO_SDN);	// Radio SDN low (power up transmitter)
-	chThdSleep(TIME_MS2I(10));		// Wait for transmitter to power up
-
-	// Power up (transmits oscillator type)
-	uint8_t x3 = (RADIO_CLK >> 24) & 0x0FF;
-	uint8_t x2 = (RADIO_CLK >> 16) & 0x0FF;
-	uint8_t x1 = (RADIO_CLK >>  8) & 0x0FF;
-	uint8_t x0 = (RADIO_CLK >>  0) & 0x0FF;
-	uint8_t init_command[] = {0x02, 0x01, 0x01, x3, x2, x1, x0};
-	Si4464_write(init_command, 7);
-	chThdSleep(TIME_MS2I(25));
-
-	// Set transmitter GPIOs
-	uint8_t gpio_pin_cfg_command[] = {
-		0x13,	// Command type = GPIO settings
-		0x00,	// GPIO0        0 - PULL_CTL[1bit] - GPIO_MODE[6bit]
-		0x23,	// GPIO1        0 - PULL_CTL[1bit] - GPIO_MODE[6bit]
-		0x21,	// GPIO2        0 - PULL_CTL[1bit] - GPIO_MODE[6bit]
-		0x20,	// GPIO3        0 - PULL_CTL[1bit] - GPIO_MODE[6bit]
-		0x00,	// NIRQ
-		0x00,	// SDO
-		0x00	// GEN_CONFIG
-	};
-	Si4464_write(gpio_pin_cfg_command, 8);
-	chThdSleep(TIME_MS2I(25));
-
-	// Set FIFO empty interrupt threshold (32 byte)
-	uint8_t set_fifo_irq[] = {0x11, 0x12, 0x01, 0x0B, 0x20};
-	Si4464_write(set_fifo_irq, 5);
-
-	// Set FIFO to 129 byte
-	uint8_t set_129byte[] = {0x11, 0x00, 0x01, 0x03, 0x10};
-	Si4464_write(set_129byte, 5);
-
-	// Reset FIFO
-	uint8_t reset_fifo[] = {0x15, 0x01};
-	Si4464_write(reset_fifo, 2);
-	uint8_t unreset_fifo[] = {0x15, 0x00};
-	Si4464_write(unreset_fifo, 2);
-
-	// Disable preamble
-	uint8_t disable_preamble[] = {0x11, 0x10, 0x01, 0x00, 0x00};
-	Si4464_write(disable_preamble, 5);
-
-	// Do not transmit sync word
-	uint8_t no_sync_word[] = {0x11, 0x11, 0x01, 0x00, (0x01 << 7)};
-	Si4464_write(no_sync_word, 5);
-
-	// Setup the NCO modulo and oversampling mode
-	uint32_t s = RADIO_CLK / 10;
-	uint8_t f3 = (s >> 24) & 0xFF;
-	uint8_t f2 = (s >> 16) & 0xFF;
-	uint8_t f1 = (s >>  8) & 0xFF;
-	uint8_t f0 = (s >>  0) & 0xFF;
-	uint8_t setup_oversampling[] = {0x11, 0x20, 0x04, 0x06, f3, f2, f1, f0};
-	Si4464_write(setup_oversampling, 8);
-
-	// transmit LSB first
-	uint8_t use_lsb_first[] = {0x11, 0x12, 0x01, 0x06, 0x01};
-	Si4464_write(use_lsb_first, 5);
-
-	// Temperature readout
-	lastTemp = Si4464_getTemperature();
-	TRACE_INFO("SI   > Transmitter temperature %d degC", lastTemp/100);
-	initialized = true;
-}
-
-void Si4464_write(uint8_t* txData, uint32_t len) {
+static void Si4464_write(const uint8_t* txData, uint32_t len) {
 	// Transmit data by SPI
 	uint8_t rxData[len];
 	
@@ -145,7 +53,7 @@ void Si4464_write(uint8_t* txData, uint32_t len) {
 /**
  * Read register from Si4464. First Register CTS is included.
  */
-void Si4464_read(uint8_t* txData, uint32_t txlen, uint8_t* rxData, uint32_t rxlen) {
+static void Si4464_read(const uint8_t* txData, uint32_t txlen, uint8_t* rxData, uint32_t rxlen) {
 	// Transmit data by SPI
 	uint8_t null_spi[txlen];
 	// SPI transfer
@@ -171,6 +79,272 @@ void Si4464_read(uint8_t* txData, uint32_t txlen, uint8_t* rxData, uint32_t rxle
 	}
 	spiStop(&SPID3);
 	spiReleaseBus(&SPID3);
+}
+
+/**
+ * Initializes Si4464 transceiver chip. Adjustes the frequency which is shifted by variable
+ * oscillator voltage.
+ * @param mv Oscillator voltage in mv
+ */
+void Si4464_Init(void) {
+	// Configure Radio pins
+	palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);		// SCK
+	palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MISO
+	palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MOSI
+	palSetLineMode(LINE_RADIO_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// RADIO CS
+	palSetLineMode(LINE_SD_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// SD CS
+	palSetLineMode(LINE_RADIO_SDN, PAL_MODE_OUTPUT_PUSHPULL);							// RADIO SDN
+	palSetLineMode(LINE_TCXO_EN, PAL_MODE_OUTPUT_PUSHPULL);								// Oscillator
+
+	// Pull CS of all SPI slaves high
+	palSetLine(LINE_SD_CS);
+	palSetLine(LINE_RADIO_CS);
+
+	// Reset radio
+	palSetLine(LINE_RADIO_SDN);
+	palSetLine(LINE_TCXO_EN); // Activate Oscillator
+	chThdSleep(TIME_MS2I(10));
+
+	// Power up transmitter
+	palClearLine(LINE_RADIO_SDN);	// Radio SDN low (power up transmitter)
+	chThdSleep(TIME_MS2I(10));		// Wait for transmitter to power up
+
+	// Power up (transmits oscillator type)
+	const uint8_t x3 = (RADIO_CLK >> 24) & 0x0FF;
+	const uint8_t x2 = (RADIO_CLK >> 16) & 0x0FF;
+	const uint8_t x1 = (RADIO_CLK >>  8) & 0x0FF;
+	const uint8_t x0 = (RADIO_CLK >>  0) & 0x0FF;
+	const uint8_t init_command[] = {0x02, 0x01, (RADIO_TCXO_EN & 0x1), x3, x2, x1, x0};
+	Si4464_write(init_command, 7);
+	chThdSleep(TIME_MS2I(25));
+
+	// Set transmitter GPIOs
+	uint8_t gpio_pin_cfg_command[] = {
+		0x13,	// Command type = GPIO settings
+		0x14,	// GPIO0        GPIO_MODE = RX_DATA
+		0x00,	// GPIO1        GPIO_MODE = DONOTHING
+		0x21,	// GPIO2        GPIO_MODE = RX_STATE
+		0x20,	// GPIO3        GPIO_MODE = TX_STATE
+		0x1B,	// NIRQ         NIRQ_MODE = CCA
+		0x0B,	// SDO          SDO_MODE = SDO
+		0x00	// GEN_CONFIG
+	};
+	Si4464_write(gpio_pin_cfg_command, 8);
+	chThdSleep(TIME_MS2I(25));
+
+	#if !RADIO_TCXO_EN
+	// Set internal capacitance for XTAL in-/ and output
+	uint8_t set_global_xo_tune[] = {0x11, 0x00, 0x01, 0x00, 0x52};
+	Si4464_write(set_global_xo_tune, 5);
+	#endif
+
+	// Disable Fast Response Registers
+	for(uint8_t i=0; i<4; i++) {
+		uint8_t set_frr_ctl_mode[] = {0x11, 0x02, 0x01, i, 0x00};
+		Si4464_write(set_frr_ctl_mode, 5);
+	}
+
+	// Set global config: FIFO=129byte, SEQUENCER_MODE and RESERVED bit (this was generated by WDS, I dont know why the reserved bit is set which should be 0)
+	const uint8_t set_global_config[] = {0x11, 0x00, 0x01, 0x03, 0x70};
+	Si4464_write(set_global_config, 5);
+
+	// Reset FIFO
+	const uint8_t reset_fifo[] = {0x15, 0x01};
+	Si4464_write(reset_fifo, 2);
+	const uint8_t unreset_fifo[] = {0x15, 0x00};
+	Si4464_write(unreset_fifo, 2);
+
+	// Setup RSSI: CHECK_THRESH_AT_LATCH disabled, AVERAGE=AVERAGE4, LATCH disabled
+	const uint8_t set_modem_rssi_control[] = {0x11, 0x20, 0x01, 0x4C, 0x00};
+	Si4464_write(set_modem_rssi_control, 5);
+
+	// Set RSSI threshold
+	const uint8_t set_modem_rssi_threshold[] = {0x11, 0x20, 0x01, 0x4A, 0x5F};
+	Si4464_write(set_modem_rssi_threshold, 5);
+
+	// Disable preamble (TX)
+	const uint8_t set_preamble_tx_length[] = {0x11, 0x10, 0x01, 0x00, 0x00};
+	Si4464_write(set_preamble_tx_length, 5);
+
+	// Setup preamble (RX)
+	const uint8_t set_preamble_config_std1[] = {0x11, 0x10, 0x01, 0x01, 0x14};
+	Si4464_write(set_preamble_config_std1, 5);
+
+	// Disable Manchester encoding
+	const uint8_t set_modem_map_control[] = {0x11, 0x20, 0x01, 0x01, 0x00};
+	Si4464_write(set_modem_map_control, 5);
+
+	// Do not transmit sync word
+	const uint8_t no_sync_word[] = {0x11, 0x11, 0x01, 0x00, (0x01 << 7)};
+	Si4464_write(no_sync_word, 5);
+
+	// transmit LSB first, disable RX PH
+	const uint8_t use_lsb_first[] = {0x11, 0x12, 0x01, 0x06, 0x41};
+	Si4464_write(use_lsb_first, 5);
+
+	// Select phase source
+	const uint8_t set_mdm_ctrl[] = {0x11, 0x20, 0x01, 0x19, 0x80};
+	Si4464_write(set_mdm_ctrl, 5);
+
+	// Set IF frequency (RX)
+	const uint8_t set_if_freq[] = {0x11, 0x20, 0x03, 0x1B, 0x02, 0x80, 0x00};
+	Si4464_write(set_if_freq, 7);
+
+	// Set decimation
+	#if RADIO_CLK == 26000000
+	const uint8_t set_decimation_cfg[] = {0x11, 0x20, 0x02, 0x1E, 0x30, 0x20};
+	#elif RADIO_CLK == 30000000
+	const uint8_t set_decimation_cfg[] = {0x11, 0x20, 0x02, 0x1E, 0x20, 0x10};
+	#endif
+	Si4464_write(set_decimation_cfg, 6);
+
+
+	// Set RX BCR/Slicer oversampling rate
+	#if RADIO_CLK == 26000000
+	const uint8_t set_bcr_osr[] = {0x11, 0x20, 0x02, 0x22, 0x00, 0x47};
+	#elif RADIO_CLK == 30000000
+	const uint8_t set_bcr_osr[] = {0x11, 0x20, 0x02, 0x22, 0x00, 0x52};
+	#endif
+	Si4464_write(set_bcr_osr, 6);
+
+	// Set RX BCR NCO offset value
+	#if RADIO_CLK == 26000000
+	const uint8_t set_bcr_nco_offset[] = {0x11, 0x20, 0x03, 0x24, 0x07, 0x35, 0x7E};
+	#elif RADIO_CLK == 30000000
+	const uint8_t set_bcr_nco_offset[] = {0x11, 0x20, 0x03, 0x24, 0x06, 0x3D, 0x10};
+	#endif
+	Si4464_write(set_bcr_nco_offset, 7);
+
+	// Set RX BCR loop gain value
+	#if RADIO_CLK == 26000000
+	const uint8_t set_bcr_gain[] = {0x11, 0x20, 0x02, 0x27, 0x03, 0x9B};
+	#elif RADIO_CLK == 30000000
+	const uint8_t set_bcr_gain[] = {0x11, 0x20, 0x02, 0x27, 0x03, 0x1F};
+	#endif
+	Si4464_write(set_bcr_gain, 6);
+
+	// Set RX BCR loop gear control
+	const uint8_t set_bcr_gear[] = {0x11, 0x20, 0x01, 0x29, 0x00};
+	Si4464_write(set_bcr_gear, 5);
+
+	// Set miscellaneous control bits for the RX BCR loop
+	const uint8_t set_bcr_misc[] = {0x11, 0x20, 0x01, 0x2A, 0xC2};
+	Si4464_write(set_bcr_misc, 5);
+
+
+	// Set AFC gear
+	const uint8_t set_afc_gear[] = {0x11, 0x20, 0x01, 0x2C, 0x54};
+	Si4464_write(set_afc_gear, 5);
+
+	// Set AFC wait
+	const uint8_t set_afc_wait[] = {0x11, 0x20, 0x01, 0x2D, 0x36};
+	Si4464_write(set_afc_wait, 5);
+
+	// Set AFC gain
+	#if RADIO_CLK == 26000000
+	const uint8_t set_afc_gain[] = {0x11, 0x20, 0x02, 0x2E, 0x82, 0x00};
+	#elif RADIO_CLK == 30000000
+	const uint8_t set_afc_gain[] = {0x11, 0x20, 0x02, 0x2E, 0x82, 0xAA};
+	#endif
+	Si4464_write(set_afc_gain, 6);
+
+	// Set AFC limiter
+	const uint8_t set_afc_limiter[] = {0x11, 0x20, 0x02, 0x30, 0x00, 0x95};
+	Si4464_write(set_afc_limiter, 6);
+
+	// Set AFC misc
+	const uint8_t set_afc_misc[] = {0x11, 0x20, 0x01, 0x32, 0x80};
+	Si4464_write(set_afc_misc, 5);
+
+
+	// Set AGC control
+	const uint8_t set_agc_control[] = {0x11, 0x20, 0x01, 0x35, 0xE2};
+	Si4464_write(set_agc_control, 5);
+
+	// Set AGC RFPD decay
+	#if RADIO_CLK == 26000000
+	const uint8_t set_agc_rfpd_decay[] = {0x11, 0x20, 0x01, 0x39, 0x10};
+	#elif RADIO_CLK == 30000000
+	const uint8_t set_agc_rfpd_decay[] = {0x11, 0x20, 0x01, 0x39, 0x12};
+	#endif
+	Si4464_write(set_agc_rfpd_decay, 5);
+
+	// Set AGC RFPD decay
+	#if RADIO_CLK == 26000000
+	const uint8_t set_agc_ifpd_decay[] = {0x11, 0x20, 0x01, 0x3a, 0x10};
+	#elif RADIO_CLK == 30000000
+	const uint8_t set_agc_ifpd_decay[] = {0x11, 0x20, 0x01, 0x3a, 0x12};
+	#endif
+	Si4464_write(set_agc_ifpd_decay, 5);
+
+
+	// 4FSK settings
+	const uint8_t set_fsk4_gain1[] = {0x11, 0x20, 0x01, 0x3B, 0x00};
+	Si4464_write(set_fsk4_gain1, 5);
+	const uint8_t set_fsk4_gain0[] = {0x11, 0x20, 0x01, 0x3C, 0x02};
+	Si4464_write(set_fsk4_gain0, 5);
+	const uint8_t set_fsk4_th[] = {0x11, 0x20, 0x02, 0x3D, 0x02, 0x6D};
+	Si4464_write(set_fsk4_th, 6);
+	const uint8_t set_fsk4_map[] = {0x11, 0x20, 0x01, 0x3F, 0x00};
+	Si4464_write(set_fsk4_map, 5);
+
+	const uint8_t set_ook_pdtc[] = {0x11, 0x20, 0x01, 0x40, 0x28};
+	Si4464_write(set_ook_pdtc, 5);
+
+	#if RADIO_CLK == 26000000
+	const uint8_t set_ook_cnt1[] = {0x11, 0x20, 0x01, 0x42, 0x85};
+	const uint8_t set_ook_misc[] = {0x11, 0x20, 0x01, 0x43, 0x23};
+	#elif RADIO_CLK == 30000000
+	const uint8_t set_ook_cnt1[] = {0x11, 0x20, 0x01, 0x42, 0x84};
+	const uint8_t set_ook_misc[] = {0x11, 0x20, 0x01, 0x43, 0x03};
+	#endif
+	Si4464_write(set_ook_cnt1, 5);
+	Si4464_write(set_ook_misc, 5);
+
+	const uint8_t set_dsa_ctrl1[] = {0x11, 0x20, 0x01, 0x5B, 0xA0};
+	Si4464_write(set_dsa_ctrl1, 5);
+	const uint8_t set_dsa_ctrl2[] = {0x11, 0x20, 0x01, 0x5C, 0x04};
+	Si4464_write(set_dsa_ctrl2, 5);
+
+	const uint8_t set_raw_search[] = {0x11, 0x20, 0x01, 0x44, 0xD6};
+	Si4464_write(set_raw_search, 5);
+
+
+	const uint8_t set_raw_control[] = {0x11, 0x20, 0x01, 0x45, 0x8F};
+	Si4464_write(set_raw_control, 5);
+
+	#if RADIO_CLK == 26000000
+	const uint8_t set_raw_eye[] = {0x11, 0x20, 0x01, 0x46, 0x00, 0x11};
+	#elif RADIO_CLK == 30000000
+	const uint8_t set_raw_eye[] = {0x11, 0x20, 0x01, 0x46, 0x00, 0x0F};
+	#endif
+	Si4464_write(set_raw_eye, 6);
+
+	const uint8_t set_ant_div_mode[] = {0x11, 0x20, 0x01, 0x48, 0x01};
+	Si4464_write(set_ant_div_mode, 5);
+
+	const uint8_t set_ant_div_control[] = {0x11, 0x20, 0x01, 0x49, 0x80};
+	Si4464_write(set_ant_div_control, 5);
+
+	const uint8_t set_rssi_comp[] = {0x11, 0x20, 0x01, 0x4E, 0x40};
+	Si4464_write(set_rssi_comp, 5);
+
+
+	// Set CHFLT Filter
+	const uint8_t set_chflt1[] = {0x11, 0x21, 0x0C, 0x00, 0xA2, 0xA0, 0x97, 0x8A, 0x79, 0x66, 0x52, 0x3F, 0x2E, 0x1F, 0x14, 0x0B};
+	Si4464_write(set_chflt1, 16);
+
+	const uint8_t set_chflt2[] = {0x11, 0x21, 0x0C, 0x0C, 0x06, 0x02, 0x00, 0x00, 0x00, 0x00, 0xA2, 0xA0, 0x97, 0x8A, 0x79, 0x66};
+	Si4464_write(set_chflt2, 16);
+
+	const uint8_t set_chflt3[] = {0x11, 0x21, 0x0C, 0x18, 0x52, 0x3F, 0x2E, 0x1F, 0x14, 0x0B, 0x06, 0x02, 0x00, 0x00, 0x00, 0x00};
+	Si4464_write(set_chflt3, 16);
+
+
+	// Temperature readout
+	lastTemp = Si4464_getTemperature();
+	TRACE_INFO("SI   > Transmitter temperature %d degC", lastTemp/100);
+	initialized = true;
 }
 
 void setFrequency(uint32_t freq, uint16_t shift) {
@@ -230,16 +404,25 @@ void setShift(uint16_t shift) {
 }
 
 void setModemAFSK(void) {
+	// Setup the NCO modulo and oversampling mode
+	uint32_t s = RADIO_CLK / 10;
+	uint8_t f3 = (s >> 24) & 0xFF;
+	uint8_t f2 = (s >> 16) & 0xFF;
+	uint8_t f1 = (s >>  8) & 0xFF;
+	uint8_t f0 = (s >>  0) & 0xFF;
+	uint8_t setup_oversampling[] = {0x11, 0x20, 0x04, 0x06, f3, f2, f1, f0};
+	Si4464_write(setup_oversampling, 8);
+
 	// Setup the NCO data rate for APRS
-	uint8_t setup_data_rate[] = {0x11, 0x20, 0x03, 0x03, 0x00, 0x33, 0x90};
+	const uint8_t setup_data_rate[] = {0x11, 0x20, 0x03, 0x03, 0x00, 0x33, 0x90};
 	Si4464_write(setup_data_rate, 7);
 
-	// Use 2FSK from FIFO (PH)
-	uint8_t use_2fsk[] = {0x11, 0x20, 0x01, 0x00, 0x03};
+	// Use 2GFSK from FIFO (PH)
+	const uint8_t use_2fsk[] = {0x11, 0x20, 0x01, 0x00, 0x03};
 	Si4464_write(use_2fsk, 5);
 
 	// Set AFSK filter
-	uint8_t coeff[] = {0x81, 0x9f, 0xc4, 0xee, 0x18, 0x3e, 0x5c, 0x70, 0x76};
+	const uint8_t coeff[] = {0x81, 0x9f, 0xc4, 0xee, 0x18, 0x3e, 0x5c, 0x70, 0x76};
 	uint8_t i;
 	for(i=0; i<sizeof(coeff); i++) {
 		uint8_t msg[] = {0x11, 0x20, 0x01, 0x17-i, coeff[i]};
@@ -247,13 +430,41 @@ void setModemAFSK(void) {
 	}
 }
 
+void setModemAFSK_RX(void) {
+	// Setup the NCO modulo and oversampling mode
+	uint32_t s = RADIO_CLK;
+	uint8_t f3 = (s >> 24) & 0xFF;
+	uint8_t f2 = (s >> 16) & 0xFF;
+	uint8_t f1 = (s >>  8) & 0xFF;
+	uint8_t f0 = (s >>  0) & 0xFF;
+	uint8_t setup_oversampling[] = {0x11, 0x20, 0x04, 0x06, f3, f2, f1, f0};
+	Si4464_write(setup_oversampling, 8);
+
+	// Setup the NCO data rate for APRS
+	const uint8_t setup_data_rate[] = {0x11, 0x20, 0x03, 0x03, 0x04, 0x07, 0x40};
+	Si4464_write(setup_data_rate, 7);
+
+	// Use 2FSK in DIRECT_MODE
+	const uint8_t use_2fsk[] = {0x11, 0x20, 0x01, 0x00, 0x0A};
+	Si4464_write(use_2fsk, 5);
+}
+
 void setModem2FSK(fsk_conf_t* conf) {
+	// Setup the NCO modulo and oversampling mode
+	const uint32_t s = RADIO_CLK / 10;
+	const uint8_t f3 = (s >> 24) & 0xFF;
+	const uint8_t f2 = (s >> 16) & 0xFF;
+	const uint8_t f1 = (s >>  8) & 0xFF;
+	const uint8_t f0 = (s >>  0) & 0xFF;
+	const uint8_t setup_oversampling[] = {0x11, 0x20, 0x04, 0x06, f3, f2, f1, f0};
+	Si4464_write(setup_oversampling, 8);
+
 	// Setup the NCO data rate for 2FSK
 	uint8_t setup_data_rate[] = {0x11, 0x20, 0x03, 0x03, (uint8_t)(conf->speed >> 16), (uint8_t)(conf->speed >> 8), (uint8_t)conf->speed};
 	Si4464_write(setup_data_rate, 7);
 
 	// Use 2FSK from FIFO (PH)
-	uint8_t use_2fsk[] = {0x11, 0x20, 0x01, 0x00, 0x03};
+	const uint8_t use_2fsk[] = {0x11, 0x20, 0x01, 0x00, 0x03};
 	Si4464_write(use_2fsk, 5);
 }
 
@@ -269,8 +480,13 @@ void startTx(uint16_t size) {
 }
 
 void stopTx(void) {
-	uint8_t change_state_command[] = {0x34, 0x03};
+	const uint8_t change_state_command[] = {0x34, 0x03};
 	Si4464_write(change_state_command, 2);
+}
+
+void startRx(void) {
+	const uint8_t change_state_command[] = {0x32, 0x5E, 0x00, 0x00, 0x00, 0x00, 0x08, 0x08};
+	Si4464_write(change_state_command, 8);
 }
 
 void Si4464_shutdown(void) {
@@ -319,7 +535,7 @@ void Si4464_writeFIFO(uint8_t *msg, uint8_t size) {
   * Returns free space in FIFO of Si4464
   */
 uint8_t Si4464_freeFIFO(void) {
-	uint8_t fifo_info[2] = {0x15, 0x00};
+	const uint8_t fifo_info[2] = {0x15, 0x00};
 	uint8_t rxData[4];
 	Si4464_read(fifo_info, 2, rxData, 4);
 	return rxData[3];
@@ -329,14 +545,14 @@ uint8_t Si4464_freeFIFO(void) {
   * Returns internal state of Si4464
   */
 uint8_t Si4464_getState(void) {
-	uint8_t fifo_info[1] = {0x33};
+	const uint8_t fifo_info[1] = {0x33};
 	uint8_t rxData[4];
 	Si4464_read(fifo_info, 1, rxData, 4);
 	return rxData[2];
 }
 
 int16_t Si4464_getTemperature(void) {
-	uint8_t txData[2] = {0x14, 0x10};
+	const uint8_t txData[2] = {0x14, 0x10};
 	uint8_t rxData[8];
 	Si4464_read(txData, 2, rxData, 8);
 	uint16_t adc = rxData[7] | ((rxData[6] & 0x7) << 8);

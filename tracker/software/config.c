@@ -412,7 +412,7 @@ void start_user_modules(void)
 	config[3].ssdv_conf.res = RES_QVGA;						// Resolution QVGA
 	//config[3].redundantTx = true;							// Redundant transmission (transmit packets twice)
 	config[3].ssdv_conf.quality = 4;						// Image quality
-	start_image_thread(&config[3]);
+	//start_image_thread(&config[3]);
 
 	// Module IMAGE, APRS 2m 2FSK
 	config[4].power = 127;									// Transmission Power

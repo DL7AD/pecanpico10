@@ -86,6 +86,7 @@ void printPicture(BaseSequentialStream *chp, int argc, char *argv[]);
 void readLog(BaseSequentialStream *chp, int argc, char *argv[]);
 void command2Camera(BaseSequentialStream *chp, int argc, char *argv[]);
 void send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]);
+void test_rx(BaseSequentialStream *chp, int argc, char *argv[]);
 
 #endif
 

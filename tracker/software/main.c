@@ -14,6 +14,7 @@ static const ShellCommand commands[] = {
 	{"config", printConfig},
 	{"command", command2Camera},
 	{"aprs_message", send_aprs_message},
+	{"test_rx", test_rx},
 	{NULL, NULL}
 };
 

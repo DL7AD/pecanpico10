@@ -9,6 +9,7 @@
 #include "ov5640.h"
 #include "geofence.h"
 #include "aprs.h"
+#include "si4464.h"
 
 const SerialConfig uart_config =
 {
@@ -27,7 +28,7 @@ void debugOnUSB(BaseSequentialStream *chp, int argc, char *argv[])
 	if(argc < 1)
 	{
 		chprintf(chp, "Argument missing!\r\n");
-		chprintf(chp, "Argument 1: 1 for switch on, 0 for switch off!\r\n");
+		chprintf(chp, "Argument 1: 1 for switch on, 0 for switch off\r\n");
 		return;
 	}
 
@@ -175,5 +176,40 @@ void send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[])
 
 	chprintf(chp, "Message sent!\r\n");
 }
+
+void test_rx(BaseSequentialStream *chp, int argc, char *argv[])
+{
+	(void)chp;
+	(void)argc;
+	(void)argv;
+
+	palSetLineMode(LINE_RADIO_IRQ, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
+	palSetLineMode(LINE_RADIO_GPIO0, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
+	palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
+	palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+
+	Si4464_Init();
+	setFrequency(144900000, 0);
+	setModemAFSK_RX();
+	startRx();
+
+	while(true)
+	{
+		bool irq = palReadLine(LINE_RADIO_IRQ);
+		//bool gpio0 = palReadLine(LINE_RADIO_GPIO0);
+		//bool gpio1 = palReadLine(LINE_RADIO_GPIO1);
+
+		palWritePad(GPIOA, 8, irq);
+		chThdSleep(TIME_MS2I(1));
+	}
+}
+
+
+
+
+
+
+
+
 
 

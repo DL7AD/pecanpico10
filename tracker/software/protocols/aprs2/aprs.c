@@ -150,6 +150,7 @@ packet_t aprs_encode_telemetry_configuration(const aprs_conf_t *config, uint8_t 
 		case 1: return aprs_encode_message(config, dest, "UNIT.V,V,W,degC,Pa", true);
 		case 2: return aprs_encode_message(config, dest, "EQNS.0,.001,0,0,.001,0,0,.001,-4.096,0,.1,-100,0,12.5,500", true);
 		case 3: return aprs_encode_message(config, dest, "BITS.11111111,", true);
+		default: return NULL;
 	}
 }
 

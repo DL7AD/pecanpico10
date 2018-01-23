@@ -50,13 +50,6 @@
 #define STM32F413xx
 
 /*
- * Radio specifications
- */
-#define RADIO_MIN_FREQ				144000000
-#define RADIO_MAX_FREQ				148000000
-#define RADIO_CLK					STM32_HSECLK
-
-/*
  * IO pins assignments.
  */
 #define GPIOA_PIN0                  0U
@@ -289,6 +282,7 @@
 // Radio pins
 #define LINE_RADIO_CS               PAL_LINE(GPIOC, 12U)
 #define LINE_RADIO_SDN              PAL_LINE(GPIOC, 10U)
+#define LINE_RADIO_IRQ              PAL_LINE(GPIOD, 2U)
 #define LINE_RADIO_GPIO0            PAL_LINE(GPIOB, 7U)
 #define LINE_RADIO_GPIO1            PAL_LINE(GPIOB, 6U)
 
