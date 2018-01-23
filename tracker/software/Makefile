@@ -156,6 +156,18 @@ CSRC = $(STARTUPSRC) \
        config.c \
        watchdog.c \
        usbcfg.c \
+       \
+       portab.c \
+	   io/protocols/crc_calc.c \
+	   io/managers/rxafsk.c \
+	   io/channels/rxpwm.c \
+	   io/filters/dsp.c \
+	   io/filters/firfilter_q31.c \
+	   io/decoders/corr_q31.c \
+	   io/protocols/rxhdlc.c \
+	   io/channels/rxpacket.c \
+	   sys/ihex_out.c \
+       \
        main.c \
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -240,7 +252,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -D_GNU_SOURCE
+UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4
 
 # Define ASM defines here
 UADEFS =
@@ -248,13 +260,15 @@ UADEFS =
 # List all user directories here
 UINCDIR = threads/ drivers/ drivers/wrapper/ protocols/aprs2 \
           protocols/ssdv protocols/morse math/ drivers/flash/ \
-          fatfs/src/ threads/radio/
+          fatfs/src/ threads/radio/ \
+          sys io/channels io/managers io/devices io/protocols \
+          io/filters io/decoders CMSIS/include 
 
 # List the user directory to look for the libraries here
-ULIBDIR =
+ULIBDIR = CMSIS/Lib/GCC
 
 # List all user libraries here
-ULIBS = -lm
+ULIBS = -lm CMSIS/Lib/GCC/libarm_cortexM4l_math.a
 
 #
 # End of user defines

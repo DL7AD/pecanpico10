@@ -1,5 +1,6 @@
 #include "ch.h"
 #include "hal.h"
+#include "pktconf.h"
 
 #include "debug.h"
 #include "threads.h"
