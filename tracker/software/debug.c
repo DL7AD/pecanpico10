@@ -183,7 +183,7 @@ void test_rx(BaseSequentialStream *chp, int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 
-	palSetLineMode(LINE_RADIO_IRQ, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
+	/*palSetLineMode(LINE_RADIO_IRQ, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
 	palSetLineMode(LINE_RADIO_GPIO0, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
 	palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
 	palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
@@ -201,7 +201,10 @@ void test_rx(BaseSequentialStream *chp, int argc, char *argv[])
 
 		palWritePad(GPIOA, 8, irq);
 		chThdSleep(TIME_MS2I(1));
-	}
+	}*/
+
+	startReceiver();
+
 }
 
 

@@ -47,5 +47,7 @@ uint8_t Si4464_getState(void);
 int16_t Si4464_getTemperature(void);
 int16_t Si4464_getLastTemperature(void);
 
+void init145_175(void);
+
 #endif
 

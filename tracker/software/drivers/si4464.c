@@ -121,8 +121,8 @@ void Si4464_Init(void) {
 	// Set transmitter GPIOs
 	uint8_t gpio_pin_cfg_command[] = {
 		0x13,	// Command type = GPIO settings
-		0x14,	// GPIO0        GPIO_MODE = RX_DATA
-		0x00,	// GPIO1        GPIO_MODE = DONOTHING
+		0x00,	// GPIO0        GPIO_MODE = DONOTHING
+		0x14,	// GPIO1        GPIO_MODE = RX_DATA
 		0x21,	// GPIO2        GPIO_MODE = RX_STATE
 		0x20,	// GPIO3        GPIO_MODE = TX_STATE
 		0x1B,	// NIRQ         NIRQ_MODE = CCA
@@ -159,7 +159,7 @@ void Si4464_Init(void) {
 	Si4464_write(set_modem_rssi_control, 5);
 
 	// Set RSSI threshold
-	const uint8_t set_modem_rssi_threshold[] = {0x11, 0x20, 0x01, 0x4A, 0x5F};
+	const uint8_t set_modem_rssi_threshold[] = {0x11, 0x20, 0x01, 0x4A, 0x8F};
 	Si4464_write(set_modem_rssi_threshold, 5);
 
 	// Disable preamble (TX)
@@ -345,6 +345,223 @@ void Si4464_Init(void) {
 	lastTemp = Si4464_getTemperature();
 	TRACE_INFO("SI   > Transmitter temperature %d degC", lastTemp/100);
 	initialized = true;
+}
+
+void init145_175(void) {
+	// Configure Radio pins
+	palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);		// SCK
+	palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MISO
+	palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MOSI
+	palSetLineMode(LINE_RADIO_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// RADIO CS
+	palSetLineMode(LINE_SD_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// SD CS
+	palSetLineMode(LINE_RADIO_SDN, PAL_MODE_OUTPUT_PUSHPULL);							// RADIO SDN
+	palSetLineMode(LINE_TCXO_EN, PAL_MODE_OUTPUT_PUSHPULL);								// Oscillator
+
+	// Pull CS of all SPI slaves high
+	palSetLine(LINE_SD_CS);
+	palSetLine(LINE_RADIO_CS);
+
+	// Reset radio
+	palSetLine(LINE_RADIO_SDN);
+	palSetLine(LINE_TCXO_EN); // Activate Oscillator
+	chThdSleep(TIME_MS2I(10));
+
+	// Power up transmitter
+	palClearLine(LINE_RADIO_SDN);	// Radio SDN low (power up transmitter)
+	chThdSleep(TIME_MS2I(10));		// Wait for transmitter to power up
+
+	// Power up (transmits oscillator type)
+	const uint8_t x3 = (RADIO_CLK >> 24) & 0x0FF;
+	const uint8_t x2 = (RADIO_CLK >> 16) & 0x0FF;
+	const uint8_t x1 = (RADIO_CLK >>  8) & 0x0FF;
+	const uint8_t x0 = (RADIO_CLK >>  0) & 0x0FF;
+	const uint8_t init_command[] = {0x02, 0x01, (RADIO_TCXO_EN & 0x1), x3, x2, x1, x0};
+	Si4464_write(init_command, 7);
+	chThdSleep(TIME_MS2I(25));
+
+	// Set transmitter GPIOs
+	uint8_t gpio_pin_cfg_command[] = {
+		0x13,	// Command type = GPIO settings
+		0x00,	// GPIO0        GPIO_MODE = DONOTHING
+		0x14,	// GPIO1        GPIO_MODE = RX_DATA
+		0x21,	// GPIO2        GPIO_MODE = RX_STATE
+		0x20,	// GPIO3        GPIO_MODE = TX_STATE
+		0x1B,	// NIRQ         NIRQ_MODE = CCA
+		0x0B,	// SDO          SDO_MODE = SDO
+		0x00	// GEN_CONFIG
+	};
+	Si4464_write(gpio_pin_cfg_command, 8);
+	chThdSleep(TIME_MS2I(25));
+
+const uint8_t a1[] =  {0x11, 0x00, 0x01, 0x00, 0x52};
+const uint8_t a2[] =  {0x11, 0x02, 0x01, 0x00, 0x00};
+const uint8_t a3[] =  {0x11, 0x02, 0x01, 0x01, 0x00};
+const uint8_t a4[] =  {0x11, 0x02, 0x01, 0x02, 0x00};
+const uint8_t a5[] =  {0x11, 0x02, 0x01, 0x03, 0x00};
+const uint8_t a6[] =  {0x11, 0x01, 0x01, 0x00, 0x00};
+const uint8_t a7[] =  {0x11, 0x00, 0x01, 0x03, 0x60};
+const uint8_t a8[] =  {0x11, 0x00, 0x01, 0x01, 0x00};
+const uint8_t a9[] =  {0x11, 0x20, 0x01, 0x4c, 0x00};
+const uint8_t a10[] = {0x11, 0x20, 0x01, 0x4a, 0x6F};
+const uint8_t a11[] = {0x11, 0x10, 0x01, 0x01, 0x14};
+const uint8_t a12[] = {0x11, 0x12, 0x01, 0x06, 0x40};
+const uint8_t a13[] = {0x11, 0x20, 0x01, 0x00, 0x0A};
+const uint8_t a14[] = {0x11, 0x20, 0x01, 0x01, 0x00};
+const uint8_t a15[] = {0x11, 0x20, 0x01, 0x02, 0x07};
+const uint8_t a16[] = {0x11, 0x20, 0x01, 0x51, 0x0D};
+const uint8_t a17[] = {0x11, 0x20, 0x01, 0x03, 0x04};
+const uint8_t a18[] = {0x11, 0x20, 0x01, 0x04, 0x07};
+const uint8_t a19[] = {0x11, 0x20, 0x01, 0x05, 0x40};
+const uint8_t a20[] = {0x11, 0x20, 0x01, 0x06, 0x01};
+const uint8_t a21[] = {0x11, 0x20, 0x01, 0x07, 0x8C};
+const uint8_t a22[] = {0x11, 0x20, 0x01, 0x08, 0xBA};
+const uint8_t a23[] = {0x11, 0x20, 0x01, 0x09, 0x80};
+const uint8_t a24[] = {0x11, 0x20, 0x01, 0x0a, 0x00};
+const uint8_t a25[] = {0x11, 0x20, 0x01, 0x0b, 0x00};
+const uint8_t a26[] = {0x11, 0x20, 0x01, 0x0c, 0x79};
+const uint8_t a27[] = {0x11, 0x20, 0x01, 0x18, 0x01};
+const uint8_t a28[] = {0x11, 0x22, 0x01, 0x03, 0x3D};
+const uint8_t a29[] = {0x11, 0x40, 0x01, 0x00, 0x41};
+const uint8_t a30[] = {0x11, 0x40, 0x01, 0x01, 0x0B};
+const uint8_t a31[] = {0x11, 0x40, 0x01, 0x02, 0xB1};
+const uint8_t a32[] = {0x11, 0x40, 0x01, 0x03, 0x3B};
+const uint8_t a33[] = {0x11, 0x40, 0x01, 0x04, 0x0B};
+const uint8_t a34[] = {0x11, 0x40, 0x01, 0x05, 0xD1};
+const uint8_t a35[] = {0x11, 0x40, 0x01, 0x06, 0x20};
+const uint8_t a36[] = {0x11, 0x40, 0x01, 0x07, 0xFA};
+const uint8_t a37[] = {0x11, 0x20, 0x01, 0x19, 0x80};
+const uint8_t a38[] = {0x11, 0x20, 0x01, 0x1a, 0x08};
+const uint8_t a39[] = {0x11, 0x20, 0x01, 0x1b, 0x02};
+const uint8_t a40[] = {0x11, 0x20, 0x01, 0x1c, 0x80};
+const uint8_t a41[] = {0x11, 0x20, 0x01, 0x1d, 0x00};
+const uint8_t a42[] = {0x11, 0x20, 0x01, 0x1e, 0x20};
+const uint8_t a43[] = {0x11, 0x20, 0x01, 0x1f, 0x10};
+const uint8_t a44[] = {0x11, 0x20, 0x01, 0x22, 0x00};
+const uint8_t a45[] = {0x11, 0x20, 0x01, 0x23, 0x52};
+const uint8_t a46[] = {0x11, 0x20, 0x01, 0x24, 0x06};
+const uint8_t a47[] = {0x11, 0x20, 0x01, 0x25, 0x3D};
+const uint8_t a48[] = {0x11, 0x20, 0x01, 0x25, 0x10};
+const uint8_t a49[] = {0x11, 0x20, 0x01, 0x27, 0x03};
+const uint8_t a50[] = {0x11, 0x20, 0x01, 0x28, 0x1F};
+const uint8_t a51[] = {0x11, 0x20, 0x01, 0x29, 0x00};
+const uint8_t a52[] = {0x11, 0x20, 0x01, 0x2a, 0xC2};
+const uint8_t a53[] = {0x11, 0x20, 0x01, 0x2c, 0x54};
+const uint8_t a54[] = {0x11, 0x20, 0x01, 0x2d, 0x36};
+const uint8_t a55[] = {0x11, 0x20, 0x01, 0x2e, 0x82};
+const uint8_t a56[] = {0x11, 0x20, 0x01, 0x2f, 0xAA};
+const uint8_t a57[] = {0x11, 0x20, 0x01, 0x30, 0x00};
+const uint8_t a58[] = {0x11, 0x20, 0x01, 0x31, 0x95};
+const uint8_t a59[] = {0x11, 0x20, 0x01, 0x32, 0x80};
+const uint8_t a60[] = {0x11, 0x20, 0x01, 0x35, 0xE2};
+const uint8_t a61[] = {0x11, 0x20, 0x01, 0x38, 0x11};
+const uint8_t a62[] = {0x11, 0x20, 0x01, 0x39, 0x12};
+const uint8_t a63[] = {0x11, 0x20, 0x01, 0x3a, 0x12};
+const uint8_t a64[] = {0x11, 0x20, 0x01, 0x3b, 0x00};
+const uint8_t a65[] = {0x11, 0x20, 0x01, 0x3c, 0x02};
+const uint8_t a66[] = {0x11, 0x20, 0x01, 0x3d, 0x02};
+const uint8_t a67[] = {0x11, 0x20, 0x01, 0x3e, 0x6D};
+const uint8_t a68[] = {0x11, 0x20, 0x01, 0x3f, 0x00};
+const uint8_t a69[] = {0x11, 0x20, 0x01, 0x40, 0x28};
+const uint8_t a70[] = {0x11, 0x20, 0x01, 0x42, 0x84};
+const uint8_t a71[] = {0x11, 0x20, 0x01, 0x43, 0x03};
+const uint8_t a72[] = {0x11, 0x20, 0x01, 0x44, 0xD6};
+const uint8_t a73[] = {0x11, 0x20, 0x01, 0x45, 0x8F};
+const uint8_t a74[] = {0x11, 0x20, 0x01, 0x46, 0x00};
+const uint8_t a75[] = {0x11, 0x20, 0x01, 0x47, 0x0F};
+const uint8_t a76[] = {0x11, 0x20, 0x01, 0x48, 0x01};
+const uint8_t a77[] = {0x11, 0x20, 0x01, 0x49, 0x80};
+const uint8_t a78[] = {0x11, 0x20, 0x01, 0x4e, 0x40};
+
+Si4464_write(a2, 5);
+Si4464_write(a3, 5);
+Si4464_write(a4, 5);
+Si4464_write(a5, 5);
+Si4464_write(a6, 5);
+Si4464_write(a7, 5);
+Si4464_write(a8, 5);
+Si4464_write(a9, 5);
+Si4464_write(a10, 5);
+Si4464_write(a11, 5);
+Si4464_write(a12, 5);
+Si4464_write(a13, 5);
+Si4464_write(a14, 5);
+Si4464_write(a15, 5);
+Si4464_write(a16, 5);
+Si4464_write(a17, 5);
+Si4464_write(a18, 5);
+Si4464_write(a19, 5);
+Si4464_write(a20, 5);
+Si4464_write(a21, 5);
+Si4464_write(a22, 5);
+Si4464_write(a23, 5);
+Si4464_write(a24, 5);
+Si4464_write(a25, 5);
+Si4464_write(a26, 5);
+Si4464_write(a27, 5);
+Si4464_write(a28, 5);
+Si4464_write(a29, 5);
+Si4464_write(a30, 5);
+Si4464_write(a31, 5);
+Si4464_write(a32, 5);
+Si4464_write(a33, 5);
+Si4464_write(a34, 5);
+Si4464_write(a35, 5);
+Si4464_write(a36, 5);
+Si4464_write(a37, 5);
+Si4464_write(a38, 5);
+Si4464_write(a39, 5);
+Si4464_write(a40, 5);
+Si4464_write(a41, 5);
+Si4464_write(a42, 5);
+Si4464_write(a43, 5);
+Si4464_write(a44, 5);
+Si4464_write(a45, 5);
+Si4464_write(a46, 5);
+Si4464_write(a47, 5);
+Si4464_write(a48, 5);
+Si4464_write(a49, 5);
+Si4464_write(a50, 5);
+Si4464_write(a51, 5);
+Si4464_write(a52, 5);
+Si4464_write(a53, 5);
+Si4464_write(a54, 5);
+Si4464_write(a55, 5);
+Si4464_write(a56, 5);
+Si4464_write(a57, 5);
+Si4464_write(a58, 5);
+Si4464_write(a59, 5);
+Si4464_write(a60, 5);
+Si4464_write(a61, 5);
+Si4464_write(a62, 5);
+Si4464_write(a63, 5);
+Si4464_write(a64, 5);
+Si4464_write(a65, 5);
+Si4464_write(a66, 5);
+Si4464_write(a67, 5);
+Si4464_write(a68, 5);
+Si4464_write(a69, 5);
+Si4464_write(a70, 5);
+Si4464_write(a71, 5);
+Si4464_write(a72, 5);
+Si4464_write(a73, 5);
+Si4464_write(a74, 5);
+Si4464_write(a75, 5);
+Si4464_write(a76, 5);
+Si4464_write(a77, 5);
+Si4464_write(a78, 5);
+
+	// Set CHFLT Filter
+	const uint8_t set_chflt1[] = {0x11, 0x21, 0x0C, 0x00, 0xA2, 0xA0, 0x97, 0x8A, 0x79, 0x66, 0x52, 0x3F, 0x2E, 0x1F, 0x14, 0x0B};
+	Si4464_write(set_chflt1, 16);
+
+	const uint8_t set_chflt2[] = {0x11, 0x21, 0x0C, 0x0C, 0x06, 0x02, 0x00, 0x00, 0x00, 0x00, 0xA2, 0xA0, 0x97, 0x8A, 0x79, 0x66};
+	Si4464_write(set_chflt2, 16);
+
+	const uint8_t set_chflt3[] = {0x11, 0x21, 0x0C, 0x18, 0x52, 0x3F, 0x2E, 0x1F, 0x14, 0x0B, 0x06, 0x02, 0x00, 0x00, 0x00, 0x00};
+	Si4464_write(set_chflt3, 16);
+
+
+
 }
 
 void setFrequency(uint32_t freq, uint16_t shift) {
@@ -562,3 +779,4 @@ int16_t Si4464_getTemperature(void) {
 int16_t Si4464_getLastTemperature(void) {
 	return lastTemp;
 }
+
