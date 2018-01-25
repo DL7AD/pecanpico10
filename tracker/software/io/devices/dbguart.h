@@ -24,6 +24,8 @@
 extern BaseSequentialStream* diag_out;
 extern BaseSequentialStream* pkt_out;
 
+extern const SerialConfig debug_config;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

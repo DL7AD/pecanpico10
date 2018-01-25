@@ -15,7 +15,8 @@
  * @{
  */
 
-#include "pktconf.h"
+#include "hal.h"
+#include "portab.h"
 
 /*===========================================================================*/
 /* Module local definitions.                                                 */
@@ -41,9 +42,22 @@
 /* Module exported functions.                                                */
 /*===========================================================================*/
 
+void pktConfigSerialDiag(void) {
+  /* USART3 TX.       */
+  //palSetLineMode(LINE_USART3_TX, PAL_MODE_OUTPUT_PUSHPULL | PAL_MODE_ALTERNATE(3));
+  /* USART3 RX.       */
+  //palSetLineMode(LINE_USART3_RX, PAL_MODE_ALTERNATE(3));
+}
+
+void pktConfigSerialPkt(void) {
+  /* UART4 TX.       */
+  palSetLineMode(LINE_UART4_TX, PAL_MODE_OUTPUT_PUSHPULL | PAL_MODE_ALTERNATE(11));
+  /* UART4 RX.       */
+  palSetLineMode(LINE_UART4_RX, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(11));
+}
+
 void pktSetLineModeICU(void) {
-  //palSetLineMode(LINE_ICU, PAL_MODE_INPUT_PULLUP);
-  palSetLineMode(LINE_ICU, PAL_MODE_ALTERNATE(2)); /* F413. */
+  palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
 }
 
 /** @} */

@@ -21,7 +21,7 @@
  */
 
 #if PKT_CFG_USE_SERIAL == TRUE
-static const SerialConfig debug_config = {
+const SerialConfig debug_config = {
   115200,
   0,
   0,
@@ -29,20 +29,13 @@ static const SerialConfig debug_config = {
 };
 
 /* Declare UART aliases. */
-BaseSequentialStream* diag_out = (BaseSequentialStream*) &SD4;
-BaseSequentialStream* pkt_out = (BaseSequentialStream*) &SD3;
+BaseSequentialStream* diag_out = (BaseSequentialStream*) &SD3;
+BaseSequentialStream* pkt_out = (BaseSequentialStream*) &SD4;
 
 void pktSerialStart() {
-  /* UART4 TX.       */
-  palSetLineMode(LINE_UART4_TX, PAL_MODE_STM32_ALTERNATE_PUSHPULL);
-  /* UART4 RX.       */
-  palSetLineMode(LINE_UART4_RX, PAL_MODE_INPUT);
+  pktConfigSerialDiag();
+  pktConfigSerialPkt();
   sdStart(&SD4, &debug_config);
-
-  /* UART3 TX.       */
-  palSetLineMode(LINE_USART3_TX, PAL_MODE_STM32_ALTERNATE_PUSHPULL);
-  /* UART3 RX.       */
-  palSetLineMode(LINE_USART3_RX, PAL_MODE_INPUT);
   sdStart(&SD3, &debug_config);
 }
 #endif /* PKT_CFG_USE_SERIAL */

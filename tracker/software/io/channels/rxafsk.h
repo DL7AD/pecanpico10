@@ -33,7 +33,7 @@
 #define AFSK_SPACE_FREQUENCY        2200U
 
 /* Thread working area size. */
-#define PKT_AFSK_DECODER_WA_SIZE 1024
+#define PKT_AFSK_DECODER_WA_SIZE    1024
 
 /* AFSK decoder type selection. */
 #define AFSK_NULL_DECODE            0
@@ -74,16 +74,19 @@
 #if AFSK_DECODE_TYPE == AFSK_DSP_QCORR_DECODE
 /* BPF followed by fixed point IQ correlation decoder. */
 #define SYMBOL_DECIMATION           (24U)
+/* Sample rate in Hz. */
 #define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
 #define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
 #elif
 /* BPF followed by floating point IQ correlation decoder. */
 #define SYMBOL_DECIMATION           (24U)
+/* Sample rate in Hz. */
 #define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
 #define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
 #else
 /* Any other decoder. */
 #define SYMBOL_DECIMATION           (24U)
+/* Sample rate in Hz. */
 #define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
 #define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
 #endif
@@ -128,7 +131,7 @@ typedef enum {
   DECODER_TERMINATED
 } afskdemodstate_t;
 
-typedef int32_t     pwm_accum_t;
+typedef float32_t   pwm_accum_t;
 typedef int16_t     dsp_phase_t;
 
 #include "rxpwm.h"
@@ -176,6 +179,11 @@ typedef struct AFSK_data {
    * @brief Demod decimation timeline accumulator.
    */
   pwm_accum_t               decimation_accumulator;
+
+  /**
+   * @brief Decimation amount per slice.
+   */
+  pwm_accum_t               decimation_size;
 
   /**
    * @brief ICU driver being used.

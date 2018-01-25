@@ -37,8 +37,8 @@
  * TODO: This should be calculated using SYSTEM CLOCK.
  * ICU has to run at an integer divide from SYSTEM CLOCK.
  */
-#define ICU_COUNT_FREQUENCY     2880000U
-
+//#define ICU_COUNT_FREQUENCY     2880000U
+#define ICU_COUNT_FREQUENCY     2000000U
 
 /* Limit of ICU and PWM count for packed format. */
 #define ICU_MAX_COUNT   0xFFFFFF

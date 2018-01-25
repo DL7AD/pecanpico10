@@ -231,9 +231,8 @@ bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[]) {
         if(!pktDecodeAFSKSymbol(myDriver))
           return false;
       }
-      myDriver->decimation_accumulator -=
-          (icucnt_t)((ICU_COUNT_FREQUENCY / AFSK_BAUD_RATE)
-                       / SYMBOL_DECIMATION);
+      myDriver->decimation_accumulator -= myDriver->decimation_size;
+
     } /* End while. Accumulator has underflowed. */
   } /* End for. */
   return true;
@@ -454,6 +453,9 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_rx_t *pktHandler,
     return NULL;
   }
 
+  myDriver->decimation_size = ((pwm_accum_t)ICU_COUNT_FREQUENCY
+                                / (pwm_accum_t)AFSK_BAUD_RATE)
+                                / (pwm_accum_t)SYMBOL_DECIMATION;
   return myDriver;
 }
 
@@ -521,8 +523,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   tprio_t decoder_idle_priority = chThdGetPriorityX();
 
   /* Setup LED for decoder blinker. */
-  palSetLineMode(LINE_BLUE_LED, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetLine(LINE_BLUE_LED);
+  pktSetLineModeDecoderLED();
+
+  pktWriteDecoderLED(PAL_HIGH);
 
    /* Wait for start or close of decoder. */
   myDriver->decoder_state = DECODER_WAIT;
@@ -550,7 +553,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /* Something went wrong if we arrive here. */
           chSysHalt("ThdExit");
         }
-        palToggleLine(LINE_BLUE_LED);
+        pktWriteDecoderLED(PAL_TOGGLE);
         continue;
       }
 
@@ -581,8 +584,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         if(fifo_msg != MSG_OK) {
 
           if(++led_count >= DECODER_LED_RATE_POLL) {
-            /* Toggle blue LED. */
-            palToggleLine(LINE_BLUE_LED);
+            /* Toggle decoder LED. */
+            pktWriteDecoderLED(PAL_TOGGLE);
             led_count = 0;
           }
           /* No FIFO posted so loop again. */
@@ -640,8 +643,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
         /* Increase thread priority. */
         (void)chThdSetPriority(DECODER_RUN_PRIORITY);
-        /* Turn on the blue breadboard LED. */
-        palSetLine(LINE_BLUE_LED);
+        /* Turn on the decoder LED. */
+        pktWriteDecoderLED(PAL_HIGH);
         break;
       } /* End case DECODER_SESSION_POLL. */
 
@@ -703,7 +706,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                 myHandler->active_packet_object->packet_size);
 
             /* Close packet and send event. */
-
             eventflags_t evt = (magicCRC == CRC_INCLUSIVE_CONSTANT)
                     ? EVT_AX25_FRAME_RDY
                     : EVT_AX25_CRC_ERROR;
@@ -714,9 +716,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           }
           /* Queued data processed OK but not at frame end.
            * Get next data in queue.
-           * Toggle blue LED.
+           * Toggle decoder LED.
            */
-          palToggleLine(LINE_BLUE_LED);
+          pktWriteDecoderLED(PAL_TOGGLE);
           continue;
         }
         /* Data not received in time.
@@ -731,8 +733,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
       } /* End case DECODER_ACTIVE. */
 
       case DECODER_CLOSE: {
-        /* Turn on the breadboard red LED. */
-        //palSetLine(LINE_RED_LED);
         myDriver->decoder_state = DECODER_SUSPEND;
         break;
       } /* End case DECODER_CLOSE. */
@@ -740,9 +740,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
       case DECODER_TIMEOUT: {
         pktAddEventFlags(myHandler, EVT_AFSK_DATA_TIMEOUT);
         myDriver->active_demod_object->status |= EVT_AFSK_DATA_TIMEOUT;
-        /* Turn on the breadboard red LED. */
-        //palSetLine(LINE_RED_LED);
-
         myDriver->decoder_state = DECODER_SUSPEND;
         break;
       } /* End case DECODER_TIMEOUT. */
@@ -751,8 +748,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
       case DECODER_ERROR: {
         pktAddEventFlags(myHandler, EVT_DECODER_ERROR);
         myDriver->active_demod_object->status |= EVT_DECODER_ERROR;
-        /* Turn on the breadboard red LED. */
-        //palSetLine(LINE_RED_LED);
         myDriver->decoder_state = DECODER_SUSPEND;
         break;
       } /* End case DECODER_ERROR. */
@@ -785,15 +780,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         pktResetAFSKDecoder(myDriver);
 
         /*
-         * LED setup.
-         */
-
-        /* Turn off the breadboard red and yellow LEDs.
          * Turn off blue LED and reset time interval
          */
-        //palClearLine(LINE_RED_LED);
-
-        palClearLine(LINE_BLUE_LED);
+        pktWriteDecoderLED(PAL_LOW);
 
         /* Clear the LED blink scaler. */
         led_count = 0;
@@ -832,7 +821,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           TIME_US2I(DECODER_SUSPEND_TIME));
         if(evt == 0) {
           if(++led_count >= DECODER_LED_RATE_SUSPEND) {
-            palToggleLine(LINE_BLUE_LED);
+            pktWriteDecoderLED(PAL_TOGGLE);
             led_count = 0;
           }
           /* No event so loop again. */

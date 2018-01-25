@@ -26,7 +26,6 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "portab.h"
 #include "chprintf.h"
 #include <stdio.h>
 #include <string.h>
@@ -42,30 +41,37 @@
 /* Decoder system events. */
 #define EVT_NONE                0
 #define EVT_PRIORITY_BASE       0
+
 #define EVT_AX25_FRAME_RDY      EVENT_MASK(EVT_PRIORITY_BASE + 0)
 #define EVT_RADIO_CCA_GLITCH    EVENT_MASK(EVT_PRIORITY_BASE + 1)
 #define EVT_RADIO_CCA_CLOSE     EVENT_MASK(EVT_PRIORITY_BASE + 2)
 #define EVT_DECODER_ERROR       EVENT_MASK(EVT_PRIORITY_BASE + 3)
+
 #define EVT_AFSK_TERMINATED     EVENT_MASK(EVT_PRIORITY_BASE + 4)
 #define EVT_PWM_UNKNOWN_INBAND  EVENT_MASK(EVT_PRIORITY_BASE + 5)
 #define EVT_ICU_OVERFLOW        EVENT_MASK(EVT_PRIORITY_BASE + 6)
 #define EVT_SUSPEND_EXIT        EVENT_MASK(EVT_PRIORITY_BASE + 7)
+
 #define EVT_PWM_NO_DATA         EVENT_MASK(EVT_PRIORITY_BASE + 8)
 #define EVT_PWM_FIFO_SENT       EVENT_MASK(EVT_PRIORITY_BASE + 9)
 #define EVT_RADIO_CCA_OPEN      EVENT_MASK(EVT_PRIORITY_BASE + 10)
 #define EVT_PWM_QUEUE_FULL      EVENT_MASK(EVT_PRIORITY_BASE + 11)
+
 #define EVT_PWM_FIFO_EMPTY      EVENT_MASK(EVT_PRIORITY_BASE + 12)
 #define EVT_PWM_STREAM_TIMEOUT  EVENT_MASK(EVT_PRIORITY_BASE + 13)
 #define EVT_PWM_FIFO_LOCK       EVENT_MASK(EVT_PRIORITY_BASE + 14)
 #define EVT_DECODER_START       EVENT_MASK(EVT_PRIORITY_BASE + 15)
+
 #define EVT_DECODER_STOP        EVENT_MASK(EVT_PRIORITY_BASE + 16)
 #define EVT_RADIO_CCA_FIFO_ERR  EVENT_MASK(EVT_PRIORITY_BASE + 17)
 #define EVT_AX25_BUFFER_FULL    EVENT_MASK(EVT_PRIORITY_BASE + 18)
 #define EVT_AFSK_DATA_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 19)
+
 #define EVT_AX25_CRC_ERROR      EVENT_MASK(EVT_PRIORITY_BASE + 20)
 #define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 21)
 #define EVT_AX25_NO_BUFFER      EVENT_MASK(EVT_PRIORITY_BASE + 22)
 #define EVT_ICU_SLEEP_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 23)
+
 #define EVT_PWM_STREAM_ABORT    EVENT_MASK(EVT_PRIORITY_BASE + 24)
 #define EVT_PKT_CHANNEL_CLOSE   EVENT_MASK(EVT_PRIORITY_BASE + 25)
 #define EVT_DECODER_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 26)
@@ -81,6 +87,9 @@
 #define RELEASE_ON_OUTPUT       2
 
 #define SUSPEND_HANDLING        NO_SUSPEND
+
+/* Extra GPIO value. */
+#define PAL_TOGGLE          2U
 
 /*===========================================================================*/
 /**
@@ -122,6 +131,7 @@ typedef struct radioConfig {
 /* Aerospace decoder subsystem includes.                                     */
 /*===========================================================================*/
 
+#include "portab.h"
 #include "dbguart.h"
 #include "dsp.h"
 #include "ax25.h"
@@ -133,6 +143,95 @@ typedef struct radioConfig {
 #include "rxhdlc.h"
 #include "rxpacket.h"
 #include "ihex_out.h"
+
+/*===========================================================================*/
+/* External declarations.                                                    */
+/*===========================================================================*/
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+#ifdef __cplusplus
+}
+#endif
+
+/*===========================================================================*/
+/* Module inline functions.                                                  */
+/*===========================================================================*/
+
+static inline void pktSetLineModeCCA(void) {
+  palSetLineMode(LINE_CCA, PAL_MODE_INPUT_PULLUP);
+}
+
+static inline void pktSetLineModeDecoderLED(void) {
+#if defined(LINE_DECODER_LED)
+  palSetLineMode(LINE_DECODER_LED, PAL_MODE_OUTPUT_PUSHPULL);
+#endif
+}
+
+static inline void pktUnsetLineModeDecoderLED(void) {
+#if defined(LINE_DECODER_LED)
+  palSetLineMode(LINE_DECODER_LED, PAL_MODE_UNCONNECTED);
+#endif
+}
+
+static inline void pktWriteDecoderLED(uint8_t state) {
+#if defined(LINE_DECODER_LED)
+  if(state != PAL_TOGGLE)
+    palWriteLine(LINE_DECODER_LED, state);
+  else
+    palToggleLine(LINE_DECODER_LED);
+#else
+  (void)state;
+#endif
+}
+
+static inline void pktSetLineModeSquelchLED(void) {
+#if defined(LINE_SQUELCH_LED)
+  palSetLineMode(LINE_SQUELCH_LED, PAL_MODE_OUTPUT_PUSHPULL);
+#endif
+}
+
+static inline void pktWriteSquelchLED(uint8_t state) {
+#if defined(LINE_SQUELCH_LED)
+  if(state != PAL_TOGGLE)
+    palWriteLine(LINE_SQUELCH_LED, state);
+  else
+    palToggleLine(LINE_SQUELCH_LED);
+#else
+  (void)state;
+#endif
+}
+
+static inline void pktUnsetLineModeSquelchLED(void) {
+#if defined(LINE_SQUELCH_LED)
+  palSetLineMode(LINE_SQUELCH_LED, PAL_MODE_UNCONNECTED);
+#endif
+}
+
+static inline void pktSetLineModeOverflowLED(void) {
+#if defined(LINE_OVERFLOW_LED)
+  palSetLineMode(LINE_OVERFLOW_LED, PAL_MODE_OUTPUT_PUSHPULL);
+#endif
+}
+
+static inline void pktWriteOverflowLED(uint8_t state) {
+#if defined(LINE_OVERFLOW_LED)
+  if(state != PAL_TOGGLE)
+    palWriteLine(LINE_OVERFLOW_LED, state);
+  else
+    palToggleLine(LINE_OVERFLOW_LED);
+#else
+  (void)state;
+#endif
+}
+
+static inline void pktUnsetLineModeOverflowLED(void) {
+#if defined( LINE_OVERFLOW_LED)
+  palSetLineMode(LINE_OVERFLOW_LED, PAL_MODE_UNCONNECTED);
+#endif
+}
 
 #endif /* _PKTCONF_H_ */
 

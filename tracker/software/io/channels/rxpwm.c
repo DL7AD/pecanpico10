@@ -38,12 +38,12 @@
 /* Module exported variables.                                                */
 /*===========================================================================*/
 
-/* ICU configuration used for TIM3 CH1 (PA6).
+/* ICU configuration.
  * TODO: Work out where to put this and manage assigning ICU.
  * There could be multiple radios so there needs to be an assignment method.
  */
 
-ICUConfig pwm_icucfg = {
+const ICUConfig pwm_icucfg = {
   ICU_INPUT_ACTIVE_HIGH,
   ICU_COUNT_FREQUENCY,          /* ICU clock frequency. */
   NULL,                         /* ICU width callback. */
@@ -88,9 +88,14 @@ ICUDriver *pktAttachICU(radio_unit_t radio_id) {
    * Initialize the RX_DATA capture ICU.
    */
 
-  /* TODO: Make the ICU selectable in pktconf.h. */
-  ICUDriver *myICU = &ICUD4;
+  /* Set the ICU as declared in portab.h. */
+  ICUDriver *myICU = &PWM_ICU;
   icuObjectInit(myICU);
+
+  /* The RX_DATA input is routed to ICU timer.
+   * Set in portab.h
+   */
+  pktSetLineModeICU();
 
   /* Initialise the timers. */
   chVTObjectInit(&myICU->cca_timer);
@@ -98,24 +103,15 @@ ICUDriver *pktAttachICU(radio_unit_t radio_id) {
   chVTObjectInit(&myICU->pwm_timer);
 
   /* Configure ports. */
-  palSetLineMode(LINE_CCA, PAL_MODE_INPUT_PULLUP);
+  pktSetLineModeCCA();
 
-  /* The RX_DATA input is routed to ICU timer.
-   * Set in portab.c
-   */
-  pktSetLineModeICU();
+  /* Setup the squelch LED. */
+  pktSetLineModeSquelchLED();
+  pktWriteSquelchLED(PAL_LOW);
 
-  /* Setup the offboard green LED. */
-  //palSetLineMode(LINE_GREEN_LED, PAL_MODE_OUTPUT_PUSHPULL);
-  //palClearLine(LINE_GREEN_LED);
-
-  /* Setup onboard red LED for diagnostic. */
-  //palSetLineMode(LINE_ONBOARD_LED, PAL_MODE_OUTPUT_PUSHPULL);
-  //palClearLine(LINE_ONBOARD_LED);
-
-  /* Setup offboard yellow LED. */
-  //palSetLineMode(LINE_YELLOW_LED, PAL_MODE_OUTPUT_PUSHPULL);
-  //palClearLine(LINE_YELLOW_LED);
+  /* Setup the overflow LED. */
+  pktSetLineModeOverflowLED();
+  pktWriteOverflowLED(PAL_LOW);
 
   return myICU;
 }
@@ -138,14 +134,11 @@ void pktDetachICU(ICUDriver *myICU) {
    */
   icuStop(myICU);
 
-  /* Disable the offboard green LED. */
-  //palSetLineMode(LINE_GREEN_LED, PAL_MODE_UNCONNECTED);
+  /* Disable the squelch LED. */
+  pktUnsetLineModeSquelchLED();
 
-  /* Disable offboard yellow LED. */
-  //palSetLineMode(LINE_YELLOW_LED, PAL_MODE_UNCONNECTED);
-
-  /* Setup onboard red LED for diagnostic. */
-  //palSetLineMode(LINE_ONBOARD_LED, PAL_MODE_UNCONNECTED);
+  /* Disable overflow LED. */
+  pktUnsetLineModeOverflowLED();
 }
 
 /**
@@ -188,7 +181,7 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt) {
     byte_packed_pwm_t pack = {{0, 0, 0}};
     msg_t qs = pktWritePWMQueue(myQueue, pack);
     if(qs != MSG_OK) {
-      //palSetLine(LINE_YELLOW_LED);
+      pktWriteOverflowLED(PAL_HIGH);
       myDemod->active_radio_object->status |= EVT_PWM_QUEUE_FULL;
       pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_FULL);
     }
@@ -297,11 +290,11 @@ void pktRadioCCATimer(ICUDriver *myICU) {
     }
 
     case PAL_HIGH: {
-      /* Turn on the green LED. */
-      //palSetLine(LINE_GREEN_LED);
+      /* Turn on the squelch LED. */
+      pktWriteSquelchLED(PAL_HIGH);
 
-      /* Turn off the yellow LED. */
-      //palClearLine(LINE_YELLOW_LED);
+      /* Turn off the overflow LED. */
+      pktWriteOverflowLED(PAL_LOW);
 
       if(myDemod->active_radio_object != NULL) {
         /* TODO: Work out correct handling.
@@ -394,9 +387,6 @@ void pktRadioCCAInput(ICUDriver *myICU) {
   /* CCA changed. */
   switch(palReadLine(LINE_CCA)) {
     case PAL_LOW: {
-      /* Turn off the OB red LED. */
-      //palClearLine(LINE_ONBOARD_LED);
-
       if(chVTIsArmedI(&myICU->cca_timer)) {
         /* CCA has dropped during timer so CCA is a glitch. */
         chVTResetI(&myICU->cca_timer);
@@ -406,10 +396,9 @@ void pktRadioCCAInput(ICUDriver *myICU) {
       }
 
       /*
-       * Turn off the green LED.
-       * TODO: Refactor LED assignment into portability setup.
+       * Turn off the squelch LED.
        */
-      //palClearLine(LINE_GREEN_LED);
+      pktWriteSquelchLED(PAL_LOW);
 
       if(myDemod->active_radio_object == NULL) {
 
@@ -436,9 +425,6 @@ void pktRadioCCAInput(ICUDriver *myICU) {
       /* TODO: Calculate de-glitch time as number of symbol times. */
       chVTSetI(&myICU->cca_timer, TIME_MS2I(66),
                (vtfunc_t)pktRadioCCATimer, myICU);
-
-      /* Turn on the OB red LED. */
-      //palSetLine(LINE_ONBOARD_LED);
       break;
     }
   } /* End switch. */
@@ -494,7 +480,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 
   msg_t qs = pktQueuePWMDataI(myICU);
   if(qs != MSG_OK) {
-    //palSetLine(LINE_YELLOW_LED);
+    pktWriteOverflowLED(PAL_HIGH);
     pktClosePWMChannelI(myICU, EVT_PWM_QUEUE_FULL);
   }
   chSysUnlockFromISR();
@@ -530,14 +516,14 @@ void PktRadioICUOverflow(ICUDriver *myICU) {
  * @details Byte values of packed PWM data are written into an input queue.
  *          The operation will succeed if sufficient queue space is available.
  *          If the queue will become full then an in-band QOV flag is written.
- *          in that case PWM data will not be queued unless it was an EOD flag.
+ *          In that case PWM data will not be queued unless it was an EOD flag.
  *
  * @param[in] myICU      pointer to the ICU driver structure
  *
  * @return              The operation status.
  * @retval MSG_OK       The PWM data has been queued.
  * @retval MSG_TIMEOUT  The queue is already full.
- * @retval MSG_RESET    Queue space would be exhausted so an QOF
+ * @retval MSG_RESET    Queue space would be exhausted so a QOV
  *                      flag is written in place of PWM data.
  *
  * @iclass
