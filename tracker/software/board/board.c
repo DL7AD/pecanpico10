@@ -203,8 +203,9 @@ static void stm32_gpio_init(void) {
  *          else.
  */
 void __early_init(void) {
-
   stm32_gpio_init();
+  palSetLineMode(LINE_TCXO_EN, PAL_MODE_OUTPUT_PUSHPULL);
+  palSetLine(LINE_TCXO_EN);
   stm32_clock_init();
 }
 

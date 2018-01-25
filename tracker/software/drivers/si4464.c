@@ -94,7 +94,7 @@ void Si4464_Init(void) {
 	palSetLineMode(LINE_RADIO_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// RADIO CS
 	palSetLineMode(LINE_SD_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// SD CS
 	palSetLineMode(LINE_RADIO_SDN, PAL_MODE_OUTPUT_PUSHPULL);							// RADIO SDN
-	palSetLineMode(LINE_TCXO_EN, PAL_MODE_OUTPUT_PUSHPULL);								// Oscillator
+	//palSetLineMode(LINE_TCXO_EN, PAL_MODE_OUTPUT_PUSHPULL);								// Oscillator
 
 	// Pull CS of all SPI slaves high
 	palSetLine(LINE_SD_CS);
@@ -102,7 +102,7 @@ void Si4464_Init(void) {
 
 	// Reset radio
 	palSetLine(LINE_RADIO_SDN);
-	palSetLine(LINE_TCXO_EN); // Activate Oscillator
+	//palSetLine(LINE_TCXO_EN); // Activate Oscillator
 	chThdSleep(TIME_MS2I(10));
 
 	// Power up transmitter
@@ -355,7 +355,7 @@ void init145_175(void) {
 	palSetLineMode(LINE_RADIO_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// RADIO CS
 	palSetLineMode(LINE_SD_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// SD CS
 	palSetLineMode(LINE_RADIO_SDN, PAL_MODE_OUTPUT_PUSHPULL);							// RADIO SDN
-	palSetLineMode(LINE_TCXO_EN, PAL_MODE_OUTPUT_PUSHPULL);								// Oscillator
+	//palSetLineMode(LINE_TCXO_EN, PAL_MODE_OUTPUT_PUSHPULL);								// Oscillator
 
 	// Pull CS of all SPI slaves high
 	palSetLine(LINE_SD_CS);
@@ -363,7 +363,7 @@ void init145_175(void) {
 
 	// Reset radio
 	palSetLine(LINE_RADIO_SDN);
-	palSetLine(LINE_TCXO_EN); // Activate Oscillator
+	//palSetLine(LINE_TCXO_EN); // Activate Oscillator
 	chThdSleep(TIME_MS2I(10));
 
 	// Power up transmitter
@@ -712,7 +712,7 @@ void Si4464_shutdown(void) {
 	palSetLineMode(LINE_SPI_MOSI, PAL_MODE_INPUT_PULLDOWN);		// MOSI
 	palSetLineMode(LINE_RADIO_CS, PAL_MODE_INPUT_PULLDOWN);		// RADIO CS
 	palSetLineMode(LINE_RADIO_SDN, PAL_MODE_INPUT_PULLDOWN);	// RADIO SDN
-	palSetLineMode(LINE_TCXO_EN, PAL_MODE_OUTPUT_PUSHPULL);		// Oscillator
+	//palSetLineMode(LINE_TCXO_EN, PAL_MODE_OUTPUT_PUSHPULL);		// Oscillator
 
 	initialized = false;
 }
