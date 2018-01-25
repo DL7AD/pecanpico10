@@ -360,7 +360,7 @@
 #include "chprintf.h"
 
 // Global variables
-sysinterval_t track_cycle_time = TIME_S2I(30);	// Tracking cycle (all peripheral data [airpressure, GPS, temperature, ...] is collected each 60 seconds
+sysinterval_t track_cycle_time = TIME_S2I(600);	// Tracking cycle (all peripheral data [airpressure, GPS, temperature, ...] is collected each 60 seconds
 bool keep_cam_switched_on =	false;				// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time
 uint16_t gps_on_vbat = 1000;					// Battery voltage threshold at which GPS is switched on
 uint16_t gps_off_vbat = 1000;					// Battery voltage threshold at which GPS is switched off

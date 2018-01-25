@@ -224,16 +224,8 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 	(void)arg;
 	chRegSetThreadName("radio_afsk_feeder");
 
-	TRACE_DEBUG("frame=%s", radio_packet->frame_data);
-
 	uint8_t layer0[3072];
 	uint32_t layer0_blen = afsk_pack(radio_packet, layer0, sizeof(layer0));
-
-	TRACE_DEBUG("frame_layer0=%s", layer0);
-
-
-
-
 
 	// Initialize variables for timer
 	phase_delta = PHASE_DELTA_1200;
@@ -287,7 +279,7 @@ void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	radio_pwr = pwr;
 
 	// Start/re-start FIFO feeder
-	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO+1, si_fifo_feeder_afsk, NULL);
+	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO, si_fifo_feeder_afsk, NULL);
 
 	// Wait for the transmitter to start (because it is used as mutex)
 	while(Si4464_getState() != SI4464_STATE_TX)
@@ -349,7 +341,7 @@ void send2FSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	radio_pwr = pwr;
 
 	// Start/re-start FIFO feeder
-	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO+1, si_fifo_feeder_fsk, NULL);
+	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO, si_fifo_feeder_fsk, NULL);
 
 	// Wait for the transmitter to start (because it is used as mutex)
 	while(Si4464_getState() != SI4464_STATE_TX)

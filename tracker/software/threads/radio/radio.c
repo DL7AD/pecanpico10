@@ -62,6 +62,8 @@ bool transmitOnRadio(packet_t packet, freq_conf_t *freq_conf, uint8_t pwr, mod_t
 
 #include "pktconf.h"
 
+char serial_buf[1024];
+
 THD_FUNCTION(si_receiver, arg)
 {
 	(void)arg;
@@ -69,21 +71,24 @@ THD_FUNCTION(si_receiver, arg)
 	chRegSetThreadName("radio_receiver");
 
 
-
+	//Si4464_Init();
+	//setFrequency(144800000, 0);
+	//setModemAFSK_RX();
+	//startRx();
 
 	init145_175();
-	//setFrequency(144800000, 0);
 	startRx();
-	palSetPadMode(GPIOA,8, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
-	palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
-	while(1) {
-		palWritePad(GPIOA,8,palReadLine(LINE_RADIO_GPIO1));
-	}
+
+	//palSetPadMode(GPIOA,8, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+	//palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
+	//while(1) {
+	//	palWritePad(GPIOA,8,palReadLine(LINE_RADIO_GPIO1));
+	//}
 
 
 
   /* Buffer and size params for serial terminal output. */
-  char serial_buf[1024];
+
 
 #if SUSPEND_HANDLING != NO_SUSPEND
   /*
@@ -318,6 +323,6 @@ THD_FUNCTION(si_receiver, arg)
 void startReceiver(void)
 {
 	if(si4464_rx_thd == NULL)
-		si4464_rx_thd = chThdCreateStatic(si4464_rx_wa, sizeof(si4464_rx_wa), HIGHPRIO+1, si_receiver, NULL);
+		si4464_rx_thd = chThdCreateStatic(si4464_rx_wa, sizeof(si4464_rx_wa), HIGHPRIO, si_receiver, NULL);
 }
 

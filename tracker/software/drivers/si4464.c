@@ -159,7 +159,7 @@ void Si4464_Init(void) {
 	Si4464_write(set_modem_rssi_control, 5);
 
 	// Set RSSI threshold
-	const uint8_t set_modem_rssi_threshold[] = {0x11, 0x20, 0x01, 0x4A, 0x8F};
+	const uint8_t set_modem_rssi_threshold[] = {0x11, 0x20, 0x01, 0x4A, 0x4F};
 	Si4464_write(set_modem_rssi_threshold, 5);
 
 	// Disable preamble (TX)
@@ -191,34 +191,34 @@ void Si4464_Init(void) {
 	Si4464_write(set_if_freq, 7);
 
 	// Set decimation
-	#if RADIO_CLK == 26000000
+	#if RADIO_CLK == 30000000
 	const uint8_t set_decimation_cfg[] = {0x11, 0x20, 0x02, 0x1E, 0x30, 0x20};
-	#elif RADIO_CLK == 30000000
+	#elif RADIO_CLK == 26000000
 	const uint8_t set_decimation_cfg[] = {0x11, 0x20, 0x02, 0x1E, 0x20, 0x10};
 	#endif
 	Si4464_write(set_decimation_cfg, 6);
 
 
 	// Set RX BCR/Slicer oversampling rate
-	#if RADIO_CLK == 26000000
+	#if RADIO_CLK == 30000000
 	const uint8_t set_bcr_osr[] = {0x11, 0x20, 0x02, 0x22, 0x00, 0x47};
-	#elif RADIO_CLK == 30000000
+	#elif RADIO_CLK == 26000000
 	const uint8_t set_bcr_osr[] = {0x11, 0x20, 0x02, 0x22, 0x00, 0x52};
 	#endif
 	Si4464_write(set_bcr_osr, 6);
 
 	// Set RX BCR NCO offset value
-	#if RADIO_CLK == 26000000
+	#if RADIO_CLK == 30000000
 	const uint8_t set_bcr_nco_offset[] = {0x11, 0x20, 0x03, 0x24, 0x07, 0x35, 0x7E};
-	#elif RADIO_CLK == 30000000
+	#elif RADIO_CLK == 26000000
 	const uint8_t set_bcr_nco_offset[] = {0x11, 0x20, 0x03, 0x24, 0x06, 0x3D, 0x10};
 	#endif
 	Si4464_write(set_bcr_nco_offset, 7);
 
 	// Set RX BCR loop gain value
-	#if RADIO_CLK == 26000000
+	#if RADIO_CLK == 30000000
 	const uint8_t set_bcr_gain[] = {0x11, 0x20, 0x02, 0x27, 0x03, 0x9B};
-	#elif RADIO_CLK == 30000000
+	#elif RADIO_CLK == 26000000
 	const uint8_t set_bcr_gain[] = {0x11, 0x20, 0x02, 0x27, 0x03, 0x1F};
 	#endif
 	Si4464_write(set_bcr_gain, 6);
@@ -241,9 +241,9 @@ void Si4464_Init(void) {
 	Si4464_write(set_afc_wait, 5);
 
 	// Set AFC gain
-	#if RADIO_CLK == 26000000
+	#if RADIO_CLK == 30000000
 	const uint8_t set_afc_gain[] = {0x11, 0x20, 0x02, 0x2E, 0x82, 0x00};
-	#elif RADIO_CLK == 30000000
+	#elif RADIO_CLK == 26000000
 	const uint8_t set_afc_gain[] = {0x11, 0x20, 0x02, 0x2E, 0x82, 0xAA};
 	#endif
 	Si4464_write(set_afc_gain, 6);
@@ -262,17 +262,17 @@ void Si4464_Init(void) {
 	Si4464_write(set_agc_control, 5);
 
 	// Set AGC RFPD decay
-	#if RADIO_CLK == 26000000
+	#if RADIO_CLK == 30000000
 	const uint8_t set_agc_rfpd_decay[] = {0x11, 0x20, 0x01, 0x39, 0x10};
-	#elif RADIO_CLK == 30000000
+	#elif RADIO_CLK == 26000000
 	const uint8_t set_agc_rfpd_decay[] = {0x11, 0x20, 0x01, 0x39, 0x12};
 	#endif
 	Si4464_write(set_agc_rfpd_decay, 5);
 
 	// Set AGC RFPD decay
-	#if RADIO_CLK == 26000000
+	#if RADIO_CLK == 30000000
 	const uint8_t set_agc_ifpd_decay[] = {0x11, 0x20, 0x01, 0x3a, 0x10};
-	#elif RADIO_CLK == 30000000
+	#elif RADIO_CLK == 26000000
 	const uint8_t set_agc_ifpd_decay[] = {0x11, 0x20, 0x01, 0x3a, 0x12};
 	#endif
 	Si4464_write(set_agc_ifpd_decay, 5);
@@ -291,10 +291,10 @@ void Si4464_Init(void) {
 	const uint8_t set_ook_pdtc[] = {0x11, 0x20, 0x01, 0x40, 0x28};
 	Si4464_write(set_ook_pdtc, 5);
 
-	#if RADIO_CLK == 26000000
+	#if RADIO_CLK == 30000000
 	const uint8_t set_ook_cnt1[] = {0x11, 0x20, 0x01, 0x42, 0x85};
 	const uint8_t set_ook_misc[] = {0x11, 0x20, 0x01, 0x43, 0x23};
-	#elif RADIO_CLK == 30000000
+	#elif RADIO_CLK == 26000000
 	const uint8_t set_ook_cnt1[] = {0x11, 0x20, 0x01, 0x42, 0x84};
 	const uint8_t set_ook_misc[] = {0x11, 0x20, 0x01, 0x43, 0x03};
 	#endif
@@ -313,9 +313,9 @@ void Si4464_Init(void) {
 	const uint8_t set_raw_control[] = {0x11, 0x20, 0x01, 0x45, 0x8F};
 	Si4464_write(set_raw_control, 5);
 
-	#if RADIO_CLK == 26000000
+	#if RADIO_CLK == 30000000
 	const uint8_t set_raw_eye[] = {0x11, 0x20, 0x01, 0x46, 0x00, 0x11};
-	#elif RADIO_CLK == 30000000
+	#elif RADIO_CLK == 26000000
 	const uint8_t set_raw_eye[] = {0x11, 0x20, 0x01, 0x46, 0x00, 0x0F};
 	#endif
 	Si4464_write(set_raw_eye, 6);
