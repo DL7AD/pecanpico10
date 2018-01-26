@@ -60,12 +60,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>	/* for isdigit, isupper */
-#include "regex.h"
+#include <regex.h>
 
 #include "ax25_pad.h"
 #include "digipeater.h"
 #include "dedupe.h"
 #include "fcs_calc.h"
+#include "debug.h"
 
 uint8_t data[] = ":2000000082A0AEAE6260E0AC96648A90A21B7EAC9664829AAEE2AE92888A64406303F040E6\n";
 
@@ -119,8 +120,7 @@ uint8_t data[] = ":2000000082A0AEAE6260E0AC96648A90A21B7EAC9664829AAEE2AE92888A6
  *------------------------------------------------------------------------------*/
 				  
 
-static packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, char *mycall_xmit, 
-				regex_t *alias, regex_t *wide, int to_chan, enum preempt_e preempt, char *filter_str)
+packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, char *mycall_xmit, regex_t *alias, regex_t *wide, int to_chan, enum preempt_e preempt, char *filter_str)
 {
 	(void)from_chan;
 	(void)filter_str;
@@ -164,7 +164,7 @@ static packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, ch
 	  packet_t result;
 
 	  result = ax25_dup (pp);
-	  (result == NULL)
+	  if(result == NULL)
         return NULL;
 
 	  /* If using multiple radio channels, they */
@@ -423,7 +423,7 @@ static bool try_digipeat(unsigned char *frame_in, int frame_in_len, unsigned cha
 
 
 
-
+/*
 uint8_t intelbuffer[1024];
 uint8_t out[1024];
 uint8_t last;
@@ -483,7 +483,7 @@ void processIntelHex(uint8_t *buffer, uint32_t n) {
 	}
 }
 
-/*int main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	int e;
 	char message[256];

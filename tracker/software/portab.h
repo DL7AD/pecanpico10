@@ -17,7 +17,7 @@
 #define LINE_DECODER_LED    LINE_IO_BLUE
 //#define LINE_SQUELCH_LED    LINE_LED1
 
-#define LINE_CCA            PAL_LINE(GPIOE, 0U)
+#define LINE_CCA            PAL_LINE(GPIOD, 2U)
 #define LINE_ICU            PAL_LINE(GPIOB, 6U)
 
 #define LINE_UART4_TX       PAL_LINE(GPIOA, 12U)

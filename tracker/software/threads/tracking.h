@@ -52,7 +52,7 @@ typedef struct {
 	uint8_t dummy2;
 
 	int16_t stm32_temp;
-	int16_t si4464_temp;
+	int16_t si446x_temp;
 
 	uint16_t reset;
 	uint32_t id;			// Serial ID

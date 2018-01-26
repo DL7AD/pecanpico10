@@ -6,11 +6,11 @@
 #include "radio.h"
 #include "geofence.h"
 #include "modulation.h"
-#include "si4464.h"
+#include "si446x.h"
 
 // Thread
-static thread_t* si4464_rx_thd = NULL;
-static THD_WORKING_AREA(si4464_rx_wa, 32*1024);
+static thread_t* si446x_rx_thd = NULL;
+static THD_WORKING_AREA(si446x_rx_wa, 32*1024);
 
 static const char *getModulation(uint8_t key) {
 	const char *val[] = {"unknown", "2FSK", "AFSK"};
@@ -60,7 +60,14 @@ bool transmitOnRadio(packet_t packet, freq_conf_t *freq_conf, uint8_t pwr, mod_t
 	return true;
 }
 
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>	/* for isdigit, isupper */
+
 #include "pktconf.h"
+#include <regex.h>
+#include "dedupe.h"
+#include "digipeater.h"
 
 char serial_buf[1024];
 
@@ -71,13 +78,12 @@ THD_FUNCTION(si_receiver, arg)
 	chRegSetThreadName("radio_receiver");
 
 
-	//Si4464_Init();
-	//setFrequency(144800000, 0);
-	//setModemAFSK_RX();
-	//startRx();
+	Si446x_init();
+	Si446x_setModemAFSK_RX();
+	Si446x_receive(144800000, 0x4F);
 
-	init145_175();
-	startRx();
+	//init144_800();
+	//startRx();
 
 	//palSetPadMode(GPIOA,8, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
 	//palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
@@ -86,18 +92,33 @@ THD_FUNCTION(si_receiver, arg)
 	//}
 
 
+	/*char mycall[] = "DL7AD-12";
+	regex_t alias_re;
+	regex_t wide_re;
 
-  /* Buffer and size params for serial terminal output. */
+	int e;
+	char message[256];
+
+	dedupe_init(TIME_S2I(4));
+
+	e = regcomp(&alias_re, "^WIDE[4-7]-[1-7]|CITYD$", REG_EXTENDED|REG_NOSUB);
+	if(e != 0) {
+		regerror(e, &alias_re, message, sizeof(message));
+		TRACE_DEBUG("\n%s\n\n", message);
+	}
+
+	e = regcomp(&wide_re, "^WIDE[1-7]-[1-7]$|^TRACE[1-7]-[1-7]$|^MA[1-7]-[1-7]$", REG_EXTENDED|REG_NOSUB);
+	if(e != 0) {
+		regerror(e, &wide_re, message, sizeof(message));
+		TRACE_DEBUG("\n%s\n\n", message);
+	}*/
 
 
-#if SUSPEND_HANDLING != NO_SUSPEND
-  /*
-   * Register for serial diag_out events.
-   */
-  event_listener_t d_listener;
-  event_listener_t p_listener;
 
-#endif
+
+
+
+
 
   /*
    * Setup the parameters for the AFSK decoder thread.
@@ -118,20 +139,15 @@ THD_FUNCTION(si_receiver, arg)
 
   event_source_t *events = pktGetEventSource(packetHandler);
 
-  chsnprintf(serial_buf, sizeof(serial_buf),
-                  "\r\nStarting main\r\n");
-  TRACE_DEBUG(serial_buf);
+  TRACE_DEBUG("Starting main");
 
   /* Test thread start. Decoder thread will start and be in WAIT state. */
-  chThdSleep(TIME_S2I(10));
+  chThdSleep(TIME_S2I(1));
 
   /* Start the decoder. */
   msg_t pstart = pktStartDataReception(packetHandler);
 
-  chsnprintf(serial_buf, sizeof(serial_buf),
-                  "Starting decoder: start status %i, event source @ %x\r\n",
-                  pstart, events);
-  TRACE_DEBUG(serial_buf);
+  TRACE_DEBUG("Starting decoder: start status %i, event source @ %x", pstart, events);
 
   /* Main loop. */
   while (true) {
@@ -158,11 +174,9 @@ THD_FUNCTION(si_receiver, arg)
     /* Write out the buffer data.
      * TODO: Have a define to put diagnostic data into AX25 buffer object.
      */
-    chsnprintf(serial_buf, sizeof(serial_buf),
-      "AFSK capture: status %x"
+    TRACE_DEBUG("AFSK capture: status %x"
       ", packet count %u frame count %u valid frames %u (%.2f%%) bytes %u"
-      ", CRCr %04x, CRCc %04x, CRCm %04x\r\n"
-      /*", phase correction %i, phase drift %i\r\n"*/,
+      ", CRCr %04x, CRCc %04x, CRCm %04x",
       myPktFIFO->status,
       packetHandler->packet_count,
       packetHandler->frame_count,
@@ -171,15 +185,8 @@ THD_FUNCTION(si_receiver, arg)
       frame_size,
       actualCRC,
       computeCRC,
-      magicCRC/*,
-      myPktFIFO->correction,
-      myPktFIFO->drift*/);
-/*      ((qcorr_decoder_t *)((AFSKDemodDriver *)
-          packetHandler->link_controller)->tone_decoder)->phase_correction,
-      ((qcorr_decoder_t *)((AFSKDemodDriver *)
-          packetHandler->link_controller)->tone_decoder)->pll_locked_integrator
-          / QCORR_PLL_COMB_SIZE);*/
-    TRACE_DEBUG(serial_buf);
+      magicCRC);
+    
 
 #define LINE_LENGTH 60U
     uint16_t bufpos;
@@ -187,9 +194,7 @@ THD_FUNCTION(si_receiver, arg)
     /* Write out a buffer line as hex first. */
     for(bufpos = 0; bufpos < frame_size; bufpos++) {
       if((bufpos + 1) % LINE_LENGTH == 0) {
-        chsnprintf(serial_buf, sizeof(serial_buf),
-                                "%02x\r\n", frame_buffer[bufpos]);
-        TRACE_DEBUG(serial_buf);
+        //TRACE_DEBUG("%02x\r\n", frame_buffer[bufpos]);
         /* Write out full line of converted ASCII under hex.*/
         bufpos_a = (bufpos + 1) - LINE_LENGTH;
         do {
@@ -207,26 +212,20 @@ THD_FUNCTION(si_receiver, arg)
             }
           }
           if((bufpos_a + 1) % LINE_LENGTH == 0) {
-            chsnprintf(serial_buf, sizeof(serial_buf),
-                                    " %c\r\n", asciichar);
+            //TRACE_DEBUG(" %c\r\n", asciichar);
           }
           else {
-            chsnprintf(serial_buf, sizeof(serial_buf),
-                                    " %c ", asciichar);
+            //TRACE_DEBUG(" %c ", asciichar);
           }
-          TRACE_DEBUG(serial_buf);
         } while(bufpos_a++ < bufpos);
       }
       else {
-        chsnprintf(serial_buf, sizeof(serial_buf),
-                                "%02x %c", frame_buffer[bufpos], frame_buffer[bufpos]);
-        TRACE_DEBUG(serial_buf);
+        //TRACE_DEBUG("%02x %c", frame_buffer[bufpos], frame_buffer[bufpos]);
       }
     } /* End for(bufpos = 0; bufpos < frame_size; bufpos++). */
-    chsnprintf(serial_buf, sizeof(serial_buf), "\r\n");
-    TRACE_DEBUG(serial_buf);
+
     /* Write out remaining partial line of converted ASCII under hex. */
-    do {
+    /*do {
       char asciichar = frame_buffer[bufpos_a];
       if(asciichar == 0x7e) {
         asciichar = '^';
@@ -240,34 +239,51 @@ THD_FUNCTION(si_receiver, arg)
           asciichar &= 0x3f;
         }
       }
-      chsnprintf(serial_buf, sizeof(serial_buf), " %c ",
+      TRACE_DEBUG(" %c ",
                               asciichar);
-      //TRACE_DEBUG(serial_buf);
-      } while(++bufpos_a < bufpos);
-      chsnprintf(serial_buf, sizeof(serial_buf), "\r\n");
-      //TRACE_DEBUG(serial_buf);
+
+      } while(++bufpos_a < bufpos);*/
+
+
+
+
+
+	packet_t pp = ax25_from_frame(frame_buffer, bufpos);
+    if(pp != NULL) {
+		char rec[1024];
+		unsigned char *pinfo;
+		ax25_format_addrs (pp, rec);
+		ax25_get_info (pp, &pinfo);
+		strlcat(rec, (char*)pinfo, sizeof(rec));
+
+		//packet_t result = digipeat_match(0, pp, mycall, mycall, &alias_re, &wide_re, 0, PREEMPT_OFF, NULL);
+		//if(result != NULL) {
+			//char xmit[1024];
+
+			//dedupe_remember(result, 0);
+			//ax25_format_addrs(result, xmit);
+			//info_len = ax25_get_info(result, &pinfo);
+			//strlcat(xmit, (char*)pinfo, sizeof(xmit));
+			//*frame_out_len = ax25_pack(result, frame_out);
+			//ax25_delete(result);
+
+			//TRACE_DEBUG("Xmit %s", xmit);
+		//}
+
+
+		TRACE_DEBUG("Rec %s", rec);
+	}
+	ax25_delete(pp);
+
+
+
 
       /* Now dump the packet data. */
-      uint16_t hx;
+      /*uint16_t hx;
       for (hx = 0; hx <= frame_size; hx++) {
-        hexout((BaseSequentialStream*)&SD3, frame_buffer[hx], (hx == frame_size));
-      }
+        hexout((BaseSequentialStream*)&SDU1, frame_buffer[hx], (hx == frame_size));
+      }*/
 
-    } else {/* End if valid frame. */
-      the_events = EVT_DIAG_OUT_END;
-      chsnprintf(serial_buf,
-       sizeof(serial_buf), "Invalid frame,"
-       " status %x, bytes %u\r\n",
-/*       ", phase correction %i, phase drift %i\r\n"*/
-       myPktFIFO->status, myPktFIFO->packet_size/*,
-       myPktFIFO->correction,
-       myPktFIFO->drift*/);
-/*       ((qcorr_decoder_t *)((AFSKDemodDriver *)
-           packetHandler->link_controller)->tone_decoder)->phase_correction,
-       ((qcorr_decoder_t *)((AFSKDemodDriver *)
-           packetHandler->link_controller)->tone_decoder)->pll_locked_integrator
-           / QCORR_PLL_COMB_SIZE);*/
-      TRACE_DEBUG(serial_buf);
     }
 
 #if SUSPEND_HANDLING == RELEASE_ON_OUTPUT
@@ -276,42 +292,38 @@ THD_FUNCTION(si_receiver, arg)
      */
     eventmask_t evt = chEvtWaitAllTimeout(the_events, TIME_S2I(10));
     if (!evt) {
-      chsnprintf(serial_buf, sizeof(serial_buf),
-                       "FAIL: Timeout waiting for EOT from serial channels\r\n");
-      TRACE_DEBUG(serial_buf);
+      TRACE_DEBUG("FAIL: Timeout waiting for EOT from serial channels");
     }
     chEvtSignal(the_decoder, EVT_SUSPEND_EXIT);
 #else
     (void)the_events;
 #endif
     pktReleaseDataBuffer(packetHandler, myPktFIFO);
-    if(packetHandler->packet_count % 10 == 0
+    if(packetHandler->packet_count % 50 == 0
         && packetHandler->packet_count != 0) {
       /* Stop the decoder. */
       msg_t pmsg = pktStopDataReception(packetHandler);
-      chsnprintf(serial_buf, sizeof(serial_buf),
-                              "Decoder STOP %i\r\n", pmsg);
-      TRACE_DEBUG(serial_buf);
-      if(packetHandler->packet_count % 20 == 0
+      TRACE_DEBUG("Decoder STOP %i", pmsg);
+      if(packetHandler->packet_count % 100 == 0
           && packetHandler->packet_count != 0) {
         chThdSleep(TIME_S2I(5));
         pmsg = pktCloseReceiveChannel(packetHandler);
-        chsnprintf(serial_buf, sizeof(serial_buf),
-                                "Decoder CLOSE %i\r\n", pmsg);
-        TRACE_DEBUG(serial_buf);
+        TRACE_DEBUG("Decoder CLOSE %i", pmsg);
         chThdSleep(TIME_S2I(5));
         packetHandler = pktOpenReceiveChannel(DECODE_AFSK, &afsk_radio);
-        chsnprintf(serial_buf, sizeof(serial_buf),
-                                "Decoder OPEN %x\r\n", packetHandler);
-        TRACE_DEBUG(serial_buf);
+        TRACE_DEBUG("Decoder OPEN %x", packetHandler);
       }
       chThdSleep(TIME_S2I(5));
       pmsg = pktStartDataReception(packetHandler);
-      chsnprintf(serial_buf, sizeof(serial_buf),
-                              "Decoder START %i\r\n", pmsg);
-      TRACE_DEBUG(serial_buf);
+      TRACE_DEBUG("Decoder START %i", pmsg);
     }
   }
+
+
+
+
+
+
 
 
 
@@ -322,7 +334,7 @@ THD_FUNCTION(si_receiver, arg)
 
 void startReceiver(void)
 {
-	if(si4464_rx_thd == NULL)
-		si4464_rx_thd = chThdCreateStatic(si4464_rx_wa, sizeof(si4464_rx_wa), HIGHPRIO, si_receiver, NULL);
+	if(si446x_rx_thd == NULL)
+		si446x_rx_thd = chThdCreateStatic(si446x_rx_wa, sizeof(si446x_rx_wa), HIGHPRIO, si_receiver, NULL);
 }
 

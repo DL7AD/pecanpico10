@@ -1,7 +1,7 @@
 #include "ch.h"
 #include "hal.h"
 
-#include "si4464.h"
+#include "si446x.h"
 #include "debug.h"
 #include <string.h>
 #include "ax25_pad.h"
@@ -39,13 +39,13 @@ static uint8_t radio_pwr;
  void shutdownRadio(void)
 {
 	// Wait for PH to finish transmission
-	while(Si4464_getState() == SI4464_STATE_TX)
+	while(Si446x_getState() == Si446x_STATE_TX)
 		chThdSleep(TIME_MS2I(1));
 
 	if(!nextTransmissionWaiting) { // No thread is waiting for radio, so shutdown radio
 		TRACE_INFO("RAD  > Transmission finished");
 		TRACE_INFO("RAD  > Shutdown radio");
-		Si4464_shutdown();
+		Si446x_shutdown();
 		active_mod = MOD_NOT_SET;
 	} else {
 		TRACE_INFO("RAD  > Transmission finished");
@@ -99,8 +99,8 @@ void initAFSK(void) {
 		return;
 
 	// Initialize radio
-	Si4464_Init();
-	setModemAFSK();
+	Si446x_init();
+	Si446x_setModemAFSK_TX();
 	active_mod = MOD_AFSK;
 }
 
@@ -240,14 +240,14 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 	// Initial FIFO fill
 	for(uint16_t i=0; i<c; i++)
 		localBuffer[i] = getAFSKbyte(layer0, layer0_blen);
-	Si4464_writeFIFO(localBuffer, c);
+	Si446x_writeFIFO(localBuffer, c);
 
 	// Start transmission
-	radioTune(radio_freq, 0, radio_pwr, all);
+	Si446x_transmit(radio_freq, radio_pwr, all, 0x3F, TIME_S2I(3));
 
 	while(c < all) { // Do while bytes not written into FIFO completely
-		// Determine free memory in Si4464-FIFO
-		uint8_t more = Si4464_freeFIFO();
+		// Determine free memory in Si446x-FIFO
+		uint8_t more = Si446x_freeFIFO();
 		if(more > all-c) {
 			if((more = all-c) == 0) // Calculate remainder to send
               break; // End if nothing left
@@ -256,11 +256,11 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 		for(uint16_t i=0; i<more; i++)
 			localBuffer[i] = getAFSKbyte(layer0, layer0_blen);
 
-		Si4464_writeFIFO(localBuffer, more); // Write into FIFO
+		Si446x_writeFIFO(localBuffer, more); // Write into FIFO
 		c += more;
 		chThdSleep(TIME_MS2I(15));
 	}
-	// Shutdown radio (and wait for Si4464 to finish transmission)
+	// Shutdown radio (and wait for Si446x to finish transmission)
 	shutdownRadio();
 
 
@@ -282,7 +282,7 @@ void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO, si_fifo_feeder_afsk, NULL);
 
 	// Wait for the transmitter to start (because it is used as mutex)
-	while(Si4464_getState() != SI4464_STATE_TX)
+	while(Si446x_getState() != Si446x_STATE_TX)
 		chThdSleep(TIME_MS2I(1));
 }
 
@@ -293,9 +293,8 @@ void init2FSK(void) {
 		return;
 
 	// Initialize radio
-	Si4464_Init();
-	fsk_conf_t conf = {9600};
-	setModem2FSK(&conf);
+	Si446x_init();
+	Si446x_setModem2FSK(9600);
 	active_mod = MOD_2FSK;
 }
 
@@ -311,24 +310,24 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
 	uint16_t all = (radio_msg.bin_len+7)/8;
 
 	// Initial FIFO fill
-	Si4464_writeFIFO(radio_msg.buffer, c);
+	Si446x_writeFIFO(radio_msg.buffer, c);
 
 	// Start transmission
 	radioTune((uint32_t)frequency, 0, radio_msg.power, all);
 
 	while(c < all) { // Do while bytes not written into FIFO completely
-		// Determine free memory in Si4464-FIFO
-		uint8_t more = Si4464_freeFIFO();
+		// Determine free memory in Si446x-FIFO
+		uint8_t more = Si446x_freeFIFO();
 		if(more > all-c) {
 			if((more = all-c) == 0) // Calculate remainder to send
               break; // End if nothing left
 		}
-		Si4464_writeFIFO(&radio_msg.buffer[c], more); // Write into FIFO
+		Si446x_writeFIFO(&radio_msg.buffer[c], more); // Write into FIFO
 		c += more;
 		chThdSleep(TIME_MS2I(15)); // That value is ok up to 96k
 	}*/
 
-	// Shutdown radio (and wait for Si4464 to finish transmission)
+	// Shutdown radio (and wait for Si446x to finish transmission)
 	shutdownRadio();
 
 	chThdExit(MSG_OK);
@@ -344,7 +343,7 @@ void send2FSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO, si_fifo_feeder_fsk, NULL);
 
 	// Wait for the transmitter to start (because it is used as mutex)
-	while(Si4464_getState() != SI4464_STATE_TX)
+	while(Si446x_getState() != Si446x_STATE_TX)
 		chThdSleep(TIME_MS2I(1));
 }
 

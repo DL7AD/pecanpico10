@@ -23,7 +23,7 @@ ifeq ($(USE_LINK_GC),)
   USE_LINK_GC = yes
 endif
 
-# Linker extra options here.
+# Linker extra moptions here.
 ifeq ($(USE_LDOPT),)
   USE_LDOPT = 
 endif
@@ -71,7 +71,8 @@ endif
 
 # Enables the use of FPU (no, softfp, hard).
 ifeq ($(USE_FPU),)
-  USE_FPU = no
+  USE_FPU = hard
+  USE_FPU_OPT = -mfloat-abi=$(USE_FPU) -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 endif
 
 #
@@ -134,12 +135,13 @@ CSRC = $(STARTUPSRC) \
        protocols/aprs2/dedupe.c \
        protocols/aprs2/fcs_calc.c \
        protocols/aprs2/aprs.c \
+       protocols/aprs2/digipeater.c \
        drivers/wrapper/pi2c.c \
        drivers/wrapper/ei2c.c \
        drivers/wrapper/padc.c \
        drivers/wrapper/ptime.c \
        drivers/ublox.c \
-       drivers/si4464.c \
+       drivers/si446x.c \
        drivers/bme280.c \
        drivers/pac1720.c \
        drivers/ov5640.c \

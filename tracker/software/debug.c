@@ -9,7 +9,6 @@
 #include "ov5640.h"
 #include "geofence.h"
 #include "aprs.h"
-#include "si4464.h"
 
 const SerialConfig uart_config =
 {
@@ -183,36 +182,6 @@ void test_rx(BaseSequentialStream *chp, int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 
-	/*palSetLineMode(LINE_RADIO_IRQ, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
-	palSetLineMode(LINE_RADIO_GPIO0, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
-	palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
-	palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
-
-	Si4464_Init();
-	setFrequency(144900000, 0);
-	setModemAFSK_RX();
-	startRx();
-
-	while(true)
-	{
-		bool irq = palReadLine(LINE_RADIO_IRQ);
-		//bool gpio0 = palReadLine(LINE_RADIO_GPIO0);
-		//bool gpio1 = palReadLine(LINE_RADIO_GPIO1);
-
-		palWritePad(GPIOA, 8, irq);
-		chThdSleep(TIME_MS2I(1));
-	}*/
-
 	startReceiver();
-
 }
-
-
-
-
-
-
-
-
-
 

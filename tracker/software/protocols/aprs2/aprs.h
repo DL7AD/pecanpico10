@@ -19,7 +19,7 @@
 #define __APRS_H__
 
 #include "config.h"
-#include "si4464.h"
+#include "si446x.h"
 #include "ax25_pad.h"
 #include "tracking.h"
 

@@ -13,7 +13,7 @@
 #include "flash.h"
 #include "watchdog.h"
 #include "pi2c.h"
-#include "si4464.h"
+#include "si446x.h"
 
 static trackPoint_t trackPoints[2];
 static trackPoint_t* lastTrackPoint;
@@ -283,7 +283,7 @@ static void getSensors(trackPoint_t* tp)
 
 	// Measure various temperature sensors
 	tp->stm32_temp = stm32_get_temp();
-	tp->si4464_temp = Si4464_getLastTemperature();
+	tp->si446x_temp = Si446x_getLastTemperature();
 
 	// Measure light intensity from OV5640
 	tp->light_intensity = OV5640_getLastLightIntensity() & 0xFFFF;
@@ -348,9 +348,9 @@ THD_FUNCTION(trackingThread, arg) {
 
 	lastTrackPoint->gps_lock = GPS_LOG; // Mark trackPoint as LOG packet
 
-	// Initialize Si4464 to get Temperature readout
-	Si4464_Init();
-	Si4464_shutdown();
+	// Initialize Si446x to get Temperature readout
+	Si446x_init();
+	Si446x_shutdown();
 
 	// Measure telemetry
 	measureVoltage(lastTrackPoint);
