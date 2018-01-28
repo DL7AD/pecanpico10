@@ -153,26 +153,14 @@
 
 // Public methods
 
-void Si446x_init(void);
-
-void Si446x_setModemAFSK_TX(void);
-void Si446x_setModemAFSK_RX(void);
-void Si446x_setModem2FSK(uint32_t speed);
-
-void Si446x_setTXState(uint16_t size);
-void Si446x_setReadyState(void);
-void Si446x_setRXState(void);
-void Si446x_shutdown(void);
-uint8_t Si446x_getState(void);
-
-bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uint8_t rssi, sysinterval_t sql_timeout);
-bool Si446x_receive(uint32_t frequency, uint8_t rssi);
-
-void Si446x_writeFIFO(uint8_t *msg, uint8_t size);
-uint8_t Si446x_freeFIFO(void);
-
-int16_t Si446x_getTemperature(void);
 int16_t Si446x_getLastTemperature(void);
+
+void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr);
+void send2FSK(packet_t packet, uint32_t freq, uint8_t pwr);
+void receiveAFSK(uint32_t freq, uint8_t rssi);
+
+void unlockRadio(void);
+void lockRadioByCamera(void);
 
 #endif
 

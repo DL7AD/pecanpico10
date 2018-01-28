@@ -16,15 +16,13 @@
 
 
 #include "pktconf.h"
-
+#include "debug.h"
 
 #if AFSK_DECODE_TYPE == AFSK_DSP_QCORR_DECODE
 
 /*===========================================================================*/
 /* Module local definitions.                                                 */
 /*===========================================================================*/
-
-#define USE_QCORR_MAG_LPF           TRUE
 
 /*===========================================================================*/
 /* Module exported variables.                                                */
@@ -45,7 +43,7 @@ qfir_filter_t AFSK_PWM_QFILTER;
  * Allocate data for prefilter FIR.
  */
 static arm_fir_instance_q31 pre_filter_instance_q31;
-static q31_t pre_filter_state_q31[PREQ_FILTER_BLOCK_SIZE
+static q31_t pre_filter_state_q31[PRE_FILTER_BLOCK_SIZE
                                   + PRE_FILTER_NUM_TAPS - 1];
 static q31_t pre_filter_coeff_q31[PRE_FILTER_NUM_TAPS];
 
@@ -133,8 +131,7 @@ static q31_t s_sin_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
  *
  * @api
  */
-void reset_qcorr_all(AFSKDemodDriver *driver)
-{
+void reset_qcorr_all(AFSKDemodDriver *driver) {
   qcorr_decoder_t *decoder = driver->tone_decoder;
   qfir_filter_t *input_filter = decoder->input_filter;
   if(input_filter != NULL)
@@ -167,14 +164,25 @@ void reset_qcorr_all(AFSKDemodDriver *driver)
   decoder->prior_demod = TONE_NONE;
   decoder->current_demod = TONE_NONE;
 
-  decoder->search_rate = 0;
   decoder->phase_correction = 0;
 
+#if  USE_QCORR_FRACTIONAL_PLL == TRUE
+  decoder->symbol_pll = 0/*(int32_t)-1*/;
+#endif
+  decoder->search_rate = 0;
   /*
    * Reset phase drift analysis.
    */
   decoder->phase_delta = 0;
   decoder->pll_locked_integrator = 0;
+
+  /*
+   * Clear the comb filter.
+   */
+  for(i = QCORR_PLL_COMB_SIZE - 1; i > 0; i--) {
+    decoder->pll_comb_filter[i] = 0;
+  }
+
 }
 
 /**
@@ -200,7 +208,7 @@ q31_t push_qcorr_sample(AFSKDemodDriver *myDriver, bit_t sample) {
 #if AFSK_DEBUG_TYPE == AFSK_QCORR_FIR_DEBUG
     char buf[80];
     int out = chsnprintf(buf, sizeof(buf), "%X\r\n", scaledOut);
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(&SDU1, (uint8_t *)buf, out);
 #endif
 
   /*
@@ -210,19 +218,21 @@ q31_t push_qcorr_sample(AFSKDemodDriver *myDriver, bit_t sample) {
 }
 
 /**
- * @brief Called at each new sample to process correlation.
+ * @brief   Called at each new sample to process correlation.
+ * @notes   The correlation filters are run for each tone and phase.
+ * @notes   The magnitude of each tone is calculated.
+ * @notes   The comparative strength of symbol tones is evaluated and updated.
+ * @notes   If the symbol is complete then HDLC decoding is enabled.
  *
  * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure.
+ *
+ * @return      Status for symbol
+ * @retval      false if the decoder output is not valid.
+ * @retval      true if the decoder output is valid.
  *
  */
 bool process_qcorr_output(AFSKDemodDriver *myDriver) {
   qcorr_decoder_t *decoder = myDriver->tone_decoder;
-
-
-  /*
-   * TODO: Rework or remove phase lock search for initial sync.
-   * The si re-timing of data should do all we need?
-   */
 
   /*
    * The decoder structure contains the filtered and scaled sample.
@@ -252,7 +262,7 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
       int out = chsnprintf(buf, sizeof(buf), "%i, %i\r\n",
         myBin->cos_out, myBin->sin_out);
     }
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(&SDU1, (uint8_t *)buf, out);
 #endif
   }
 
@@ -266,6 +276,11 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
   /* Filter magnitude. */
 #if USE_QCORR_MAG_LPF == TRUE
   filter_qcorr_magnitude(myDriver);
+  /* Delay filter ready by mag filter size + pre-filter size. */
+  if(decoder->filter_valid <
+      (decoder->input_filter->filter_instance->numTaps
+          + MAG_FILTER_NUM_TAPS))
+          return false;
 #endif
 
 #if AFSK_DEBUG_TYPE == AFSK_QCORR_DATA_DEBUG
@@ -276,25 +291,60 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
       i, decoder->filter_bins[i].mag,
       decoder->current_n,
       decoder->current_n % decoder->decode_length);
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(&SDU1, (uint8_t *)buf, out);
   }
 #endif
 
+  /* Do magnitude comparison on tone bins and save results. */
   evaluate_qcorr_tone(myDriver);
 
-  decoder->current_n++;
+  return true;
+}
+
+/**
+ * @brief       Checks the symbol timing.
+ *
+ * @param[in]   myDriver    pointer to AFSKDemodDriver structure.
+ *
+ * @return      Status for symbol timing.
+ * @retval      false if the symbol is not complete.
+ * @retval      true if the symbol is ready for HDLC detection.
+ *
+ * @api
+ */
+bool get_qcorr_symbol_timing(AFSKDemodDriver *myDriver) {
+  qcorr_decoder_t *decoder = myDriver->tone_decoder;
+
+#if USE_QCORR_FRACTIONAL_PLL == TRUE
+  decoder->prior_pll = decoder->symbol_pll;
+#define PLL_INCREMENT (UINT_MAX / SYMBOL_DECIMATION)
+  decoder->symbol_pll = (int32_t)((uint32_t)(decoder->symbol_pll) + PLL_INCREMENT);
+  /* Check the symbol period was reached and return status. */
+  return ((decoder->symbol_pll < 0) && (decoder->prior_pll > 0));
+#else
   /*
    * Calculate current phase point in symbol.
    */
   uint8_t symbol_phase = (decoder->current_n + decoder->phase_correction)
       % SYMBOL_DECIMATION/*myDriver->decimation_slices*/;
 
-  /*
-   * Calculate current phase point in filter.
-   */
-  uint8_t filter_phase = (decoder->current_n + decoder->phase_correction)
-     % decoder->decode_length;
+  return (symbol_phase == 0);
+#endif
+}
 
+/**
+ * @brief Advances the symbol PLL timing.
+ * @notes The rate of advance is determined by the HDLC frame state.
+ * @notes If a frame start has not been detected a faster search rate is used.
+ * @notes This aids in finding the HDLC sync point as soon as possible.
+ * @notea After HDLC frame start has been found the PLL search rate is reduced.
+ *
+ * @param[in] myDriver    pointer to AFSKDemodDriver structure.
+ *
+ * @api
+ */
+void update_qcorr_pll(AFSKDemodDriver *myDriver) {
+  qcorr_decoder_t *decoder = myDriver->tone_decoder;
   /*
    * Now test if a tone transition has taken place.
    */
@@ -302,26 +352,52 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
 
     /* Update tone state. */
     decoder->prior_demod = decoder->current_demod;
+#if USE_QCORR_FRACTIONAL_PLL == TRUE
+    if(myDriver->frame_state == FRAME_SEARCH) {
+      decoder->symbol_pll = (int32_t)((float32_t)decoder->symbol_pll
+          * QCORR_PLL_SEARCH_RATE);
+    } else {
+      decoder->symbol_pll = (int32_t)((float32_t)decoder->symbol_pll
+          * QCORR_PLL_LOCKED_RATE);
+    }
+  }
+#else
 
     /*
-     * Compute and save the filter phase error.
-     * The correction will be applied at symbol end.
+     * Calculate the phase delta from the center of the filter.
+     * A positive delta means the tone transition is late in the window.
+     * The phase correction will be increased when delta is added.
+     * A negative delta means the tone transition is early in the window.
+     * The phase correction will be decreased when delta is added.
+     *
+     * After CIC filtering the delta is applied to phase correction at symbol end.
      */
-    decoder->phase_delta =  decoder->phase_correction
-        - (filter_phase - (decoder->decode_length / 2));
+      decoder->phase_delta = (decoder->current_n % decoder->decode_length)
+          - SYMBOL_DECIMATION;
 
   }
+  /* Filter current sample count has already been updated. */
+  ++decoder->current_n;
+#endif
+}
 
+void placeholder_qcorr_pll(AFSKDemodDriver *myDriver) {
+  qcorr_decoder_t *decoder = myDriver->tone_decoder;
+  /*
+   * Calculate current phase point in symbol.
+   */
+  uint8_t symbol_phase = (decoder->current_n + decoder->phase_correction)
+      % SYMBOL_DECIMATION/*myDriver->decimation_slices*/;
   /*
    * If a symbol end has been reached then process.
    */
   if(symbol_phase == 0) {
     /*
      * A moving average filter is used to calculate phase delta.
-     * This is just kept as a statistic.
      *
      * The MA filter is implemented as a CIC running sum filter.
-     * Then divided by the number of taps due to normalise gain scaling.
+     * Values taken from the accumulator must be scaled by the filter size (taps).
+     * This normalizes the gain inherent in the accumulator.
      *
      * Get the phase delta from N symbol periods ago.
      * Apply comb filter: Yn = Zn - Z(n - N).
@@ -329,7 +405,7 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
      * Note phase delta is captured at tone transition.
      * In the case there is no transition in the symbol period a zero is added.
      */
-    int8_t history_comb_out = decoder->phase_delta -
+    dsp_phase_t history_comb_out = decoder->phase_delta -
         decoder->pll_comb_filter[QCORR_PLL_COMB_SIZE - 1];
 
     /*
@@ -339,18 +415,6 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
      */
     decoder->pll_locked_integrator += history_comb_out;
 
-    if(myDriver->frame_state == FRAME_SEARCH) {
-      /*
-       * Adjust sample search offset timing within symbol.
-       * TODO: Is this really helping versus using si radio clock re-timing?
-       */
-      ++decoder->search_rate;
-      if((decoder->search_rate > 32) && (decoder->search_rate % 8 == 0)) {
-          decoder->phase_correction =
-          (decoder->phase_correction + QCORR_PHASE_SEARCH)
-          % SYMBOL_DECIMATION;
-      }
-    }
     /*
      * Push the comb filter history down.
      */
@@ -368,9 +432,34 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
     decoder->pll_comb_filter[0] = decoder->phase_delta;
     decoder->phase_delta = 0;
 
-    return true;
+    if(myDriver->frame_state == FRAME_SEARCH) {
+      /*
+       * Adjust sample search offset timing within symbol.
+       * TODO: Is this really helping versus using si radio clock re-timing?
+       */
+/*      ++decoder->search_rate;
+      if((decoder->search_rate > 32) && (decoder->search_rate % 8 == 0)) {
+          decoder->phase_correction =
+          (decoder->phase_correction + QCORR_PHASE_SEARCH)
+          % SYMBOL_DECIMATION;
+      }*/
+    }
+    //return true;
+    return;
   }
-  return false;
+  if(symbol_phase == (SYMBOL_DECIMATION / 2)) {
+    /*
+     * Update the phase correction at the center of the symbol time.
+     * This ensures that a symbol end is not re-detected or missed.
+     */
+
+    if(myDriver->frame_state == FRAME_OPEN) {
+      /* The CIC value has to scaled by the number of taps in the filter. */
+      //decoder->phase_correction +=
+          //(decoder->pll_locked_integrator / QCORR_PLL_COMB_SIZE);
+    }
+  }
+  return;
 }
 
 /**
@@ -406,7 +495,7 @@ void calc_qcorr_magnitude(AFSKDemodDriver *myDriver) {
       int out = chsnprintf(buf, sizeof(buf),                                 \
         "MAG SQRT failed bin %i, cosQ %X, sinQ %X, cos %f, sin %f, mag2 %f, mag %X, index %i\r\n",                                              \
         i, myBin->cos_out, myBin->sin_out, cos, sin, mag2, raw_mag, decoder->current_n);
-      chnWrite(diag_out, (uint8_t *)buf, out);
+      chnWrite(&SDU1, (uint8_t *)buf, out);
 #endif /* AFSK_ERROR_TYPE == AFSK_SQRT_ERROR */
 
 #else
@@ -426,7 +515,7 @@ void calc_qcorr_magnitude(AFSKDemodDriver *myDriver) {
           "mag2 %X, mag %X, index %i\r\n",
           i, myBin->cos_out, myBin->sin_out, cos, sin, mag2,
           decoder->filter_bins[i].raw_mag, decoder->current_n);
-        chnWrite(diag_out, (uint8_t *)buf, out);
+        chnWrite(&SDU1, (uint8_t *)buf, out);
   #endif /* AFSK_ERROR_TYPE == AFSK_SQRT_ERROR */
 #endif /* QCORR_MAG_USE_FLOAT */
     }
@@ -438,7 +527,7 @@ void calc_qcorr_magnitude(AFSKDemodDriver *myDriver) {
     } else {
       out = chsnprintf(buf, sizeof(buf), "%i\r\n", raw_mag);
     }
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(&SDU1, (uint8_t *)buf, out);
 #endif
   }
 }
@@ -474,7 +563,7 @@ void filter_qcorr_magnitude(AFSKDemodDriver *myDriver) {
                        decoder->filter_bins[i].raw_mag,
                        decoder->filter_bins[i].filtered_mag);
     }
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(&SDU1, (uint8_t *)buf, out);
 #endif
   }
 }
@@ -498,8 +587,8 @@ void evaluate_qcorr_tone(AFSKDemodDriver *myDriver) {
   mark = myDecoder->filter_bins[AFSK_MARK_INDEX].filtered_mag;
   space = myDecoder->filter_bins[AFSK_SPACE_INDEX].filtered_mag;
 #else
-  q31_t mark = myDecoder->filter_bins[AFSK_MARK_INDEX].raw_mag;
-  q31_t space = myDecoder->filter_bins[AFSK_SPACE_INDEX].raw_mag;
+  mark = myDecoder->filter_bins[AFSK_MARK_INDEX].raw_mag;
+  space = myDecoder->filter_bins[AFSK_SPACE_INDEX].raw_mag;
 #endif
   delta = mark - space;
   if(delta > myDecoder->hysteresis) {
@@ -509,11 +598,12 @@ void evaluate_qcorr_tone(AFSKDemodDriver *myDriver) {
     /* Space symbol dominant. */
     myDecoder->current_demod = TONE_SPACE;
   }
+  /* Else don't change current_demod so it remains as prior. */
 #if AFSK_DEBUG_TYPE == AFSK_QCORR_DEC_MS_DEBUG
     char buf[200];
     int out = chsnprintf(buf, sizeof(buf), "%i, %i\r\n",
       mark, space);
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(&SDU1, (uint8_t *)buf, out);
 #endif
 }
 
@@ -535,7 +625,7 @@ static void setup_qcorr_prefilter(qcorr_decoder_t *decoder) {
     PRE_FILTER_NUM_TAPS,
     pre_filter_coeff_q31,
     pre_filter_state_q31,
-    PREQ_FILTER_BLOCK_SIZE,
+    PRE_FILTER_BLOCK_SIZE,
     pre_filter_coeff_f32);
 
 #if REPORT_QCORR_COEFFS == TRUE
@@ -554,7 +644,7 @@ static void setup_qcorr_prefilter(qcorr_decoder_t *decoder) {
   char buf[80];
   int out = chsnprintf(buf, sizeof(buf),
     "PRE FILTER COEFF %f %x\r\n", coeff_total_f32, coeff_total_q31);
-  chnWrite(diag_out, (uint8_t *)buf, out);
+  chnWrite(&SDU1, (uint8_t *)buf, out);
 #endif
 }
 
@@ -639,6 +729,7 @@ void setup_qcorr_IQfilters(qcorr_decoder_t *decoder) {
      sin_table);
 }
 
+#if USE_QCORR_MAG_LPF == TRUE
 /**
  * @brief Setup the magnitude filter.
  *
@@ -684,9 +775,10 @@ static void setup_qcorr_magfilter(qcorr_decoder_t *decoder) {
   char buf[80];
   int out = chsnprintf(buf, sizeof(buf),
   "MAG FILTER COEFF %f %x\r\n", bin_coeff_total_f32, bin_coeff_total_q31);
-  chnWrite(diag_out, (uint8_t *)buf, out);
+  chnWrite(&SDU1, (uint8_t *)buf, out);
 #endif
 }
+#endif
 
 /**
  * @brief   Called once to initialise the QCORR parameters.

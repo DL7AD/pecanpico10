@@ -12,32 +12,6 @@
 
 #include "pktconf.h"
 
-/**
- * @file    dbguart.c
- * @brief   Serial channels for debug.
- *
- * @addtogroup IODevices
- * @{
- */
 
-#if PKT_CFG_USE_SERIAL == TRUE
-const SerialConfig debug_config = {
-  115200,
-  0,
-  0,
-  0
-};
-
-/* Declare UART aliases. */
-BaseSequentialStream* diag_out = (BaseSequentialStream*) &SD3;
-BaseSequentialStream* pkt_out = (BaseSequentialStream*) &SD4;
-
-void pktSerialStart() {
-  pktConfigSerialDiag();
-  pktConfigSerialPkt();
-  sdStart(&SD4, &debug_config);
-  sdStart(&SD3, &debug_config);
-}
-#endif /* PKT_CFG_USE_SERIAL */
 
 /** @} */

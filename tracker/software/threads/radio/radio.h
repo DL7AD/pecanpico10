@@ -19,9 +19,6 @@
 #define APRS_FREQ_BRAZIL			145575000
 
 bool transmitOnRadio(packet_t packet, freq_conf_t *freq_conf, uint8_t pwr, mod_t mod);
-void lockRadio(void);
-void lockRadioByCamera(void);
-void unlockRadio(void);
 void startReceiver(void);
 
 THD_FUNCTION(moduleRADIO, arg);

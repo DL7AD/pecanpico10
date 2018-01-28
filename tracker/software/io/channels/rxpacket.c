@@ -288,15 +288,7 @@ msg_t pktCloseReceiveChannel(packet_rx_t *handler) {
  * @api
  */
 bool pktStoreBufferData(pkt_data_fifo_t *pkt_buffer, ax25char_t data) {
-  /* Check if the data needs to be escaped if it is HDLC control. */
-  if(data == HDLC_FLAG || data == HDLC_RESET || data == AX25_ESC) {
-    if((pkt_buffer->packet_size + 2U) >= pkt_buffer->buffer_size) {
-      /* Buffer full. */
-      return false;
-    }
-    pkt_buffer->buffer[pkt_buffer->packet_size++] = AX25_ESC;
-  }
-  if((pkt_buffer->packet_size + 1U) >= pkt_buffer->buffer_size) {
+  if((pkt_buffer->packet_size + 1U) > pkt_buffer->buffer_size) {
     /* Buffer full. */
     return false;
   }

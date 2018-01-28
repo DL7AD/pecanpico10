@@ -60,7 +60,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>	/* for isdigit, isupper */
-#include <regex.h>
+#include "regex.h"
 
 #include "ax25_pad.h"
 #include "digipeater.h"

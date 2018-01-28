@@ -20,6 +20,11 @@
 /* Driver exported variables.                                                */
 /*===========================================================================*/
 
+#if MAG_FILTER_GEN_COEFF == TRUE
+
+float32_t mag_filter_coeff_f32[MAG_FILTER_NUM_TAPS];
+
+#else
 /*
  * Magnitude (LPF) coefficients.
  * Fs=28800, f1 = 1400, number of taps = 29
@@ -37,7 +42,14 @@ float32_t mag_filter_coeff_f32[MAG_FILTER_NUM_TAPS] = {
    0.0009925971f, -0.0010016907f, -0.0016305187f, -0.0016647590f,
    -0.0016890122f
 };
+#endif /* PREQ_FILTER_GEN_COEFF == TRUE */
 
+
+#if PRE_FILTER_GEN_COEFF == TRUE
+
+float32_t pre_filter_coeff_f32[PRE_FILTER_NUM_TAPS];
+
+#else
 /*
  * Pre-filter (BPF) coefficients.
  * Fs=28800, f1 = 925, f2 = 2475, number of taps = 311
@@ -125,6 +137,7 @@ float32_t pre_filter_coeff_f32[PRE_FILTER_NUM_TAPS] = {
   -0.0000104737f, 0.0000087403f, 0.0000662689f, 0.0001439800f,
   0.0002174784f, 0.0002628323f, 0.0002630141f
 };
+#endif
 
 /*
  * Data structure for AFSK decoding.
@@ -198,14 +211,85 @@ void pktDisablePWM(AFSKDemodDriver *myDriver) {
 }
 
 /**
- * @brief   Processes PWM into a decimated time line for AFSK decoding.
- * @notes   The decimated entries are filtered through a BPF.
+ * @brief   Check the symbol timing.
  *
  * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
  *
  * @return  status indicating if symbol decoding should take place.
  * @retval  true    decoding should run before getting next PWM entry.
  * @retval  false   continue immediately with next PWM data entry.
+ *
+ * @api
+ */
+bool pktCheckAFSKSymbolTime(AFSKDemodDriver *myDriver) {
+  /*
+   * Each decoder filter is setup at init with a sample source.
+   * This is set in the filter control structure.
+   */
+
+  switch(AFSK_DECODE_TYPE) {
+    case AFSK_DSP_QCORR_DECODE: {
+
+      /*
+       * Check if symbol decode should be run now.
+       */
+      return (get_qcorr_symbol_timing(myDriver));
+    }
+
+    case AFSK_DSP_FCORR_DECODE: {
+
+    }
+
+    default: {
+      break;
+    }
+  } /* end switch. */
+  return false;
+}
+
+/**
+ * @brief   Update the symbol timing PLL.
+ *
+ * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
+ *
+ * @api
+ */
+void pktUpdateAFSKSymbolPLL(AFSKDemodDriver *myDriver) {
+  /*
+   * Increment PLL timing.
+   */
+
+  switch(AFSK_DECODE_TYPE) {
+    case AFSK_DSP_QCORR_DECODE: {
+
+      /*
+       *
+       */
+
+      update_qcorr_pll(myDriver);
+      break;
+    }
+
+    case AFSK_DSP_FCORR_DECODE: {
+
+    }
+
+    default: {
+      break;
+    }
+  } /* end switch. */
+  return;
+}
+
+/**
+ * @brief   Processes PWM into a decimated time line for AFSK decoding.
+ * @notes   The decimated entries are filtered through a BPF.
+ *
+ * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
+ *
+ * @return  status of operations.
+ * @retval  true    no error occurred so decimation can continue at next data.
+ * @retval  false   an error occurred and decimation should be aborted.
  *
  * @api
  */
@@ -225,14 +309,20 @@ bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[]) {
 
       /*
        * Process the sample at the output side of the pre-filter.
-       * The decoder returns true if symbol decoding should now run.
+       * The filter returns true if its output is now valid.
        */
       if(pktProcessAFSKFilteredSample(myDriver)) {
-        if(!pktDecodeAFSKSymbol(myDriver))
-          return false;
+        /* Filter is ready so decoding can commence. */
+        //bool ready = pktCheckAFSKSymbolTime(myDriver);
+        if(pktCheckAFSKSymbolTime(myDriver)) {
+          /* A symbol is ready to decode. */
+          if(!pktDecodeAFSKSymbol(myDriver))
+            /* Error in decoding. */
+            return false;
+        }
+        pktUpdateAFSKSymbolPLL(myDriver);
       }
       myDriver->decimation_accumulator -= myDriver->decimation_size;
-
     } /* End while. Accumulator has underflowed. */
   } /* End for. */
   return true;
@@ -271,6 +361,10 @@ void pktAddAFSKFilterSample(AFSKDemodDriver *myDriver, bit_t binary) {
  *
  * @param[in]   myDriver   pointer to an @p AFSKDemodDriver structure.
  *
+ * @return  filter  status
+ * @retval  true    the filter output is valid.
+ * @retval  false   the filter output in not yet valid.
+ *
  * @api
  */
 bool pktProcessAFSKFilteredSample(AFSKDemodDriver *myDriver) {
@@ -287,7 +381,7 @@ bool pktProcessAFSKFilteredSample(AFSKDemodDriver *myDriver) {
        * Result is updated MARK and SPACE bins.
        *
        */
-      return (process_qcorr_output(myDriver));
+      return process_qcorr_output(myDriver);
     }
 
     case AFSK_DSP_FCORR_DECODE: {
@@ -322,14 +416,14 @@ bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver) {
   switch(AFSK_DECODE_TYPE) {
 
     case AFSK_DSP_QCORR_DECODE: {
-      /* Decoding is done per sample in QCORR. */
+      /* Tone analysis is done per sample in QCORR. */
       qcorr_decoder_t *decoder = myDriver->tone_decoder;
       myDriver->tone_freq = decoder->current_demod;
       break;
     } /* End case AFSK_DSP_QCORR_DECODE. */
 
     case AFSK_DSP_FCORR_DECODE: {
-      /* TODO: Decoding is done per sample in FCORR. */
+      /* TODO: Tone analysis is done per sample in FCORR. */
       break;
     } /* End case AFSK_DSP_FCORR_DECODE. */
 
@@ -456,6 +550,24 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_rx_t *pktHandler,
   myDriver->decimation_size = ((pwm_accum_t)ICU_COUNT_FREQUENCY
                                 / (pwm_accum_t)AFSK_BAUD_RATE)
                                 / (pwm_accum_t)SYMBOL_DECIMATION;
+
+#if PRE_FILTER_GEN_COEFF == TRUE
+
+  gen_fir_bpf((float32_t)PRE_FILTER_LOW / (float32_t)FILTER_SAMPLE_RATE,
+              (float32_t)PRE_FILTER_HIGH / (float32_t)FILTER_SAMPLE_RATE,
+              pre_filter_coeff_f32,
+              PRE_FILTER_NUM_TAPS,
+              TD_WINDOW_NONE);
+#endif
+
+#if MAG_FILTER_GEN_COEFF == TRUE
+
+  gen_fir_lpf((float32_t)MAG_FILTER_HIGH / (float32_t)FILTER_SAMPLE_RATE,
+              mag_filter_coeff_f32,
+              MAG_FILTER_NUM_TAPS,
+              TD_WINDOW_NONE);
+#endif
+
   return myDriver;
 }
 
@@ -696,9 +808,12 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             } /* End switch. */
           }
           /*
-           * FIXME: Should handle a result from process_afsk
+           * If error in data (HDLC_RESET) stop decoding.
            */
-          (void)pktProcessAFSK(myDriver, radio.array);
+          if(!pktProcessAFSK(myDriver, radio.array)) {
+            myDriver->decoder_state = DECODER_ERROR;
+            break; /* From this case. */
+          }
 
           if(myDriver->frame_state == FRAME_CLOSE) {
             uint16_t magicCRC =

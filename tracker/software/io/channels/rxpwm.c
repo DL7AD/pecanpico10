@@ -387,6 +387,11 @@ void pktRadioCCAInput(ICUDriver *myICU) {
   /* CCA changed. */
   switch(palReadLine(LINE_CCA)) {
     case PAL_LOW: {
+      if(myDemod->icustate == PWM_ICU_ACTIVE) {
+        /* TODO: Add CCA trailing edge glitch handling.
+         * Start timer and wait to determine if CCA is still low before closing PWM.
+         */
+      }
       if(chVTIsArmedI(&myICU->cca_timer)) {
         /* CCA has dropped during timer so CCA is a glitch. */
         chVTResetI(&myICU->cca_timer);

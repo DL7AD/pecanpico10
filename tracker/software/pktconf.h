@@ -89,7 +89,7 @@
 #define SUSPEND_HANDLING        NO_SUSPEND
 
 /* Extra GPIO value. */
-#define PAL_TOGGLE          2U
+#define PAL_TOGGLE              2U
 
 /*===========================================================================*/
 /**
@@ -104,7 +104,7 @@
  *
  * @note    The default is @p TRUE.
  */
-#define PKT_CFG_USE_SERIAL          TRUE
+#define PKT_CFG_USE_SERIAL          FALSE
 
 /**
  * @brief   Temporary definition of radio unit ID.

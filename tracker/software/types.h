@@ -1,12 +1,6 @@
 #ifndef __TYPES_H__
 #define __TYPES_H__
 
-typedef enum { // Modulation type
-	MOD_NOT_SET,
-	MOD_2FSK,
-	MOD_AFSK
-} mod_t;
-
 typedef struct {
 	char callsign[16];			// APRS callsign
 	uint8_t ssid;				// APRS SSID
@@ -50,6 +44,12 @@ typedef struct {
 	freq_type_t type;
 	uint32_t hz;
 } freq_conf_t;
+
+typedef enum { // Modulation type
+	MOD_NOT_SET,
+	MOD_2FSK,
+	MOD_AFSK
+} mod_t;
 
 typedef struct { // Radio message type
 	uint8_t* 		buffer;			// Message (data)

@@ -21,18 +21,23 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-#define QCORR_FILTER_BINS       AFSK_NUM_TONES /* Set by AFSK header. */
+#define QCORR_FILTER_BINS           AFSK_NUM_TONES /* Set by AFSK header. */
 
-#define QCORR_SAMPLE_LEVEL      0.9f
-#define QCORR_HYSTERESIS        0.01f
+#define QCORR_SAMPLE_LEVEL          0.9f
+#define QCORR_HYSTERESIS            0.01f
 
-#define QCORR_PHASE_SEARCH       1
-#define QCORR_PLL_COMB_SIZE     64
+#define QCORR_PHASE_SEARCH          1
+#define QCORR_PLL_COMB_SIZE         64
 
 #if (QCORR_PLL_COMB_SIZE & (QCORR_PLL_COMB_SIZE - 1)) != 0
 #error "QCORR_PLL_COMB_SIZE is not a power of two"
 #endif
 
+#define USE_QCORR_FRACTIONAL_PLL    TRUE
+#define QCORR_PLL_SEARCH_RATE       0.5f
+#define QCORR_PLL_LOCKED_RATE       0.75f
+
+/* Used for indexing of IQ filter sections. */
 #define QCORR_COS_INDEX         0U
 #define QCORR_SIN_INDEX         1U
 
@@ -66,14 +71,14 @@ typedef struct qStats {
  * @note    Each bin is defined and maintains its specific parameters.
  */
 typedef struct qTone {
-  uint16_t        freq;
-  qfir_filter_t   *tone_filter[AFSK_NUM_TONES];
-  qfir_filter_t   *mag_filter;
-  q31_t           raw_mag;
-  q31_t           filtered_mag;
-  q31_t           mag;
-  q31_t           cos_out;
-  q31_t           sin_out;
+  uint16_t          freq;
+  qfir_filter_t     *tone_filter[AFSK_NUM_TONES];
+  qfir_filter_t     *mag_filter;
+  q31_t             raw_mag;
+  q31_t             filtered_mag;
+  q31_t             mag;
+  q31_t             cos_out;
+  q31_t             sin_out;
 } qcorr_tone_t;
 
 /**
@@ -81,26 +86,30 @@ typedef struct qTone {
  *
  */
 typedef struct qCorrFilter {
-  AFSKDemodDriver *demod_driver;
-  qfir_filter_t   *input_filter;
-  uint16_t        decode_length;
-  uint32_t        current_n;
-  uint32_t        sample_rate;
-  q31_t           preFilterOut;
-  uint32_t        filter_valid;
-  uint8_t         number_bins;
-  qcorr_tone_t    *filter_bins;
-  q31_t           sample_level[2];
-  q31_t           hysteresis;
-  tone_t          prior_demod;
-  tone_t          current_demod;
-  dsp_phase_t     phase_correction;
-  dsp_phase_t     phase_delta;
-  dsp_phase_t     search_rate;
-  dsp_phase_t     pll_comb_filter[QCORR_PLL_COMB_SIZE];
-  dsp_phase_t     pll_locked_integrator;
+  AFSKDemodDriver   *demod_driver;
+  qfir_filter_t     *input_filter;
+  uint16_t          decode_length;
+  uint32_t          current_n;
+  uint32_t          sample_rate;
+  q31_t             preFilterOut;
+  uint32_t          filter_valid;
+  uint8_t           number_bins;
+  qcorr_tone_t      *filter_bins;
+  q31_t             sample_level[2];
+  q31_t             hysteresis;
+  tone_t            prior_demod;
+  tone_t            current_demod;
+  dsp_phase_t       phase_correction;
+  dsp_phase_t       phase_delta;
+  dsp_phase_t       search_rate;
+  dsp_phase_t       pll_comb_filter[QCORR_PLL_COMB_SIZE];
+  dsp_phase_t       pll_locked_integrator;
+#if  USE_QCORR_FRACTIONAL_PLL == TRUE
+  int32_t           symbol_pll;
+  int32_t           prior_pll;
+#endif
 #if USE_AFSK_PHASE_STATISTICS == TRUE
-  qcorr_stats_t   statistics;
+  qcorr_stats_t     statistics;
 #endif
 } qcorr_decoder_t;
 
@@ -117,6 +126,8 @@ extern "C" {
   void filter_qcorr_magnitude(AFSKDemodDriver *myDriver);
   void reset_qcorr_all(AFSKDemodDriver *myDriver);
   void evaluate_qcorr_tone(AFSKDemodDriver *myDriver);
+  bool get_qcorr_symbol_timing(AFSKDemodDriver *myDriver);
+  void update_qcorr_pll(AFSKDemodDriver *myDriver);
   void init_qcorr_decoder(AFSKDemodDriver *myDriver);
 #ifdef __cplusplus
 }

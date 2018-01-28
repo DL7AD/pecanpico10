@@ -49,6 +49,7 @@ typedef enum streamEncodingTypes{
 
 
 typedef struct packetBuffer {
+  struct pool_header        link; /* For safety keep clear - where pool stores its free link. */
   volatile eventflags_t     status;
   size_t                    buffer_size;
   size_t                    packet_size;

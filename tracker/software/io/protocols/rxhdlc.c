@@ -63,11 +63,17 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
       case HDLC_RESET: {
         /*
          *  Can be a real HDLC reset or most likely incorrect bit sync.
-         *  TODO: Figure out correct handling...
+         *  TODO: Figure out correct handling.
+         *  Make a macro to test if no data stored?
          */
-        myDriver->frame_state = FRAME_RESET;
+
         myDriver->active_demod_object->status |= EVT_HDLC_RESET_RCVD;
         pktAddEventFlags(myHandler, EVT_HDLC_RESET_RCVD);
+        if(myHandler->active_packet_object->packet_size == 0) {
+          /* No data stored yet so go back to sync search. */
+          myDriver->frame_state = FRAME_SEARCH;
+          break;
+        }
         return false;
       } /* End case. */
 

@@ -109,7 +109,6 @@ packet_t aprs_encode_position(const aprs_conf_t *config, trackPoint_t *trackPoin
 	xmit[len+len2+26] = '|';
 	xmit[len+len2+27] = 0;
 
-	TRACE_DEBUG("aprs_encode_position() => %s", xmit);
 	return ax25_from_text(xmit, 1);
 }
 
@@ -118,7 +117,6 @@ packet_t aprs_encode_data_packet(char packetType, const aprs_conf_t *config, uin
 	char xmit[256];
 	chsnprintf(xmit, sizeof(xmit), "%s-%d>%s,%s:{{%c%s", config->callsign, config->ssid, APRS_DEST_CALLSIGN, config->path, packetType, data);
 
-	TRACE_DEBUG("aprs_encode_data_packet() => %s", xmit);
 	return ax25_from_text(xmit, 1);
 }
 
@@ -133,7 +131,6 @@ packet_t aprs_encode_message(const aprs_conf_t *config, const char *receiver, co
 	else
 		chsnprintf(xmit, sizeof(xmit), "%s-%d>%s,%s::%-9s:%s{%d", config->callsign, config->ssid, APRS_DEST_CALLSIGN, config->path, receiver, text, ++msg_id);
 
-	TRACE_DEBUG("aprs_encode_message() => %s", xmit);
 	return ax25_from_text(xmit, 1);
 }
 

@@ -5,7 +5,7 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -std=gnu99 -O2 -ggdb -fomit-frame-pointer -falign-functions=16
+  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16
 endif
 
 # C specific options here (added to USE_OPT).
@@ -46,7 +46,7 @@ endif
 # If enabled, this option makes the build process faster by not compiling
 # modules not used in the current configuration.
 ifeq ($(USE_SMART_BUILD),)
-  USE_SMART_BUILD = no
+  USE_SMART_BUILD = yes
 endif
 
 #
@@ -128,7 +128,6 @@ CSRC = $(STARTUPSRC) \
        threads/image.c \
        threads/log.c \
        threads/radio/radio.c \
-       threads/radio/modulation.c \
        protocols/ssdv/ssdv.c \
        protocols/ssdv/rs8.c \
        protocols/aprs2/ax25_pad.c \
@@ -168,6 +167,7 @@ CSRC = $(STARTUPSRC) \
 	   io/decoders/corr_q31.c \
 	   io/protocols/rxhdlc.c \
 	   io/channels/rxpacket.c \
+	   io/devices/dbguart.c \
 	   sys/ihex_out.c \
        \
        main.c \
@@ -264,7 +264,7 @@ UINCDIR = threads/ drivers/ drivers/wrapper/ protocols/aprs2 \
           protocols/ssdv protocols/morse math/ drivers/flash/ \
           fatfs/src/ threads/radio/ \
           sys io/channels io/managers io/devices io/protocols \
-          io/filters io/decoders CMSIS/include 
+          io/filters io/decoders CMSIS/include
 
 # List the user directory to look for the libraries here
 ULIBDIR = CMSIS/Lib/GCC
@@ -282,5 +282,3 @@ include $(RULESPATH)/rules.mk
 burn:
 	st-flash write build/$(PROJECT).bin 0x08000000
 
-abc:
-	echo $(INCDIR)

@@ -57,22 +57,37 @@
 #define AFSK_NO_ERROR               0
 #define AFSK_QSQRT_ERROR            1
 
-#define AFSK_ERROR_TYPE             AFSK_NO_ERROR
+#define AFSK_ERROR_TYPE             AFSK_QSQRT_ERROR
 
-#define PRE_FILTER_NUM_TAPS 311
-#define PREQ_FILTER_BLOCK_SIZE 1U
-#if PREQ_FILTER_BLOCK_SIZE != 1
+#define PRE_FILTER_GEN_COEFF        TRUE
+#define PRE_FILTER_LOW              925
+#define PRE_FILTER_HIGH             2475
+
+#define MAG_FILTER_GEN_COEFF        TRUE
+#define MAG_FILTER_HIGH             1400
+
+#define PRE_FILTER_NUM_TAPS         311U
+#define PRE_FILTER_BLOCK_SIZE       1U
+#if PRE_FILTER_BLOCK_SIZE != 1
 #error "Filter block size must be 1"
 #endif
 
-#define MAG_FILTER_NUM_TAPS 29
+#define USE_QCORR_MAG_LPF           FALSE
+
+#define MAG_FILTER_NUM_TAPS         29U
 #define MAG_FILTER_BLOCK_SIZE 1U
 #if MAG_FILTER_BLOCK_SIZE != 1
 #error "Filter block size must be 1"
 #endif
 
+
+
 #if AFSK_DECODE_TYPE == AFSK_DSP_QCORR_DECODE
-/* BPF followed by fixed point IQ correlation decoder. */
+/* BPF followed by fixed point IQ correlation decoder.
+ * Changing decimation changes the filter sample rate.
+ * Coefficients created dynamically are calculated at run-time.
+ * Coefficients generated externally in Matlab/Octave need to be re-done.
+ */
 #define SYMBOL_DECIMATION           (24U)
 /* Sample rate in Hz. */
 #define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
@@ -264,6 +279,8 @@ extern "C" {
   bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[]);
   AFSKDemodDriver *pktCreateAFSKDecoder(packet_rx_t *pktDriver,
                                         radio_unit_t radio_id);
+  bool pktCheckAFSKSymbolTime(AFSKDemodDriver *myDriver);
+  void pktUpdateAFSKSymbolPLL(AFSKDemodDriver *myDriver);
   void pktDestroyAFSKDecoder(AFSKDemodDriver *myDriver);
   void pktResetAFSKDecoder(AFSKDemodDriver *myDriver);
   void pktDisablePWM(AFSKDemodDriver *myDriver);

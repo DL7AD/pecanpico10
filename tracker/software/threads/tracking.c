@@ -348,10 +348,6 @@ THD_FUNCTION(trackingThread, arg) {
 
 	lastTrackPoint->gps_lock = GPS_LOG; // Mark trackPoint as LOG packet
 
-	// Initialize Si446x to get Temperature readout
-	Si446x_init();
-	Si446x_shutdown();
-
 	// Measure telemetry
 	measureVoltage(lastTrackPoint);
 	getSensors(lastTrackPoint);
