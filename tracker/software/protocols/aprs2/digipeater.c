@@ -60,15 +60,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>	/* for isdigit, isupper */
-#include "regex.h"
+#include "crx.h"
 
 #include "ax25_pad.h"
 #include "digipeater.h"
 #include "dedupe.h"
 #include "fcs_calc.h"
 #include "debug.h"
-
-uint8_t data[] = ":2000000082A0AEAE6260E0AC96648A90A21B7EAC9664829AAEE2AE92888A64406303F040E6\n";
 
 
 
@@ -120,7 +118,7 @@ uint8_t data[] = ":2000000082A0AEAE6260E0AC96648A90A21B7EAC9664829AAEE2AE92888A6
  *------------------------------------------------------------------------------*/
 				  
 
-packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, char *mycall_xmit, regex_t *alias, regex_t *wide, int to_chan, enum preempt_e preempt, char *filter_str)
+packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, char *mycall_xmit, char *alias, char *wide, int to_chan, enum preempt_e preempt, char *filter_str)
 {
 	(void)from_chan;
 	(void)filter_str;
@@ -129,9 +127,7 @@ packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, char *myc
 	int ssid;
 	int r;
 	char repeater[AX25_MAX_ADDR_LEN];
-	int err;
-	char err_msg[100];
-
+	int found_len;
 
 
 
@@ -217,8 +213,8 @@ packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, char *myc
  * My call should be an implied member of this set.
  * In this implementation, we already caught it further up.
  */
-	err = regexec(alias,repeater,0,NULL,0);
-	if (err == 0) {
+	regex(alias, repeater, &found_len);
+	if(found_len) {
 	  packet_t result;
 
 	  result = ax25_dup (pp);
@@ -228,10 +224,6 @@ packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, char *myc
 	  ax25_set_addr (result, r, mycall_xmit);	
 	  ax25_set_h (result, r);
 	  return (result);
-	}
-	else if (err != REG_NOMATCH) {
-	  regerror(err, alias, err_msg, sizeof(err_msg));
-	  TRACE_ERROR("%s\n", err_msg);
 	}
 
 /* 
@@ -247,8 +239,10 @@ packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, char *myc
 
 	    ax25_get_addr_with_ssid(pp, r2, repeater2);
 
+		regex(alias, repeater2, &found_len);
+
 	    if (strcmp(repeater2, mycall_rec) == 0 ||
-	        regexec(alias,repeater2,0,NULL,0) == 0) {
+	      found_len != 0) {
 	      packet_t result;
 
 	      result = ax25_dup (pp);
@@ -291,9 +285,8 @@ packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, char *myc
 /*
  * For the wide pattern, we check the ssid and decrement it.
  */
-
-	err = regexec(wide,repeater,0,NULL,0);
-	if (err == 0) {
+	regex(wide, repeater, &found_len);
+	if (found_len != 0) {
 
 /*
  * If ssid == 1, we simply replace the repeater with my call and
@@ -332,10 +325,6 @@ packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, char *myc
 	    }
 	    return (result);
 	  }
-	} 
-	else if (err != REG_NOMATCH) {
-	  regerror(err, wide, err_msg, sizeof(err_msg));
-	  TRACE_ERROR("%s\n", err_msg);
 	}
 
 
@@ -345,194 +334,4 @@ packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec, char *myc
 
 	return (NULL);
 }
-
-
-
-
-/*-------------------------------------------------------------------------
- *
- * Name:	main
- * 
- * Purpose:	Standalone test case for this funtionality.
- *
- * Usage:	make -f Makefile.<platform> dtest
- *		./dtest 
- *
- *------------------------------------------------------------------------*/
-
-
-static char mycall[] = "DL7AD-12";
-static regex_t alias_re;
-static regex_t wide_re;
-
-static enum preempt_e preempt = PREEMPT_OFF;
-
-
-
-static bool try_digipeat(unsigned char *frame_in, int frame_in_len, unsigned char *frame_out, int *frame_out_len)
-{
-	if(frame_in_len > 768) // Frame is too long and would cause a buffer overflow
-		return false;
-
-	packet_t pp, result;
-	char rec[1024];
-	char xmit[1024];
-	unsigned char *pinfo;
-	int info_len;
-
-	pp = ax25_from_frame(frame_in, frame_in_len);
-    if(result == NULL)
-      return false;
-
-	ax25_format_addrs (pp, rec);
-	info_len = ax25_get_info (pp, &pinfo);
-	(void)info_len;
-	strlcat (rec, (char*)pinfo, sizeof(rec));
-
-	result = digipeat_match (0, pp, mycall, mycall, &alias_re, &wide_re, 0, preempt, NULL);
-	ax25_delete (pp);
-	
-	if (result != NULL) {
-
-	  dedupe_remember(result, 0);
-	  ax25_format_addrs(result, xmit);
-	  info_len = ax25_get_info(result, &pinfo);
-	  strlcat(xmit, (char*)pinfo, sizeof(xmit));
-      *frame_out_len = ax25_pack(result, frame_out);
-	  ax25_delete(result);
-
-      TRACE_DEBUG("Digipeat\n");
-      TRACE_DEBUG("Rec\t%s\n", rec);
-      TRACE_DEBUG("Xmit\t%s\n", xmit);
-
-      return true;
-
-	} else {
-
-      TRACE_DEBUG("No Digipeat\n");
-      TRACE_DEBUG("Rec\t%s\n", rec);
-	  strlcpy (xmit, "", sizeof(xmit));
-
-      return false;
-
-	}
-}
-
-
-
-
-
-
-/*
-uint8_t intelbuffer[1024];
-uint8_t out[1024];
-uint8_t last;
-
-void clearBuffer(void) {
-	for(uint32_t i=0; i<sizeof(intelbuffer); i++)
-	{
-		intelbuffer[i] = 0;
-		out[i] = 0;
-	}
-}
-
-void processIntelHex(uint8_t *buffer, uint32_t n) {
-	// Parse IntelHex data
-	uint8_t buffer2[n/2];
-    for(uint8_t count = 0; count < n/2; count++) {
-        sscanf((char*)&buffer[count*2], "%2hhx", &buffer2[count]);
-    }
-
-	// Extract data from IntelHex format
-	uint8_t  i_len  = buffer2[0];
-	uint16_t i_addr = (buffer2[1] << 8) | buffer2[2];
-	uint8_t  i_type = buffer2[3];
-	uint8_t* i_data = &buffer2[4];
-
-	if(i_type == 1) { // Found EOF
-
-		// Check AX.25 CRC
-		unsigned short actual_fcs = (intelbuffer[last-1] << 8) | intelbuffer[last-2];
-		unsigned short expected_fcs = fcs_calc(intelbuffer, last-2);
-
-		TRACE_DEBUG("Binary[IN]: ");
-		for(uint32_t i=0; i<last; i++) {
-			TRACE_DEBUG("%02x ", intelbuffer[i]);
-		}
-
-		int out_len = 0;
-		if(actual_fcs == expected_fcs) {
-			try_digipeat(intelbuffer, last-2, out, &out_len);
-		} else {
-			TRACE_DEBUG("Bad CRC\n");
-		}
-
-		TRACE_DEBUG("Binary[OUT]: ");
-		for(int32_t i=0; i<out_len; i++) {
-			TRACE_DEBUG("%02x ", out[i]);
-		}
-
-		TRACE_DEBUG("---------------------------------------------------------\n");
-
-		clearBuffer();
-	} else if(i_type == 0) { // Found Data
-
-		memcpy(&intelbuffer[i_addr], i_data, i_len);
-		last = i_addr+i_len;
-
-	}
-}
-
-int main(int argc, char *argv[])
-{
-	int e;
-	char message[256];
-
-	dedupe_init(TIME_S2I(4));
-
-	e = regcomp(&alias_re, "^WIDE[4-7]-[1-7]|CITYD$", REG_EXTENDED|REG_NOSUB);
-	if(e != 0) {
-		regerror(e, &alias_re, message, sizeof(message));
-		TRACE_DEBUG("\n%s\n\n", message);
-		return 1;
-	}
-
-	e = regcomp(&wide_re, "^WIDE[1-7]-[1-7]$|^TRACE[1-7]-[1-7]$|^MA[1-7]-[1-7]$", REG_EXTENDED|REG_NOSUB);
-	if(e != 0) {
-		regerror(e, &wide_re, message, sizeof(message));
-		TRACE_DEBUG("\n%s\n\n", message);
-		return 1;
-	}
-
-	uint8_t buffer[1024];
-	uint32_t n;
-	uint32_t j = 0;
-
-	clearBuffer();
-
-	for(uint32_t i=0; i<sizeof(data); i++)
-	{
-		switch(j)
-		{
-			case 0: // Looking for start of frame
-				if(data[i] == ':') { // Found start of frame
-					j = 1;
-					n = 0;
-				}
-				break;
-			case 1: // capturing frame
-				if(data[i] == '\n' || i+1 == n) { // Found end of frame OR end of input buffer
-					buffer[n] = 0;
-					processIntelHex(buffer, n);
-					j = 0;
-				} else {
-					buffer[n++] = data[i];
-				}
-				break;
-		}
-	}
-
-	return 0; 
-}*/
-
 

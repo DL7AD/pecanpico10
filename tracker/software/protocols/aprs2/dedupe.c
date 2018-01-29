@@ -194,7 +194,7 @@ void dedupe_init (sysinterval_t ttl)
 
 void dedupe_remember (packet_t pp, int chan)
 {
-	history[insert_next].time_stamp = chVTGetSystemTimeX();
+	history[insert_next].time_stamp = chVTGetSystemTime();
 	history[insert_next].checksum = ax25_dedupe_crc(pp);
 	history[insert_next].xmit_channel = chan;
 
@@ -227,7 +227,7 @@ void dedupe_remember (packet_t pp, int chan)
 int dedupe_check (packet_t pp, int chan)
 {
 	unsigned short crc = ax25_dedupe_crc(pp);
-	time_t now = time(NULL);
+	time_t now = chVTGetSystemTime();
 	int j;
 
 	for (j=0; j<HISTORY_MAX; j++) {

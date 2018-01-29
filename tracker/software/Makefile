@@ -157,6 +157,7 @@ CSRC = $(STARTUPSRC) \
        config.c \
        watchdog.c \
        usbcfg.c \
+       regex/crx.c \
        \
        portab.c \
 	   io/protocols/crc_calc.c \
@@ -264,7 +265,7 @@ UINCDIR = threads/ drivers/ drivers/wrapper/ protocols/aprs2 \
           protocols/ssdv protocols/morse math/ drivers/flash/ \
           fatfs/src/ threads/radio/ \
           sys io/channels io/managers io/devices io/protocols \
-          io/filters io/decoders CMSIS/include
+          io/filters io/decoders CMSIS/include regex/
 
 # List the user directory to look for the libraries here
 ULIBDIR = CMSIS/Lib/GCC

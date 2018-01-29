@@ -360,10 +360,10 @@
 #include "chprintf.h"
 
 // Global variables
-sysinterval_t track_cycle_time = TIME_S2I(60);	// Tracking cycle (all peripheral data [airpressure, GPS, temperature, ...] is collected each 60 seconds
+sysinterval_t track_cycle_time = TIME_S2I(600);	// Tracking cycle (all peripheral data [airpressure, GPS, temperature, ...] is collected each 60 seconds
 bool keep_cam_switched_on =	false;				// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time
-uint16_t gps_on_vbat = 1000;					// Battery voltage threshold at which GPS is switched on
-uint16_t gps_off_vbat = 1000;					// Battery voltage threshold at which GPS is switched off
+uint16_t gps_on_vbat = 5000;					// Battery voltage threshold at which GPS is switched on
+uint16_t gps_off_vbat = 5000;					// Battery voltage threshold at which GPS is switched off
 uint16_t gps_onper_vbat = 1000;					// Battery voltage threshold at which GPS is kept switched on all time. This value must be larger
 												// than gps_on_vbat and gps_off_vbat otherwise this value has no effect. Value 0 disables this feature
 
@@ -386,12 +386,12 @@ void start_user_modules(void)
 	config[0].frequency.hz = 144800000;						// Default frequency 144.800 MHz
 	config[0].trigger.type = TRIG_NEW_POINT;				// Transmit when tracking manager samples new tracking point
 	chsnprintf(config[0].aprs_conf.callsign, 16, "DL7AD");	// APRS Callsign
-	config[0].aprs_conf.ssid = 14;							// APRS SSID
-	config[0].aprs_conf.symbol = SYM_BALLOON;				// APRS Symbol
+	config[0].aprs_conf.ssid = 12;							// APRS SSID
+	config[0].aprs_conf.symbol = SYM_DIGIPEATER;			// APRS Symbol
 	chsnprintf(config[0].aprs_conf.path, 16, "WIDE1-1");	// APRS Path
 	config[0].aprs_conf.preamble = 200;						// APRS Preamble (200ms)
 	config[0].aprs_conf.tel_enc_cycle = 3600;				// Transmit Telemetry encoding information every 3600sec
-	chsnprintf(config[0].aprs_conf.tel_comment, 64, "http://ssdv.habhub.org/DL7AD");// Telemetry comment
+	chsnprintf(config[0].aprs_conf.tel_comment, 64, "http://dl7ad.duckdns.org/DL7AD-12");// Telemetry comment
 	start_position_thread(&config[0]);
 
 

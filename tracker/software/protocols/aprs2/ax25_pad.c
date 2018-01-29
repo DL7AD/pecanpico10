@@ -169,7 +169,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "regex.h"
 
 #include "ax25_pad.h"
 #include "fcs_calc.h"

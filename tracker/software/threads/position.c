@@ -53,7 +53,7 @@ THD_FUNCTION(posThread, arg)
 				TRACE_INFO("POS  > Transmit telemetry configuration");
 
 				// Encode and transmit telemetry config packet
-				for(uint8_t type=0; type<5; type++)
+				for(uint8_t type=0; type<4; type++)
 				{
 					packet = aprs_encode_telemetry_configuration(&conf->aprs_conf, type);
 					transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);

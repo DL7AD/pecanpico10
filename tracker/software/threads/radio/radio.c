@@ -6,6 +6,7 @@
 #include "radio.h"
 #include "geofence.h"
 #include "si446x.h"
+#include "aprs.h"
 
 // Thread
 static thread_t* si446x_rx_thd = NULL;
@@ -58,9 +59,34 @@ bool transmitOnRadio(packet_t packet, freq_conf_t *freq_conf, uint8_t pwr, mod_t
 #include <ctype.h>	/* for isdigit, isupper */
 
 #include "pktconf.h"
-#include "regex.h"
 #include "dedupe.h"
 #include "digipeater.h"
+
+static void printAPRSpacket(packet_t pp)
+{
+	char buf[1024];
+	uint32_t out;
+
+	// Decode packet
+	char rec[1024];
+	unsigned char *pinfo;
+	ax25_format_addrs(pp, rec);
+	ax25_get_info(pp, &pinfo);
+
+	// Print decoded packet
+	out = chsnprintf(buf, sizeof(buf), "%s", rec);
+	chnWrite((BaseSequentialStream*)&SDU1, (uint8_t*)buf, out);
+	for(uint32_t i=0; pinfo[i]; i++) {
+		if(pinfo[i] < 32 || pinfo[i] > 126) {
+			out = chsnprintf(buf, sizeof(buf), "<0x%02x>", pinfo[i]);
+		} else {
+			out = chsnprintf(buf, sizeof(buf), "%c", pinfo[i]);
+		}
+		chnWrite((BaseSequentialStream*)&SDU1, (uint8_t*)buf, out);
+	}
+	out = chsnprintf(buf, sizeof(buf), "\r\n");
+	chnWrite((BaseSequentialStream*)&SDU1, (uint8_t*)buf, out);
+}
 
 THD_FUNCTION(si_receiver, arg)
 {
@@ -68,26 +94,12 @@ THD_FUNCTION(si_receiver, arg)
 
 	chRegSetThreadName("radio_receiver");
 
-	receiveAFSK(144800000, 0x2F);
+	receiveAFSK(144800000, 0x3F);
 
-	//palSetLineMode(LINE_IO_RXD, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
-	//palSetLineMode(LINE_IO_TXD, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
-	//while(1) {
-	//	palWriteLine(LINE_IO_RXD,palReadLine(LINE_RADIO_GPIO1));
-	//	palWriteLine(LINE_IO_TXD,palReadLine(LINE_RADIO_IRQ));
-	//}
-
-
-
-
-
-
-
-
-
-
-
-
+	char mycall[] = "DL7AD-12";
+	char alias_re[] = "WIDE[4-7]-[1-7]|CITYD";
+	char wide_re[] = "WIDE[1-7]-[1-7]";
+	enum preempt_e preempt = PREEMPT_OFF;
 
 	/* Buffer and size params for serial terminal output. */
 	char serial_buf[1024];
@@ -214,31 +226,81 @@ THD_FUNCTION(si_receiver, arg)
 
 				packet_t pp = ax25_from_frame(frame_buffer, bufpos-2);
 				if(pp != NULL) {
-					char rec[1024];
-					unsigned char *pinfo;
-					ax25_format_addrs(pp, rec);
-					ax25_get_info(pp, &pinfo);
 
-					serial_out = chsnprintf(serial_buf, sizeof(serial_buf), "%s", rec);
-					chnWrite((BaseSequentialStream*)&SDU1, (uint8_t *)serial_buf, serial_out);
-					for(uint32_t i=0; pinfo[i]; i++) {
-						if(pinfo[i] < 32 || pinfo[i] > 126) {
-							serial_out = chsnprintf(serial_buf, sizeof(serial_buf), "<0x%02x>", pinfo[i]);
-						} else {
-							serial_out = chsnprintf(serial_buf, sizeof(serial_buf), "%c", pinfo[i]);
+					printAPRSpacket(pp);
+
+					// Packet decoding
+					unsigned char *pinfo;
+					ax25_get_info(pp, &pinfo);
+					if(pinfo[0] == ':')
+					{
+						// Decode destination callsign
+						char dest[10];
+						uint8_t i=0;
+						while(i < sizeof(dest)-1) {
+							if(pinfo[i+1] == ':' || pinfo[i+1] == ' ') {
+								dest[i++] = 0;
+								break;
+							}
+							dest[i] = pinfo[i+1];
+							i++;
 						}
-						chnWrite((BaseSequentialStream*)&SDU1, (uint8_t *)serial_buf, serial_out);
+
+						if(pinfo[10] == ':' && !strcmp(mycall, dest))
+						{
+							// Cut off control chars
+							for(uint16_t i=11; pinfo[i] != 0 && i<0xFFFF; i++) {
+								if(pinfo[i] == '{' || pinfo[i] == '\r' || pinfo[i] == '\n') {
+									pinfo[i] = 0;
+									break;
+								}
+							}
+
+							// Do control
+							TRACE_DEBUG("Received message: %s", &pinfo[11]);
+							if(!strcmp((char*)&pinfo[11], "?GPIO PA8:1")) {
+								// Switch on pin
+								palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
+								palSetPad(GPIOA, 8);
+							} else if(!strcmp((char*)&pinfo[11], "?GPIO PA8:0")) {
+								// Switch off pin
+								palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
+								palClearPad(GPIOA, 8);
+							} else if(!strcmp((char*)&pinfo[11], "?APRSP")) {
+								// Encode and transmit position packet
+								trackPoint_t* trackPoint = getLastTrackPoint();
+								packet_t packet = aprs_encode_position(&(config[0].aprs_conf), trackPoint); // Encode packet
+								transmitOnRadio(packet, &(config[0].frequency), config[0].power, config[0].modulation);
+							}
+						}
 					}
-					serial_out = chsnprintf(serial_buf, sizeof(serial_buf), "\r\n");
-					chnWrite((BaseSequentialStream*)&SDU1, (uint8_t *)serial_buf, serial_out);
+
+
+					// Try to digipeat
+					packet_t result = digipeat_match (0, pp, mycall, mycall, alias_re, wide_re, 0, preempt, NULL);
+					ax25_delete(pp);
+
+					if (result != NULL) {
+
+						TRACE_DEBUG("Digipeat\n");
+						printAPRSpacket(result);
+
+						dedupe_remember(result, 0);
+						transmitOnRadio(result, &(config[0].frequency), config[0].power, config[0].modulation);
+
+						ax25_delete(result);
+
+					} else {
+						TRACE_DEBUG("No Digipeat\n");
+					}
+
 				} else {
-					serial_out = chsnprintf(serial_buf, sizeof(serial_buf), "Error in packet");
+					serial_out = chsnprintf(serial_buf, sizeof(serial_buf), "Error in packet\r\n");
 					chnWrite((BaseSequentialStream*)&SDU1, (uint8_t *)serial_buf, serial_out);
 				}
-				ax25_delete(pp);
 
 			} else {
-				serial_out = chsnprintf(serial_buf, sizeof(serial_buf), "Bad CRC");
+				serial_out = chsnprintf(serial_buf, sizeof(serial_buf), "Bad CRC\r\n");
 				chnWrite((BaseSequentialStream*)&SDU1, (uint8_t *)serial_buf, serial_out);
 			}
 

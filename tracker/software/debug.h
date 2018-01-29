@@ -31,7 +31,7 @@ extern bool debug_on_usb;
 #define TRACE_BASE_USB(format, type, args...) { \
 	if(usb_initialized) { \
 		if(TRACE_TIME) { \
-			chprintf((BaseSequentialStream*)&SDU1, "[%8d.%03d]", chVTGetSystemTimeX()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTimeX()*1000/CH_CFG_ST_FREQUENCY)%1000); \
+			chprintf((BaseSequentialStream*)&SDU1, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000); \
 		} \
 		chprintf((BaseSequentialStream*)&SDU1, "[%s]", type); \
 		if(TRACE_FILE) { \
@@ -62,7 +62,7 @@ extern bool debug_on_usb;
 
 #define TRACE_BIN(data, len) { \
 	chMtxLock(&trace_mtx); \
-	chprintf((BaseSequentialStream*)&SD3, "[%8d.%03d][DEBUG] ", chVTGetSystemTimeX()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTimeX()*1000/CH_CFG_ST_FREQUENCY)%1000); \
+	chprintf((BaseSequentialStream*)&SD3, "[%8d.%03d][DEBUG] ", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000); \
 	chprintf((BaseSequentialStream*)&SD3, "     > Binary data (%d bits)\r\n", (len)); \
 	for(uint32_t i=0; i<((len)+7)/8; i+=8) \
 		chprintf((BaseSequentialStream*)&SD3, "%s 0x%03x ... 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\r\n", \
@@ -72,7 +72,7 @@ extern bool debug_on_usb;
 
 #define TRACE_BIN_CHAR(data, len) { \
 	chMtxLock(&trace_mtx); \
-	chprintf((BaseSequentialStream*)&SD3, "[%8d.%03d][DEBUG] ", chVTGetSystemTimeX()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTimeX()*1000/CH_CFG_ST_FREQUENCY)%1000); \
+	chprintf((BaseSequentialStream*)&SD3, "[%8d.%03d][DEBUG] ", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000); \
 	chprintf((BaseSequentialStream*)&SD3, "     > Binary data (%d bits)\r\n", (len)); \
 	for(uint32_t i=0; i<((len)+7)/8; i+=8) \
 		chprintf((BaseSequentialStream*)&SD3, "%s %c%c%c%c%c%c%c%c\r\n", \
