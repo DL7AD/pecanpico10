@@ -23,11 +23,6 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-
-/* Definitions for ICU FIFO implemented using chfactory. */
-#define NUMBER_PWM_FIFOS 3
-#define PWM_BUFFER_SLOTS 4000
-
 /**
  *  ICU related definitions.
  */
@@ -49,9 +44,10 @@
 /*===========================================================================*/
 
 typedef enum ICUStates {
-  PWM_ICU_IDLE,
-  PWM_ICU_ACTIVE,
-  PWM_ICU_STOP
+  PKT_PWM_INIT = 0,
+  PKT_PWM_READY,
+  PKT_PWM_ACTIVE,
+  PKT_PWM_STOP
 } rx_icu_state_t;
 
 /* Types for ICU and PWM data. */
@@ -205,6 +201,8 @@ extern "C" {
   void pktSleepICUI(ICUDriver *myICU);
   msg_t pktQueuePWMDataI(ICUDriver *myICU);
   void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt);
+  void pktICUInactivityTimeout(ICUDriver *myICU);
+  void pktPWMInactivityTimeout(ICUDriver *myICU);
 #ifdef __cplusplus
 }
 #endif

@@ -150,16 +150,6 @@ void printConfig(BaseSequentialStream *chp, int argc, char *argv[])
 
 void send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[])
 {
-	aprs_conf_t aprs_conf;
-	chsnprintf(aprs_conf.callsign, 16, "DL7AD");	// APRS Callsign
-	aprs_conf.ssid = 14;							// APRS SSID
-	chsnprintf(aprs_conf.path, 16, "WIDE1-1");		// APRS Path
-	aprs_conf.preamble = 200;						// APRS Preamble (200ms)
-
-	freq_conf_t frequency;
-	frequency.type = FREQ_APRS_REGION;				// Dynamic frequency allocation
-	frequency.hz = 144800000;						// Default frequency 144.800 MHz
-
 	if(argc < 2)
 	{
 		chprintf(chp, "Argument missing!\r\n");
@@ -170,8 +160,8 @@ void send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[])
 	chprintf(chp, "Destination: %s\r\n", argv[0]);
 	chprintf(chp, "Message: %s\r\n", argv[1]);
 
-	packet_t packet = aprs_encode_message(&aprs_conf, argv[0], argv[1], false);
-	transmitOnRadio(packet, &frequency, 127, MOD_AFSK);
+	packet_t packet = aprs_encode_message(&(config[2].aprs_conf), argv[0], argv[1], false);
+	transmitOnRadio(packet, &(config[2].frequency), 127, MOD_AFSK);
 
 	chprintf(chp, "Message sent!\r\n");
 }
@@ -182,6 +172,6 @@ void test_rx(BaseSequentialStream *chp, int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 
-	startReceiver();
+	receiveAFSK(config[2].frequency.hz, 0x2F);
 }
 

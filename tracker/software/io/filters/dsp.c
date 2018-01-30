@@ -42,21 +42,16 @@ static inline double window_T(double n, double x) {
  * @return  coefficient for window shape at index j
  */
 float32_t dsp_window(td_window_t type, size_t size, size_t j) {
-  float32_t center;
   float32_t w;
-
-  center = 0.5 * (size - 1);
 
   switch (type) {
 
     case TD_WINDOW_COSINE:
-      w = arm_cos_f32((j - center) / size * M_PI);
-      //w = cos(j * M_PI / (size - 1));
+      w = arm_cos_f32(j * M_PI / (size - 1));
       break;
 
     case TD_WINDOW_SINE:
-      w = arm_sin_f32((j - center) / size * M_PI);
-      //w = sin(j * M_PI / (size - 1));
+      w = arm_sin_f32(j * M_PI / (size - 1));
       break;
 
     case TD_WINDOW_HAMMING:
@@ -105,7 +100,8 @@ float32_t dsp_window(td_window_t type, size_t size, size_t j) {
       double b = window_beta(N, a);
       double sum = 0;
       for(k = 0;k < M;k++) {
-        sum += (k & 1 ? -1 : 1) * window_T(N, b * cos(M_PI * k/N)) * cos(2 * j * k * M_PI/N);
+        sum += (k & 1 ? -1 : 1) * window_T(N, b * cos(M_PI * k/N))
+            * cos(2 * j * k * M_PI/N);
       }
       sum /= window_T(N, b);
       sum -= .5;
@@ -123,13 +119,14 @@ float32_t dsp_window(td_window_t type, size_t size, size_t j) {
 }
 
 /**
- * @brief Calculate coefficients for a correlation filter
- * @post  The coefficient arrays are populated
+ * @brief Calculate coefficients for a correlation filter.
+ * @post  The coefficient arrays are populated.
  *
- * @param[in] pCos      pointer I (cos) to coefficient result array
- * @param[in] pSin      pointer Q (sin) to coefficient result array
- * @param[in] length    number of taps in filter
- * @param[in] window    window type to apply to coefficients
+ * @param[in] pCos      pointer to I (cos) coefficient result array.
+ * @param[in] pSin      pointer to Q (sin) coefficient result array.
+ * @param[in] length    number of taps in filter.
+ * @param[in] norm_freq normalised filter frequency.
+ * @param[in] window    window shape to apply to coefficients.
  *
  */
 void gen_fir_iqf(float32_t *pCos, float32_t *pSin,

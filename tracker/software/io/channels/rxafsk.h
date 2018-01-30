@@ -57,7 +57,7 @@
 #define AFSK_NO_ERROR               0
 #define AFSK_QSQRT_ERROR            1
 
-#define AFSK_ERROR_TYPE             AFSK_QSQRT_ERROR
+#define AFSK_ERROR_TYPE             AFSK_NO_ERROR
 
 #define PRE_FILTER_GEN_COEFF        TRUE
 #define PRE_FILTER_LOW              925
@@ -108,6 +108,8 @@
 
 /* Statistic analysis enabling. */
 #define USE_AFSK_PHASE_STATISTICS   FALSE
+
+#define AFSK_COLLISION_RESTART      TRUE
 
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */
@@ -261,6 +263,12 @@ typedef struct AFSK_data {
 /*===========================================================================*/
 /* Module macros.                                                            */
 /*===========================================================================*/
+
+static inline void pktRestartAFSKDecoder(AFSKDemodDriver *myDriver) {
+  packet_rx_t *myHandler = myDriver->packet_handler;
+  myDriver->frame_state = FRAME_OPEN;
+  myHandler->active_packet_object->packet_size = 0;
+}
 
 /*===========================================================================*/
 /* External declarations.                                                    */

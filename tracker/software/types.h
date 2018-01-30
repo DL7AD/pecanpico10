@@ -2,8 +2,7 @@
 #define __TYPES_H__
 
 typedef struct {
-	char callsign[16];			// APRS callsign
-	uint8_t ssid;				// APRS SSID
+	char callsign[10];			// APRS callsign
 	uint16_t symbol;			// APRS symbol
 	char path[16];				// APRS path
 	uint16_t preamble;			// Preamble in milliseconds
@@ -95,7 +94,7 @@ typedef struct {
 } trigger_conf_t;
 
 typedef struct {
-	char				name[32];
+	char				name[10];
 
 	// Radio
 	int8_t				power;

@@ -70,11 +70,13 @@ const ICUConfig pwm_icucfg = {
 
 
 /**
- * @brief   Initialises and attaches Radio ICU channel.
- * @post    The ICU is configured and started.
+ * @brief   Initialises and assigns ICU to a Radio.
+ * @post    The ICU is configured and started for a specified radio.
  * @post    The ports and timers for CCA input are configured.
  *
- * @param[in]   myICU   pointer to a @p ICUDriver structure
+ * @param[in]   radio_id   radio being started.
+ *
+ * @return  Pointer to assigned ICUDriver object.
  *
  * @api
  */
@@ -171,6 +173,11 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   chDbgAssert(myDemod != NULL, "no demod linked");
   chVTResetI(&myICU->pwm_timer);
 
+  /*
+   * Turn off the squelch LED.
+   */
+  pktWriteSquelchLED(PAL_LOW);
+
   /* Stop the ICU notification (callback). */
   icuDisableNotificationsI(myICU);
   if(myDemod->active_radio_object != NULL) {
@@ -192,12 +199,99 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   } else {
     pktAddEventFlagsI(myHandler, evt);
   }
+  myDemod->icustate = PKT_PWM_READY;
 }
 
-/* Currently unused. */
+/**
+ * @brief   Opens the PWM stream from the ICU.
+ * @post    The ICU notification (callback) is enabled.
+ * @post    If an error occurs the PWM is not started and state is unchanged.
+ * @post    If the queue is full the yellow LED is lit.
+ * @post    If no error occurs the timers associated with PWM are started.
+ * @post    The seized FIFO is sent via the queue mailbox.
+ * @post    The ICU state is set to active.
+ *
+ * @param[in]   myICU   pointer to a @p ICUDriver structure
+ * @param[in]   event flags to be set as to why the channel is opened.
+ *
+ * @api
+ */
 void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
-  (void)myICU;
-  (void)evt;
+  AFSKDemodDriver *myDemod = myICU->link;
+  packet_rx_t *myHandler = myDemod->packet_handler;
+
+  /* Turn on the squelch LED. */
+  pktWriteSquelchLED(PAL_HIGH);
+
+  /* Turn off the overflow LED. */
+  pktWriteOverflowLED(PAL_LOW);
+
+  if(myDemod->active_radio_object != NULL) {
+    /* TODO: Work out correct handling.
+     * Shouldn't happen unless CCA has not triggered an EXTI trailing edge.
+     * For now just flag that an error condition happened.
+     */
+    pktClosePWMChannelI(myICU, EVT_RADIO_CCA_FIFO_ERR);
+    return;
+  }
+  /* Normal CCA handling. */
+  radio_cca_fifo_t *myFIFO = chFifoTakeObjectI(myDemod->pwm_fifo_pool);
+  if(myFIFO == NULL) {
+    myDemod->active_radio_object = NULL;
+    /* No FIFO available.
+     * Send an event to any listener.
+     * Disable ICU notifications.
+     */
+    pktAddEventFlagsI(myHandler, EVT_PWM_FIFO_EMPTY);
+    icuDisableNotificationsI(myICU);
+    return;
+  }
+
+  myDemod->active_radio_object = myFIFO;
+
+  /* Clear event/status bits. */
+  myFIFO->status = 0;
+
+  /*
+   * Initialize FIFO release control semaphore.
+   * The decoder thread waits on the semaphore before releasing  to pool.
+   */
+  chSemObjectInit(&myFIFO->sem, 0);
+
+  /* Each FIFO entry has an embedded input queue with data buffer. */
+  (void)iqObjectInit(&myFIFO->radio_pwm_queue,
+                     myFIFO->packed_buffer.pwm_bytes,
+                     sizeof(radio_pwm_buffer_t),
+                     NULL , NULL);
+
+  /*
+   * Set the status of this FIFO.
+   * Send the FIFO entry to the decoder thread.
+   */
+  chFifoSendObjectI(myDemod->pwm_fifo_pool, myFIFO);
+  myFIFO->status |= EVT_PWM_FIFO_SENT;
+
+  /*
+   * Start the ICU activity timer.
+   * After timeout shutdown ICU.
+   * This reduces power consumption.
+   */
+  chVTSetI(&myICU->icu_timer, TIME_S2I(10),
+           (vtfunc_t)pktICUInactivityTimeout, myICU);
+
+  /*
+   * Start the PWM activity timer.
+   * This catches the condition where CCA raises but no RX data appears.
+   */
+  chVTSetI(&myICU->pwm_timer, TIME_MS2I(50),
+           (vtfunc_t)pktPWMInactivityTimeout, myICU);
+
+  icuStartCaptureI(myICU);
+  icuEnableNotificationsI(myICU);
+  pktAddEventFlagsI(myHandler, evt);
+  myFIFO->status |= evt;
+
+  myDemod->icustate = PKT_PWM_ACTIVE;
 }
 
 /**
@@ -271,99 +365,63 @@ void pktPWMInactivityTimeout(ICUDriver *myICU) {
 }
 
 /**
- * @brief   Timer callback when CCA de-glitch period expires.
+ * @brief   Timer callback when CCA leading edge de-glitch period expires.
  * @notes   If CCA is still asserted then PWM capture will be enabled.
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
  *
  * @api
  */
-void pktRadioCCATimer(ICUDriver *myICU) {
+void pktRadioCCALeadTimer(ICUDriver *myICU) {
   chSysLockFromISR();
-  AFSKDemodDriver *myDemod = myICU->link;
-  packet_rx_t *myHandler = myDemod->packet_handler;
+  //AFSKDemodDriver *myDemod = myICU->link;
+  //packet_rx_t *myHandler = myDemod->packet_handler;
   /* CCA de-glitch timer expired. */
   switch(palReadLine(LINE_CCA)) {
     case PAL_LOW: {
-      /* We should not get here unless CCA trailing edge callback didn't happen. */
+        /*
+         * We shouldn't arrive here unless EXTI failed to assert interrupt.
+         * In that case the trailing edge callback didn't happen.
+         */
       break;
-    }
+      }
 
     case PAL_HIGH: {
-      /* Turn on the squelch LED. */
-      pktWriteSquelchLED(PAL_HIGH);
+      pktOpenPWMChannelI(myICU, EVT_RADIO_CCA_OPEN);
+      break;
+    }
+  }
+  chSysUnlockFromISR();
+  return;
+}
 
-      /* Turn off the overflow LED. */
-      pktWriteOverflowLED(PAL_LOW);
+/**
+ * @brief   Timer callback when CCA trailing edge de-glitch period expires.
+ * @notes   If CCA is still asserted then PWM capture will continue.
+ * @notes   If CCA is not asserted then PWM capture will be closed.
+ *
+ * @param[in]   myICU   pointer to a @p ICUDriver structure
+ *
+ * @api
+ */
+void pktRadioCCATrailTimer(ICUDriver *myICU) {
+  chSysLockFromISR();
+  //AFSKDemodDriver *myDemod = myICU->link;
 
-      if(myDemod->active_radio_object != NULL) {
-        /* TODO: Work out correct handling.
-         * Shouldn't happen unless CCA has not triggered an EXTI trailing edge.
-         * For now just flag that an error condition happened.
-         */
-        pktClosePWMChannelI(myICU, EVT_RADIO_CCA_FIFO_ERR);
-        chSysUnlockFromISR();
-        return;
+  /* CCA de-glitch timer for trailing edge expired. */
+  switch(palReadLine(LINE_CCA)) {
+    case PAL_LOW: {
+      /*
+       * The decoder operates asynchronously to and usually slower than PWM.
+       * When the decoder ends it returns its FIFO object to the pool.
+       * Closing PWM sets the FIFO management semaphore.
+       */
+      pktClosePWMChannelI(myICU, EVT_RADIO_CCA_CLOSE);
+      break;
       }
-      /* Normal CCA handling. */
-      radio_cca_fifo_t *myFIFO = chFifoTakeObjectI(myDemod->pwm_fifo_pool);
-      if(myFIFO == NULL) {
-        myDemod->active_radio_object = NULL;
-        /* No FIFO available.
-         * Send an event to any listener.
-         * Disable ICU notifications.
-         */
-        pktAddEventFlagsI(myHandler, EVT_PWM_FIFO_EMPTY);
-        icuDisableNotificationsI(myICU);
-        chSysUnlockFromISR();
-        return;
-      }
 
-      myDemod->active_radio_object = myFIFO;
-
-      /* Clear event/status bits. */
-      myFIFO->status = 0;
-
-      /*
-       * Initialize FIFO release control semaphore.
-       * The decoder thread waits on the semaphore before releasing  to pool.
-       */
-      chSemObjectInit(&myFIFO->sem, 0);
-
-      /* Each FIFO entry has an embedded input queue with data buffer. */
-      (void)iqObjectInit(&myFIFO->radio_pwm_queue,
-                         myFIFO->packed_buffer.pwm_bytes,
-                         sizeof(radio_pwm_buffer_t),
-                         NULL , NULL);
-
-      /*
-       * Set the status of this FIFO.
-       * Send the FIFO entry to the decoder thread.
-       */
-      chFifoSendObjectI(myDemod->pwm_fifo_pool, myFIFO);
-      myFIFO->status |= EVT_PWM_FIFO_SENT;
-
-      /*
-       * Start the ICU activity timer.
-       * After timeout shutdown ICU.
-       * This reduces power consumption.
-       */
-      chVTSetI(&myICU->icu_timer, TIME_S2I(10),
-               (vtfunc_t)pktICUInactivityTimeout, myICU);
-
-      /*
-       * Start the PWM activity timer.
-       * This catches the condition where CCA raises but no RX data appears.
-       */
-      chVTSetI(&myICU->pwm_timer, TIME_MS2I(50),
-               (vtfunc_t)pktPWMInactivityTimeout, myICU);
-
-      icuStartCaptureI(myICU);
-      icuEnableNotificationsI(myICU);
-      pktAddEventFlagsI(myHandler, EVT_RADIO_CCA_OPEN);
-      myFIFO->status |= EVT_RADIO_CCA_OPEN;
-
-      myDemod->icustate = PWM_ICU_ACTIVE;
+    case PAL_HIGH: {
+      /* CCA is active again so leave PWM open. */
       break;
     }
   }
@@ -373,7 +431,7 @@ void pktRadioCCATimer(ICUDriver *myICU) {
 
 /**
  * @brief   GPIO callback when CCA edge transitions.
- * @notes   Will be de-glitched by the CCA timer.
+ * @notes   Both edges are de-glitched by the CCA timer.
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
  *
@@ -382,54 +440,37 @@ void pktRadioCCATimer(ICUDriver *myICU) {
 void pktRadioCCAInput(ICUDriver *myICU) {
   chSysLockFromISR();
   AFSKDemodDriver *myDemod = myICU->link;
-  packet_rx_t *myHandler = myDemod->packet_handler;
 
+  if(myDemod->icustate == PKT_PWM_STOP) {
+    chSysUnlockFromISR();
+    return;
+  }
   /* CCA changed. */
   switch(palReadLine(LINE_CCA)) {
     case PAL_LOW: {
-      if(myDemod->icustate == PWM_ICU_ACTIVE) {
-        /* TODO: Add CCA trailing edge glitch handling.
-         * Start timer and wait to determine if CCA is still low before closing PWM.
+      if(myDemod->icustate == PKT_PWM_ACTIVE) {
+        /* CCA trailing edge glitch handling.
+         * Start timer and check if CCA remains low before closing PWM.
+         *
+         * TODO: Calculate de-glitch time as number of symbol times.
          */
+        chVTSetI(&myICU->cca_timer, TIME_MS2I(66),
+                 (vtfunc_t)pktRadioCCATrailTimer, myICU);
       }
-      if(chVTIsArmedI(&myICU->cca_timer)) {
-        /* CCA has dropped during timer so CCA is a glitch. */
-        chVTResetI(&myICU->cca_timer);
-        pktAddEventFlagsI(myHandler, EVT_RADIO_CCA_GLITCH);
-        chSysUnlockFromISR();
-        return;
-      }
-
-      /*
-       * Turn off the squelch LED.
-       */
-      pktWriteSquelchLED(PAL_LOW);
-
-      if(myDemod->active_radio_object == NULL) {
-
-        /* CCA has dropped with no FIFO assigned.
-         * This happens when CCA raises but all FIFOs are allocated.
-         */
-        break;
-      }
-      /*
-       * The decoder operates asynchronously to and usually slower than PWM.
-       * When the decoder ends it returns its FIFO object to the pool.
-       * Closing PWM sets the FIFO management semaphore.
-       */
-      pktClosePWMChannelI(myICU, EVT_RADIO_CCA_CLOSE);
-
+      /* Idle state. */
       break;
     } /* End case PAL_LOW. */
 
     case PAL_HIGH: {
-      if(myDemod->icustate == PWM_ICU_STOP)
-        /* ICU is shut down. */
+      if(chVTIsArmedI(&myICU->cca_timer)) {
+        /* CAA has been re-asserted during trailing edge timer. */
+        chVTResetI(&myICU->cca_timer);
         break;
-
+      }
+      /* Else this is a leading edge of CCA for a new packet. */
       /* TODO: Calculate de-glitch time as number of symbol times. */
       chVTSetI(&myICU->cca_timer, TIME_MS2I(66),
-               (vtfunc_t)pktRadioCCATimer, myICU);
+               (vtfunc_t)pktRadioCCALeadTimer, myICU);
       break;
     }
   } /* End switch. */
@@ -477,8 +518,8 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    * but before squelch close could cause lingering ICU activity.
    *
    */
-  if((myDemod->active_radio_object->status & EVT_PWM_FIFO_LOCK) != 0) {
-    pktClosePWMChannelI(myICU, EVT_PWM_STREAM_ABORT);
+  if((myDemod->active_radio_object->status & EVT_AFSK_DECODE_DONE) != 0) {
+    pktClosePWMChannelI(myICU, EVT_PWM_STREAM_CLOSED);
     chSysUnlockFromISR();
     return;
   }

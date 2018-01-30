@@ -55,5 +55,7 @@ packet_t aprs_encode_telemetry_configuration(const aprs_conf_t *config, uint8_t 
 packet_t aprs_encode_message(const aprs_conf_t *config, const char *receiver, const char *text, const bool noCounter);
 packet_t aprs_encode_data_packet(char packetType, const aprs_conf_t *config, uint8_t *data);
 
+void aprs_decode_packet(packet_t pp);
+
 #endif
 

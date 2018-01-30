@@ -37,11 +37,13 @@
 #define QCORR_PLL_SEARCH_RATE       0.5f
 #define QCORR_PLL_LOCKED_RATE       0.75f
 
-/* Used for indexing of IQ filter sections. */
-#define QCORR_COS_INDEX         0U
-#define QCORR_SIN_INDEX         1U
+#define QCORR_IQ_WINDOW             TD_WINDOW_CHEBYSCHEV
 
-#define REPORT_QCORR_COEFFS     FALSE
+/* Used for indexing of IQ filter sections. */
+#define QCORR_COS_INDEX             0U
+#define QCORR_SIN_INDEX             1U
+
+#define REPORT_QCORR_COEFFS         FALSE
 
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */

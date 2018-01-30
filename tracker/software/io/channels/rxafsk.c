@@ -174,7 +174,7 @@ void pktEnablePWM(AFSKDemodDriver *myDriver) {
   /* Enabling events on both edges of CCA.*/
   palEnableLineEvent(LINE_CCA, PAL_EVENT_MODE_BOTH_EDGES);
 
-  myDriver->icustate = PWM_ICU_ACTIVE;
+  myDriver->icustate = PKT_PWM_READY;
 }
 
 /**
@@ -205,7 +205,7 @@ void pktDisablePWM(AFSKDemodDriver *myDriver) {
   /* Disable CCA port event. */
   palDisableLineEventI(LINE_CCA);
 
-  myDriver->icustate = PWM_ICU_STOP;
+  myDriver->icustate = PKT_PWM_STOP;
 
   chSysUnlock();
 }
@@ -313,7 +313,6 @@ bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[]) {
        */
       if(pktProcessAFSKFilteredSample(myDriver)) {
         /* Filter is ready so decoding can commence. */
-        //bool ready = pktCheckAFSKSymbolTime(myDriver);
         if(pktCheckAFSKSymbolTime(myDriver)) {
           /* A symbol is ready to decode. */
           if(!pktDecodeAFSKSymbol(myDriver))
@@ -530,7 +529,7 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_rx_t *pktHandler,
 
   /* Set the link from ICU driver to AFSK demod driver. */
   myDriver->icudriver->link = myDriver;
-  myDriver->icustate = PWM_ICU_IDLE;
+  myDriver->icustate = PKT_PWM_READY;
 
   myDriver->decoder_thd = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(PKT_AFSK_DECODER_WA_SIZE),
@@ -816,16 +815,16 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           }
 
           if(myDriver->frame_state == FRAME_CLOSE) {
-            uint16_t magicCRC =
+#if AFSK_COLLISION_RESTART == TRUE
+            uint16_t theCRC =
                 calc_crc16(myHandler->active_packet_object->buffer, 0,
                 myHandler->active_packet_object->packet_size);
-
-            /* Close packet and send event. */
-            eventflags_t evt = (magicCRC == CRC_INCLUSIVE_CONSTANT)
-                    ? EVT_AX25_FRAME_RDY
-                    : EVT_AX25_CRC_ERROR;
-            pktAddEventFlags(myHandler, evt);
-            myDriver->active_demod_object->status |= evt;
+            if((myHandler->active_packet_object->packet_size < AX25_MIN_FRAME)
+            || (theCRC != CRC_INCLUSIVE_CONSTANT)) {
+              pktRestartAFSKDecoder(myDriver);
+              continue;
+            }
+#endif
             myDriver->decoder_state = DECODER_CLOSE;
             break; /* From this case. */
           }
@@ -839,10 +838,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* Data not received in time.
          * Stop any further ICU writes to queue.
          */
-        pktAddEventFlags(myHandler,
-                         EVT_PWM_FIFO_LOCK | EVT_PWM_STREAM_TIMEOUT);
-        myDriver->active_demod_object->status
-                    |= (EVT_PWM_FIFO_LOCK | EVT_PWM_STREAM_TIMEOUT);
+        pktAddEventFlags(myHandler, EVT_PWM_STREAM_TIMEOUT);
+        myDriver->active_demod_object->status |= EVT_PWM_STREAM_TIMEOUT;
         myDriver->decoder_state = DECODER_TIMEOUT;
         break;
       } /* End case DECODER_ACTIVE. */
@@ -853,8 +850,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
       } /* End case DECODER_CLOSE. */
 
       case DECODER_TIMEOUT: {
-        pktAddEventFlags(myHandler, EVT_AFSK_DATA_TIMEOUT);
-        myDriver->active_demod_object->status |= EVT_AFSK_DATA_TIMEOUT;
         myDriver->decoder_state = DECODER_SUSPEND;
         break;
       } /* End case DECODER_TIMEOUT. */
@@ -912,6 +907,10 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
       case DECODER_SUSPEND: {
         if(myHandler->active_packet_object != NULL) {
+          /* Lock the FIFO against further writes. */
+          pktAddEventFlags(myHandler, EVT_AFSK_DECODE_DONE | EVT_PWM_FIFO_LOCK);
+          myDriver->active_demod_object->status |=
+              (EVT_AFSK_DECODE_DONE | EVT_PWM_FIFO_LOCK);
           myHandler->active_packet_object->status =
               myDriver->active_demod_object->status;
 #if USE_AFSK_PHASE_STATISTICS == TRUE
@@ -921,6 +920,16 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           myHandler->active_packet_object->drift =
               statistics->drift_max;
 #endif
+          uint16_t magicCRC =
+              calc_crc16(myHandler->active_packet_object->buffer, 0,
+              myHandler->active_packet_object->packet_size);
+
+          /* Close packet and send event. */
+          eventflags_t evt = (magicCRC == CRC_INCLUSIVE_CONSTANT)
+                  ? EVT_AX25_FRAME_RDY
+                  : EVT_AX25_CRC_ERROR;
+          pktAddEventFlags(myHandler, evt);
+          myDriver->active_demod_object->status |= evt;
           chFifoSendObject(myHandler->packet_fifo_pool,
                             myHandler->active_packet_object);
           myHandler->active_packet_object = NULL;

@@ -10,37 +10,38 @@
 #include "si446x.h"
 #include "fcs_calc.h"
 #include "debug.h"
-
-
-
-
-// Thread
-static thread_t* feeder_thd = NULL;
-static THD_WORKING_AREA(si_fifo_feeder_wa, 4096);
+#include "pktconf.h"
+#include "aprs.h"
 
 // Mutex
 static mutex_t radio_mtx;				// Radio mutex
 static bool nextTransmissionWaiting;	// Flag that informs the feeder thread to keep the radio switched on
 static bool radio_mtx_init = false;
 
-// Modulation and buffer
+// Feeder thread variables
+static thread_t* feeder_thd = NULL;
+static THD_WORKING_AREA(si_fifo_feeder_wa, 4096);
 static packet_t radio_packet;
 static uint32_t radio_freq;
 static uint8_t radio_pwr;
 
+// Si446x variables
 static uint32_t outdiv;
 static int16_t lastTemp = 0x7FFF;
 static bool radioInitialized;
+
+// Receiver thread variables
+static thread_t* si446x_rx_thd = NULL;
+static THD_WORKING_AREA(si446x_rx_wa, 8192);
+static packet_rx_t *packetHandler;
 
 static uint32_t rx_frequency;
 static uint8_t rx_rssi;
 static mod_t rx_mod;
 
+
+
 static int16_t Si446x_getTemperature(void);
-
-
-
-
 
 /* =================================================================== SPI communication ==================================================================== */
 
@@ -673,7 +674,6 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 		Si446x_setReadyState();
 	}
 
-	TRACE_INFO("SI   > Wait for CCA to drop");
 	Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
 	Si446x_setFrequency(frequency);		// Set frequency
 	Si446x_setPowerLevel(power);		// Set power level
@@ -681,9 +681,11 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 
 	// Wait until nobody is transmitting (until timeout)
 	sysinterval_t t0 = chVTGetSystemTime();
-	do {
-		chThdSleep(TIME_MS2I(5));
-	} while((Si446x_getState() != Si446x_STATE_RX || Si446x_getCCA()) && chVTGetSystemTime()-t0 < sql_timeout);
+	if(Si446x_getState() != Si446x_STATE_RX || Si446x_getCCA()) {
+		TRACE_INFO("SI   > Wait for CCA to drop");
+		while((Si446x_getState() != Si446x_STATE_RX || Si446x_getCCA()) && chVTGetSystemTime()-t0 < sql_timeout)
+			chThdSleep(TIME_MS2I(5));
+	}
 
 	// Transmit
 	TRACE_INFO("SI   > Tune Si446x (TX)");
@@ -732,6 +734,7 @@ static bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
 static bool Si4464_restoreRX(void)
 {
 	TRACE_INFO("SI   > Restore RX");
+	pktStartDataReception(packetHandler); // Start packet handler again
 	return Si446x_receive(rx_frequency, rx_rssi, rx_mod);
 }
 
@@ -784,7 +787,7 @@ void lockRadioByCamera(void)
 		chThdWait(feeder_thd);
 }
 
-/* ========================================================================== AFSK ========================================================================== */
+/* ==================================================================== AFSK Transmitter ==================================================================== */
 
 #define PLAYBACK_RATE		13200
 #define BAUD_RATE			1200									/* APRS AFSK baudrate */
@@ -975,6 +978,10 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	lockRadio();
 
+	// Stop packet handler (if started)
+	if(packetHandler)
+		pktStopDataReception(packetHandler);
+
 	// Initialize radio
 	if(!radioInitialized)
 		Si446x_init();
@@ -995,6 +1002,192 @@ void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	unlockRadio();
 }
 
+/* ===================================================================== AFSK Receiver ====================================================================== */
+
+#define LINE_LENGTH 40U
+
+THD_FUNCTION(si_receiver, arg)
+{
+	(void)arg;
+
+	chRegSetThreadName("radio_receiver");
+
+	/* Buffer and size params for serial terminal output. */
+	char serial_buf[1024];
+	int serial_out;
+
+	/*
+	 * Setup the parameters for the AFSK decoder thread.
+	 * TODO: Radio configuration to be implemented in pktOpenReceiveChannel().
+	 */
+
+	radio_config_t afsk_radio = { PKT_RADIO_1 };
+	char frameCounter = 'A';
+
+	/* set packet instance assignment(s). */
+	pktInitReceiveChannels();
+
+	packetHandler = pktOpenReceiveChannel(DECODE_AFSK, &afsk_radio);
+	chDbgAssert(packetHandler != NULL, "invalid packet type");
+
+	thread_t *the_decoder = ((AFSKDemodDriver *)packetHandler->link_controller)->decoder_thd;
+	chDbgAssert(the_decoder != NULL, "no decoder assigned");
+
+	event_source_t *events = pktGetEventSource(packetHandler);
+
+	/* Start the decoder. */
+	msg_t pstart = pktStartDataReception(packetHandler);
+
+	TRACE_DEBUG("RX   > Starting decoder: start status %i, event source @ %x", pstart, events);
+
+	/* Main loop. */
+	while (true) {
+		frameCounter = ((frameCounter+1-'A') % 26) + 'A';
+
+		pkt_data_fifo_t *myPktFIFO = pktReceiveDataBufferTimeout(packetHandler, TIME_MS2I(1000));
+		if(myPktFIFO == NULL) {
+			continue;
+		}
+		/* Packet buffer sent via FIFO. */
+		ax25char_t *frame_buffer = myPktFIFO->buffer;
+		uint16_t frame_size = myPktFIFO->packet_size;
+		eventmask_t the_events;
+		packetHandler->frame_count++;
+		if(pktIsBufferValidAX25Frame(myPktFIFO) == MSG_OK) {
+			the_events = EVT_DIAG_OUT_END | EVT_PKT_OUT_END;
+			uint16_t actualCRC = frame_buffer[frame_size - 2] | (frame_buffer[frame_size - 1] << 8);
+			uint16_t computeCRC = calc_crc16(frame_buffer, 0, frame_size - 2);
+			uint16_t magicCRC = calc_crc16(frame_buffer, 0, frame_size);
+			if(magicCRC == CRC_INCLUSIVE_CONSTANT)
+				packetHandler->valid_count++;
+			float32_t good = (float32_t)packetHandler->valid_count / (float32_t)packetHandler->packet_count;
+			/* Write out the buffer data.
+			 * TODO: Have a define to put diagnostic data into AX25 buffer object.
+			 */
+			TRACE_DEBUG(
+				"RX %c > AFSK capture: status 0x%08x"
+				", packet count %u frame count %u valid frames %u (%.2f%%) bytes %u"
+				", CRCr %04x, CRCc %04x (%s), CRCm %04x",
+				frameCounter,
+				myPktFIFO->status,
+				packetHandler->packet_count,
+				packetHandler->frame_count,
+				packetHandler->valid_count,
+				(good * 100),
+				frame_size,
+				actualCRC,
+				computeCRC,
+				(actualCRC == computeCRC ? "good" : "bad"),
+				magicCRC
+			);
+
+			uint16_t bufpos;
+			uint16_t bufpos_a = 0;
+			serial_out = 0;
+			/* Write out a buffer line as hex first. */
+			for(bufpos = 0; bufpos < frame_size; bufpos++) {
+				if((bufpos + 1) % LINE_LENGTH == 0) {
+					serial_out += chsnprintf(&serial_buf[serial_out], sizeof(serial_buf)-serial_out, "%02x", frame_buffer[bufpos]);
+					TRACE_DEBUG("RX %c > %s", frameCounter, serial_buf);
+					serial_out = 0;
+					/* Write out full line of converted ASCII under hex.*/
+					bufpos_a = (bufpos + 1) - LINE_LENGTH;
+					do {
+						char asciichar = frame_buffer[bufpos_a];
+						if(asciichar == 0x7e) {
+							asciichar = '^';
+						} else {
+							asciichar >>= 1;
+							if(!((asciichar >= 0x70 && asciichar < 0x7a) || (asciichar > 0x2f && asciichar < 0x3a) || (asciichar > 0x40 && asciichar < 0x5b))) {
+								asciichar = 0x20;
+							} else if(asciichar >= 0x70 && asciichar < 0x7a) {
+								asciichar &= 0x3f;
+							}
+						}
+						if((bufpos_a + 1) % LINE_LENGTH == 0) {
+							serial_out += chsnprintf(&serial_buf[serial_out], sizeof(serial_buf)-serial_out, " %c", asciichar);
+							TRACE_DEBUG("RX %c > %s", frameCounter, serial_buf);
+							serial_out = 0;
+						} else {
+							serial_out += chsnprintf(&serial_buf[serial_out], sizeof(serial_buf)-serial_out, " %c ", asciichar);
+						}
+					} while(bufpos_a++ < bufpos);
+				} else {
+					serial_out += chsnprintf(&serial_buf[serial_out], sizeof(serial_buf)-serial_out, "%02x ", frame_buffer[bufpos]);
+				}
+			} /* End for(bufpos = 0; bufpos < frame_size; bufpos++). */
+
+			TRACE_DEBUG("RX %c > %s", frameCounter, serial_buf);
+			serial_out = 0;
+			/* Write out remaining partial line of converted ASCII under hex. */
+
+			do {
+				char asciichar = frame_buffer[bufpos_a];
+				if(asciichar == 0x7e) {
+					asciichar = '^';
+				} else {
+					asciichar >>= 1;
+					if(!((asciichar >= 0x70 && asciichar < 0x7a) || (asciichar > 0x2f && asciichar < 0x3a) || (asciichar > 0x40 && asciichar < 0x5b))) {
+						asciichar = 0x20;
+					} else if(asciichar >= 0x70 && asciichar < 0x7a) {
+						asciichar &= 0x3f;
+					}
+				}
+				serial_out += chsnprintf(&serial_buf[serial_out], sizeof(serial_buf)-serial_out, " %c ", asciichar);
+			} while(++bufpos_a < bufpos);
+			TRACE_DEBUG("RX %c > %s", frameCounter, serial_buf);
+
+			if(actualCRC == computeCRC) {
+
+				packet_t pp = ax25_from_frame(frame_buffer, bufpos-2);
+				if(pp != NULL) {
+
+					aprs_decode_packet(pp);
+					ax25_delete(pp);
+
+				} else {
+					TRACE_DEBUG("RX %c > Error in packet", frameCounter);
+				}
+
+			}
+
+		} else {/* End if valid frame. */
+			the_events = EVT_DIAG_OUT_END;
+			TRACE_DEBUG("RX %c > Invalid frame, status %x, bytes %u", frameCounter, myPktFIFO->status, myPktFIFO->packet_size);
+		}
+
+#if SUSPEND_HANDLING == RELEASE_ON_OUTPUT
+		/*
+		 *  Wait for end of transmission on diagnostic channel.
+		 */
+		eventmask_t evt = chEvtWaitAllTimeout(the_events, TIME_S2I(10));
+		if (!evt) {
+			TRACE_ERROR("RX   > FAIL: Timeout waiting for EOT from serial channels");
+		}
+		chEvtSignal(the_decoder, EVT_SUSPEND_EXIT);
+#else
+		(void)the_events;
+#endif
+		pktReleaseDataBuffer(packetHandler, myPktFIFO);
+		if(packetHandler->packet_count % 100 == 0 && packetHandler->packet_count != 0) {
+			/* Stop the decoder. */
+			msg_t pmsg = pktStopDataReception(packetHandler);
+			TRACE_DEBUG("RX   > Decoder STOP %i", pmsg);
+			if(packetHandler->packet_count % 1000 == 0 && packetHandler->packet_count != 0) {
+				chThdSleep(TIME_S2I(5));
+				pmsg = pktCloseReceiveChannel(packetHandler);
+				TRACE_DEBUG("RX   > Decoder CLOSE %i\r\n", pmsg);
+				chThdSleep(TIME_S2I(5));
+				packetHandler = pktOpenReceiveChannel(DECODE_AFSK, &afsk_radio);
+				TRACE_DEBUG("RX   > Decoder OPEN %x", packetHandler);
+			}
+			chThdSleep(TIME_S2I(5));
+			pmsg = pktStartDataReception(packetHandler);
+			TRACE_DEBUG("RX   > Decoder START %i", pmsg);
+		}
+	}
+}
+
 void receiveAFSK(uint32_t freq, uint8_t rssi) {
 	lockRadio();
 
@@ -1002,7 +1195,12 @@ void receiveAFSK(uint32_t freq, uint8_t rssi) {
 	if(!radioInitialized)
 		Si446x_init();
 
+	// Start transceiver
 	Si446x_receive(freq, rssi, MOD_AFSK);
+
+	// Start receiver thread
+	if(si446x_rx_thd == NULL)
+		si446x_rx_thd = chThdCreateStatic(si446x_rx_wa, sizeof(si446x_rx_wa), HIGHPRIO, si_receiver, NULL);
 
 	// Wait for the transmitter to start (because it is used as mutex)
 	while(Si446x_getState() != Si446x_STATE_RX)
@@ -1054,6 +1252,10 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
 
 void send2FSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	lockRadio();
+
+	// Stop packet handler (if started)
+	if(packetHandler)
+		pktStopDataReception(packetHandler);
 
 	// Initialize radio
 	if(!radioInitialized)

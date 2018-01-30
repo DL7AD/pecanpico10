@@ -32,6 +32,7 @@
 #include "shell.h"
 #include <stdlib.h>
 #include <math.h>
+
 /*
  * For F103 ARM_MATH_CM3 set -DARM_MATH_CM3 in the makefile CDefines section.
  * For F413 ARM_MATH_CM4 set -DARM_MATH_CM4 in the makefile CDefines section.
@@ -65,16 +66,19 @@
 #define EVT_DECODER_STOP        EVENT_MASK(EVT_PRIORITY_BASE + 16)
 #define EVT_RADIO_CCA_FIFO_ERR  EVENT_MASK(EVT_PRIORITY_BASE + 17)
 #define EVT_AX25_BUFFER_FULL    EVENT_MASK(EVT_PRIORITY_BASE + 18)
-#define EVT_AFSK_DATA_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 19)
+//#define EVT_AFSK_DATA_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 19)
 
 #define EVT_AX25_CRC_ERROR      EVENT_MASK(EVT_PRIORITY_BASE + 20)
 #define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 21)
 #define EVT_AX25_NO_BUFFER      EVENT_MASK(EVT_PRIORITY_BASE + 22)
 #define EVT_ICU_SLEEP_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 23)
 
-#define EVT_PWM_STREAM_ABORT    EVENT_MASK(EVT_PRIORITY_BASE + 24)
+#define EVT_PWM_STREAM_CLOSED   EVENT_MASK(EVT_PRIORITY_BASE + 24)
 #define EVT_PKT_CHANNEL_CLOSE   EVENT_MASK(EVT_PRIORITY_BASE + 25)
 #define EVT_DECODER_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 26)
+#define EVT_AFSK_DECODE_DONE    EVENT_MASK(EVT_PRIORITY_BASE + 27)
+
+#define EVT_RADIO_CCA_SPIKE     EVENT_MASK(EVT_PRIORITY_BASE + 28)
 
 #define EVT_STATUS_CLEAR        EVT_NONE
 
@@ -143,6 +147,8 @@ typedef struct radioConfig {
 #include "rxhdlc.h"
 #include "rxpacket.h"
 #include "ihex_out.h"
+#include "ax25_pad.h"
+#include "ax25_dump.h"
 
 /*===========================================================================*/
 /* External declarations.                                                    */
