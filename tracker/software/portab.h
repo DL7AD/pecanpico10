@@ -14,8 +14,8 @@
 /*===========================================================================*/
 
 //#define LINE_OVERFLOW_LED   LINE_LED3
-//#define LINE_DECODER_LED    LINE_IO_BLUE
-#define LINE_SQUELCH_LED    LINE_IO_BLUE
+#define LINE_DECODER_LED    LINE_IO_BLUE
+//#define LINE_SQUELCH_LED    LINE_IO_BLUE
 
 #define LINE_CCA            PAL_LINE(GPIOD, 2U)
 #define LINE_ICU            PAL_LINE(GPIOB, 6U)

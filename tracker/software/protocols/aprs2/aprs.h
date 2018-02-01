@@ -50,10 +50,13 @@
 #define SYM_SHIP						0x2F73
 #define SYM_DIGIPEATER					0x2F23
 
+void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len);
+
 packet_t aprs_encode_position(const aprs_conf_t *config, trackPoint_t *trackPoint);
 packet_t aprs_encode_telemetry_configuration(const aprs_conf_t *config, uint8_t type);
 packet_t aprs_encode_message(const aprs_conf_t *config, const char *receiver, const char *text, const bool noCounter);
 packet_t aprs_encode_data_packet(char packetType, const aprs_conf_t *config, uint8_t *data);
+packet_t aprs_encode_query_answer_aprsd(const aprs_conf_t *config, const char *receiver);
 
 void aprs_decode_packet(packet_t pp);
 

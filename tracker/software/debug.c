@@ -20,7 +20,7 @@ const SerialConfig uart_config =
 
 mutex_t trace_mtx; // Used internal to synchronize multiple chprintf in debug.h
 
-bool debug_on_usb = false;
+bool debug_on_usb = true;
 
 void debugOnUSB(BaseSequentialStream *chp, int argc, char *argv[])
 {
@@ -172,6 +172,6 @@ void test_rx(BaseSequentialStream *chp, int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 
-	receiveAFSK(config[2].frequency.hz, 0x2F);
+	receiveAFSK(config[2].frequency.hz, 0x4F);
 }
 

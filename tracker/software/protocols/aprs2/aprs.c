@@ -26,15 +26,20 @@
 
 #define METER_TO_FEET(m) (((m)*26876) / 8192)
 
+typedef struct {
+	sysinterval_t time;
+	char call[AX25_MAX_ADDR_LEN];
+} heard_t;
+
+
 static uint16_t msg_id;
 char alias_re[] = "WIDE[4-7]-[1-7]|CITYD";
 char wide_re[] = "WIDE[1-7]-[1-7]";
 enum preempt_e preempt = PREEMPT_OFF;
+static heard_t heard_list[20];
 
-static void aprs_printPacket(const char* prefix, packet_t pp)
+void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 {
-	char buf[1024];
-
 	// Decode packet
 	char rec[256];
 	unsigned char *pinfo;
@@ -42,15 +47,14 @@ static void aprs_printPacket(const char* prefix, packet_t pp)
 	ax25_get_info(pp, &pinfo);
 
 	// Print decoded packet
-	uint32_t out = chsnprintf(buf, sizeof(buf), "%s > %s", prefix, rec);
+	uint32_t out = chsnprintf(buf, len, "%s", rec);
 	for(uint32_t i=0; pinfo[i]; i++) {
 		if(pinfo[i] < 32 || pinfo[i] > 126) {
-			out += chsnprintf(&buf[out], sizeof(buf)-out, "<0x%02x>", pinfo[i]);
+			out += chsnprintf(&buf[out], len-out, "<0x%02x>", pinfo[i]);
 		} else {
-			out += chsnprintf(&buf[out], sizeof(buf)-out, "%c", pinfo[i]);
+			out += chsnprintf(&buf[out], len-out, "%c", pinfo[i]);
 		}
 	}
-	TRACE_INFO("%s", buf);
 }
 
 /**
@@ -161,6 +165,19 @@ packet_t aprs_encode_message(const aprs_conf_t *config, const char *receiver, co
 	return ax25_from_text(xmit, 1);
 }
 
+packet_t aprs_encode_query_answer_aprsd(const aprs_conf_t *config, const char *receiver)
+{
+	char buf[256] = "Directs=";
+	uint32_t out = 8;
+	for(uint8_t i=0; i<20; i++) {
+		if(heard_list[i].time && heard_list[i].time + TIME_S2I(600) >= chVTGetSystemTime() && heard_list[i].time <= chVTGetSystemTime())
+			out += chsnprintf(&buf[out], sizeof(buf)-out, "%s ", heard_list[i].call);
+	}
+	buf[out-1] = 0; // Remove last spacer
+
+	return aprs_encode_message(config, receiver, buf, true);
+}
+
 static bool aprs_decode_message(packet_t pp)
 {
 	// Get Info field
@@ -170,7 +187,7 @@ static bool aprs_decode_message(packet_t pp)
 	ax25_format_addrs(pp, src);
 
 	// Decode destination callsign
-	char dest[10];
+	char dest[AX25_MAX_ADDR_LEN];
 	uint8_t i=0;
 
 	while(i < sizeof(dest)-1) {
@@ -220,27 +237,35 @@ static bool aprs_decode_message(packet_t pp)
 		// Trace
 		TRACE_INFO("APRS > Received message from %s (ID=%s): %s", src, msg_id_rx, &pinfo[11]);
 
+		char *command = strupr((char*)&pinfo[11]);
+
 		// Do control actions
-		if(!strcmp((char*)&pinfo[11], "?GPIO PA8:1")) { // Switch on pin
+		if(!strcmp(command, "?GPIO PA8:1")) { // Switch on pin
 
 			TRACE_INFO("Message: GPIO query PA8 HIGH");
 			palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
 			palSetPad(GPIOA, 8);
 
-		} else if(!strcmp((char*)&pinfo[11], "?GPIO PA8:0")) { // Switch off pin
+		} else if(!strcmp(command, "?GPIO PA8:0")) { // Switch off pin
 
 			TRACE_INFO("Message: GPIO query PA8 LOW");
 			palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
 			palClearPad(GPIOA, 8);
 
-		} else if(!strcmp((char*)&pinfo[11], "?APRSP")) { // Transmit position
+		} else if(!strcmp(command, "?APRSP")) { // Transmit position
 
 			TRACE_INFO("Message: Position query");
 			trackPoint_t* trackPoint = getLastTrackPoint();
 			packet_t pp = aprs_encode_position(&(config[0].aprs_conf), trackPoint);
 			transmitOnRadio(pp, &(config[2].frequency), config[2].power, config[2].modulation);
 
-		} else if(!strcmp((char*)&pinfo[11], "?RESET")) { // Transmit position
+		} else if(!strcmp(command, "?APRSD")) { // Transmit position
+
+			TRACE_INFO("Message: Directs query");
+			packet_t pp = aprs_encode_query_answer_aprsd(&(config->aprs_conf), src);
+			transmitOnRadio(pp, &(config[2].frequency), config[2].power, config[2].modulation);
+
+		} else if(!strcmp(command, "?RESET")) { // Transmit position
 
 			TRACE_INFO("Message: System Reset");
 			char buf[16];
@@ -272,8 +297,6 @@ static void aprs_digipeat(packet_t pp)
 {
 	packet_t result = digipeat_match (0, pp, config[2].aprs_conf.callsign, config[2].aprs_conf.callsign, alias_re, wide_re, 0, preempt, NULL);
 	if(result != NULL) {
-		aprs_printPacket("TX  ", result);
-
 		dedupe_remember(result, 0);
 		transmitOnRadio(result, &(config[2].frequency), config[2].power, config[2].modulation);
 	}
@@ -296,18 +319,45 @@ packet_t aprs_encode_telemetry_configuration(const aprs_conf_t *config, uint8_t 
 
 void aprs_decode_packet(packet_t pp)
 {
-	bool digipeat = true;
+	// Get heard callsign
+	char call[AX25_MAX_ADDR_LEN];
+	int8_t v = -1;
+	do {
+		v++;
+		ax25_get_addr_with_ssid(pp, ax25_get_heard(pp)-v, call);
+	} while(ax25_get_heard(pp)-v >= AX25_SOURCE && (!strncmp("WIDE", call, 4) || !strncmp("TRACE", call, 5)));
 
-	aprs_printPacket("RX  ", pp);
+	// Fill/Update direct list
+	sysinterval_t first_time = 0xFFFFFFFF;	// Timestamp of oldest heard list entry
+	uint8_t first_id = 0;					// ID of oldest heard list entry
 
-	unsigned char *pinfo;
-	ax25_get_info(pp, &pinfo);
-	if(pinfo[0] == ':')
-	{
-		digipeat = aprs_decode_message(pp);
+	for(uint8_t i=0; i<=20; i++) {
+		if(i < 20) {
+			// Search for callsign in list
+			if(!strcmp(heard_list[i].call, call)) { // Callsign found in list
+				heard_list[i].time = chVTGetSystemTime(); // Update time the callsign was last heard
+				break;
+			}
+
+			// Find oldest entry
+			if(first_time > heard_list[i].time) {
+				first_time = heard_list[i].time;
+				first_id = i;
+			}
+		} else { // Callsign not in list
+			// Overwrite old entry/ use empty entry
+			memcpy(heard_list[first_id].call, call, sizeof(heard_list[first_id].call));
+			heard_list[first_id].time = chVTGetSystemTime();
+		}
 	}
 
-	if(digipeat)
-		aprs_digipeat(pp);
+	// Decode message packets
+	bool digipeat = true;
+	unsigned char *pinfo;
+	ax25_get_info(pp, &pinfo);
+	if(pinfo[0] == ':') digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
+
+	// Digipeat packet
+	//if(digipeat) aprs_digipeat(pp);
 }
 

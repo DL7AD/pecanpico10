@@ -14,7 +14,7 @@ void start_essential_threads(void) {
 	pi2cInit();						// Initialize I2C
 	pac1720_init();					// Initialize current measurement
 	init_tracking_manager(false);	// Initialize tracking manager (without GPS, GPS is initialized if needed by position thread)
-	receiveAFSK(144800000, 0x3F);	// Start APRS receiver TODO: Implement frequency changes
+	receiveAFSK(144800000, 0x47);	// Start APRS receiver TODO: Implement frequency changes
 	chThdSleep(TIME_MS2I(300));		// Wait for tracking manager to initialize
 }
 

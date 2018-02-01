@@ -211,7 +211,6 @@ static void Si446x_init(void) {
 	Si446x_setProperty8(Si446x_MODEM_DSM_CTRL, 0x07);
 	Si446x_setProperty8(Si446x_MODEM_CLKGEN_BAND, 0x0D);
 
-
 	Si446x_setProperty24(Si446x_MODEM_FREQ_DEV, 0x00, 0x00, 0x79);
 	Si446x_setProperty8(Si446x_MODEM_TX_RAMP_DELAY, 0x01);
 	Si446x_setProperty8(Si446x_PA_TC, 0x3D);
@@ -244,7 +243,7 @@ static void Si446x_init(void) {
 	Si446x_setProperty16(Si446x_MODEM_FSK4_TH, 0x02, 0x6D);
 	Si446x_setProperty8(Si446x_MODEM_FSK4_MAP, 0x00);
 	Si446x_setProperty8(Si446x_MODEM_OOK_PDTC, 0x28);
-	Si446x_setProperty8(Si446x_MODEM_OOK_CNT1, 0x85);
+	Si446x_setProperty8(Si446x_MODEM_OOK_CNT1, 0x84);
 	Si446x_setProperty8(Si446x_MODEM_OOK_MISC, 0x23);
 	Si446x_setProperty8(Si446x_MODEM_RAW_SEARCH, 0xDE);
 	Si446x_setProperty8(Si446x_MODEM_RAW_CONTROL, 0x8F);
@@ -660,6 +659,17 @@ static void Si446x_shutdown(void)
 
 /* ====================================================================== Radio TX/RX ======================================================================= */
 
+static bool Si446x_getLatchedCCA(uint8_t ms)
+{
+	uint16_t cca = 0;
+	for(uint16_t i=0; i<ms*10; i++) {
+		cca += Si446x_getCCA();
+		chThdSleep(TIME_US2I(100));
+	}
+	TRACE_DEBUG("SI   > CCA=%03d RX=%d", cca, cca <= ms/10);
+	return cca > ms; // Max. 1 spike per ms
+}
+
 static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uint8_t rssi, sysinterval_t sql_timeout)
 {
 	if(!Si446x_inRadioBand(frequency)) {
@@ -681,10 +691,10 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 
 	// Wait until nobody is transmitting (until timeout)
 	sysinterval_t t0 = chVTGetSystemTime();
-	if(Si446x_getState() != Si446x_STATE_RX || Si446x_getCCA()) {
-		TRACE_INFO("SI   > Wait for CCA to drop");
-		while((Si446x_getState() != Si446x_STATE_RX || Si446x_getCCA()) && chVTGetSystemTime()-t0 < sql_timeout)
-			chThdSleep(TIME_MS2I(5));
+	if(Si446x_getState() != Si446x_STATE_RX || Si446x_getLatchedCCA(50)) {
+		TRACE_DEBUG("SI   > Wait for CCA to drop");
+		while((Si446x_getState() != Si446x_STATE_RX || Si446x_getLatchedCCA(50)) && chVTGetSystemTime()-t0 < sql_timeout)
+			chThdSleep(TIME_US2I(100));
 	}
 
 	// Transmit
@@ -734,8 +744,15 @@ static bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
 static bool Si4464_restoreRX(void)
 {
 	TRACE_INFO("SI   > Restore RX");
-	pktStartDataReception(packetHandler); // Start packet handler again
-	return Si446x_receive(rx_frequency, rx_rssi, rx_mod);
+
+	bool ret = Si446x_receive(rx_frequency, rx_rssi, rx_mod);
+
+	if(packetHandler) {
+		TRACE_DEBUG("Start packet handler")
+		pktStartDataReception(packetHandler); // Start packet handler again
+	}
+
+	return ret;
 }
 
 void Si446x_receive_stop(void)
@@ -941,7 +958,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 	Si446x_writeFIFO(localBuffer, c);
 
 	// Start transmission
-	Si446x_transmit(radio_freq, radio_pwr, all, 0x3F, TIME_S2I(3));
+	Si446x_transmit(radio_freq, radio_pwr, all, 0x3F, TIME_S2I(10));
 
 	while(c < all) { // Do while bytes not written into FIFO completely
 		// Determine free memory in Si446x-FIFO
@@ -979,8 +996,10 @@ void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	lockRadio();
 
 	// Stop packet handler (if started)
-	if(packetHandler)
+	if(packetHandler) {
+		TRACE_DEBUG("Stop packet handler")
 		pktStopDataReception(packetHandler);
+	}
 
 	// Initialize radio
 	if(!radioInitialized)
@@ -991,6 +1010,12 @@ void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	radio_packet = packet;
 	radio_freq = freq;
 	radio_pwr = pwr;
+
+	{
+		char buf[1024];
+		aprs_debug_getPacket(packet, buf, sizeof(buf));
+		TRACE_INFO("TX   > %s", buf);
+	}
 
 	// Start/re-start FIFO feeder
 	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO, si_fifo_feeder_afsk, NULL);
@@ -1142,6 +1167,9 @@ THD_FUNCTION(si_receiver, arg)
 				packet_t pp = ax25_from_frame(frame_buffer, bufpos-2);
 				if(pp != NULL) {
 
+					aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
+					TRACE_INFO("RX   > %s", serial_buf);
+
 					aprs_decode_packet(pp);
 					ax25_delete(pp);
 
@@ -1153,7 +1181,7 @@ THD_FUNCTION(si_receiver, arg)
 
 		} else {/* End if valid frame. */
 			the_events = EVT_DIAG_OUT_END;
-			TRACE_DEBUG("RX %c > Invalid frame, status %x, bytes %u", frameCounter, myPktFIFO->status, myPktFIFO->packet_size);
+			TRACE_DEBUG("RX %c > Invalid frame, status 0x%08x, bytes %u", frameCounter, myPktFIFO->status, myPktFIFO->packet_size);
 		}
 
 #if SUSPEND_HANDLING == RELEASE_ON_OUTPUT
@@ -1266,6 +1294,12 @@ void send2FSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	radio_packet = packet;
 	radio_freq = freq;
 	radio_pwr = pwr;
+
+	{
+		char buf[1024];
+		aprs_debug_getPacket(packet, buf, sizeof(buf));
+		TRACE_INFO("TX   > %s", buf);
+	}
 
 	// Start/re-start FIFO feeder
 	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO, si_fifo_feeder_fsk, NULL);

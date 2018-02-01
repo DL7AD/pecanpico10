@@ -41,9 +41,14 @@ THD_FUNCTION(posThread, arg)
 		{
 			TRACE_INFO("POS  > Transmit position");
 
-			// Encode and transmit position packet
+			// Encode/Transmit position packet
 			packet_t packet = aprs_encode_position(&(conf->aprs_conf), trackPoint); // Encode packet
 			transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);
+			chThdSleep(TIME_S2I(5));
+
+			// Encode/Transmit APRSD packet
+			packet_t pp = aprs_encode_query_answer_aprsd(&(config->aprs_conf), config->aprs_conf.callsign);
+			transmitOnRadio(pp, &conf->frequency, conf->power, conf->modulation);
 
 			// Telemetry encoding parameter transmission
 			if(conf->aprs_conf.tel_enc_cycle != 0 && last_conf_transmission + TIME_S2I(conf->aprs_conf.tel_enc_cycle) < chVTGetSystemTimeX())
@@ -57,6 +62,7 @@ THD_FUNCTION(posThread, arg)
 				{
 					packet = aprs_encode_telemetry_configuration(&conf->aprs_conf, type);
 					transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);
+					chThdSleep(TIME_S2I(5));
 				}
 
 				last_conf_transmission += TIME_S2I(conf->aprs_conf.tel_enc_cycle);

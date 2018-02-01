@@ -362,9 +362,9 @@
 // Global variables
 sysinterval_t track_cycle_time = TIME_S2I(600);	// Tracking cycle (all peripheral data [airpressure, GPS, temperature, ...] is collected each 60 seconds
 bool keep_cam_switched_on =	false;				// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time
-uint16_t gps_on_vbat = 5000;					// Battery voltage threshold at which GPS is switched on
-uint16_t gps_off_vbat = 5000;					// Battery voltage threshold at which GPS is switched off
-uint16_t gps_onper_vbat = 5000;					// Battery voltage threshold at which GPS is kept switched on all time. This value must be larger
+uint16_t gps_on_vbat = 1000;					// Battery voltage threshold at which GPS is switched on
+uint16_t gps_off_vbat = 1000;					// Battery voltage threshold at which GPS is switched off
+uint16_t gps_onper_vbat = 1000;					// Battery voltage threshold at which GPS is kept switched on all time. This value must be larger
 												// than gps_on_vbat and gps_off_vbat otherwise this value has no effect. Value 0 disables this feature
 
 
@@ -385,13 +385,13 @@ void start_user_modules(void)
 	config[0].frequency.type = FREQ_APRS_REGION;				// Dynamic frequency allocation
 	config[0].frequency.hz = 144800000;							// Default frequency 144.800 MHz
 	config[0].trigger.type = TRIG_NEW_POINT;					// Transmit when tracking manager samples new tracking point
-	chsnprintf(config[0].aprs_conf.callsign, 10, "DL7AD-12");	// APRS Callsign
+	chsnprintf(config[0].aprs_conf.callsign, 10, "DL7AD-13");	// APRS Callsign
 	config[0].aprs_conf.symbol = SYM_DIGIPEATER;				// APRS Symbol
 	chsnprintf(config[0].aprs_conf.path, 16, "WIDE1-1");		// APRS Path
 	config[0].aprs_conf.preamble = 200;							// APRS Preamble (200ms)
 	config[0].aprs_conf.tel_enc_cycle = 3600;					// Transmit Telemetry encoding information every 3600sec
 	chsnprintf(config[0].aprs_conf.tel_comment, 64,
-		"http://dl7ad.duckdns.org/DL7AD-12");					// Telemetry comment
+		"http://dl7ad.duckdns.org/DL7AD-13");					// Telemetry comment
 	start_position_thread(&config[0]);
 
 	// Secondary Position Thread configuration
@@ -400,13 +400,13 @@ void start_user_modules(void)
 	config[1].frequency.type = FREQ_APRS_REGION;				// Dynamic frequency allocation
 	config[1].frequency.hz = 144800000;							// Default frequency 144.800 MHz
 	config[1].trigger.type = TRIG_NEW_POINT;					// Transmit when tracking manager samples new tracking point
-	chsnprintf(config[1].aprs_conf.callsign, 10, "DL7AD-12");	// APRS Callsign
+	chsnprintf(config[1].aprs_conf.callsign, 10, "DL7AD-13");	// APRS Callsign
 	config[1].aprs_conf.symbol = SYM_DIGIPEATER;				// APRS Symbol
 	chsnprintf(config[1].aprs_conf.path, 16, "WIDE1-1");		// APRS Path
 	config[1].aprs_conf.preamble = 200;							// APRS Preamble (200ms)
 	config[1].aprs_conf.tel_enc_cycle = 3600;					// Transmit Telemetry encoding information every 3600sec
 	chsnprintf(config[1].aprs_conf.tel_comment, 64,
-		"http://dl7ad.duckdns.org/DL7AD-12");					// Telemetry comment
+		"http://dl7ad.duckdns.org/DL7AD-13");					// Telemetry comment
 	//start_position_thread(&config[1]);
 
 	// Digipeater/Receiver Thread configuration
@@ -414,7 +414,7 @@ void start_user_modules(void)
 	config[2].modulation = MOD_AFSK;							// Protocol APRS (AFSK)
 	config[2].frequency.type = FREQ_APRS_REGION;				// Dynamic frequency allocation
 	config[2].frequency.hz = 144800000;							// Default frequency 144.800 MHz
-	chsnprintf(config[2].aprs_conf.callsign, 10, "DL7AD-12");	// APRS Callsign
+	chsnprintf(config[2].aprs_conf.callsign, 10, "DL7AD-13");	// APRS Callsign
 	chsnprintf(config[2].aprs_conf.path, 16, "WIDE1-1");		// APRS Path
 	config[2].aprs_conf.preamble = 200;							// APRS Preamble (200ms)
 	//start_position_thread(&config[2]);
@@ -429,7 +429,7 @@ void start_user_modules(void)
 	config[3].frequency.hz = 144800000;							// Transmission frequency 144.800 MHz
 	config[3].packet_spacing = 10000;							// Packet spacing in ms
 	config[3].trigger.type = TRIG_CONTINUOUSLY;					// Transmit continuously
-	chsnprintf(config[3].aprs_conf.callsign, 10, "DL7AD-14");	// APRS Callsign
+	chsnprintf(config[3].aprs_conf.callsign, 10, "DL7AD-13");	// APRS Callsign
 	config[3].aprs_conf.preamble = 200;							// APRS Preamble (200ms)
 	config[3].ssdv_conf.ram_buffer = ssdv_buffer;				// Camera buffer
 	config[3].ssdv_conf.ram_size = sizeof(ssdv_buffer);			// Buffer size
@@ -445,7 +445,7 @@ void start_user_modules(void)
 	config[4].frequency.type = FREQ_STATIC;						// Static frequency allocation
 	config[4].frequency.hz = 144860000;							// Transmission frequency 144.860 MHz
 	config[4].trigger.type = TRIG_CONTINUOUSLY;					// Transmit continuously
-	chsnprintf(config[4].aprs_conf.callsign, 10, "DL7AD-14");	// APRS Callsign
+	chsnprintf(config[4].aprs_conf.callsign, 10, "DL7AD-13");	// APRS Callsign
 	config[4].aprs_conf.preamble = 100;							// APRS Preamble (100ms)
 	config[4].ssdv_conf.ram_buffer = ssdv_buffer;				// Camera buffer
 	config[4].ssdv_conf.ram_size = sizeof(ssdv_buffer);			// Buffer size
@@ -465,7 +465,7 @@ void start_user_modules(void)
 	config[6].init_delay = 5000;								// Module startup delay (5 seconds)
 	config[6].trigger.type = TRIG_TIMEOUT;						// Periodic cycling (every 180 seconds)
 	config[6].trigger.timeout = 60;								// Timeout 60 sec
-	chsnprintf(config[6].aprs_conf.callsign, 10, "DL7AD-12");	// APRS Callsign
+	chsnprintf(config[6].aprs_conf.callsign, 10, "DL7AD-13");	// APRS Callsign
 	config[6].aprs_conf.preamble = 200;							// APRS Preamble (200ms)
 	//start_logging_thread(&config[6]);
 }
