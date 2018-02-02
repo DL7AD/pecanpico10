@@ -504,7 +504,7 @@ static void Si446x_setModemAFSK_TX(void)
 	Si446x_setProperty24(Si446x_MODEM_DATA_RATE, 0x00, 0x33, 0x90);
 
 	// Use 2FSK from FIFO (PH)
-	Si446x_setProperty8(Si446x_MODEM_MOD_TYPE, 0x03);
+	Si446x_setProperty8(Si446x_MODEM_MOD_TYPE, 0x02);
 
 	// Set AFSK filter
 	const uint8_t coeff[] = {0x81, 0x9f, 0xc4, 0xee, 0x18, 0x3e, 0x5c, 0x70, 0x76};
@@ -666,7 +666,7 @@ static bool Si446x_getLatchedCCA(uint8_t ms)
 		cca += Si446x_getCCA();
 		chThdSleep(TIME_US2I(100));
 	}
-	TRACE_DEBUG("SI   > CCA=%03d RX=%d", cca, cca <= ms/10);
+	TRACE_DEBUG("SI   > CCA=%03d RX=%d", cca, cca > ms/10);
 	return cca > ms; // Max. 1 spike per ms
 }
 
