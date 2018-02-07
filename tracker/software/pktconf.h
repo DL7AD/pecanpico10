@@ -234,11 +234,37 @@ static inline void pktWriteOverflowLED(uint8_t state) {
 }
 
 static inline void pktUnsetLineModeOverflowLED(void) {
-#if defined( LINE_OVERFLOW_LED)
+#if defined(LINE_OVERFLOW_LED)
   palSetLineMode(LINE_OVERFLOW_LED, PAL_MODE_UNCONNECTED);
 #endif
 }
 
+static inline void pktSetLineModePWMMirror(void) {
+#if defined(LINE_PWM_MIRROR)
+  palSetLineMode(LINE_PWM_MIRROR, PAL_MODE_OUTPUT_PUSHPULL);
+#endif
+}
+
+static inline void pktUnsetLineModePWMMirror(void) {
+#if defined(LINE_PWM_MIRROR)
+  palSetLineMode(LINE_PWM_MIRROR, PAL_MODE_UNCONNECTED);
+#endif
+}
+
+static inline void pktWritePWMMirror(uint8_t state) {
+#if defined(LINE_PWM_MIRROR)
+  if(state != PAL_TOGGLE)
+    palWriteLine(LINE_PWM_MIRROR, state);
+  else
+    palToggleLine(LINE_PWM_MIRROR);
+#else
+  (void)state;
+#endif
+}
+
+
+
 #endif /* _PKTCONF_H_ */
 
 /** @} */
+

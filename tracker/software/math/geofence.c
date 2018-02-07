@@ -657,7 +657,7 @@ uint32_t getAPRSRegionFrequency(void) {
 
 	// Position unknown
 	if(point == NULL || (point->gps_lat == 0 && point->gps_lon == 0))
-		return 0;
+		return 144800000;
 	
 	// America 144.390 MHz
 	if(isPointInAmerica(point->gps_lat, point->gps_lon))
@@ -697,22 +697,5 @@ uint32_t getAPRSRegionFrequency(void) {
 
 	// For the rest of the world 144.800 MHz
 	return 144800000;
-}
-
-uint32_t getFrequency(freq_conf_t *config)
-{
-	switch(config->type) {
-		case FREQ_APRS_REGION:; // Dynamic frequency (determined by GPS position)
-			uint32_t freq = getAPRSRegionFrequency();
-			if(!freq) // Use default frequency (if freq is 0 = position unknown)
-				return config->hz;
-			return freq;
-
-		case FREQ_STATIC: // Static frequency
-			return config->hz;
-
-		default:
-			return 0;
-	}
 }
 

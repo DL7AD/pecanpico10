@@ -9,6 +9,7 @@
 #include "ov5640.h"
 #include "geofence.h"
 #include "aprs.h"
+#include "radio.h"
 
 const SerialConfig uart_config =
 {
@@ -35,35 +36,30 @@ void debugOnUSB(BaseSequentialStream *chp, int argc, char *argv[])
 }
 
 static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
+
 void printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 {
 	(void)argc;
 	(void)argv;
 
 	// Take picture
-	ssdv_conf_t conf = {
-		.res = RES_QVGA,
-		.quality = 4,
-		.ram_buffer = usb_buffer,
-		.ram_size = sizeof(usb_buffer),
-	};
-	bool camera_found = takePicture(&conf, false);
+	uint32_t size_sampled = takePicture(usb_buffer, sizeof(usb_buffer), RES_QVGA, false);
 
 	// Transmit image via USB
-	if(camera_found)
+	if(size_sampled)
 	{
 		bool start_detected = false;
-		for(uint32_t i=0; i<conf.size_sampled; i++)
+		for(uint32_t i=0; i<size_sampled; i++)
 		{
 			// Look for APP0 instead of SOI because SOI is lost sometimes, but we can add SOI easily later on
-			if(!start_detected && conf.ram_buffer[i] == 0xFF && conf.ram_buffer[i+1] == 0xE0) {
+			if(!start_detected && usb_buffer[i] == 0xFF && usb_buffer[i+1] == 0xE0) {
 				start_detected = true;
-				TRACE_USB("DATA > image/jpeg,%d", conf.size_sampled-i+2); // Flag the data on serial output
+				TRACE_USB("DATA > image/jpeg,%d", size_sampled-i+2); // Flag the data on serial output
 				streamPut(chp, 0xFF);
 				streamPut(chp, 0xD8);
 			}
 			if(start_detected)
-				streamPut(chp, conf.ram_buffer[i]);
+				streamPut(chp, usb_buffer[i]);
 		}
 		if(!start_detected)
 		{
@@ -71,7 +67,7 @@ void printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 			TRACE_USB("DATA > text/trace,no SOI flag found");
 		}
 
-	} else { // No camera found
+	} else { // Camera error
 
 		TRACE_USB("DATA > image,jpeg,0");
 		TRACE_USB("DATA > error,no camera found");
@@ -110,7 +106,7 @@ void readLog(BaseSequentialStream *chp, int argc, char *argv[])
 
 void printConfig(BaseSequentialStream *chp, int argc, char *argv[])
 {
-	if(argc < 1)
+/*	if(argc < 1)
 	{
 		chprintf(chp, "Argument missing!\r\n");
 		chprintf(chp, "Argument 1: Id of config\r\n");
@@ -145,7 +141,11 @@ void printConfig(BaseSequentialStream *chp, int argc, char *argv[])
 
 	chprintf(chp, "SSDV config: xx\r\n");
 
-	chprintf(chp, "Watchdog timeout: %d\r\n", config[id].wdg_timeout);
+	chprintf(chp, "Watchdog timeout: %d\r\n", config[id].wdg_timeout);*/
+
+	(void)argc;
+	(void)argv;
+	chprintf(chp, "TODO: Not implemented\r\n");
 }
 
 void send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[])
@@ -160,18 +160,9 @@ void send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[])
 	chprintf(chp, "Destination: %s\r\n", argv[0]);
 	chprintf(chp, "Message: %s\r\n", argv[1]);
 
-	packet_t packet = aprs_encode_message(&(config[2].aprs_conf), argv[0], argv[1], false);
-	transmitOnRadio(packet, &(config[2].frequency), 127, MOD_AFSK);
+	packet_t packet = aprs_encode_message(config.rx.call, config.rx.path, argv[0], argv[1], false);
+	transmitOnRadio(packet, config.rx.radio_conf.freq, config.rx.radio_conf.pwr, config.rx.radio_conf.mod);
 
 	chprintf(chp, "Message sent!\r\n");
-}
-
-void test_rx(BaseSequentialStream *chp, int argc, char *argv[])
-{
-	(void)chp;
-	(void)argc;
-	(void)argv;
-
-	receiveAFSK(config[2].frequency.hz, 0x4F);
 }
 

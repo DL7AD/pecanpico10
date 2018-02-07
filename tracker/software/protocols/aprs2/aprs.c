@@ -23,6 +23,7 @@
 #include "base91.h"
 #include "digipeater.h"
 #include "dedupe.h"
+#include "radio.h"
 
 #define METER_TO_FEET(m) (((m)*26876) / 8192)
 
@@ -37,6 +38,7 @@ char alias_re[] = "WIDE[4-7]-[1-7]|CITYD";
 char wide_re[] = "WIDE[1-7]-[1-7]";
 enum preempt_e preempt = PREEMPT_OFF;
 static heard_t heard_list[20];
+static bool dedupe_initialized;
 
 void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 {
@@ -67,7 +69,7 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
  * - Number of satellites being used
  * - Number of cycles where GPS has been lost (if applicable in cycle)
  */
-packet_t aprs_encode_position(const aprs_conf_t *config, trackPoint_t *trackPoint)
+packet_t aprs_encode_position(const char *callsign, const char *path, uint8_t symbol, trackPoint_t *trackPoint)
 {
 	// Latitude
 	uint32_t y = 380926 * (90 - trackPoint->gps_lat/10000000.0);
@@ -97,9 +99,9 @@ packet_t aprs_encode_position(const aprs_conf_t *config, trackPoint_t *trackPoin
 	uint8_t origin = ORIGIN_PICO;
 
 	char xmit[256];
-	uint32_t len = chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:!", config->callsign, APRS_DEST_CALLSIGN, config->path);
+	uint32_t len = chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:!", callsign, APRS_DEST_CALLSIGN, path);
 
-	xmit[len+0]  = (config->symbol >> 8) & 0xFF;
+	xmit[len+0]  = (symbol >> 8) & 0xFF;
 	xmit[len+1]  = y3+33;
 	xmit[len+2]  = y2+33;
 	xmit[len+3]  = y1+33;
@@ -108,7 +110,7 @@ packet_t aprs_encode_position(const aprs_conf_t *config, trackPoint_t *trackPoin
 	xmit[len+6]  = x2+33;
 	xmit[len+7]  = x1+33;
 	xmit[len+8]  = x1r+33;
-	xmit[len+9]  = config->symbol & 0xFF;
+	xmit[len+9]  = symbol & 0xFF;
 	xmit[len+10] = a1+33;
 	xmit[len+11] = a1r+33;
 	xmit[len+12] = ((gpsFix << 5) | (src << 3) | origin) + 33;
@@ -143,10 +145,10 @@ packet_t aprs_encode_position(const aprs_conf_t *config, trackPoint_t *trackPoin
 	return ax25_from_text(xmit, 1);
 }
 
-packet_t aprs_encode_data_packet(char packetType, const aprs_conf_t *config, uint8_t *data)
+packet_t aprs_encode_data_packet(const char *callsign, const char *path, char packetType, uint8_t *data)
 {
 	char xmit[256];
-	chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:{{%c%s", config->callsign, APRS_DEST_CALLSIGN, config->path, packetType, data);
+	chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:{{%c%s", callsign, APRS_DEST_CALLSIGN, path, packetType, data);
 
 	return ax25_from_text(xmit, 1);
 }
@@ -154,18 +156,18 @@ packet_t aprs_encode_data_packet(char packetType, const aprs_conf_t *config, uin
 /**
  * Transmit message packet
  */
-packet_t aprs_encode_message(const aprs_conf_t *config, const char *receiver, const char *text, const bool noCounter)
+packet_t aprs_encode_message(const char *callsign, const char *path, const char *receiver, const char *text, const bool noCounter)
 {
 	char xmit[256];
 	if(noCounter)
-		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s", config->callsign, APRS_DEST_CALLSIGN, config->path, receiver, text);
+		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s", callsign, APRS_DEST_CALLSIGN, path, receiver, text);
 	else
-		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s{%d", config->callsign, APRS_DEST_CALLSIGN, config->path, receiver, text, ++msg_id);
+		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s{%d", callsign, APRS_DEST_CALLSIGN, path, receiver, text, ++msg_id);
 
 	return ax25_from_text(xmit, 1);
 }
 
-packet_t aprs_encode_query_answer_aprsd(const aprs_conf_t *config, const char *receiver)
+packet_t aprs_encode_query_answer_aprsd(const char *callsign, const char *path, const char *receiver)
 {
 	char buf[256] = "Directs=";
 	uint32_t out = 8;
@@ -175,7 +177,7 @@ packet_t aprs_encode_query_answer_aprsd(const aprs_conf_t *config, const char *r
 	}
 	buf[out-1] = 0; // Remove last spacer
 
-	return aprs_encode_message(config, receiver, buf, true);
+	return aprs_encode_message(callsign, path, receiver, buf, true);
 }
 
 static bool aprs_decode_message(packet_t pp)
@@ -208,7 +210,7 @@ static bool aprs_decode_message(packet_t pp)
 	}
 
 	// Try to find out if this message is meant for us
-	if(pinfo[10] == ':' && !strcmp(config[2].aprs_conf.callsign, dest))
+	if(pinfo[10] == ':' && !strcmp(config.rx.call, dest))
 	{
 		char msg_id_rx[8];
 		memset(msg_id_rx, 0, sizeof(msg_id_rx));
@@ -256,23 +258,23 @@ static bool aprs_decode_message(packet_t pp)
 
 			TRACE_INFO("Message: Position query");
 			trackPoint_t* trackPoint = getLastTrackPoint();
-			packet_t pp = aprs_encode_position(&(config[0].aprs_conf), trackPoint);
-			transmitOnRadio(pp, &(config[2].frequency), config[2].power, config[2].modulation);
+			packet_t pp = aprs_encode_position(config.rx.call, config.rx.path, config.rx.symbol, trackPoint);
+			transmitOnRadio(pp, config.rx.radio_conf.freq, config.rx.radio_conf.pwr, config.rx.radio_conf.mod);
 
 		} else if(!strcmp(command, "?APRSD")) { // Transmit position
 
 			TRACE_INFO("Message: Directs query");
-			packet_t pp = aprs_encode_query_answer_aprsd(&(config->aprs_conf), src);
-			transmitOnRadio(pp, &(config[2].frequency), config[2].power, config[2].modulation);
+			packet_t pp = aprs_encode_query_answer_aprsd(config.rx.call, config.rx.path, src);
+			transmitOnRadio(pp, config.rx.radio_conf.freq, config.rx.radio_conf.pwr, config.rx.radio_conf.mod);
 
 		} else if(!strcmp(command, "?RESET")) { // Transmit position
 
 			TRACE_INFO("Message: System Reset");
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
-			packet_t pp = aprs_encode_message(&(config[2].aprs_conf), src, buf, true);
-			transmitOnRadio(pp, &(config[2].frequency), config[2].power, config[2].modulation);
-			chThdSleep(TIME_S2I(2)); // Give some time to send the message
+			packet_t pp = aprs_encode_message(config.rx.call, config.rx.path, src, buf, true);
+			transmitOnRadio(pp, config.rx.radio_conf.freq, config.rx.radio_conf.pwr, config.rx.radio_conf.mod);
+			chThdSleep(TIME_S2I(5)); // Give some time to send the message
 
 			NVIC_SystemReset();
 
@@ -283,8 +285,8 @@ static bool aprs_decode_message(packet_t pp)
 		if(msg_id_rx[0]) { // Message ID has been sent which has to be acknowledged
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
-			packet_t pp = aprs_encode_message(&(config[2].aprs_conf), src, buf, true);
-			transmitOnRadio(pp, &(config[2].frequency), config[2].power, config[2].modulation);
+			packet_t pp = aprs_encode_message(config.rx.call, config.rx.path, src, buf, true);
+			transmitOnRadio(pp, config.rx.radio_conf.freq, config.rx.radio_conf.pwr, config.rx.radio_conf.mod);
 		}
 
 		return false; // Mark that message dont has to be digipeated
@@ -295,24 +297,31 @@ static bool aprs_decode_message(packet_t pp)
 
 static void aprs_digipeat(packet_t pp)
 {
-	packet_t result = digipeat_match (0, pp, config[2].aprs_conf.callsign, config[2].aprs_conf.callsign, alias_re, wide_re, 0, preempt, NULL);
-	if(result != NULL) {
-		dedupe_remember(result, 0);
-		transmitOnRadio(result, &(config[2].frequency), config[2].power, config[2].modulation);
+	if(!dedupe_initialized) {
+		dedupe_init(TIME_S2I(10));
+		dedupe_initialized = true;
+	}
+
+	if(!dedupe_check(pp, 0)) { // Last identical packet older than 10 seconds
+		packet_t result = digipeat_match(0, pp, config.rx.call, config.rx.call, alias_re, wide_re, 0, preempt, NULL);
+		if(result != NULL) { // Should be digipeated
+			dedupe_remember(result, 0);
+			transmitOnRadio(result, config.rx.radio_conf.freq, config.rx.radio_conf.pwr, config.rx.radio_conf.mod);
+		}
 	}
 }
 
 /**
  * Transmit APRS telemetry configuration
  */
-packet_t aprs_encode_telemetry_configuration(const aprs_conf_t *config, uint8_t type)
+packet_t aprs_encode_telemetry_configuration(const char *callsign, const char *path, uint8_t type)
 {
 	switch(type)
 	{
-		case 0:	return aprs_encode_message(config, config->callsign, "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure", true);
-		case 1: return aprs_encode_message(config, config->callsign, "UNIT.V,V,W,degC,Pa", true);
-		case 2: return aprs_encode_message(config, config->callsign, "EQNS.0,.001,0,0,.001,0,0,.001,-4.096,0,.1,-100,0,12.5,500", true);
-		case 3: return aprs_encode_message(config, config->callsign, "BITS.11111111,", true);
+		case 0:	return aprs_encode_message(callsign, path, callsign, "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure", true);
+		case 1: return aprs_encode_message(callsign, path, callsign, "UNIT.V,V,W,degC,Pa", true);
+		case 2: return aprs_encode_message(callsign, path, callsign, "EQNS.0,.001,0,0,.001,0,0,.001,-4.096,0,.1,-100,0,12.5,500", true);
+		case 3: return aprs_encode_message(callsign, path, callsign, "BITS.11111111,", true);
 		default: return NULL;
 	}
 }
@@ -358,6 +367,6 @@ void aprs_decode_packet(packet_t pp)
 	if(pinfo[0] == ':') digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
 
 	// Digipeat packet
-	//if(digipeat) aprs_digipeat(pp);
+	if(config.dig_active) aprs_digipeat(pp);
 }
 

@@ -23,6 +23,8 @@
 #define LINE_UART4_TX       PAL_LINE(GPIOA, 12U)
 #define LINE_UART4_RX       PAL_LINE(GPIOA, 11U)
 
+//#define LINE_PWM_MIRROR     PAL_LINE(GPIOA, 8U)
+
 #define PWM_ICU             ICUD4
 
 /* Definitions for ICU FIFO implemented using chfactory. */

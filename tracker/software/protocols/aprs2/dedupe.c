@@ -227,7 +227,7 @@ void dedupe_remember (packet_t pp, int chan)
 int dedupe_check (packet_t pp, int chan)
 {
 	unsigned short crc = ax25_dedupe_crc(pp);
-	time_t now = chVTGetSystemTime();
+	sysinterval_t now = chVTGetSystemTime();
 	int j;
 
 	for (j=0; j<HISTORY_MAX; j++) {

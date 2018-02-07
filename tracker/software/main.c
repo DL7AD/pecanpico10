@@ -15,7 +15,6 @@ static const ShellCommand commands[] = {
 	{"config", printConfig},
 	{"command", command2Camera},
 	{"aprs_message", send_aprs_message},
-	{"test_rx", test_rx},
 	{NULL, NULL}
 };
 
@@ -49,7 +48,7 @@ int main(void) {
 
 	// Startup threads
 	start_essential_threads();	// Startup required modules (tracking managemer, watchdog)
-	start_user_modules();		// Startup optional modules (eg. POSITION, LOG, ...)
+	start_user_threads();		// Startup optional modules (eg. POSITION, LOG, ...)
 
 	while(true) {
 		#if ACTIVATE_USB

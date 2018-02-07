@@ -36,6 +36,7 @@ typedef enum packetHandlerStates {
 typedef enum HDLCFrameStates{
   FRAME_SEARCH,
   FRAME_OPEN,
+  FRAME_DATA,
   FRAME_CLOSE,
   FRAME_RESET
 } frame_state_t;
@@ -103,7 +104,7 @@ typedef struct packetHandlerData {
   /**
    * @brief Event flags.
    */
-  eventflags_t              status;
+  //eventflags_t              status;
 
   /**
    * @brief Packet count.

@@ -46,10 +46,20 @@
 const ICUConfig pwm_icucfg = {
   ICU_INPUT_ACTIVE_HIGH,
   ICU_COUNT_FREQUENCY,          /* ICU clock frequency. */
+#if defined(LINE_PWM_MIRROR)
+  pktRadioICUWidth,             /* ICU width callback. */
+#else
   NULL,                         /* ICU width callback. */
+#endif
   pktRadioICUPeriod,            /* ICU period callback. */
   PktRadioICUOverflow,          /* ICU overflow callback. */
-  ICU_CHANNEL_1,                /* Timer channel (0 or 1). */
+#if PWM_TIMER_CHANNEL == 0
+  ICU_CHANNEL_1,                /* Timer channel 0. */
+#elif PWM_TIMER_CHANNEL == 1
+  ICU_CHANNEL_2,                /* Timer channel 1. */
+#elif
+#error PWM_CHANNEL undefined or incorrectly defined
+#endif
   0
 };
 /*===========================================================================*/
@@ -99,6 +109,9 @@ ICUDriver *pktAttachICU(radio_unit_t radio_id) {
    */
   pktSetLineModeICU();
 
+  /* If using PWM mirror to output to a diagnostic port. */
+  pktSetLineModePWMMirror();
+
   /* Initialise the timers. */
   chVTObjectInit(&myICU->cca_timer);
   chVTObjectInit(&myICU->icu_timer);
@@ -141,6 +154,9 @@ void pktDetachICU(ICUDriver *myICU) {
 
   /* Disable overflow LED. */
   pktUnsetLineModeOverflowLED();
+
+  /* If using PWM mirror disable diagnostic port. */
+  pktUnsetLineModePWMMirror();
 }
 
 /**
@@ -452,9 +468,9 @@ void pktRadioCCAInput(ICUDriver *myICU) {
         /* CCA trailing edge glitch handling.
          * Start timer and check if CCA remains low before closing PWM.
          *
-         * TODO: Calculate de-glitch time as number of symbol times.
+         * De-glitch for 8 AFSK bit times.
          */
-        chVTSetI(&myICU->cca_timer, TIME_MS2I(66),
+        chVTSetI(&myICU->cca_timer, TIME_MS2I(7),
                  (vtfunc_t)pktRadioCCATrailTimer, myICU);
       }
       /* Idle state. */
@@ -468,14 +484,30 @@ void pktRadioCCAInput(ICUDriver *myICU) {
         break;
       }
       /* Else this is a leading edge of CCA for a new packet. */
-      /* TODO: Calculate de-glitch time as number of symbol times. */
-      chVTSetI(&myICU->cca_timer, TIME_MS2I(66),
+      /* De-glitch for 16 AFSK bit times. */
+      chVTSetI(&myICU->cca_timer,
+               TIME_MS2I(14),
                (vtfunc_t)pktRadioCCALeadTimer, myICU);
       break;
     }
   } /* End switch. */
   chSysUnlockFromISR();
   return;
+}
+
+/**
+ * @brief   Width callback from ICU driver.
+ * @notes   Called at ISR level.
+ *
+ * @param[in]   myICU   pointer to a @p ICUDriver structure
+ *
+ * @api
+ */
+void pktRadioICUWidth(ICUDriver *myICU) {
+  (void)myICU;
+#if defined(LINE_PWM_MIRROR)
+  pktWritePWMMirror(PAL_LOW);
+#endif
 }
 
 /**
@@ -493,6 +525,9 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    *
    * See halconf.h for the definition.
    */
+#if defined(LINE_PWM_MIRROR)
+  pktWritePWMMirror(PAL_HIGH);
+#endif
   AFSKDemodDriver *myDemod = myICU->link;
 
   chSysLockFromISR();

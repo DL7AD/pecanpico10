@@ -58,7 +58,17 @@ int16_t pac1720_get_pbat(void) {
 }
 
 int16_t pac1720_get_psol(void) {
-	return 0;
+	int32_t fsp = FSV * FSC;
+	int16_t val;
+	uint8_t sign;
+
+	if(I2C_read16(PAC1720_ADDRESS, PAC1720_CH1_PWR_RAT_HIGH, (uint16_t*)&val)) {
+		I2C_read8(PAC1720_ADDRESS, PAC1720_CH1_VSENSE_HIGH, &sign);
+		return (sign >> 7 ? -1 : 1) * 10 * (val * fsp / 65535);
+	} else {
+		error |= 0x1;
+		return 0; // PAC1720 not available (maybe Vcc too low)
+	}
 }
 
 uint16_t pac1720_get_vbat(void) {
@@ -154,6 +164,7 @@ THD_FUNCTION(pac1720_thd, arg)
 		pac1720_vsol += pac1720_get_vsol();
 		pac1720_pbat += pac1720_get_pbat();
 		pac1720_psol += pac1720_get_psol();
+
 		pac1720_counter++;
 		pac1720_unlock();
 

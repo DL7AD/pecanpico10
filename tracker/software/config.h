@@ -13,20 +13,9 @@
 												 * too when operating at 3V. This option will also run the STM32 at 48MHz (AHB) permanently
 												 * because USB needs that speed, otherwise it is running at 6MHz which saves a lot of power. */
 
-#include "ch.h"
 #include "types.h"
-#include "radio.h"
 
-void start_user_modules(void);
-
-extern module_conf_t config[7];
-
-extern sysinterval_t track_cycle_time;
-extern sysinterval_t log_cycle_time;
-extern bool keep_cam_switched_on;
-extern uint16_t gps_on_vbat;
-extern uint16_t gps_off_vbat;
-extern uint16_t gps_onper_vbat;
+extern conf_t config;
 
 #endif
 

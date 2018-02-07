@@ -32,8 +32,8 @@
  * TODO: This should be calculated using SYSTEM CLOCK.
  * ICU has to run at an integer divide from SYSTEM CLOCK.
  */
-//#define ICU_COUNT_FREQUENCY     2880000U
-#define ICU_COUNT_FREQUENCY     4000000U
+#define ICU_COUNT_FREQUENCY     2880000U
+//#define ICU_COUNT_FREQUENCY     2000000U
 
 /* Limit of ICU and PWM count for packed format. */
 #define ICU_MAX_COUNT   0xFFFFFF
@@ -114,16 +114,16 @@ typedef struct {
 static inline void pktConvertICUtoPWM(ICUDriver *icup, byte_packed_pwm_t *dest) {
   icucnt_t impulse = icuGetWidthX(icup);
   icucnt_t valley = icuGetPeriodX(icup) - impulse;
-  dest->pwm.impulse = impulse & 0xFFU;
-  dest->pwm.valley = valley & 0xFFU;
+  dest->pwm.impulse = (packed_pwmcnt_t)impulse & 0xFFU;
+  dest->pwm.valley = (packed_pwmcnt_t)valley & 0xFFU;
   /*
    * Pack extension bits 8-11 of impulse and valley into a byte.
    * Impulse goes into low nibble and valley into high nibble.
    */
   valley >>= 4;
   impulse >>= 8;
-  dest->pwm.xtn = ((icucnt_t)(impulse) & 0x0FU);
-  dest->pwm.xtn += ((icucnt_t)(valley) & 0xF0U);
+  dest->pwm.xtn = ((packed_pwmxtn_t)(impulse) & 0x000FU);
+  dest->pwm.xtn |= ((packed_pwmxtn_t)(valley) & 0x00F0U);
 }
 
 /**
@@ -137,10 +137,10 @@ static inline void pktConvertICUtoPWM(ICUDriver *icup, byte_packed_pwm_t *dest) 
  */
 static inline void pktUnpackPWMData(byte_packed_pwm_t src, array_min_pwm_counts_t *dest) {
   min_icucnt_t duration = src.pwm.impulse;
-  duration += ((min_icucnt_t)(src.pwm.xtn & 0x0FU) << 8);
+  duration |= ((min_icucnt_t)(src.pwm.xtn & 0x0FU) << 8);
   dest->pwm.impulse = duration;
   duration = src.pwm.valley;
-  duration += ((min_icucnt_t)(src.pwm.xtn & 0xF0U) << 4);
+  duration |= ((min_icucnt_t)(src.pwm.xtn & 0xF0U) << 4);
   dest->pwm.valley = duration;
 }
 
@@ -194,6 +194,7 @@ extern "C" {
   ICUDriver *pktAttachICU(radio_unit_t radio_id);
   void pktDetachICU(ICUDriver *myICU);
   void pktICUStart(ICUDriver *myICU);
+  void pktRadioICUWidth(ICUDriver *myICU);
   void pktRadioICUPeriod(ICUDriver *myICU);
   void PktRadioICUOverflow(ICUDriver *myICU);
   void pktRadioCCAInput(ICUDriver *myICU);

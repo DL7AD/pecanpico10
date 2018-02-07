@@ -161,11 +161,11 @@ static void Si446x_init(void) {
 	chThdSleep(TIME_MS2I(10));		// Wait for transmitter to power up
 
 	// Power up (transmits oscillator type)
-	const uint8_t x3 = (Si446x_CLK >> 24) & 0x0FF;
-	const uint8_t x2 = (Si446x_CLK >> 16) & 0x0FF;
-	const uint8_t x1 = (Si446x_CLK >>  8) & 0x0FF;
-	const uint8_t x0 = (Si446x_CLK >>  0) & 0x0FF;
-	const uint8_t init_command[] = {0x02, 0x01, (Si446x_TCXO_EN & 0x1), x3, x2, x1, x0};
+	const uint8_t x3 = (Si446x_CCLK >> 24) & 0x0FF;
+	const uint8_t x2 = (Si446x_CCLK >> 16) & 0x0FF;
+	const uint8_t x1 = (Si446x_CCLK >>  8) & 0x0FF;
+	const uint8_t x0 = (Si446x_CCLK >>  0) & 0x0FF;
+	const uint8_t init_command[] = {0x02, 0x01, (Si446x_CLK_TCXO_EN & 0x1), x3, x2, x1, x0};
 	Si446x_write(init_command, 7);
 	chThdSleep(TIME_MS2I(25));
 
@@ -183,7 +183,7 @@ static void Si446x_init(void) {
 	Si446x_write(gpio_pin_cfg_command, 8);
 	chThdSleep(TIME_MS2I(25));
 
-	#if !Si446x_TCXO_EN
+	#if !Si446x_CLK_TCXO_EN
 	Si446x_setProperty8(Si446x_GLOBAL_XO_TUNE, 0x00);
 	#endif
 
@@ -437,7 +437,7 @@ static void Si446x_setFrequency(uint32_t freq)
 	Si446x_write(set_band_property_command, 5);
 
 	// Set the PLL parameters
-	uint32_t f_pfd = 2 * Si446x_CLK / outdiv;
+	uint32_t f_pfd = 2 * Si446x_CCLK / outdiv;
 	uint32_t n = ((uint32_t)(freq / f_pfd)) - 1;
 	float ratio = (float)freq / (float)f_pfd;
 	float rest  = ratio - (float)n;
@@ -447,14 +447,14 @@ static void Si446x_setFrequency(uint32_t freq)
 	uint32_t m1 = (m - m2 * 0x10000) >> 8;
 	uint32_t m0 = (m - m2 * 0x10000 - (m1 << 8));
 
-	uint32_t channel_increment = 524288 * outdiv * shift / (2 * Si446x_CLK);
+	uint32_t channel_increment = 524288 * outdiv * shift / (2 * Si446x_CCLK);
 	uint8_t c1 = channel_increment / 0x100;
 	uint8_t c0 = channel_increment - (0x100 * c1);
 
 	uint8_t set_frequency_property_command[] = {0x11, 0x40, 0x04, 0x00, n, m2, m1, m0, c1, c0};
 	Si446x_write(set_frequency_property_command, 10);
 
-	uint32_t x = ((((uint32_t)1 << 19) * outdiv * 1300.0)/(2*Si446x_CLK))*2;
+	uint32_t x = ((((uint32_t)1 << 19) * outdiv * 1300.0)/(2*Si446x_CCLK))*2;
 	uint8_t x2 = (x >> 16) & 0xFF;
 	uint8_t x1 = (x >>  8) & 0xFF;
 	uint8_t x0 = (x >>  0) & 0xFF;
@@ -467,7 +467,7 @@ static void Si446x_setFrequency(uint32_t freq)
 	if(!shift)
 		return;
 
-	float units_per_hz = (( 0x40000 * outdiv ) / (float)Si446x_CLK);
+	float units_per_hz = (( 0x40000 * outdiv ) / (float)Si446x_CCLK);
 
 	// Set deviation for 2FSK
 	uint32_t modem_freq_dev = (uint32_t)(units_per_hz * shift / 2.0 );
@@ -493,7 +493,7 @@ static void Si446x_setPowerLevel(int8_t level)
 static void Si446x_setModemAFSK_TX(void)
 {
 	// Setup the NCO modulo and oversampling mode
-	uint32_t s = Si446x_CLK / 10;
+	uint32_t s = Si446x_CCLK / 10;
 	uint8_t f3 = (s >> 24) & 0xFF;
 	uint8_t f2 = (s >> 16) & 0xFF;
 	uint8_t f1 = (s >>  8) & 0xFF;
@@ -518,7 +518,7 @@ static void Si446x_setModemAFSK_TX(void)
 static void Si446x_setModemAFSK_RX(void)
 {
 	// Setup the NCO modulo and oversampling mode
-	uint32_t s = Si446x_CLK;
+	uint32_t s = Si446x_CCLK;
 	uint8_t f3 = (s >> 24) & 0xFF;
 	uint8_t f2 = (s >> 16) & 0xFF;
 	uint8_t f1 = (s >>  8) & 0xFF;
@@ -573,7 +573,7 @@ static void Si446x_setModemAFSK_RX(void)
 static void Si446x_setModem2FSK(uint32_t speed)
 {
 	// Setup the NCO modulo and oversampling mode
-	uint32_t s = Si446x_CLK / 10;
+	uint32_t s = Si446x_CCLK / 10;
 	uint8_t f3 = (s >> 24) & 0xFF;
 	uint8_t f2 = (s >> 16) & 0xFF;
 	uint8_t f1 = (s >>  8) & 0xFF;
@@ -757,12 +757,8 @@ static bool Si4464_restoreRX(void)
 
 void Si446x_receive_stop(void)
 {
-	rx_mod = MOD_NOT_SET;
+	rx_frequency = 0;
 
-	/*
-	 * Shutdown radio if it isnt transmitting. If it is, the transmission subthread
-	 * isnt going to restore the transmission state because rx_mod is set MOD_NOT_SET.
-	 */
 	if(Si446x_getState() == Si446x_STATE_RX)
 		Si446x_shutdown();
 }
@@ -958,7 +954,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 	Si446x_writeFIFO(localBuffer, c);
 
 	// Start transmission
-	Si446x_transmit(radio_freq, radio_pwr, all, 0x3F, TIME_S2I(10));
+	Si446x_transmit(radio_freq, radio_pwr, all, 0x4F, TIME_S2I(10));
 
 	while(c < all) { // Do while bytes not written into FIFO completely
 		// Determine free memory in Si446x-FIFO
@@ -976,8 +972,11 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 		chThdSleep(TIME_MS2I(15));
 	}
 
-	// Shutdown radio (and wait for Si446x to finish transmission)
-	if(rx_mod == MOD_NOT_SET) {
+	/*
+	 * Shutdown radio if receiption has been interrupted. If receiption was interrupted rx_frequency is set.
+	 * If receiption has not been interrupted rx_frequency is set 0.
+	 */
+	if(!rx_frequency) {
 		Si446x_shutdown();
 	} else {
 		Si4464_restoreRX();
@@ -1038,7 +1037,7 @@ THD_FUNCTION(si_receiver, arg)
 	chRegSetThreadName("radio_receiver");
 
 	/* Buffer and size params for serial terminal output. */
-	char serial_buf[1024];
+	char serial_buf[512];
 	int serial_out;
 
 	/*
@@ -1216,7 +1215,7 @@ THD_FUNCTION(si_receiver, arg)
 	}
 }
 
-void receiveAFSK(uint32_t freq, uint8_t rssi) {
+void start_rx_thread(uint32_t freq, uint8_t rssi) {
 	lockRadio();
 
 	// Initialize radio
@@ -1268,8 +1267,11 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
 		chThdSleep(TIME_MS2I(15)); // That value is ok up to 96k
 	}*/
 
-	// Shutdown radio (and wait for Si446x to finish transmission)
-	if(rx_mod == MOD_NOT_SET) {
+	/*
+	 * Shutdown radio if receiption has been interrupted. If receiption was interrupted rx_frequency is set.
+	 * If receiption has not been interrupted rx_frequency is set 0.
+	 */
+	if(!rx_frequency) {
 		Si446x_shutdown();
 	} else {
 		Si4464_restoreRX();

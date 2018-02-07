@@ -8,11 +8,16 @@
 
 #include "pktconf.h"
 
-/*
- * Here we handle the generation of HDLC bits and data bits.
- * HDLC flag is detected at the raw link level.
- * RLL encoding (bit stuffing) is also handled and removed from the data stream.
+/**
+ * @brief   Extract HDLC from AFSK.
+ * @post    The HDLC state will be updated.
+ * @param[in]   myDriver   pointer to an @p AFSKDemodDriver structure.
  *
+ * @return  status of operation
+ * @retval  true    character processed and HDLC state updated on flags.
+ * @retval  false   frame buffer full.
+ *
+ * @api
  */
 bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
 
@@ -32,7 +37,8 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
    * Check if we are in AX25 data capture mode.
    * If so check and act on HDLC codes otherwise just store data.
    */
-  if(myDriver->frame_state == FRAME_OPEN) {
+  switch(myDriver->frame_state) {
+  case FRAME_OPEN: {
     switch(myDriver->hdlc_bits & HDLC_CODE_MASK) {
       case HDLC_FLAG: {
         /*
@@ -74,7 +80,8 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
           myDriver->frame_state = FRAME_SEARCH;
           break;
         }
-        return false;
+        myDriver->frame_state = FRAME_RESET;
+        return true;
       } /* End case. */
 
       default: {
@@ -108,11 +115,12 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
        }
        /* Else shift the prior bit to make space for next bit. */
        myDriver->current_byte >>= 1;
-       //myDriver->current_byte &= 0x7F;
        return true;
       } /* End case default. */
     } /* End switch. */
   } /* Else not frame_open... */
+
+  case FRAME_SEARCH: {
   /*
    *  Frame start not yet detected.
    * Check for opening HDLC flag sequence.
@@ -122,18 +130,24 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
       ||
       ((myDriver->hdlc_bits & HDLC_FRAME_MASK_B) == HDLC_FRAME_OPEN_B)
     ) {
-    myDriver->frame_state = FRAME_OPEN;
 
-    /* Reset AX25 data indexes. */
-    myHandler->active_packet_object->packet_size = 0;
-    myDriver->bit_index = 0;
+      myDriver->frame_state = FRAME_OPEN;
 
-    /*
-     * AX25 data buffering is now enabled.
-     * Data bytes will be written to the AX25 buffer.
-     */
-  }
-  return true;
+      /* Reset AX25 data indexes. */
+      myHandler->active_packet_object->packet_size = 0;
+      myDriver->bit_index = 0;
+
+      /*
+       * AX25 data buffering is now enabled.
+       * Data bytes will be written to the AX25 buffer.
+       */
+      }
+      return true;
+    }
+
+  default:
+    return true;
+  } /* End switch on frame state. */
 } /* End function. */
 
 /** @} */

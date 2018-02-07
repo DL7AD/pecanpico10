@@ -1,7 +1,9 @@
 #ifndef __LOG_H__
 #define __LOG_H__
 
-void start_logging_thread(module_conf_t *conf);
+#include "types.h"
+
+void start_logging_thread(thd_log_conf_t *conf);
 
 #endif
 

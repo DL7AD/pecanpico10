@@ -37,9 +37,9 @@ bool p_sleep(const sleep_conf_t *config)
 	return false;
 }
 
-sysinterval_t waitForTrigger(sysinterval_t prev, trigger_conf_t *config)
+sysinterval_t waitForTrigger(sysinterval_t prev, sysinterval_t timeout)
 {
-	switch(config->type)
+	/*switch(config->type)
 	{
 		case TRIG_NEW_POINT: // Wait for new tracking point
 			waitForNewTrackPoint();
@@ -55,7 +55,9 @@ sysinterval_t waitForTrigger(sysinterval_t prev, trigger_conf_t *config)
 			chThdSleep(TIME_S2I(10));
 	}
 
-	return chVTGetSystemTimeX();
+	return chVTGetSystemTimeX();*/
+
+	return chThdSleepUntilWindowed(prev, prev + TIME_S2I(timeout));
 }
 
 void trigger_new_tracking_point(void)

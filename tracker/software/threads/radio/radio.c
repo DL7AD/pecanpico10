@@ -6,13 +6,15 @@
 #include "geofence.h"
 
 static const char *getModulation(uint8_t key) {
-	const char *val[] = {"unknown", "2FSK", "AFSK"};
+	const char *val[] = {"AFSK", "2FSK"};
 	return val[key];
 };
 
-bool transmitOnRadio(packet_t packet, freq_conf_t *freq_conf, uint8_t pwr, mod_t mod)
+bool transmitOnRadio(packet_t packet, uint32_t freq, uint8_t pwr, mod_t mod)
 {
-	uint32_t freq = getFrequency(freq_conf); // Get transmission frequency
+	if(freq == FREQ_APRS_DYNAMIC)
+		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
+
 	uint8_t *c;
 	uint32_t len = ax25_get_info(packet, &c);
 
@@ -30,9 +32,6 @@ bool transmitOnRadio(packet_t packet, freq_conf_t *freq_conf, uint8_t pwr, mod_t
 				break;
 			case MOD_AFSK:
 				sendAFSK(packet, freq, pwr);
-				break;
-			case MOD_NOT_SET:
-				TRACE_ERROR("RAD  > Modulation not set");
 				break;
 		}
 

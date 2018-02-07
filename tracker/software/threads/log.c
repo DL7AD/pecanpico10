@@ -13,6 +13,7 @@
 #include "flash.h"
 #include "watchdog.h"
 #include "sleep.h"
+#include "radio.h"
 
 /*
  * Sequence determines in which order log packets are sent out
@@ -133,18 +134,17 @@ void getNextLogTrackPoint(trackPoint_t* log)
 
 THD_FUNCTION(logThread, arg)
 {
-	module_conf_t* conf = (module_conf_t*)arg;
+	thd_log_conf_t* conf = (thd_log_conf_t*)arg;
 
-	if(conf->init_delay) chThdSleep(TIME_MS2I(conf->init_delay));
+	if(conf->thread_conf.init_delay) chThdSleep(conf->thread_conf.init_delay);
 	TRACE_INFO("LOG  > Startup logging thread");
 
-	sysinterval_t time = chVTGetSystemTimeX();
+	sysinterval_t time = chVTGetSystemTime();
 	while(true)
 	{
 		TRACE_INFO("LOG  > Do module LOG cycle");
-		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(600); // TODO: Implement more sophisticated method
 
-		if(!p_sleep(&conf->sleep_conf))
+		if(!p_sleep(&conf->thread_conf.sleep_conf))
 		{
 			// Get log from memory
 			trackPoint_t log;
@@ -155,26 +155,22 @@ THD_FUNCTION(logThread, arg)
 			base91_encode((uint8_t*)&log, pkt_base91, sizeof(log));
 
 			// Encode and transmit log packet
-			packet_t packet = aprs_encode_data_packet('L', &conf->aprs_conf, pkt_base91); // Encode packet
+			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'L', pkt_base91); // Encode packet
 
 			// Transmit packet
-			transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);
+			transmitOnRadio(packet, conf->radio_conf.freq, conf->radio_conf.pwr, conf->radio_conf.mod);
 		}
 
-		time = waitForTrigger(time, &conf->trigger);
+		time = waitForTrigger(time, conf->thread_conf.cycle);
 	}
 }
 
-void start_logging_thread(module_conf_t *conf)
+void start_logging_thread(thd_log_conf_t *conf)
 {
-	chsnprintf(conf->name, sizeof(conf->name), "LOG");
 	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(2*1024), "LOG", NORMALPRIO, logThread, conf);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread
 		TRACE_ERROR("LOG  > Could not startup thread (not enough memory available)");
-	} else {
-		register_thread_at_wdg(conf);
-		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(1);
 	}
 }
 

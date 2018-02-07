@@ -23,7 +23,6 @@ typedef struct {
 } coord_t;
 
 uint32_t getAPRSRegionFrequency(void);
-uint32_t getFrequency(freq_conf_t *config);
 
 #endif
 

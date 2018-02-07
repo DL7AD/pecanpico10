@@ -316,7 +316,7 @@ bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[]) {
         if(pktCheckAFSKSymbolTime(myDriver)) {
           /* A symbol is ready to decode. */
           if(!pktDecodeAFSKSymbol(myDriver))
-            /* Error in decoding. */
+            /* Unable to store character - buffer full. */
             return false;
         }
         pktUpdateAFSKSymbolPLL(myDriver);
@@ -439,8 +439,9 @@ bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver) {
 } /* End function. */
 
 /**
- * @brief   Reset decoder.
+ * @brief   Reset the AFSK decoder and filter.
  * @notes   Called at completion of packet reception.
+ * @post    Selected tone decoder and common AFSK data is initialized.
  *
  * @param[in]   myDriver   pointer to an @p AFSKDemodDriver structure.
  *
@@ -451,6 +452,16 @@ void pktResetAFSKDecoder(AFSKDemodDriver *myDriver) {
    * Called when a decode stream has completed.
    * Called from normal thread level.
    */
+
+  /* Reset the decoder data.*/
+  myDriver->frame_state = FRAME_SEARCH;
+  myDriver->prior_freq = TONE_NONE;
+  myDriver->bit_index = 0;
+  myDriver->decimation_accumulator = 0;
+
+  /* Set the hdlc bits to all ones. */
+  myDriver->hdlc_bits = (int32_t)-1;
+
   switch(AFSK_DECODE_TYPE) {
 
     case AFSK_DSP_QCORR_DECODE: {
@@ -752,6 +763,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
         myDriver->decoder_state = DECODER_ACTIVE;
 
+#if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
+          char buf[80];
+          int out = chsnprintf(buf, sizeof(buf),"\r\n======= START ===========\r\n");
+          chnWrite(pkt_out, (uint8_t *)buf, out);
+#endif
         /* Increase thread priority. */
         (void)chThdSetPriority(DECODER_RUN_PRIORITY);
         /* Turn on the decoder LED. */
@@ -778,6 +794,14 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         if(n == sizeof(packed_pwm_counts_t)) {
           array_min_pwm_counts_t radio;
           pktUnpackPWMData(data, &radio);
+
+#if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
+          char buf[80];
+          int out = chsnprintf(buf, sizeof(buf), "%i, %i\r\n",
+                    radio.pwm.impulse, radio.pwm.valley);
+          chnWrite(pkt_out, (uint8_t *)buf, out);
+#endif
+
           /* look for "in band" signal in radio data. */
           if(radio.pwm.impulse == 0) {
             switch(radio.pwm.valley) {
@@ -785,59 +809,55 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                 /* End of data flag from PWM. */
                 myDriver->decoder_state = DECODER_CLOSE;
                 continue; /* From this case. */
-              }
+              } /* End case 0. */
 
               case 1: {
-                /* Buffer overrun flag from PWM. */
-                /* PWM side has already set an event for this. */
+                /* Buffer overrun flag from PWM.
+                 * PWM side has already set an event for this.
+                 */
                 myDriver->decoder_state = DECODER_ERROR;
                 continue; /* From this case. */
-              }
+              } /* End case 1. */
 
-              case 2:
               default: {
-                /* Unknown flag from PWM.
-                 * If a chained buffer system is implemented it will be case 2.
-                 */
+                /* Unknown flag from PWM. */
                 pktAddEventFlags(myHandler, EVT_PWM_UNKNOWN_INBAND);
                 myDriver->active_demod_object->status |= EVT_PWM_UNKNOWN_INBAND;
                 myDriver->decoder_state = DECODER_ERROR;
                 continue; /* From this case. */
-              }
+              } /* End case default. */
             } /* End switch. */
-          }
+          } /* End if in-band. */
+
           /*
-           * If error in data (HDLC_RESET) stop decoding.
+           * Process the AFSK into HDLC bit and AX25 data.
            */
           if(!pktProcessAFSK(myDriver, radio.array)) {
+            /* AX25 character decoded but buffer is full.
+             * Status set and event sent by HDLC processor.
+             */
             myDriver->decoder_state = DECODER_ERROR;
             break; /* From this case. */
           }
 
-          if(myDriver->frame_state == FRAME_CLOSE) {
-#if AFSK_COLLISION_RESTART == TRUE
-            uint16_t theCRC =
-                calc_crc16(myHandler->active_packet_object->buffer, 0,
-                myHandler->active_packet_object->packet_size);
-            if((myHandler->active_packet_object->packet_size < AX25_MIN_FRAME)
-            || (theCRC != CRC_INCLUSIVE_CONSTANT)) {
-              pktRestartAFSKDecoder(myDriver);
-              continue;
-            }
-#endif
+          /* Check for change of frame state. */
+          switch(myDriver->frame_state) {
+          case FRAME_SEARCH:
+            pktWriteDecoderLED(PAL_TOGGLE);
+            continue;
+          case FRAME_OPEN:
+          case FRAME_DATA:
+            pktWriteDecoderLED(PAL_HIGH);
+            continue;
+          case FRAME_RESET:
+            continue;
+          case FRAME_CLOSE: {
             myDriver->decoder_state = DECODER_CLOSE;
-            break; /* From this case. */
-          }
-          /* Queued data processed OK but not at frame end.
-           * Get next data in queue.
-           * Toggle decoder LED.
-           */
-          pktWriteDecoderLED(PAL_TOGGLE);
-          continue;
-        }
-        /* Data not received in time.
-         * Stop any further ICU writes to queue.
-         */
+            continue; /* From this case. */
+            }
+          } /* End switch. */
+        } /* End data == sizeof PWM. */
+        /* PWM data timeout. */
         pktAddEventFlags(myHandler, EVT_PWM_STREAM_TIMEOUT);
         myDriver->active_demod_object->status |= EVT_PWM_STREAM_TIMEOUT;
         myDriver->decoder_state = DECODER_TIMEOUT;
@@ -876,14 +896,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           chSysUnlock();
         }
 
-        /* Reset the decoder data.*/
-        myDriver->frame_state = FRAME_SEARCH;
-        myDriver->prior_freq = TONE_NONE;
-        myDriver->bit_index = 0;
-        myDriver->decimation_accumulator = 0;
-
-        /* Set the hdlc bits to all ones. */
-        myDriver->hdlc_bits = -1;
         /*
          * Reset the correlation decoder and its filters.
          */
@@ -911,8 +923,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           pktAddEventFlags(myHandler, EVT_AFSK_DECODE_DONE | EVT_PWM_FIFO_LOCK);
           myDriver->active_demod_object->status |=
               (EVT_AFSK_DECODE_DONE | EVT_PWM_FIFO_LOCK);
-          myHandler->active_packet_object->status =
-              myDriver->active_demod_object->status;
 #if USE_AFSK_PHASE_STATISTICS == TRUE
           qcorr_stats_t *statistics = get_qcorr_statistics(myDriver);
           myHandler->active_packet_object->correction =
@@ -923,13 +933,25 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           uint16_t magicCRC =
               calc_crc16(myHandler->active_packet_object->buffer, 0,
               myHandler->active_packet_object->packet_size);
-
+#if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
+          char buf[80];
+          int out = chsnprintf(buf, sizeof(buf),
+                   "\r\n======= END %s =========\r\n",
+                   (magicCRC == CRC_INCLUSIVE_CONSTANT) ? "(good)" : "(bad)");
+          chnWrite(pkt_out, (uint8_t *)buf, out);
+#endif
           /* Close packet and send event. */
           eventflags_t evt = (magicCRC == CRC_INCLUSIVE_CONSTANT)
                   ? EVT_AX25_FRAME_RDY
                   : EVT_AX25_CRC_ERROR;
           pktAddEventFlags(myHandler, evt);
           myDriver->active_demod_object->status |= evt;
+
+          /* Copy status into packet buffer object. */
+          myHandler->active_packet_object->status =
+              myDriver->active_demod_object->status;
+
+          /* Send the packet buffer to the consumer. */
           chFifoSendObject(myHandler->packet_fifo_pool,
                             myHandler->active_packet_object);
           myHandler->active_packet_object = NULL;

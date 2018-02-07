@@ -5,31 +5,34 @@
 #include "hal.h"
 #include "types.h"
 
-// Hardware dependent settings
+#ifndef Si446x_CLK
+#error Si446x_CLK is not defined which is needed for Si446x.
+#endif
 
-#define Si446x_MIN_FREQ							144000000			/* Minimum allowed frequency in Hz */
-#define Si446x_MAX_FREQ							148000000			/* Maximum allowed frequency in Hz */
-#define Si446x_CLK								STM32_HSECLK		/* Oscillator frequency in Hz */
-#define Si446x_TCXO_EN							true				/* Set this true, if a TCXO is used, false for XTAL */
+#ifndef Si446x_CLK_OFFSET
+#define Si446x_CLK_OFFSET 0
+#endif
 
 // Varios macros
 
-#define Si446x_getGPIO0()						palReadLine(LINE_RADIO_GPIO0)
-#define Si446x_getGPIO1()						palReadLine(LINE_RADIO_GPIO1)
-#define Si446x_getCCA()							palReadLine(LINE_RADIO_IRQ)
-#define Si446x_inRadioBand(freq)				(Si446x_MIN_FREQ <= (freq) && (freq) <= Si446x_MAX_FREQ)
+#define Si446x_getGPIO0()			palReadLine(LINE_RADIO_GPIO0)
+#define Si446x_getGPIO1()			palReadLine(LINE_RADIO_GPIO1)
+#define Si446x_getCCA()				palReadLine(LINE_RADIO_IRQ)
+#define Si446x_inRadioBand(freq)	(Si446x_MIN_FREQ <= (freq) && (freq) <= Si446x_MAX_FREQ)
+
+#define Si446x_CCLK					((Si446x_CLK) + (Si446x_CLK_OFFSET) * (Si446x_CLK) / 1000000) /* Frequency offset corrected oscillator frequency */
 
 // Si4464 States
 
-#define Si446x_STATE_NOCHANGE					0
-#define Si446x_STATE_SLEEP						1
-#define Si446x_STATE_SPI_ACTIVE					2
-#define Si446x_STATE_READY						3
-#define Si446x_STATE_READY2						4
-#define Si446x_STATE_TX_TUNE					5
-#define Si446x_STATE_RX_TUNE					6
-#define Si446x_STATE_TX							7
-#define Si446x_STATE_RX							8
+#define Si446x_STATE_NOCHANGE		0
+#define Si446x_STATE_SLEEP			1
+#define Si446x_STATE_SPI_ACTIVE		2
+#define Si446x_STATE_READY			3
+#define Si446x_STATE_READY2			4
+#define Si446x_STATE_TX_TUNE		5
+#define Si446x_STATE_RX_TUNE		6
+#define Si446x_STATE_TX				7
+#define Si446x_STATE_RX				8
 
 // Si4464 Registers
 
@@ -159,7 +162,7 @@ int16_t Si446x_getLastTemperature(void);
 
 void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr);
 void send2FSK(packet_t packet, uint32_t freq, uint8_t pwr);
-void receiveAFSK(uint32_t freq, uint8_t rssi);
+void start_rx_thread(uint32_t freq, uint8_t rssi);
 
 void unlockRadio(void);
 void lockRadioByCamera(void);

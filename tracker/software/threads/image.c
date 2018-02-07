@@ -280,7 +280,7 @@ uint32_t gimage_id; // Global image ID (for all image threads)
 mutex_t camera_mtx;
 bool camera_mtx_init = false;
 
-void encode_ssdv(const uint8_t *image, uint32_t image_len, module_conf_t* conf, uint8_t image_id, bool redudantTx)
+static void encode_ssdv(const uint8_t *image, uint32_t image_len, thd_img_conf_t* conf, uint8_t image_id, bool redudantTx)
 {
 	(void)redudantTx;
 
@@ -294,13 +294,11 @@ void encode_ssdv(const uint8_t *image, uint32_t image_len, module_conf_t* conf, 
 
 	// Init SSDV (FEC at 2FSK, non FEC at APRS)
 	bi = 0;
-	ssdv_enc_init(&ssdv, SSDV_TYPE_PADDING, conf->ssdv_conf.callsign, image_id, conf->ssdv_conf.quality);
+	ssdv_enc_init(&ssdv, SSDV_TYPE_PADDING, "N0CALL", image_id, conf->quality);
 	ssdv_enc_set_buffer(&ssdv, pkt);
 
 	while(true)
 	{
-		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(600); // TODO: Implement more sophisticated method
-
 		while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME)
 		{
 			b = &image[bi];
@@ -330,14 +328,14 @@ void encode_ssdv(const uint8_t *image, uint32_t image_len, module_conf_t* conf, 
 		// Sync byte, CRC and FEC of SSDV not transmitted (because its not neccessary inside an APRS packet)
 		base91_encode(&pkt[6], pkt_base91, 174);
 
-		packet_t packet = aprs_encode_data_packet('I', &conf->aprs_conf, pkt_base91);
-		transmitOnRadio(packet, &conf->frequency, conf->power, conf->modulation);
+		packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
+		transmitOnRadio(packet, conf->radio_conf.freq, conf->radio_conf.pwr, conf->radio_conf.mod);
 
 		chThdSleep(TIME_MS2I(100)); // Leave other threads some time
 
 		// Packet spacing (delay)
-		if(conf->packet_spacing)
-			chThdSleep(TIME_MS2I(conf->packet_spacing));
+		if(conf->thread_conf.packet_spacing)
+			chThdSleep(TIME_MS2I(conf->thread_conf.packet_spacing));
 
 		i++;
 	}
@@ -399,9 +397,9 @@ static bool analyze_image(uint8_t *image, uint32_t image_len)
 
 static bool camInitialized = false;
 
-bool takePicture(ssdv_conf_t *conf, bool enableJpegValidation)
+uint32_t takePicture(uint8_t* buffer, uint32_t size, resolution_t res, bool enableJpegValidation)
 {
-	bool camera_found = false;
+	uint32_t size_sampled = 0;
 
 	// Initialize mutex
 	if(!camera_mtx_init)
@@ -416,7 +414,6 @@ bool takePicture(ssdv_conf_t *conf, bool enableJpegValidation)
 	if(camInitialized || OV5640_isAvailable()) { // OV5640 available
 
 		TRACE_INFO("IMG  > OV5640 found");
-		camera_found = true;
 
 		// Lock Radio (The radio uses the same DMA for SPI as the camera)
 		lockRadioByCamera(); // Lock radio
@@ -431,10 +428,10 @@ bool takePicture(ssdv_conf_t *conf, bool enableJpegValidation)
 			}
 
 			// Sample data from pseudo DCMI through DMA into RAM
-			conf->size_sampled = OV5640_Snapshot2RAM(conf->ram_buffer, conf->ram_size, conf->res);
+			size_sampled = OV5640_Snapshot2RAM(buffer, size, res);
 
 			// Switch off camera
-			if(!keep_cam_switched_on) {
+			if(!config.keep_cam_switched_on) {
 				OV5640_deinit();
 				camInitialized = false;
 			}
@@ -443,7 +440,7 @@ bool takePicture(ssdv_conf_t *conf, bool enableJpegValidation)
 			if(enableJpegValidation)
 			{
 				TRACE_INFO("CAM  > Validate integrity of JPEG");
-				jpegValid = analyze_image(conf->ram_buffer, conf->ram_size);
+				jpegValid = analyze_image(buffer, size);
 				TRACE_INFO("CAM  > JPEG image %s", jpegValid ? "valid" : "invalid");
 			} else {
 				jpegValid = true;
@@ -464,63 +461,61 @@ bool takePicture(ssdv_conf_t *conf, bool enableJpegValidation)
 	TRACE_INFO("IMG  > Unlock camera");
 	chMtxUnlock(&camera_mtx);
 
-	return camera_found;
+	return size_sampled;
 }
 
 THD_FUNCTION(imgThread, arg)
 {
-	module_conf_t* conf = (module_conf_t*)arg;
+	thd_img_conf_t* conf = (thd_img_conf_t*)arg;
 
-	if(conf->init_delay) chThdSleep(TIME_MS2I(conf->init_delay));
+	if(conf->thread_conf.init_delay) chThdSleep(conf->thread_conf.init_delay);
 	TRACE_INFO("IMG  > Startup image thread");
 
-	sysinterval_t time = chVTGetSystemTimeX();
+	// Create buffer
+	uint8_t buffer[conf->buf_size] __attribute__((aligned(32)));
+
+	sysinterval_t time = chVTGetSystemTime();
 	while(true)
 	{
 		TRACE_INFO("IMG  > Do module IMAGE cycle");
-		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(600); // TODO: Implement more sophisticated method
 
-		if(!p_sleep(&conf->sleep_conf))
+		if(!p_sleep(&conf->thread_conf.sleep_conf))
 		{
 			// Take picture
-			bool camera_found = takePicture(&conf->ssdv_conf, true);
+			uint32_t size_sampled = takePicture(buffer, conf->buf_size, conf->res, true);
 			gimage_id++; // Increase SSDV image counter
 
 			// Radio transmission
-			if(camera_found) {
+			if(size_sampled) {
 
 				// Write picture to SD card
-				if(initSD())
+				/*if(initSD())
 				{
 					char filename[64];
 					chsnprintf(filename, sizeof(filename), "IMG%d_%d.jpg", getLastTrackPoint()->reset, gimage_id-1);
-					writeBufferToFile(filename, conf->ssdv_conf.ram_buffer, conf->ssdv_conf.size_sampled);
-				}
+					writeBufferToFile(filename, conf->ssdv_conf.ram_buffer, size_sampled);
+				}*/
 
 				// Encode and transmit picture
 				TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", gimage_id-1);
-				encode_ssdv(conf->ssdv_conf.ram_buffer, conf->ssdv_conf.size_sampled, conf, (uint8_t)(gimage_id-1), conf->redundantTx);
+				encode_ssdv(buffer, size_sampled, conf, (uint8_t)(gimage_id-1), conf->radio_conf.redundantTx);
 
 			} else { // No camera found
-				TRACE_INFO("IMG  > Encode/Transmit SSDV (no cam found) ID=%d", gimage_id-1);
-				encode_ssdv(noCameraFound, sizeof(noCameraFound), conf, (uint8_t)(gimage_id-1), conf->redundantTx);
+				TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d", gimage_id-1);
+				encode_ssdv(noCameraFound, sizeof(noCameraFound), conf, (uint8_t)(gimage_id-1), conf->radio_conf.redundantTx);
 			}
 		}
 
-		time = waitForTrigger(time, &conf->trigger);
+		time = waitForTrigger(time, conf->thread_conf.cycle);
 	}
 }
 
-void start_image_thread(module_conf_t *conf)
+void start_image_thread(thd_img_conf_t *conf)
 {
-	chsnprintf(conf->name, sizeof(conf->name), "IMG");
-	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(conf->packet_spacing ? 6*1024 : 12*1024), "IMG", NORMALPRIO, imgThread, conf);
+	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE((conf->thread_conf.packet_spacing ? 6:12) * 1024 + conf->buf_size), "IMG", NORMALPRIO, imgThread, conf);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread
 		TRACE_ERROR("IMG  > Could not startup thread (not enough memory available)");
-	} else {
-		register_thread_at_wdg(conf);
-		conf->wdg_timeout = chVTGetSystemTimeX() + TIME_S2I(1) + TIME_MS2I(conf->init_delay);
 	}
 }
 

@@ -2,19 +2,11 @@
 #include "hal.h"
 #include "debug.h"
 
-static module_conf_t *registered_threads[10];
-static uint8_t threads_cnt = 0;
-
 // Hardware Watchdog configuration
 static const WDGConfig wdgcfg = {
 	.pr =	STM32_IWDG_PR_256,
 	.rlr =	STM32_IWDG_RL(10000)
 };
-
-void register_thread_at_wdg(module_conf_t *thread_config)
-{
-	registered_threads[threads_cnt++] = thread_config;
-}
 
 static void flash_led(void) {
 	palSetLine(LINE_IO_GREEN);
@@ -34,13 +26,15 @@ THD_FUNCTION(wdgThread, arg) {
 		chThdSleep(TIME_MS2I(500));
 
 		bool healthy = true;
-		for(uint8_t i=0; i<threads_cnt; i++) {
-			if(registered_threads[i]->wdg_timeout < chVTGetSystemTimeX())
+		// FIXME: Watchdog without functionality at the moment
+
+		/*for(uint8_t i=0; i<threads_cnt; i++) {
+			if(registered_threads[i]->wdg_timeout < chVTGetSystemTime())
 			{
 				TRACE_ERROR("WDG  > Thread %s not healty", registered_threads[i]->name);
 				healthy = false; // Threads reached timeout
 			}
-		}
+		}*/
 
 		if(healthy)
 			wdgReset(&WDGD1);	// Reset hardware watchdog at no error
