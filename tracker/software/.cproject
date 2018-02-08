@@ -48,9 +48,15 @@
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
 		<project id="pecan10master.null.218906227" name="pecan10master"/>
 	</storageModule>
-	<storageModule moduleId="scannerConfiguration">
-		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
-	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope"/>
+	<storageModule moduleId="scannerConfiguration">
+		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.cross.base.1712694318;cdt.managedbuild.toolchain.gnu.cross.base.1712694318.64830061;cdt.managedbuild.tool.gnu.cross.cpp.compiler.1026108526;cdt.managedbuild.tool.gnu.cpp.compiler.input.85562960">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.toolchain.gnu.cross.base.1712694318;cdt.managedbuild.toolchain.gnu.cross.base.1712694318.64830061;cdt.managedbuild.tool.gnu.cross.c.compiler.779862354;cdt.managedbuild.tool.gnu.c.compiler.input.1257116579">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+	</storageModule>
 </cproject>

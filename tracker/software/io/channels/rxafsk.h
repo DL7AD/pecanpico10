@@ -68,15 +68,15 @@
 #define MAG_FILTER_GEN_COEFF        TRUE
 #define MAG_FILTER_HIGH             1400
 
-#define PRE_FILTER_NUM_TAPS         311U
+#define PRE_FILTER_NUM_TAPS         55U //311U
 #define PRE_FILTER_BLOCK_SIZE       1U
 #if PRE_FILTER_BLOCK_SIZE != 1
 #error "Filter block size must be 1"
 #endif
 
-#define USE_QCORR_MAG_LPF           FALSE
+#define USE_QCORR_MAG_LPF           TRUE
 
-#define MAG_FILTER_NUM_TAPS         29U
+#define MAG_FILTER_NUM_TAPS         15U
 #define MAG_FILTER_BLOCK_SIZE 1U
 #if MAG_FILTER_BLOCK_SIZE != 1
 #error "Filter block size must be 1"

@@ -28,8 +28,8 @@
 #define PWM_ICU             ICUD4
 
 /* Definitions for ICU FIFO implemented using chfactory. */
-#define NUMBER_PWM_FIFOS 4
-#define PWM_BUFFER_SLOTS 6000
+#define NUMBER_PWM_FIFOS    4
+#define PWM_BUFFER_SLOTS    6000
 
 /* Number of AX25 output buffers. */
 #define NUMBER_PKT_FIFOS    2U

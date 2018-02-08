@@ -7,7 +7,7 @@ conf_t config = {
 	// Primary position transmission thread
 	.pos_pri = {
 		.thread_conf = {
-			.active			= true,
+			.active			= false,
 			.cycle			= TIME_S2I(120)
 		},
 		.radio_conf = {
@@ -106,7 +106,7 @@ conf_t config = {
 	},
 	.rx = {
 		.thread_conf = {
-			.active			= false
+			.active			= true
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
