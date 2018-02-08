@@ -142,115 +142,115 @@ static void Si446x_setProperty32(uint16_t reg, uint8_t val1, uint8_t val2, uint8
 static void Si446x_init(void) {
 	TRACE_INFO("SI   > Init radio");
 
-	// Configure Radio pins
-	palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);		// SCK
-	palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MISO
-	palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MOSI
-	palSetLineMode(LINE_RADIO_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// RADIO CS
-	palSetLineMode(LINE_RADIO_SDN, PAL_MODE_OUTPUT_PUSHPULL);							// RADIO SDN
+    // Configure Radio pins
+    palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);     // SCK
+    palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);    // MISO
+    palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);    // MOSI
+    palSetLineMode(LINE_RADIO_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST); // RADIO CS
+    palSetLineMode(LINE_RADIO_SDN, PAL_MODE_OUTPUT_PUSHPULL);                           // RADIO SDN
 
-	// Pull CS HIGH
-	palSetLine(LINE_RADIO_CS);
+    // Pull CS HIGH
+    palSetLine(LINE_RADIO_CS);
 
-	// Reset radio
-	palSetLine(LINE_RADIO_SDN);
-	chThdSleep(TIME_MS2I(10));
+    // Reset radio
+    palSetLine(LINE_RADIO_SDN);
+    chThdSleep(TIME_MS2I(10));
 
-	// Power up transmitter
-	palClearLine(LINE_RADIO_SDN);	// Radio SDN low (power up transmitter)
-	chThdSleep(TIME_MS2I(10));		// Wait for transmitter to power up
+    // Power up transceiver
+    palClearLine(LINE_RADIO_SDN);   // Radio SDN low (power up transceiver)
+    chThdSleep(TIME_MS2I(10));      // Wait for transceiver to power up
 
-	// Power up (transmits oscillator type)
-	const uint8_t x3 = (Si446x_CCLK >> 24) & 0x0FF;
-	const uint8_t x2 = (Si446x_CCLK >> 16) & 0x0FF;
-	const uint8_t x1 = (Si446x_CCLK >>  8) & 0x0FF;
-	const uint8_t x0 = (Si446x_CCLK >>  0) & 0x0FF;
-	const uint8_t init_command[] = {0x02, 0x01, (Si446x_CLK_TCXO_EN & 0x1), x3, x2, x1, x0};
-	Si446x_write(init_command, 7);
-	chThdSleep(TIME_MS2I(25));
+    // Power up (send oscillator type)
+    const uint8_t x3 = (Si446x_CCLK >> 24) & 0x0FF;
+    const uint8_t x2 = (Si446x_CCLK >> 16) & 0x0FF;
+    const uint8_t x1 = (Si446x_CCLK >>  8) & 0x0FF;
+    const uint8_t x0 = (Si446x_CCLK >>  0) & 0x0FF;
+    const uint8_t init_command[] = {0x02, 0x01, (Si446x_CLK_TCXO_EN & 0x1), x3, x2, x1, x0};
+    Si446x_write(init_command, 7);
+    chThdSleep(TIME_MS2I(25));
 
-	// Set transmitter GPIOs
-	uint8_t gpio_pin_cfg_command[] = {
-		0x13,	// Command type = GPIO settings
-		0x00,	// GPIO0        GPIO_MODE = DONOTHING
-		0x14,	// GPIO1        GPIO_MODE = RX_DATA
-		0x21,	// GPIO2        GPIO_MODE = RX_STATE
-		0x20,	// GPIO3        GPIO_MODE = TX_STATE
-		0x1B,	// NIRQ         NIRQ_MODE = CCA
-		0x0B,	// SDO          SDO_MODE = SDO
-		0x00	// GEN_CONFIG
-	};
-	Si446x_write(gpio_pin_cfg_command, 8);
-	chThdSleep(TIME_MS2I(25));
+    // Set transceiver GPIOs
+    uint8_t gpio_pin_cfg_command[] = {
+        0x13,   // Command type = GPIO settings
+        0x00,   // GPIO0        GPIO_MODE = DONOTHING
+        0x15,   // GPIO1        GPIO_MODE = RAW_RX_DATA
+        0x21,   // GPIO2        GPIO_MODE = RX_STATE
+        0x20,   // GPIO3        GPIO_MODE = TX_STATE
+        0x1B,   // NIRQ         NIRQ_MODE = CCA
+        0x0B,   // SDO          SDO_MODE = SDO
+        0x00    // GEN_CONFIG
+    };
+    Si446x_write(gpio_pin_cfg_command, 8);
+    chThdSleep(TIME_MS2I(25));
 
-	#if !Si446x_CLK_TCXO_EN
-	Si446x_setProperty8(Si446x_GLOBAL_XO_TUNE, 0x00);
-	#endif
+    #if !Si446x_CLK_TCXO_EN
+    Si446x_setProperty8(Si446x_GLOBAL_XO_TUNE, 0x00);
+    #endif
 
-	Si446x_setProperty8(Si446x_FRR_CTL_A_MODE, 0x00);
-	Si446x_setProperty8(Si446x_FRR_CTL_B_MODE, 0x00);
-	Si446x_setProperty8(Si446x_FRR_CTL_C_MODE, 0x00);
-	Si446x_setProperty8(Si446x_FRR_CTL_D_MODE, 0x00);
-	Si446x_setProperty8(Si446x_INT_CTL_ENABLE, 0x00);
-	Si446x_setProperty8(Si446x_GLOBAL_CONFIG, 0x70);
+    Si446x_setProperty8(Si446x_FRR_CTL_A_MODE, 0x00);
+    Si446x_setProperty8(Si446x_FRR_CTL_B_MODE, 0x00);
+    Si446x_setProperty8(Si446x_FRR_CTL_C_MODE, 0x00);
+    Si446x_setProperty8(Si446x_FRR_CTL_D_MODE, 0x00);
+    Si446x_setProperty8(Si446x_INT_CTL_ENABLE, 0x00);
+    Si446x_setProperty8(Si446x_GLOBAL_CONFIG, 0x60);
 
-	// Reset FIFO
-	const uint8_t reset_fifo[] = {0x15, 0x01};
-	Si446x_write(reset_fifo, 2);
-	const uint8_t unreset_fifo[] = {0x15, 0x00};
-	Si446x_write(unreset_fifo, 2);
+    // Reset FIFO
+    const uint8_t reset_fifo[] = {0x15, 0x01};
+    Si446x_write(reset_fifo, 2);
+    const uint8_t unreset_fifo[] = {0x15, 0x00};
+    Si446x_write(unreset_fifo, 2);
 
-	Si446x_setProperty8(Si446x_PREAMBLE_TX_LENGTH, 0x00);
-	Si446x_setProperty8(Si446x_SYNC_CONFIG, 0x80);
+    Si446x_setProperty8(Si446x_PREAMBLE_TX_LENGTH, 0x00);
+    Si446x_setProperty8(Si446x_SYNC_CONFIG, 0x80);
 
-	Si446x_setProperty8(Si446x_GLOBAL_CLK_CFG, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_RSSI_CONTROL, 0x00);
-	Si446x_setProperty8(Si446x_PREAMBLE_CONFIG_STD_1, 0x14);
-	Si446x_setProperty8(Si446x_PKT_CONFIG1, 0x41);
-	Si446x_setProperty8(Si446x_MODEM_MAP_CONTROL, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_DSM_CTRL, 0x07);
-	Si446x_setProperty8(Si446x_MODEM_CLKGEN_BAND, 0x0D);
+    Si446x_setProperty8(Si446x_GLOBAL_CLK_CFG, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_RSSI_CONTROL, 0x00);
+    Si446x_setProperty8(Si446x_PREAMBLE_CONFIG_STD_1, 0x14);
+    Si446x_setProperty8(Si446x_PKT_CONFIG1, 0x40);
+    Si446x_setProperty8(Si446x_MODEM_MAP_CONTROL, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_DSM_CTRL, 0x07);
+    Si446x_setProperty8(Si446x_MODEM_CLKGEN_BAND, 0x0D);
 
-	Si446x_setProperty24(Si446x_MODEM_FREQ_DEV, 0x00, 0x00, 0x79);
-	Si446x_setProperty8(Si446x_MODEM_TX_RAMP_DELAY, 0x01);
-	Si446x_setProperty8(Si446x_PA_TC, 0x3D);
-	Si446x_setProperty8(Si446x_FREQ_CONTROL_INTE, 0x41);
-	Si446x_setProperty24(Si446x_FREQ_CONTROL_FRAC, 0x0B, 0xB1, 0x3B);
-	Si446x_setProperty16(Si446x_FREQ_CONTROL_CHANNEL_STEP_SIZE, 0x0B, 0xD1);
-	Si446x_setProperty8(Si446x_FREQ_CONTROL_W_SIZE, 0x20);
-	Si446x_setProperty8(Si446x_FREQ_CONTROL_VCOCNT_RX_ADJ, 0xFA);
-	Si446x_setProperty8(Si446x_MODEM_MDM_CTRL, 0x80);
-	Si446x_setProperty8(Si446x_MODEM_IF_CONTROL, 0x08);
-	Si446x_setProperty24(Si446x_MODEM_IF_FREQ, 0x02, 0x80, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_DECIMATION_CFG1, 0x20);
-	Si446x_setProperty8(Si446x_MODEM_DECIMATION_CFG0, 0x10);
-	Si446x_setProperty16(Si446x_MODEM_BCR_OSR, 0x00, 0x52);
-	Si446x_setProperty24(Si446x_MODEM_BCR_NCO_OFFSET, 0x06, 0x3D, 0x10);
-	Si446x_setProperty16(Si446x_MODEM_BCR_GAIN, 0x03, 0x1F);
-	Si446x_setProperty8(Si446x_MODEM_BCR_GEAR, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_BCR_MISC1, 0xC2);
-	Si446x_setProperty8(Si446x_MODEM_AFC_GEAR, 0x54);
-	Si446x_setProperty8(Si446x_MODEM_AFC_WAIT, 0x36);
-	Si446x_setProperty16(Si446x_MODEM_AFC_GAIN, 0x82, 0xAA);
-	Si446x_setProperty16(Si446x_MODEM_AFC_LIMITER, 0x00, 0x95);
-	Si446x_setProperty8(Si446x_MODEM_AFC_MISC, 0x80);
-	Si446x_setProperty8(Si446x_MODEM_AGC_CONTROL, 0xE2);
-	Si446x_setProperty8(Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
-	Si446x_setProperty8(Si446x_MODEM_AGC_RFPD_DECAY, 0x12);
-	Si446x_setProperty8(Si446x_MODEM_AGC_IFPD_DECAY, 0x12);
-	Si446x_setProperty8(Si446x_MODEM_FSK4_GAIN1, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_FSK4_GAIN0, 0x02);
-	Si446x_setProperty16(Si446x_MODEM_FSK4_TH, 0x02, 0x6D);
-	Si446x_setProperty8(Si446x_MODEM_FSK4_MAP, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_OOK_PDTC, 0x28);
-	Si446x_setProperty8(Si446x_MODEM_OOK_CNT1, 0x84);
-	Si446x_setProperty8(Si446x_MODEM_OOK_MISC, 0x23);
-	Si446x_setProperty8(Si446x_MODEM_RAW_SEARCH, 0xDE);
-	Si446x_setProperty8(Si446x_MODEM_RAW_CONTROL, 0x8F);
-	Si446x_setProperty16(Si446x_MODEM_RAW_EYE, 0x00, 0x0F);
-	Si446x_setProperty8(Si446x_MODEM_ANT_DIV_MODE, 0x01);
-	Si446x_setProperty8(Si446x_MODEM_ANT_DIV_CONTROL, 0x80);
-	Si446x_setProperty8(Si446x_MODEM_RSSI_COMP, 0x40);
+    Si446x_setProperty24(Si446x_MODEM_FREQ_DEV, 0x00, 0x00, 0x79);
+    Si446x_setProperty8(Si446x_MODEM_TX_RAMP_DELAY, 0x01);
+    Si446x_setProperty8(Si446x_PA_TC, 0x3D);
+    Si446x_setProperty8(Si446x_FREQ_CONTROL_INTE, 0x41);
+    Si446x_setProperty24(Si446x_FREQ_CONTROL_FRAC, 0x0B, 0xB1, 0x3B);
+    Si446x_setProperty16(Si446x_FREQ_CONTROL_CHANNEL_STEP_SIZE, 0x0B, 0xD1);
+    Si446x_setProperty8(Si446x_FREQ_CONTROL_W_SIZE, 0x20);
+    Si446x_setProperty8(Si446x_FREQ_CONTROL_VCOCNT_RX_ADJ, 0xFA);
+    Si446x_setProperty8(Si446x_MODEM_MDM_CTRL, 0x80);
+    Si446x_setProperty8(Si446x_MODEM_IF_CONTROL, 0x08);
+    Si446x_setProperty24(Si446x_MODEM_IF_FREQ, 0x02, 0x80, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_DECIMATION_CFG1, 0x70);
+    Si446x_setProperty8(Si446x_MODEM_DECIMATION_CFG0, 0x10);
+    Si446x_setProperty16(Si446x_MODEM_BCR_OSR, 0x01, 0xC3);
+    Si446x_setProperty24(Si446x_MODEM_BCR_NCO_OFFSET, 0x01, 0x22, 0x60);
+    Si446x_setProperty16(Si446x_MODEM_BCR_GAIN, 0x00, 0x91);
+    Si446x_setProperty8(Si446x_MODEM_BCR_GEAR, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_BCR_MISC1, 0xC2);
+    Si446x_setProperty8(Si446x_MODEM_AFC_GEAR, 0x54);
+    Si446x_setProperty8(Si446x_MODEM_AFC_WAIT, 0x36);
+    Si446x_setProperty16(Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
+    Si446x_setProperty16(Si446x_MODEM_AFC_LIMITER, 0x02, 0x50);
+    Si446x_setProperty8(Si446x_MODEM_AFC_MISC, 0x80);
+    Si446x_setProperty8(Si446x_MODEM_AGC_CONTROL, 0xE2);
+    Si446x_setProperty8(Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
+    Si446x_setProperty8(Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
+    Si446x_setProperty8(Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
+    Si446x_setProperty8(Si446x_MODEM_FSK4_GAIN1, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_FSK4_GAIN0, 0x02);
+    Si446x_setProperty16(Si446x_MODEM_FSK4_TH, 0x35, 0x55);
+    Si446x_setProperty8(Si446x_MODEM_FSK4_MAP, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_OOK_PDTC, 0x2A);
+    Si446x_setProperty8(Si446x_MODEM_OOK_CNT1, 0x85);
+    Si446x_setProperty8(Si446x_MODEM_OOK_MISC, 0x23);
+    Si446x_setProperty8(Si446x_MODEM_RAW_SEARCH, 0xD6);
+    Si446x_setProperty8(Si446x_MODEM_RAW_CONTROL, 0x8F);
+    Si446x_setProperty16(Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
+    Si446x_setProperty8(Si446x_MODEM_ANT_DIV_MODE, 0x01);
+    Si446x_setProperty8(Si446x_MODEM_ANT_DIV_CONTROL, 0x80);
+    Si446x_setProperty8(Si446x_MODEM_RSSI_COMP, 0x40);
 
 	// Temperature readout
 	lastTemp = Si446x_getTemperature();
@@ -517,57 +517,57 @@ static void Si446x_setModemAFSK_TX(void)
 
 static void Si446x_setModemAFSK_RX(void)
 {
-	// Setup the NCO modulo and oversampling mode
-	uint32_t s = Si446x_CCLK;
-	uint8_t f3 = (s >> 24) & 0xFF;
-	uint8_t f2 = (s >> 16) & 0xFF;
-	uint8_t f1 = (s >>  8) & 0xFF;
-	uint8_t f0 = (s >>  0) & 0xFF;
-	Si446x_setProperty32(Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
+    // Setup the NCO modulo and oversampling mode
+    uint32_t s = Si446x_CCLK;
+    uint8_t f3 = (s >> 24) & 0xFF;
+    uint8_t f2 = (s >> 16) & 0xFF;
+    uint8_t f1 = (s >>  8) & 0xFF;
+    uint8_t f0 = (s >>  0) & 0xFF;
+    Si446x_setProperty32(Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
 
-	// Setup the NCO data rate for APRS
-	Si446x_setProperty24(Si446x_MODEM_DATA_RATE, 0x04, 0x07, 0x40);
+    // Setup the NCO data rate for APRS
+    Si446x_setProperty24(Si446x_MODEM_DATA_RATE, 0x00, 0x2E, 0xE0);
 
-	// Use 2FSK in DIRECT_MODE
-	Si446x_setProperty8(Si446x_MODEM_MOD_TYPE, 0x0A);
+    // Use 2FSK in DIRECT_MODE
+    Si446x_setProperty8(Si446x_MODEM_MOD_TYPE, 0x0A);
 
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xA2);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xA0);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x97);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x8A);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0x79);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0x66);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0x52);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0x3F);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x2E);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x1F);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x14);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x0B);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0x06);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0x02);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xC4);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x30);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x7F);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0x5F);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xB5);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xB8);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xDE);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x05);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x17);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x16);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x0C);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0x03);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x00);
 
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xA2);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xA0);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x97);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x8A);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0x79);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0x66);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0x52);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0x3F);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x2E);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x1F);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x14);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x0B);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0x06);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0x02);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
-	Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xC4);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x30);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x7F);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0xF5);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xB5);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xB8);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xDE);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x05);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x17);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x16);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x0C);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0x03);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
 }
 
 static void Si446x_setModem2FSK(uint32_t speed)
