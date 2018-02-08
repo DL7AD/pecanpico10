@@ -69,7 +69,7 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
  * - Number of satellites being used
  * - Number of cycles where GPS has been lost (if applicable in cycle)
  */
-packet_t aprs_encode_position(const char *callsign, const char *path, uint8_t symbol, trackPoint_t *trackPoint)
+packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t symbol, trackPoint_t *trackPoint)
 {
 	// Latitude
 	uint32_t y = 380926 * (90 - trackPoint->gps_lat/10000000.0);
@@ -367,6 +367,8 @@ void aprs_decode_packet(packet_t pp)
 	if(pinfo[0] == ':') digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
 
 	// Digipeat packet
-	if(config.dig_active) aprs_digipeat(pp);
+	if(config.dig_active && digipeat) {
+		aprs_digipeat(pp);
+	}
 }
 

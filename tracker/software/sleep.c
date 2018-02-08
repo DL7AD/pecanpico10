@@ -57,7 +57,7 @@ sysinterval_t waitForTrigger(sysinterval_t prev, sysinterval_t timeout)
 
 	return chVTGetSystemTimeX();*/
 
-	return chThdSleepUntilWindowed(prev, prev + TIME_S2I(timeout));
+	return chThdSleepUntilWindowed(prev, prev + timeout);
 }
 
 void trigger_new_tracking_point(void)

@@ -7,7 +7,7 @@ conf_t config = {
 	// Primary position transmission thread
 	.pos_pri = {
 		.thread_conf = {
-			.active			= false,
+			.active			= true,
 			.cycle			= TIME_S2I(120)
 		},
 		.radio_conf = {
@@ -21,8 +21,7 @@ conf_t config = {
 		.path				= "WIDE1-1",
 		.symbol				= SYM_BALLOON,
 
-		.tel_enc_cycle		= TIME_S2I(3600),
-		.tel_comment		= "Hello World!"
+		.tel_enc_cycle		= TIME_S2I(10800),
 	},
 
 	// Secondary position transmission thread
@@ -42,8 +41,7 @@ conf_t config = {
 		.path				= "WIDE1-1",
 		.symbol				= SYM_BALLOON,
 
-		.tel_enc_cycle		= TIME_S2I(3600),
-		.tel_comment		= "Hello World!"
+		.tel_enc_cycle		= TIME_S2I(10800),
 	},
 
 	// Primary image transmission thread

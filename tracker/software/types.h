@@ -94,7 +94,6 @@ typedef struct {
 	uint16_t symbol;
 
 	sysinterval_t tel_enc_cycle;
-	char tel_comment[32];
 } thd_pos_conf_t;
 
 typedef struct {

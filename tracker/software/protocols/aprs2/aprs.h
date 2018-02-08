@@ -52,7 +52,7 @@
 
 void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len);
 
-packet_t aprs_encode_position(const char *callsign, const char *path, uint8_t symbol, trackPoint_t *trackPoint);
+packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t symbol, trackPoint_t *trackPoint);
 packet_t aprs_encode_telemetry_configuration(const char *callsign, const char *path, uint8_t type);
 packet_t aprs_encode_message(const char *callsign, const char *path, const char *receiver, const char *text, const bool noCounter);
 packet_t aprs_encode_data_packet(const char *callsign, const char *path, char packetType, uint8_t *data);

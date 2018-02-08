@@ -26,7 +26,7 @@ THD_FUNCTION(posThread, arg)
 	TRACE_INFO("POS  > Startup position thread");
 
 	// Set telemetry configuration transmission variables
-	sysinterval_t last_conf_transmission = chVTGetSystemTime() - TIME_S2I(conf->tel_enc_cycle);
+	sysinterval_t last_conf_transmission = chVTGetSystemTime() - conf->tel_enc_cycle;
 	sysinterval_t time = chVTGetSystemTime();
 
 	while(true)
@@ -50,7 +50,7 @@ THD_FUNCTION(posThread, arg)
 			transmitOnRadio(pp, conf->radio_conf.freq, conf->radio_conf.pwr, conf->radio_conf.mod);
 
 			// Telemetry encoding parameter transmission
-			if(conf->tel_enc_cycle != 0 && last_conf_transmission + TIME_S2I(conf->tel_enc_cycle) < chVTGetSystemTime())
+			if(conf->tel_enc_cycle != 0 && last_conf_transmission + conf->tel_enc_cycle < chVTGetSystemTime())
 			{
 				chThdSleep(TIME_S2I(5)); // Take a litte break between the packet transmissions
 
@@ -64,7 +64,7 @@ THD_FUNCTION(posThread, arg)
 					chThdSleep(TIME_S2I(5));
 				}
 
-				last_conf_transmission += TIME_S2I(conf->tel_enc_cycle);
+				last_conf_transmission += conf->tel_enc_cycle;
 			}
 		}
 
