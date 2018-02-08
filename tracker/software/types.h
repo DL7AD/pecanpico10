@@ -4,7 +4,7 @@
 #include "ch.h"
 #include "ax25_pad.h"
 
-#define FREQ_APRS_DYNAMIC	145175000
+#define FREQ_APRS_DYNAMIC	0
 #define CYCLE_CONTINUOUSLY	0
 
 typedef struct {
