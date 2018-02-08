@@ -160,8 +160,8 @@
 
 int16_t Si446x_getLastTemperature(void);
 
-void Si446x_sendAFSK(uint8_t *frame, uint32_t len, uint32_t freq, uint8_t pwr);
-void Si446x_send2FSK(uint8_t *frame, uint32_t len, uint32_t freq, uint8_t pwr, uint32_t speed);
+void Si446x_sendAFSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq, uint8_t pwr);
+void Si446x_send2FSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq, uint8_t pwr, uint32_t speed);
 
 bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod);
 void Si446x_startDecoder(void* cb);

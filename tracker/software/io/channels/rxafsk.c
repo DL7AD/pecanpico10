@@ -628,8 +628,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
 #define DECODER_WAIT_TIME            200U    /* 200mS. */
 #define DECODER_IDLE_TIME           2000U    /* 2000uS. */
-#define DECODER_POLL_TIME           1000U    /* 1000uS. */
-#define DECODER_LED_RATE_POLL       1000U    /* 1000uS. */
+#define DECODER_POLL_TIME           10U      /* 10mS. */
+#define DECODER_LED_RATE_POLL       100U     /* 1000mS. */
 #define DECODER_ACTIVE_TIMEOUT         5U    /* 5mS. */
 #define DECODER_SUSPEND_TIME        2000U    /* 2000uS. */
 #define DECODER_LED_RATE_SUSPEND     250U    /* Blink at 250mS during suspend. */
@@ -702,7 +702,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         radio_cca_fifo_t *myRadioFIFO;
         msg_t fifo_msg = chFifoReceiveObjectTimeout(myDriver->pwm_fifo_pool,
                              (void *)&myRadioFIFO,
-                             TIME_US2I(DECODER_POLL_TIME));
+                             TIME_MS2I(DECODER_POLL_TIME));
         if(fifo_msg != MSG_OK) {
 
           if(++led_count >= DECODER_LED_RATE_POLL) {

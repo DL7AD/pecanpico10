@@ -21,8 +21,8 @@ static bool radio_mtx_init = false;
 // Feeder thread variables
 static thread_t* feeder_thd = NULL;
 static THD_WORKING_AREA(si_fifo_feeder_wa, 4096);
-static uint8_t *radio_frame;
-static uint8_t *radio_frame_len;
+//static uint8_t *radio_frame;
+//static uint8_t *radio_frame_len;
 static uint32_t radio_freq;
 static uint8_t radio_pwr;
 
@@ -200,6 +200,10 @@ static void Si446x_init(void) {
     const uint8_t unreset_fifo[] = {0x15, 0x00};
     Si446x_write(unreset_fifo, 2);
 
+    /*
+     * TODO: Move the TX and RX settings out into the relevant functions.
+     * Leave only common setup and init in here.
+     */
     Si446x_setProperty8(Si446x_PREAMBLE_TX_LENGTH, 0x00);
     Si446x_setProperty8(Si446x_SYNC_CONFIG, 0x80);
 
@@ -518,15 +522,15 @@ static void Si446x_setModemAFSK_TX(void)
 static void Si446x_setModemAFSK_RX(void)
 {
     // Setup the NCO modulo and oversampling mode
-    uint32_t s = Si446x_CCLK;
+/*    uint32_t s = Si446x_CCLK;
     uint8_t f3 = (s >> 24) & 0xFF;
     uint8_t f2 = (s >> 16) & 0xFF;
     uint8_t f1 = (s >>  8) & 0xFF;
     uint8_t f0 = (s >>  0) & 0xFF;
-    Si446x_setProperty32(Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
+    Si446x_setProperty32(Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);*/
 
     // Setup the NCO data rate for APRS
-    Si446x_setProperty24(Si446x_MODEM_DATA_RATE, 0x04, 0x07, 0x40);
+    //Si446x_setProperty24(Si446x_MODEM_DATA_RATE, 0x04, 0x07, 0x40);
 
     // Use 2FSK in DIRECT_MODE
     Si446x_setProperty8(Si446x_MODEM_MOD_TYPE, 0x0A);
@@ -778,7 +782,7 @@ bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
 	Si446x_setFrequency(frequency);		// Set frequency
 	Si446x_setRXState();
 
-	// Wait for the transmitter to start (because it is used as mutex)
+	// Wait for the receiver to start (because it is used as mutex)
 	while(Si446x_getState() != Si446x_STATE_RX)
 		chThdSleep(TIME_MS2I(1));
 
@@ -941,11 +945,12 @@ static uint8_t getAFSKbyte(uint8_t* buf, uint32_t blen)
 
 THD_FUNCTION(si_fifo_feeder_afsk, arg)
 {
-	(void)arg;
+	packet_t pp = arg;
 	chRegSetThreadName("radio_afsk_feeder");
 
 	uint8_t layer0[3072];
-	uint32_t layer0_blen = pack(radio_frame, radio_frame_len, layer0, sizeof(layer0));
+	uint32_t layer0_blen = pack(/*radio_frame, radio_frame_len*/pp->frame_data,
+	                            pp->frame_len, layer0, sizeof(layer0));
 
 	// Initialize variables for timer
 	phase_delta = PHASE_DELTA_1200;
@@ -991,14 +996,12 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 		Si4464_restoreRX();
 	}
 
-	// Delete packet
-	// IMPORTANT TODO
-	//ax25_delete(radio_packet);
-
+	// Free packet object memory
+	ax25_delete(pp);
 	chThdExit(MSG_OK);
 }
 
-void Si446x_sendAFSK(uint8_t *frame, uint32_t len, uint32_t freq, uint8_t pwr) {
+void Si446x_sendAFSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq, uint8_t pwr) {
 	lockRadio();
 
 	// Stop packet handler (if started)
@@ -1013,13 +1016,21 @@ void Si446x_sendAFSK(uint8_t *frame, uint32_t len, uint32_t freq, uint8_t pwr) {
 	Si446x_setModemAFSK_TX();
 
 	// Set pointers for feeder
-	radio_frame = frame;
-	radio_frame_len = len;
+	/*
+	 * TODO: The frame object should contain freq and power as well.
+	 */
+
+	//radio_frame = frame;
+	//radio_frame_len = len;
 	radio_freq = freq;
 	radio_pwr = pwr;
 
 	// Start/re-start FIFO feeder
-	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO, si_fifo_feeder_afsk, NULL);
+	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa,
+	                               sizeof(si_fifo_feeder_wa),
+	                               HIGHPRIO,
+	                               si_fifo_feeder_afsk,
+	                               /*NULL*/pp);
 
 	// Wait for the transmitter to start (because it is used as mutex)
 	while(Si446x_getState() != Si446x_STATE_TX)
@@ -1209,7 +1220,8 @@ void Si446x_startDecoder(void* cb) {
 
 	// Start receiver thread
 	if(si446x_rx_thd == NULL)
-		si446x_rx_thd = chThdCreateStatic(si446x_rx_wa, sizeof(si446x_rx_wa), HIGHPRIO, si_receiver, NULL);
+		si446x_rx_thd = chThdCreateStatic(si446x_rx_wa, sizeof(si446x_rx_wa),
+		                                  NORMALPRIO, si_receiver, NULL);
 }
 
 void Si446x_stopDecoder(void) {
@@ -1220,7 +1232,7 @@ void Si446x_stopDecoder(void) {
 
 THD_FUNCTION(si_fifo_feeder_fsk, arg)
 {
-	(void)arg;
+	packet_t pp = arg;
 	chRegSetThreadName("radio_2fsk_feeder");
 
 	//uint8_t *frame = radio_packet->frame_data;
@@ -1260,11 +1272,11 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
 	// Delete packet
 	// IMPORTANT TODO
 	//ax25_delete(radio_packet);
-
+	ax25_delete(pp);
 	chThdExit(MSG_OK);
 }
 
-void Si446x_send2FSK(uint8_t *frame, uint32_t len, uint32_t freq, uint8_t pwr, uint32_t speed) {
+void Si446x_send2FSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq, uint8_t pwr, uint32_t speed) {
 	lockRadio();
 
 	// Stop packet handler (if started)
@@ -1277,13 +1289,17 @@ void Si446x_send2FSK(uint8_t *frame, uint32_t len, uint32_t freq, uint8_t pwr, u
 	Si446x_setModem2FSK(speed);
 
 	// Set pointers for feeder
-	radio_frame = frame;
-	radio_frame_len = len;
+	//radio_frame = frame;
+	//radio_frame_len = len;
 	radio_freq = freq;
 	radio_pwr = pwr;
 
 	// Start/re-start FIFO feeder
-	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO, si_fifo_feeder_fsk, NULL);
+	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa,
+	                               sizeof(si_fifo_feeder_wa),
+	                               HIGHPRIO,
+	                               si_fifo_feeder_fsk,
+	                               pp);
 
 	// Wait for the transmitter to start (because it is used as mutex)
 	while(Si446x_getState() != Si446x_STATE_TX)

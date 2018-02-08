@@ -44,7 +44,7 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
         /*
          * An HDLC flag after minimum packet size terminates the AX25 frame.
          */
-        if(myHandler->active_packet_object->packet_size >= AX25_MIN_FRAME) {
+        if(myHandler->active_packet_object->packet_size >= PKT_MIN_FRAME) {
           /*
            * Frame size is valid.
            * Dump any bits already put into the AX25 byte.

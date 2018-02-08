@@ -4,6 +4,7 @@
 #include "watchdog.h"
 #include "pi2c.h"
 #include "pac1720.h"
+#include "radio.h"
 #include "si446x.h"
 #include "image.h"
 #include "position.h"

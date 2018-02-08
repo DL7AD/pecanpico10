@@ -138,7 +138,7 @@ typedef struct radioConfig {
 #include "portab.h"
 #include "dbguart.h"
 #include "dsp.h"
-#include "ax25.h"
+#include "rxax25.h"
 #include "crc_calc.h"
 #include "rxafsk.h"
 #include "rxpwm.h"

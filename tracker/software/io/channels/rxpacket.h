@@ -17,7 +17,7 @@
 #define EVT_DIAG_OUT_END    EVENT_MASK(0)
 #define EVT_PKT_OUT_END     EVENT_MASK(1)
 
-#define PKT_BUFFER_SIZE     AX25_MAX_PACKET_LEN
+#define PKT_BUFFER_SIZE     PKT_MAX_PACKET_LEN
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
@@ -328,7 +328,7 @@ static inline msg_t pktIsBufferValidAX25Frame(pkt_data_fifo_t *object) {
   chDbgAssert(object != NULL, "no pointer to packet object buffer");
   uint16_t frame_size = object->packet_size;
   if((object->status & EVT_AFSK_DECODE_DONE)
-    && frame_size >= AX25_MIN_FRAME) {
+    && frame_size >= PKT_MIN_FRAME) {
     return MSG_OK;
   }
   return MSG_RESET;

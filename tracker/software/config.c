@@ -104,21 +104,21 @@ conf_t config = {
 	},
 	.rx = {
 		.thread_conf = {
-			.active			= false
+			.active			= true
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
-			.freq			= FREQ_APRS_DYNAMIC,
+			.freq			= 145175000,
 			.mod			= MOD_AFSK,
 			.preamble		= 200
 		},
 
-		.call				= "DL7AD-14",
-		.path				= "WIDE1-1",
-		.symbol				= SYM_BALLOON
+		.call				= "VK2GJ-15",
+		.path				= "WIDE2-1",
+		.symbol				= SYM_DIGIPEATER
 	},
 
-	.rssi					= 0x4F,
+	.rssi					= 0x3F,
 
 	.dig_active				= false,
 

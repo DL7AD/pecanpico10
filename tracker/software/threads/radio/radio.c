@@ -65,10 +65,10 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod)
 		switch(mod)
 		{
 			case MOD_2FSK:
-				Si446x_send2FSK(pp->frame_data, pp->frame_len, freq, pwr, 9600);
+				Si446x_send2FSK(/*pp->frame_data, pp->frame_len*/pp, freq, pwr, 9600);
 				break;
 			case MOD_AFSK:
-				Si446x_sendAFSK(pp->frame_data, pp->frame_len, freq, pwr);
+				Si446x_sendAFSK(/*pp->frame_data, pp->frame_len*/pp, freq, pwr);
 				break;
 		}
 

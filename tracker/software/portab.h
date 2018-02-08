@@ -26,6 +26,7 @@
 //#define LINE_PWM_MIRROR     PAL_LINE(GPIOA, 8U)
 
 #define PWM_ICU             ICUD4
+#define PWM_TIMER_CHANNEL   0
 
 /* Definitions for ICU FIFO implemented using chfactory. */
 #define NUMBER_PWM_FIFOS    4

@@ -74,7 +74,7 @@
 #define AX25_PID_SEGMENTATION_FRAGMENT 0x08
 #define AX25_PID_ESCAPE_CHARACTER 0xff
 
-
+/* TODO: Create a chFactory FIFO to manage these objects. */
 struct packet_s {
 
 	int magic1;		/* for error checking. */

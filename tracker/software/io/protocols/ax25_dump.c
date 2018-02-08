@@ -27,12 +27,12 @@ void pktDumpAX25Frame(ax25char_t *frame_buffer,
     ax25size_t bufpos_a = 0;
     /* Write out a buffer line as hex first. */
     for(bufpos = 0; bufpos < frame_size; bufpos++) {
-        if((bufpos + 1) % LINE_LENGTH == 0) {
+        if((bufpos + 1) % DUMP_LINE_LENGTH == 0) {
             serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
                                     "%02x\r\n", frame_buffer[bufpos]);
             chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
             /* Write out full line of converted ASCII under hex.*/
-            bufpos_a = (bufpos + 1) - LINE_LENGTH;
+            bufpos_a = (bufpos + 1) - DUMP_LINE_LENGTH;
             do {
                 char asciichar = frame_buffer[bufpos_a];
                 if(asciichar == 0x7e) {
