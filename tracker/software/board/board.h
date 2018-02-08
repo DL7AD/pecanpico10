@@ -647,7 +647,7 @@
                                      PIN_PUPDR_PULLDOWN(GPIOC_PIN7) |       \
                                      PIN_PUPDR_FLOATING(GPIOC_PIN8) |       \
                                      PIN_PUPDR_PULLDOWN(GPIOC_PIN9) |       \
-                                     PIN_PUPDR_PULLDOWN(GPIOC_PIN10) |      \
+                                     PIN_PUPDR_PULLUP(GPIOC_PIN10) |      \
                                      PIN_PUPDR_PULLDOWN(GPIOC_PIN11) |      \
                                      PIN_PUPDR_PULLDOWN(GPIOC_PIN12) |      \
                                      PIN_PUPDR_PULLDOWN(GPIOC_PIN13) |      \
