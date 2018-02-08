@@ -18,10 +18,8 @@
 #define APRS_FREQ_ARGENTINA			144930000
 #define APRS_FREQ_BRAZIL			145575000
 
-bool transmitOnRadio(packet_t packet, uint32_t freq, uint8_t pwr, mod_t mod);
-void startReceiver(void);
-
-THD_FUNCTION(moduleRADIO, arg);
+void start_rx_thread(uint32_t freq, uint8_t rssi);
+bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod);
 
 #endif
 

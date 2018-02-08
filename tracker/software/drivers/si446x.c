@@ -8,10 +8,10 @@
 #include "hal.h"
 
 #include "si446x.h"
-#include "fcs_calc.h"
 #include "debug.h"
 #include "pktconf.h"
-#include "aprs.h"
+
+#define LINE_LENGTH 40U
 
 // Mutex
 static mutex_t radio_mtx;				// Radio mutex
@@ -21,7 +21,8 @@ static bool radio_mtx_init = false;
 // Feeder thread variables
 static thread_t* feeder_thd = NULL;
 static THD_WORKING_AREA(si_fifo_feeder_wa, 4096);
-static packet_t radio_packet;
+static uint8_t *radio_frame;
+static uint8_t *radio_frame_len;
 static uint32_t radio_freq;
 static uint8_t radio_pwr;
 
@@ -31,15 +32,14 @@ static int16_t lastTemp = 0x7FFF;
 static bool radioInitialized;
 
 // Receiver thread variables
-static thread_t* si446x_rx_thd = NULL;
-static THD_WORKING_AREA(si446x_rx_wa, 8192);
-static packet_rx_t *packetHandler;
-
 static uint32_t rx_frequency;
 static uint8_t rx_rssi;
 static mod_t rx_mod;
+static void (*rx_cb)(uint8_t*,uint32_t);
 
-
+static thread_t* si446x_rx_thd = NULL;
+static THD_WORKING_AREA(si446x_rx_wa, 8192);
+static packet_rx_t *packetHandler;
 
 static int16_t Si446x_getTemperature(void);
 
@@ -657,6 +657,43 @@ static void Si446x_shutdown(void)
 	}
 }
 
+/* ======================================================================== Locking ========================================================================= */
+
+static void lockRadio(void)
+{
+	// Initialize mutex
+	if(!radio_mtx_init)
+		chMtxObjectInit(&radio_mtx);
+	radio_mtx_init = true;
+
+	chMtxLock(&radio_mtx);
+	nextTransmissionWaiting = true;
+
+	// Wait for old feeder thread to terminate
+	if(feeder_thd != NULL) // No waiting on first use
+		chThdWait(feeder_thd);
+}
+
+void unlockRadio(void)
+{
+	nextTransmissionWaiting = false;
+	chMtxUnlock(&radio_mtx);
+}
+
+void lockRadioByCamera(void)
+{
+	// Initialize mutex
+	if(!radio_mtx_init)
+		chMtxObjectInit(&radio_mtx);
+	radio_mtx_init = true;
+
+	chMtxLock(&radio_mtx);
+
+	// Wait for old feeder thread to terminate
+	if(feeder_thd != NULL) // No waiting on first use
+		chThdWait(feeder_thd);
+}
+
 /* ====================================================================== Radio TX/RX ======================================================================= */
 
 static bool Si446x_getLatchedCCA(uint8_t ms)
@@ -705,8 +742,10 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 	return true;
 }
 
-static bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
+bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
 {
+	lockRadio();
+
 	if(!Si446x_inRadioBand(frequency)) {
 		TRACE_ERROR("SI   > Frequency out of range");
 		TRACE_ERROR("SI   > abort reception");
@@ -718,14 +757,15 @@ static bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
 		chThdSleep(TIME_MS2I(5));
 	}
 
-	switch(mod) {
-		case MOD_AFSK:
-			Si446x_setModemAFSK_RX();
-			break;
-		default:
-			TRACE_ERROR("SI   > Modulation not supported");
-			TRACE_ERROR("SI   > abort reception");
-			return false;
+	// Initialize radio
+	if(mod == MOD_AFSK) {
+		if(!radioInitialized)
+			Si446x_init();
+		Si446x_setModemAFSK_RX();
+	} else {
+		TRACE_ERROR("SI   > Modulation not supported");
+		TRACE_ERROR("SI   > abort reception");
+		return false;
 	}
 
 	// Preserve settings in case transceiver changes to TX state
@@ -737,6 +777,12 @@ static bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
 	Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
 	Si446x_setFrequency(frequency);		// Set frequency
 	Si446x_setRXState();
+
+	// Wait for the transmitter to start (because it is used as mutex)
+	while(Si446x_getState() != Si446x_STATE_RX)
+		chThdSleep(TIME_MS2I(1));
+
+	unlockRadio();
 
 	return true;
 }
@@ -763,43 +809,6 @@ void Si446x_receive_stop(void)
 		Si446x_shutdown();
 }
 
-/* ======================================================================== Locking ========================================================================= */
-
-static void lockRadio(void)
-{
-	// Initialize mutex
-	if(!radio_mtx_init)
-		chMtxObjectInit(&radio_mtx);
-	radio_mtx_init = true;
-
-	chMtxLock(&radio_mtx);
-	nextTransmissionWaiting = true;
-
-	// Wait for old feeder thread to terminate
-	if(feeder_thd != NULL) // No waiting on first use
-		chThdWait(feeder_thd);
-}
-
-void unlockRadio(void)
-{
-	nextTransmissionWaiting = false;
-	chMtxUnlock(&radio_mtx);
-}
-
-void lockRadioByCamera(void)
-{
-	// Initialize mutex
-	if(!radio_mtx_init)
-		chMtxObjectInit(&radio_mtx);
-	radio_mtx_init = true;
-
-	chMtxLock(&radio_mtx);
-
-	// Wait for old feeder thread to terminate
-	if(feeder_thd != NULL) // No waiting on first use
-		chThdWait(feeder_thd);
-}
-
 /* ==================================================================== AFSK Transmitter ==================================================================== */
 
 #define PLAYBACK_RATE		13200
@@ -822,7 +831,7 @@ static bool encode_nrzi(bool bit)
 	return ctone;
 }
 
-static uint32_t afsk_pack(packet_t pp, uint8_t* buf, uint32_t buf_len)
+static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_len)
 {
 	memset(buf, 0, buf_len); // Clear buffer
 	uint32_t blen = 0;
@@ -842,14 +851,14 @@ static uint32_t afsk_pack(packet_t pp, uint8_t* buf, uint32_t buf_len)
 	}
 
 	// Insert CRC to buffer
-	uint16_t crc = fcs_calc(pp->frame_data, pp->frame_len);
-	pp->frame_data[pp->frame_len++] = crc & 0xFF;
-	pp->frame_data[pp->frame_len++] = crc >> 8;
+	uint16_t crc = calc_crc16(inbuf, 0, inlen);
+	inbuf[inlen++] = crc & 0xFF;
+	inbuf[inlen++] = crc >> 8;
 
 	uint32_t pos = 0;
 	uint8_t bitstuff_cntr = 0;
 
-	while(pos < (uint32_t)pp->frame_len*8)
+	while(pos < inlen*8)
 	{
 		if(blen >> 3 >= buf_len) { // Buffer overflow
 			TRACE_ERROR("Packet too long");
@@ -859,7 +868,7 @@ static uint32_t afsk_pack(packet_t pp, uint8_t* buf, uint32_t buf_len)
 		bool bit;
 		if(bitstuff_cntr < 5) { // Normale bit
 
-			bit = (pp->frame_data[pos >> 3] >> (pos%8)) & 0x1;
+			bit = (inbuf[pos >> 3] >> (pos%8)) & 0x1;
 			if(bit == 1) {
 				bitstuff_cntr++;
 			} else {
@@ -936,7 +945,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 	chRegSetThreadName("radio_afsk_feeder");
 
 	uint8_t layer0[3072];
-	uint32_t layer0_blen = afsk_pack(radio_packet, layer0, sizeof(layer0));
+	uint32_t layer0_blen = pack(radio_frame, radio_frame_len, layer0, sizeof(layer0));
 
 	// Initialize variables for timer
 	phase_delta = PHASE_DELTA_1200;
@@ -982,16 +991,14 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 		Si4464_restoreRX();
 	}
 
-
-
-
 	// Delete packet
-	ax25_delete(radio_packet);
+	// IMPORTANT TODO
+	//ax25_delete(radio_packet);
 
 	chThdExit(MSG_OK);
 }
 
-void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr) {
+void Si446x_sendAFSK(uint8_t *frame, uint32_t len, uint32_t freq, uint8_t pwr) {
 	lockRadio();
 
 	// Stop packet handler (if started)
@@ -1006,15 +1013,10 @@ void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	Si446x_setModemAFSK_TX();
 
 	// Set pointers for feeder
-	radio_packet = packet;
+	radio_frame = frame;
+	radio_frame_len = len;
 	radio_freq = freq;
 	radio_pwr = pwr;
-
-	{
-		char buf[1024];
-		aprs_debug_getPacket(packet, buf, sizeof(buf));
-		TRACE_INFO("TX   > %s", buf);
-	}
 
 	// Start/re-start FIFO feeder
 	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO, si_fifo_feeder_afsk, NULL);
@@ -1026,9 +1028,8 @@ void sendAFSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	unlockRadio();
 }
 
-/* ===================================================================== AFSK Receiver ====================================================================== */
 
-#define LINE_LENGTH 40U
+/* ===================================================================== AFSK Receiver ====================================================================== */
 
 THD_FUNCTION(si_receiver, arg)
 {
@@ -1161,21 +1162,9 @@ THD_FUNCTION(si_receiver, arg)
 			} while(++bufpos_a < bufpos);
 			TRACE_DEBUG("RX %c > %s", frameCounter, serial_buf);
 
+
 			if(actualCRC == computeCRC) {
-
-				packet_t pp = ax25_from_frame(frame_buffer, bufpos-2);
-				if(pp != NULL) {
-
-					aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
-					TRACE_INFO("RX   > %s", serial_buf);
-
-					aprs_decode_packet(pp);
-					ax25_delete(pp);
-
-				} else {
-					TRACE_DEBUG("RX %c > Error in packet", frameCounter);
-				}
-
+				rx_cb(frame_buffer, frame_size);
 			}
 
 		} else {/* End if valid frame. */
@@ -1215,25 +1204,16 @@ THD_FUNCTION(si_receiver, arg)
 	}
 }
 
-void start_rx_thread(uint32_t freq, uint8_t rssi) {
-	lockRadio();
-
-	// Initialize radio
-	if(!radioInitialized)
-		Si446x_init();
-
-	// Start transceiver
-	Si446x_receive(freq, rssi, MOD_AFSK);
+void Si446x_startDecoder(void* cb) {
+	rx_cb = cb;
 
 	// Start receiver thread
 	if(si446x_rx_thd == NULL)
 		si446x_rx_thd = chThdCreateStatic(si446x_rx_wa, sizeof(si446x_rx_wa), HIGHPRIO, si_receiver, NULL);
+}
 
-	// Wait for the transmitter to start (because it is used as mutex)
-	while(Si446x_getState() != Si446x_STATE_RX)
-		chThdSleep(TIME_MS2I(1));
-
-	unlockRadio();
+void Si446x_stopDecoder(void) {
+	// TODO: Nothing yet here
 }
 
 /* ========================================================================== 2FSK ========================================================================== */
@@ -1277,10 +1257,14 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
 		Si4464_restoreRX();
 	}
 
+	// Delete packet
+	// IMPORTANT TODO
+	//ax25_delete(radio_packet);
+
 	chThdExit(MSG_OK);
 }
 
-void send2FSK(packet_t packet, uint32_t freq, uint8_t pwr) {
+void Si446x_send2FSK(uint8_t *frame, uint32_t len, uint32_t freq, uint8_t pwr, uint32_t speed) {
 	lockRadio();
 
 	// Stop packet handler (if started)
@@ -1290,18 +1274,13 @@ void send2FSK(packet_t packet, uint32_t freq, uint8_t pwr) {
 	// Initialize radio
 	if(!radioInitialized)
 		Si446x_init();
-	Si446x_setModem2FSK(9600);
+	Si446x_setModem2FSK(speed);
 
 	// Set pointers for feeder
-	radio_packet = packet;
+	radio_frame = frame;
+	radio_frame_len = len;
 	radio_freq = freq;
 	radio_pwr = pwr;
-
-	{
-		char buf[1024];
-		aprs_debug_getPacket(packet, buf, sizeof(buf));
-		TRACE_INFO("TX   > %s", buf);
-	}
 
 	// Start/re-start FIFO feeder
 	feeder_thd = chThdCreateStatic(si_fifo_feeder_wa, sizeof(si_fifo_feeder_wa), HIGHPRIO, si_fifo_feeder_fsk, NULL);

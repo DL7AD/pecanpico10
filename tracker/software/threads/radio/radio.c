@@ -4,19 +4,52 @@
 #include "debug.h"
 #include "si446x.h"
 #include "geofence.h"
+#include "aprs.h"
+#include "pktconf.h"
+
 
 static const char *getModulation(uint8_t key) {
 	const char *val[] = {"AFSK", "2FSK"};
 	return val[key];
 };
 
-bool transmitOnRadio(packet_t packet, uint32_t freq, uint8_t pwr, mod_t mod)
+static void handlePacket(uint8_t *buf, uint32_t len) {
+	// Decode APRS frame
+	packet_t pp = ax25_from_frame(buf, len);
+
+	if(pp != NULL) {
+		char serial_buf[512];
+		aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
+		TRACE_INFO("RX   > %s", serial_buf);
+
+		aprs_decode_packet(pp);
+		ax25_delete(pp);
+	} else {
+		TRACE_DEBUG("RX    > Error in packet");
+	}
+}
+
+void start_rx_thread(uint32_t freq, uint8_t rssi) {
+	uint32_t f;
+	if(freq == FREQ_APRS_DYNAMIC)
+		f = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
+	else
+		f = config.rx.radio_conf.freq;
+
+	// Start transceiver
+	Si446x_receive(f, rssi, MOD_AFSK);
+
+	// Start decoder
+	Si446x_startDecoder(handlePacket);
+}
+
+bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod)
 {
 	if(freq == FREQ_APRS_DYNAMIC)
 		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
 
 	uint8_t *c;
-	uint32_t len = ax25_get_info(packet, &c);
+	uint32_t len = ax25_get_info(pp, &c);
 
 	if(len) // Message length is not zero
 	{
@@ -25,13 +58,17 @@ bool transmitOnRadio(packet_t packet, uint32_t freq, uint8_t pwr, mod_t mod)
 					getModulation(mod), len
 		);
 
+		char buf[1024];
+		aprs_debug_getPacket(pp, buf, sizeof(buf));
+		TRACE_INFO("TX   > %s", buf);
+
 		switch(mod)
 		{
 			case MOD_2FSK:
-				send2FSK(packet, freq, pwr);
+				Si446x_send2FSK(pp->frame_data, pp->frame_len, freq, pwr, 9600);
 				break;
 			case MOD_AFSK:
-				sendAFSK(packet, freq, pwr);
+				Si446x_sendAFSK(pp->frame_data, pp->frame_len, freq, pwr);
 				break;
 		}
 
@@ -45,4 +82,5 @@ bool transmitOnRadio(packet_t packet, uint32_t freq, uint8_t pwr, mod_t mod)
 
 	return true;
 }
+
 

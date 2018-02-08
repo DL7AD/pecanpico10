@@ -5,7 +5,6 @@
 #include "pi2c.h"
 #include "pac1720.h"
 #include "si446x.h"
-#include "geofence.h"
 #include "image.h"
 #include "position.h"
 #include "log.h"
@@ -30,12 +29,6 @@ void start_user_threads(void)
 
 	if(config.log.thread_conf.active) start_logging_thread(&config.log);
 
-	uint32_t freq;
-	if(config.rx.radio_conf.freq == FREQ_APRS_DYNAMIC)
-		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
-	else
-		freq = config.rx.radio_conf.freq;
-
-	if(config.rx.thread_conf.active) start_rx_thread(freq, config.rssi);
+	if(config.rx.thread_conf.active) start_rx_thread(config.rx.radio_conf.freq, config.rssi);
 }
 
