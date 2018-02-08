@@ -22,7 +22,7 @@ static bool radio_mtx_init = false;
 static thread_t* feeder_thd = NULL;
 static THD_WORKING_AREA(si_fifo_feeder_wa, 4096);
 static uint8_t *radio_frame;
-static uint8_t *radio_frame_len;
+static uint8_t radio_frame_len;
 static uint32_t radio_freq;
 static uint8_t radio_pwr;
 
@@ -742,15 +742,17 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 	return true;
 }
 
-bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
+static bool Si446x_receive_noLock(uint32_t frequency, uint8_t rssi, mod_t mod)
 {
-	lockRadio();
-
 	if(!Si446x_inRadioBand(frequency)) {
 		TRACE_ERROR("SI   > Frequency out of range");
 		TRACE_ERROR("SI   > abort reception");
 		return false;
 	}
+
+	// Initialize radio
+	if(!radioInitialized)
+		Si446x_init();
 
 	// Wait until transceiver finishes transmission (if there is any)
 	while(Si446x_getState() == Si446x_STATE_TX) {
@@ -759,10 +761,9 @@ bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
 
 	// Initialize radio
 	if(mod == MOD_AFSK) {
-		if(!radioInitialized)
-			Si446x_init();
 		Si446x_setModemAFSK_RX();
 	} else {
+		Si446x_shutdown();
 		TRACE_ERROR("SI   > Modulation not supported");
 		TRACE_ERROR("SI   > abort reception");
 		return false;
@@ -781,17 +782,20 @@ bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
 	// Wait for the transmitter to start (because it is used as mutex)
 	while(Si446x_getState() != Si446x_STATE_RX)
 		chThdSleep(TIME_MS2I(1));
+}
 
+bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
+{
+	lockRadio();
+	bool ret = Si446x_receive_noLock(frequency, rssi, mod);
 	unlockRadio();
 
-	return true;
+	return ret;
 }
 
 static bool Si4464_restoreRX(void)
 {
-	TRACE_INFO("SI   > Restore RX");
-
-	bool ret = Si446x_receive(rx_frequency, rx_rssi, rx_mod);
+	bool ret = Si446x_receive_noLock(rx_frequency, rx_rssi, rx_mod);
 
 	if(packetHandler) {
 		TRACE_DEBUG("Start packet handler")
