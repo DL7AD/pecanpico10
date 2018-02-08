@@ -206,7 +206,7 @@ static void Si446x_init(void) {
     Si446x_setProperty8(Si446x_GLOBAL_CLK_CFG, 0x00);
     Si446x_setProperty8(Si446x_MODEM_RSSI_CONTROL, 0x00);
     Si446x_setProperty8(Si446x_PREAMBLE_CONFIG_STD_1, 0x14);
-    Si446x_setProperty8(Si446x_PKT_CONFIG1, 0x40);
+    Si446x_setProperty8(Si446x_PKT_CONFIG1, 0x41);
     Si446x_setProperty8(Si446x_MODEM_MAP_CONTROL, 0x00);
     Si446x_setProperty8(Si446x_MODEM_DSM_CTRL, 0x07);
     Si446x_setProperty8(Si446x_MODEM_CLKGEN_BAND, 0x0D);
@@ -526,7 +526,7 @@ static void Si446x_setModemAFSK_RX(void)
     Si446x_setProperty32(Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
 
     // Setup the NCO data rate for APRS
-    Si446x_setProperty24(Si446x_MODEM_DATA_RATE, 0x00, 0x2E, 0xE0);
+    Si446x_setProperty24(Si446x_MODEM_DATA_RATE, 0x04, 0x07, 0x40);
 
     // Use 2FSK in DIRECT_MODE
     Si446x_setProperty8(Si446x_MODEM_MOD_TYPE, 0x0A);
