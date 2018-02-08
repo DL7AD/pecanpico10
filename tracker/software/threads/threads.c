@@ -9,6 +9,7 @@
 #include "image.h"
 #include "position.h"
 #include "log.h"
+#include "radio.h"
 
 sysinterval_t watchdog_tracking;
 
