@@ -21,13 +21,8 @@ static bool radio_mtx_init = false;
 // Feeder thread variables
 static thread_t* feeder_thd = NULL;
 static THD_WORKING_AREA(si_fifo_feeder_wa, 4096);
-<<<<<<< HEAD
 //static uint8_t *radio_frame;
 //static uint8_t *radio_frame_len;
-=======
-static uint8_t *radio_frame;
-static uint8_t radio_frame_len;
->>>>>>> branch 'master' of https://github.com/DL7AD/pecanpico10.git
 static uint32_t radio_freq;
 static uint8_t radio_pwr;
 
@@ -791,6 +786,7 @@ static bool Si446x_receive_noLock(uint32_t frequency, uint8_t rssi, mod_t mod)
 	// Wait for the receiver to start (because it is used as mutex)
 	while(Si446x_getState() != Si446x_STATE_RX)
 		chThdSleep(TIME_MS2I(1));
+	return true;
 }
 
 bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod)
