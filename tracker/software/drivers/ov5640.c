@@ -918,8 +918,10 @@ static void dma_interrupt(void *p, uint32_t flags) {
  * VSYNC is asserted during a frame.
  * See OV5640 datasheet for details.
  */
-CH_IRQ_HANDLER(Vector9C) {
-	CH_IRQ_PROLOGUE();
+void vsync_cb(void *arg) {
+	(void)arg;
+
+	chSysLockFromISR();
 
 	// VSYNC handling
 	if(!vsync) {
@@ -946,12 +948,11 @@ CH_IRQ_HANDLER(Vector9C) {
 		 * Disable VSYNC edge interrupts.
 		 * Flag image capture complete.
 		 */
-		nvicDisableVector(EXTI1_IRQn);
+		palDisableLineEventI(LINE_CAM_VSYNC);
 		capture_finished = true;
 	}
 
-	EXTI->PR |= EXTI_PR_PR1;
-	CH_IRQ_EPILOGUE();
+	chSysUnlockFromISR();
 }
 
 bool OV5640_Capture(uint8_t* buffer, uint32_t size)
@@ -1055,13 +1056,11 @@ bool OV5640_Capture(uint8_t* buffer, uint32_t size)
 
 	while(!palReadLine(LINE_CAM_VSYNC)); // Wait for current picture to finish transmission
 
-	// Setup EXTI: EXTI5 PC for PC5 (VSYNC)
-	SYSCFG->EXTICR[1] |= SYSCFG_EXTICR2_EXTI5_PC;
-	EXTI->IMR = EXTI_IMR_MR5; // Activate interrupt for chan5 (=>PC5)
-	EXTI->RTSR = EXTI_RTSR_TR5; // Listen on rising edge
-	nvicEnableVector(EXTI9_5_IRQn, 1); // Enable interrupt
+	// Enable VSYNC interrupt
+	palSetLineCallback(LINE_CAM_VSYNC, (palcallback_t)vsync_cb, NULL);
+	palEnableLineEvent(LINE_CAM_VSYNC, PAL_EVENT_MODE_RISING_EDGE);
 
-	// Capture
+	// Wait for capture to be finished
 	do {
 		chThdSleep(TIME_MS2I(10));
 	} while(!capture_finished && !dma_error);
