@@ -58,7 +58,7 @@
 #define STM32_MCO1SEL                       STM32_MCO1SEL_PLL
 #define STM32_MCO1PRE                       STM32_MCO1PRE_DIV1
 #define STM32_MCO2SEL                       STM32_MCO2SEL_PLL
-#define STM32_MCO2PRE                       STM32_MCO2PRE_DIV2 /* Camera XCLK 24MHz */
+#define STM32_MCO2PRE                       STM32_MCO2PRE_DIV4 /* Camera XCLK 24MHz */
 #define STM32_I2SSRC                        STM32_I2SSRC_CKIN
 #define STM32_PLLI2SN_VALUE                 192
 #define STM32_PLLI2SR_VALUE                 5

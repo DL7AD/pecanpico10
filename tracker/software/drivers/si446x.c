@@ -665,6 +665,7 @@ static void Si446x_shutdown(void)
 
 static void lockRadio(void)
 {
+	TRACE_DEBUG("LOCK");
 	// Initialize mutex
 	if(!radio_mtx_init)
 		chMtxObjectInit(&radio_mtx);
@@ -672,16 +673,19 @@ static void lockRadio(void)
 
 	chMtxLock(&radio_mtx);
 	nextTransmissionWaiting = true;
-
+	TRACE_DEBUG("LOCKED1");
 	// Wait for old feeder thread to terminate
 	if(feeder_thd != NULL) // No waiting on first use
 		chThdWait(feeder_thd);
+	TRACE_DEBUG("LOCKED2");
 }
 
 void unlockRadio(void)
 {
+	TRACE_DEBUG("UNLOCK");
 	nextTransmissionWaiting = false;
 	chMtxUnlock(&radio_mtx);
+	TRACE_DEBUG("UNLOCKED");
 }
 
 void lockRadioByCamera(void)
@@ -1003,6 +1007,9 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 
 	// Free packet object memory
 	ax25_delete(pp);
+
+	TRACE_DEBUG("FIFO Feeder finished");
+
 	chThdExit(MSG_OK);
 }
 

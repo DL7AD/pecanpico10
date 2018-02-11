@@ -7,7 +7,7 @@ conf_t config = {
 	// Primary position transmission thread
 	.pos_pri = {
 		.thread_conf = {
-			.active			= true,
+			.active			= false,
 			.cycle			= TIME_S2I(120)
 		},
 		.radio_conf = {
@@ -47,8 +47,9 @@ conf_t config = {
 	// Primary image transmission thread
 	.img_pri = {
 		.thread_conf = {
-			.active			= false,
-			.cycle			= CYCLE_CONTINUOUSLY
+			.active			= true,
+			.cycle			= CYCLE_CONTINUOUSLY,
+			.init_delay		= TIME_S2I(5)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -60,9 +61,9 @@ conf_t config = {
 		.call				= "DL7AD-12",
 		.path				= "",
 
-		.res				= RES_QVGA,
+		.res				= RES_VGA,
 		.quality			= 4,
-		.buf_size			= 32*1024
+		.buf_size			= 64*1024
 	},
 
 	// Secondary image transmission thread
@@ -104,7 +105,7 @@ conf_t config = {
 	},
 	.rx = {
 		.thread_conf = {
-			.active			= true
+			.active			= false
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -113,8 +114,8 @@ conf_t config = {
 			.preamble		= 200
 		},
 
-		.call				= "VK2GJ-15",
-		.path				= "WIDE2-1",
+		.call				= "DL7AD-12",
+		.path				= "WIDE1-1",
 		.symbol				= SYM_DIGIPEATER
 	},
 
