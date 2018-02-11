@@ -335,7 +335,7 @@ static void encode_ssdv(const uint8_t *image, uint32_t image_len, thd_img_conf_t
 
 		// Packet spacing (delay)
 		if(conf->thread_conf.packet_spacing)
-			chThdSleep(TIME_MS2I(conf->thread_conf.packet_spacing));
+			chThdSleep(conf->thread_conf.packet_spacing);
 
 		i++;
 	}
