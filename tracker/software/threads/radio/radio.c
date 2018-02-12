@@ -45,7 +45,6 @@ void start_rx_thread(uint32_t freq, uint8_t rssi) {
 
 bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod)
 {
-	TRACE_DEBUG("A -------------------------------------------------");
 	if(freq == FREQ_APRS_DYNAMIC)
 		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
 
@@ -80,8 +79,6 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod)
 		);
 
 	}
-
-	TRACE_DEBUG("B -------------------------------------------------");
 
 	return true;
 }

@@ -665,7 +665,6 @@ static void Si446x_shutdown(void)
 
 static void lockRadio(void)
 {
-	TRACE_DEBUG("LOCK");
 	// Initialize mutex
 	if(!radio_mtx_init)
 		chMtxObjectInit(&radio_mtx);
@@ -673,19 +672,16 @@ static void lockRadio(void)
 
 	chMtxLock(&radio_mtx);
 	nextTransmissionWaiting = true;
-	TRACE_DEBUG("LOCKED1");
+
 	// Wait for old feeder thread to terminate
 	if(feeder_thd != NULL) // No waiting on first use
 		chThdWait(feeder_thd);
-	TRACE_DEBUG("LOCKED2");
 }
 
 void unlockRadio(void)
 {
-	TRACE_DEBUG("UNLOCK");
 	nextTransmissionWaiting = false;
 	chMtxUnlock(&radio_mtx);
-	TRACE_DEBUG("UNLOCKED");
 }
 
 void lockRadioByCamera(void)
@@ -807,7 +803,7 @@ static bool Si4464_restoreRX(void)
 	bool ret = Si446x_receive_noLock(rx_frequency, rx_rssi, rx_mod);
 
 	if(packetHandler) {
-		TRACE_DEBUG("Start packet handler")
+		TRACE_DEBUG("SI    > Start packet handler")
 		pktStartDataReception(packetHandler); // Start packet handler again
 	}
 
@@ -979,7 +975,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 	// Start transmission
 	Si446x_transmit(radio_freq, radio_pwr, all, 0x4F, TIME_S2I(10));
 
-	while(c < all) { // Do while bytes not written into FIFO completely
+	while(c < all && Si446x_getState() == Si446x_STATE_TX) { // Do while bytes not written into FIFO completely
 		// Determine free memory in Si446x-FIFO
 		uint8_t more = Si446x_freeFIFO();
 		if(more > all-c) {
@@ -995,6 +991,10 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 		chThdSleep(TIME_MS2I(15));
 	}
 
+	if(c < all) {
+		TRACE_ERROR("SI   > Packet was not sent completly");
+	}
+
 	/*
 	 * Shutdown radio if receiption has been interrupted. If receiption was interrupted rx_frequency is set.
 	 * If receiption has not been interrupted rx_frequency is set 0.
@@ -1008,8 +1008,6 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 	// Free packet object memory
 	ax25_delete(pp);
 
-	TRACE_DEBUG("FIFO Feeder finished");
-
 	chThdExit(MSG_OK);
 }
 
@@ -1018,7 +1016,7 @@ void Si446x_sendAFSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq,
 
 	// Stop packet handler (if started)
 	if(packetHandler) {
-		TRACE_DEBUG("Stop packet handler")
+		TRACE_DEBUG("SI   > Stop packet handler")
 		pktStopDataReception(packetHandler);
 	}
 

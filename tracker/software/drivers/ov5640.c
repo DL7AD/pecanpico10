@@ -10,6 +10,7 @@
 #include "board.h"
 #include "debug.h"
 #include "padc.h"
+#include "si446x.h"
 #include <string.h>
 
 static uint32_t lightIntensity;
@@ -70,8 +71,8 @@ static const struct regval_list OV5640YUV_Sensor_Dvp_Init[] =
 		{ 0x3c0a, 0x9c }, 
 		{ 0x3c0b, 0x40 },  		
 
-		{ 0x3820, 0x41 }, 
-		{ 0x3821, 0x01 }, //07
+		{ 0x3820, 0x47 }, 
+		{ 0x3821, 0x00 }, //07
 
 		//windows setup
 		{ 0x3800, 0x00 }, 
@@ -327,8 +328,8 @@ static const struct regval_list OV5640YUV_Sensor_Dvp_Init[] =
 //2592x1944 QSXGA
 static const struct regval_list OV5640_JPEG_QSXGA[]  =
 {
-	{0x3820 ,0x40}, 
-		{0x3821 ,0x26}, 
+	{0x3820 ,0x47}, 
+		{0x3821 ,0x20}, 
 		{0x3814 ,0x11}, 
 		{0x3815 ,0x11}, 
 		{0x3803 ,0x00}, 
@@ -729,14 +730,6 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size, resolution_t res)
 		while(!buffer[size_sampled] && size_sampled > 0)
 			size_sampled--;
 
-		for(uint32_t i=0; i<(size_sampled+31)/32; i++) {
-			TRACE_DEBUG("0x%04x > %02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x",
-				i*32, buffer[i*32+0 ], buffer[i*32+1 ], buffer[i*32+2 ], buffer[i*32+3 ], buffer[i*32+4 ], buffer[i*32+5 ], buffer[i*32+6 ], buffer[i*32+7 ],
-				      buffer[i*32+8 ], buffer[i*32+9 ], buffer[i*32+10], buffer[i*32+11], buffer[i*32+12], buffer[i*32+13], buffer[i*32+14], buffer[i*32+15],
-				      buffer[i*32+16], buffer[i*32+17], buffer[i*32+18], buffer[i*32+19], buffer[i*32+20], buffer[i*32+21], buffer[i*32+22], buffer[i*32+23],
-				      buffer[i*32+24], buffer[i*32+25], buffer[i*32+26], buffer[i*32+27], buffer[i*32+28], buffer[i*32+29], buffer[i*32+30], buffer[i*32+31]);
-		}
-
 		TRACE_INFO("CAM  > Image size: %d bytes", size_sampled);
 	} while(!status && cntr--);
 
@@ -748,7 +741,7 @@ const stm32_dma_stream_t *dmastp;
 #if OV5640_USE_DMA_DBM == TRUE
 uint16_t dma_index;
 uint16_t dma_buffers;
-#define DMA_SEGMENT_SIZE 65535
+#define DMA_SEGMENT_SIZE 1024
 #define DMA_FIFO_BURST_ALIGN 32
 
 
@@ -847,7 +840,8 @@ static void dma_interrupt(void *p, uint32_t flags) {
 		 * DMA will use new address at h/w DBM switch.
 		 */
 
-		if(dmaStreamGetCurrentTarget(dmastp) == 1) {
+
+		if (dmaStreamGetCurrentTarget(dmastp) == 1) {
 			dmaStreamSetMemory0(dmastp, &dma_buffer[++dma_index * DMA_SEGMENT_SIZE]);
 		} else {
 			dmaStreamSetMemory1(dmastp, &dma_buffer[++dma_index * DMA_SEGMENT_SIZE]);
@@ -939,7 +933,7 @@ void vsync_cb(void *arg) {
 bool OV5640_Capture(uint8_t* buffer, uint32_t size)
 {
 	OV5640_setLightIntensity();
-TRACE_DEBUG("A buffer_addr=%08x", buffer);chThdSleep(TIME_MS2I(10));
+
 	/*
 	 * Note:
 	 *  If there are no Chibios devices enabled that use DMA then...
@@ -947,13 +941,13 @@ TRACE_DEBUG("A buffer_addr=%08x", buffer);chThdSleep(TIME_MS2I(10));
 	 *   UDEFS = -DSTM32_DMA_REQUIRED
 	 */
 
-TRACE_DEBUG("E");chThdSleep(TIME_MS2I(10));
 	I2C_Lock(); // Lock I2C because it uses the same DMA
+	lockRadioByCamera(); // Lock the radio because it uses the DMA too
 
 	/* Setup DMA for transfer on TIM8_CH1 - DMA2 stream 2, channel 7 */
 	dmastp  = STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 2));
 	uint32_t dmamode = STM32_DMA_CR_CHSEL(7) |
-	STM32_DMA_CR_PL(0) |
+	STM32_DMA_CR_PL(3) |
 	STM32_DMA_CR_DIR_P2M |
 	STM32_DMA_CR_MSIZE_WORD |
 	STM32_DMA_CR_MBURST_INCR4 |
@@ -967,13 +961,13 @@ TRACE_DEBUG("E");chThdSleep(TIME_MS2I(10));
 #endif
 	STM32_DMA_CR_TCIE;
 
-	dmaStreamAllocate(dmastp, 1, (stm32_dmaisr_t)dma_interrupt, NULL);
+	dmaStreamAllocate(dmastp, 3, (stm32_dmaisr_t)dma_interrupt, NULL);
 
 	dmaStreamSetPeripheral(dmastp, &GPIOA->IDR); // We want to read the data from here
 
 #if OV5640_USE_DMA_DBM == TRUE
 	dma_buffer = buffer;
-TRACE_DEBUG("B");chThdSleep(TIME_MS2I(10));
+
     /*
      * Buffer address must be word aligned.
      * Also note requirement for burst transfers from FIFO.
@@ -995,7 +989,7 @@ TRACE_DEBUG("B");chThdSleep(TIME_MS2I(10));
     dmaStreamSetMemory0(dmastp, &buffer[0]);
     dmaStreamSetMemory1(dmastp, &buffer[DMA_SEGMENT_SIZE]);
     dmaStreamSetTransactionSize(dmastp, DMA_SEGMENT_SIZE);
-TRACE_DEBUG("C");chThdSleep(TIME_MS2I(10));
+
     /*
      * Calculate the number of whole buffers.
      * TODO: Make this include remainder memory as partial buffer?
@@ -1018,7 +1012,7 @@ TRACE_DEBUG("C");chThdSleep(TIME_MS2I(10));
 
     dma_error = false;
     dma_flags = 0;
-TRACE_DEBUG("D");chThdSleep(TIME_MS2I(10));
+
 	/*
 	 * Setup timer for PCLK
 	 * Setup timer to trigger DMA in capture mode. On rising edge, we will
@@ -1036,23 +1030,28 @@ TRACE_DEBUG("D");chThdSleep(TIME_MS2I(10));
 	capture_finished = false;
 	vsync_cntr = 0;
 
-TRACE_DEBUG("G");chThdSleep(TIME_MS2I(10));
-
 	// Enable VSYNC interrupt
 	palSetLineCallback(LINE_CAM_VSYNC, (palcallback_t)vsync_cb, NULL);
 	palEnableLineEvent(LINE_CAM_VSYNC, PAL_EVENT_MODE_RISING_EDGE);
 
-TRACE_DEBUG("H");chThdSleep(TIME_MS2I(10));
 	// Wait for capture to be finished
+	uint8_t timout = 100; // 1000ms max
 	do {
-TRACE_DEBUG("I");chThdSleep(TIME_MS2I(10));
 		chThdSleep(TIME_MS2I(10));
-		TRACE_DEBUG("dma_error=%08x dma_flags=%08x", dma_error, dma_flags);
-	} while(!capture_finished && !dma_error);
-TRACE_DEBUG("J");chThdSleep(TIME_MS2I(10));
-	// Capture done, unlock I2C
+	} while(!capture_finished && !dma_error && --timout);
+
+	if(!timout) {
+		TRACE_ERROR("CAM  > Image sampling timeout");
+
+		dma_stop();
+		TIM8->DIER &= ~TIM_DIER_CC1DE;
+		palDisableLineEventI(LINE_CAM_VSYNC);
+	}
+
+	// Capture done, unlock I2C and the radio
+	unlockRadio();
 	I2C_Unlock();
-TRACE_DEBUG("K");chThdSleep(TIME_MS2I(10));
+
 	if(dma_error)
 	{
 		if(dma_flags & STM32_DMA_ISR_HTIF) {

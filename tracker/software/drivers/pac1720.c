@@ -180,7 +180,7 @@ void pac1720_init(void)
 	sendConfig();
 
 	TRACE_INFO("PAC  > Init PAC1720 continuous measurement");
-	chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(512), "PAC1720", LOWPRIO, pac1720_thd, NULL);
+	//chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(512), "PAC1720", LOWPRIO, pac1720_thd, NULL);
 	chThdSleep(TIME_MS2I(10));
 }
 

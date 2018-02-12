@@ -9,6 +9,8 @@
 #define I2C_DRIVER	(&I2CD1)
 
 static uint8_t error;
+static mutex_t mtx;
+static bool mtx_init;
 
 const I2CConfig _i2cfg = {
 	OPMODE_I2C,
@@ -38,12 +40,17 @@ static bool I2C_transmit(uint8_t addr, uint8_t *txbuf, uint32_t txbytes, uint8_t
 
 void I2C_Lock(void)
 {
-	i2cAcquireBus(I2C_DRIVER);
+	// Initialize mutex
+	if(!mtx_init)
+		chMtxObjectInit(&mtx);
+	mtx_init = true;
+
+	chMtxLock(&mtx);
 }
 
 void I2C_Unlock(void)
 {
-	i2cReleaseBus(I2C_DRIVER);
+	chMtxUnlock(&mtx);
 }
 
 void pi2cInit(void)

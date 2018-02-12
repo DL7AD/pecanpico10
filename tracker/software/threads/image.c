@@ -286,7 +286,7 @@ static void encode_ssdv(const uint8_t *image, uint32_t image_len, thd_img_conf_t
 
 	ssdv_t ssdv;
 	uint8_t pkt[SSDV_PKT_SIZE];
-	uint8_t pkt_base91[256];
+	uint8_t pkt_base91[256] = {0};
 	const uint8_t *b;
 	uint32_t bi = 0;
 	uint8_t c = SSDV_OK;
@@ -299,6 +299,15 @@ static void encode_ssdv(const uint8_t *image, uint32_t image_len, thd_img_conf_t
 
 	while(true)
 	{
+		// Proccess redundant transmission from last cycle
+		if(strlen((char*)pkt_base91) && conf->radio_conf.redundantTx) {
+			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
+			transmitOnRadio(packet, conf->radio_conf.freq, conf->radio_conf.pwr, conf->radio_conf.mod);
+		}
+
+		// Encode packet
+		TRACE_INFO("IMG  > Encode APRS/SSDV packet");
+
 		while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME)
 		{
 			b = &image[bi];
@@ -321,9 +330,6 @@ static void encode_ssdv(const uint8_t *image, uint32_t image_len, thd_img_conf_t
 			TRACE_ERROR("SSDV > ssdv_enc_get_packet failed: %i", c);
 			return;
 		}
-
-		// Encode packet
-		TRACE_INFO("IMG  > Encode APRS/SSDV packet");
 
 		// Sync byte, CRC and FEC of SSDV not transmitted (because its not neccessary inside an APRS packet)
 		base91_encode(&pkt[6], pkt_base91, 174);
@@ -415,9 +421,6 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size, resolution_t res, bool enab
 
 		TRACE_INFO("IMG  > OV5640 found");
 
-		// Lock Radio (The radio uses the same DMA for SPI as the camera)
-		lockRadioByCamera(); // Lock radio
-
 		uint8_t cntr = 5;
 		bool jpegValid;
 		do {
@@ -446,9 +449,6 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size, resolution_t res, bool enab
 				jpegValid = true;
 			}
 		} while(!jpegValid && cntr--);
-
-		// Unlock radio
-		unlockRadio();
 
 	} else { // Camera not found
 
@@ -512,7 +512,7 @@ THD_FUNCTION(imgThread, arg)
 
 void start_image_thread(thd_img_conf_t *conf)
 {
-	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE((conf->thread_conf.packet_spacing ? 6:12) * 1024 + conf->buf_size), "IMG", NORMALPRIO, imgThread, conf);
+	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE((conf->thread_conf.packet_spacing ? 70:70) * 1024 + conf->buf_size), "IMG", NORMALPRIO, imgThread, conf);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread
 		TRACE_ERROR("IMG  > Could not startup thread (not enough memory available)");

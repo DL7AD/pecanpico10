@@ -7,7 +7,7 @@ conf_t config = {
 	// Primary position transmission thread
 	.pos_pri = {
 		.thread_conf = {
-			.active			= true,
+			.active			= false,
 			.cycle			= TIME_S2I(120)
 		},
 		.radio_conf = {
@@ -17,9 +17,9 @@ conf_t config = {
 			.preamble		= 200
 		},
 
-		.call				= "DO7EN-8",
+		.call				= "DL7AD-12",
 		.path				= "WIDE1-1",
-		.symbol				= SYM_SHIP,
+		.symbol				= SYM_DIGIPEATER,
 
 		.tel_enc_cycle		= TIME_S2I(10800),
 	},
@@ -37,7 +37,7 @@ conf_t config = {
 			.preamble		= 200
 		},
 
-		.call				= "DL7AD-12",
+		.call				= "DL7AD-14",
 		.path				= "WIDE1-1",
 		.symbol				= SYM_BALLOON,
 
@@ -50,7 +50,7 @@ conf_t config = {
 			.active			= true,
 			.cycle			= CYCLE_CONTINUOUSLY,
 			.init_delay		= TIME_S2I(5),
-			.packet_spacing	= TIME_S2I(20)
+			//.packet_spacing	= TIME_S2I(30)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -60,10 +60,10 @@ conf_t config = {
 			.redundantTx	= true
 		},
 
-		.call				= "DO7EN-8",
-		.path				= "WIDE1-1",
+		.call				= "DL7AD-12",
+		.path				= "DB0BLO",
 
-		.res				= RES_QVGA,
+		.res				= RES_VGA,
 		.quality			= 4,
 		.buf_size			= 64*1024
 	},
@@ -116,9 +116,9 @@ conf_t config = {
 			.preamble		= 200
 		},
 
-		.call				= "DO7EN-8",
+		.call				= "DL7AD-12",
 		.path				= "WIDE1-1",
-		.symbol				= SYM_SHIP
+		.symbol				= SYM_DIGIPEATER
 	},
 
 	.rssi					= 0x3F,
@@ -127,8 +127,8 @@ conf_t config = {
 
 	.keep_cam_switched_on	= false,
 
-	.gps_on_vbat			= 1000,
-	.gps_off_vbat			= 1000,
-	.gps_onper_vbat			= 1000
+	.gps_on_vbat			= 5000,
+	.gps_off_vbat			= 5000,
+	.gps_onper_vbat			= 5000
 };
 
