@@ -23,14 +23,17 @@ void start_essential_threads(void)
 
 void start_user_threads(void)
 {
-	if(config.pos_pri.thread_conf.active) start_position_thread(&config.pos_pri);
-	if(config.pos_sec.thread_conf.active) start_position_thread(&config.pos_sec);
+	// Copy 
+	memcpy(&conf_sram, &conf_flash, sizeof(conf_t));
 
-	if(config.img_pri.thread_conf.active) start_image_thread(&config.img_pri);
-	if(config.img_sec.thread_conf.active) start_image_thread(&config.img_sec);
+	if(conf_sram.pos_pri.thread_conf.active) start_position_thread(&conf_sram.pos_pri);
+	if(conf_sram.pos_sec.thread_conf.active) start_position_thread(&conf_sram.pos_sec);
 
-	if(config.log.thread_conf.active) start_logging_thread(&config.log);
+	if(conf_sram.img_pri.thread_conf.active) start_image_thread(&conf_sram.img_pri);
+	if(conf_sram.img_sec.thread_conf.active) start_image_thread(&conf_sram.img_sec);
 
-	if(config.rx.thread_conf.active) start_rx_thread(config.rx.radio_conf.freq, config.rssi);
+	if(conf_sram.log.thread_conf.active) start_logging_thread(&conf_sram.log);
+
+	if(conf_sram.rx.thread_conf.active) start_rx_thread(conf_sram.rx.radio_conf.freq, conf_sram.rssi);
 }
 

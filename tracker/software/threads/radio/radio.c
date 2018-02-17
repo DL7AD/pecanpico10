@@ -34,7 +34,7 @@ void start_rx_thread(uint32_t freq, uint8_t rssi) {
 	if(freq == FREQ_APRS_DYNAMIC)
 		f = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
 	else
-		f = config.rx.radio_conf.freq;
+		f = freq;
 
 	// Start transceiver
 	Si446x_receive(f, rssi, MOD_AFSK);

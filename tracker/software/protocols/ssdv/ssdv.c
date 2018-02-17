@@ -1391,7 +1391,7 @@ char ssdv_dec_is_packet(uint8_t *packet, int *errors)
 		x = crc32(&pkt[1], pkt_size_crcdata);
 		
 		i = 1 + pkt_size_crcdata;
-		if(x == (pkt[i + 3] | (pkt[i + 2] << 8) | (pkt[i + 1] << 16) | (pkt[i] << 24)))
+		if(x == (uint32_t)(pkt[i + 3] | (pkt[i + 2] << 8) | (pkt[i + 1] << 16) | (pkt[i] << 24)))
 		{
 			/* Valid, set the type and continue */
 			type = SSDV_TYPE_NOFEC;
@@ -1410,7 +1410,7 @@ char ssdv_dec_is_packet(uint8_t *packet, int *errors)
 		x = crc32(&pkt[1], pkt_size_crcdata);
 		
 		i = 1 + pkt_size_crcdata;
-		if(x == (pkt[i + 3] | (pkt[i + 2] << 8) | (pkt[i + 1] << 16) | (pkt[i] << 24)))
+		if(x == (uint32_t)(pkt[i + 3] | (pkt[i + 2] << 8) | (pkt[i + 1] << 16) | (pkt[i] << 24)))
 		{
 			/* Valid, set the type and continue */
 			type = SSDV_TYPE_NORMAL;
@@ -1429,7 +1429,7 @@ char ssdv_dec_is_packet(uint8_t *packet, int *errors)
 		x = crc32(&pkt[1], pkt_size_crcdata);
 		
 		i = 1 + pkt_size_crcdata;
-		if(x == (pkt[i + 3] | (pkt[i + 2] << 8) | (pkt[i + 1] << 16) | (pkt[i] << 24)))
+		if(x == (uint32_t)(pkt[i + 3] | (pkt[i + 2] << 8) | (pkt[i + 1] << 16) | (pkt[i] << 24)))
 		{
 			/* Valid, set the type and continue */
 			type = SSDV_TYPE_PADDING;
@@ -1453,7 +1453,7 @@ char ssdv_dec_is_packet(uint8_t *packet, int *errors)
 		x = crc32(&pkt[1], pkt_size_crcdata);
 		
 		i = 1 + pkt_size_crcdata;
-		if(x == (pkt[i + 3] | (pkt[i + 2] << 8) | (pkt[i + 1] << 16) | (pkt[i] << 24)))
+		if(x == (uint32_t)(pkt[i + 3] | (pkt[i + 2] << 8) | (pkt[i + 1] << 16) | (pkt[i] << 24)))
 		{
 			/* Valid, set the type and continue */
 			type = SSDV_TYPE_NORMAL;

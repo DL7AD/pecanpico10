@@ -14,6 +14,7 @@
 #include "watchdog.h"
 #include "pi2c.h"
 #include "si446x.h"
+#include "log.h"
 
 static trackPoint_t trackPoints[2];
 static trackPoint_t* lastTrackPoint;
@@ -26,99 +27,6 @@ static bool tracking_useGPS = false;
 trackPoint_t* getLastTrackPoint(void)
 {
 	return lastTrackPoint;
-}
-
-trackPoint_t* getLogBuffer(uint16_t id)
-{
-	if(sizeof(trackPoint_t)*id < LOG_SECTOR_SIZE-sizeof(trackPoint_t))
-	{
-		return (trackPoint_t*)(LOG_FLASH_ADDR1 + id * sizeof(trackPoint_t));
-	} else if((id-(LOG_SECTOR_SIZE/sizeof(trackPoint_t)))*sizeof(trackPoint_t) < LOG_SECTOR_SIZE-sizeof(trackPoint_t)) {
-		return (trackPoint_t*)(LOG_FLASH_ADDR2 + (id-(LOG_SECTOR_SIZE/sizeof(trackPoint_t))) * sizeof(trackPoint_t));
-	} else { // Outside of memory address allocation
-		return NULL;
-	}
-}
-
-/**
-  * Returns next free log entry address in memory. Returns 0 if all cells are
-  * filled with data
-  */
-static trackPoint_t* getNextFreeLogAddress(void)
-{
-	trackPoint_t* tp;
-	for(uint16_t i=0; (tp = getLogBuffer(i)) != NULL; i++)
-		if(tp->id == 0xFFFFFFFF)
-			return tp;
-
-	return NULL;
-}
-
-/**
-  * Returns next free log entry address in memory. Returns 0 if all cells are
-  * filled with data
-  */
-static trackPoint_t* getLastLog(void)
-{
-	trackPoint_t* last = NULL;
-	trackPoint_t* tp;
-	for(uint16_t i=0; (tp = getLogBuffer(i)) != NULL; i++) {
-		if(tp->id == 0xFFFFFFFF)
-			return last; // Found last entry
-		last = tp;
-	}
-	if(last->id != 0xFFFFFFFF)
-		return last; // All memory entries are use, so the very last one must be the most recent one.
-	return NULL; // There is no log entry in memory
-}
-
-/**
-  * Erases oldest data
-  */
-static void eraseOldestLogData(void)
-{
-	// Determine which sector holds the oldest data
-	trackPoint_t pt1, pt2;
-	flashRead(LOG_FLASH_ADDR1, (char*)&pt1, sizeof(trackPoint_t));
-	flashRead(LOG_FLASH_ADDR2, (char*)&pt2, sizeof(trackPoint_t));
-
-	if(pt1.id < pt2.id) // Erase sector 10
-	{
-		TRACE_INFO("TRAC > Erase flash %08x", LOG_FLASH_ADDR1);
-		flashErase(LOG_FLASH_ADDR1, LOG_SECTOR_SIZE);
-	} else { // Erase sector 11
-		TRACE_INFO("TRAC > Erase flash %08x", LOG_FLASH_ADDR2);
-		flashErase(LOG_FLASH_ADDR2, LOG_SECTOR_SIZE);
-	}
-}
-
-static void writeLogTrackPoint(trackPoint_t* tp)
-{
-	// Get address to write on
-	trackPoint_t* address = getNextFreeLogAddress();
-	if(address == NULL) // Memory completly used, erase oldest data
-	{
-		eraseOldestLogData();
-		address = getNextFreeLogAddress();
-	}
-	if(address == NULL) // Something went wront at erasing the memory
-	{
-		TRACE_ERROR("TRAC > Erasing flash failed");
-		return;
-	}
-
-	// Write data into flash
-	TRACE_INFO("TRAC > Flash write (ADDR=%08x)", address);
-	flashSectorBegin(flashSectorAt((uint32_t)address));
-	flashWrite((uint32_t)address, (char*)tp, sizeof(trackPoint_t));
-	flashSectorEnd(flashSectorAt((uint32_t)address));
-
-	// Verify
-	if(flashCompare((uint32_t)address, (char*)tp, sizeof(trackPoint_t))) {
-		TRACE_INFO("TRAC > Flash write OK");
-	} else {
-		TRACE_ERROR("TRAC > Flash write failed");
-	}
 }
 
 void waitForNewTrackPoint(void)
@@ -140,7 +48,7 @@ static void aquirePosition(trackPoint_t* tp, trackPoint_t* ltp, sysinterval_t ti
 	uint16_t batt = stm32_get_vbat();
 	if(!tracking_useGPS) { // No position thread running
 		tp->gps_lock = GPS_OFF;
-	} else if(batt < config.gps_on_vbat) {
+	} else if(batt < conf_sram.gps_on_vbat) {
 		tp->gps_lock = GPS_LOWBATT1;
 	} else {
 
@@ -152,9 +60,9 @@ static void aquirePosition(trackPoint_t* tp, trackPoint_t* ltp, sysinterval_t ti
 			do {
 				batt = stm32_get_vbat();
 				gps_get_fix(&gpsFix);
-			} while(!isGPSLocked(&gpsFix) && batt >= config.gps_off_vbat && chVTGetSystemTime() <= start + timeout); // Do as long no GPS lock and within timeout, timeout=cycle-1sec (-3sec in order to keep synchronization)
+			} while(!isGPSLocked(&gpsFix) && batt >= conf_sram.gps_off_vbat && chVTGetSystemTime() <= start + timeout); // Do as long no GPS lock and within timeout, timeout=cycle-1sec (-3sec in order to keep synchronization)
 
-			if(batt < config.gps_off_vbat) { // GPS was switched on but prematurely switched off because the battery is low on power, switch off GPS
+			if(batt < conf_sram.gps_off_vbat) { // GPS was switched on but prematurely switched off because the battery is low on power, switch off GPS
 
 				GPS_Deinit();
 				TRACE_WARN("TRAC > GPS sampling finished GPS LOW BATT");
@@ -171,8 +79,8 @@ static void aquirePosition(trackPoint_t* tp, trackPoint_t* ltp, sysinterval_t ti
 				if(timeout < TIME_S2I(60)) {
 					TRACE_INFO("TRAC > Keep GPS switched on because cycle < 60sec");
 					tp->gps_lock = GPS_LOCKED2;
-				} else if(config.gps_onper_vbat != 0 && batt >= config.gps_onper_vbat) {
-					TRACE_INFO("TRAC > Keep GPS switched on because VBAT >= %dmV", config.gps_onper_vbat);
+				} else if(conf_sram.gps_onper_vbat != 0 && batt >= conf_sram.gps_onper_vbat) {
+					TRACE_INFO("TRAC > Keep GPS switched on because VBAT >= %dmV", conf_sram.gps_onper_vbat);
 					tp->gps_lock = GPS_LOCKED2;
 				} else {
 					TRACE_INFO("TRAC > Switch off GPS");
@@ -318,7 +226,7 @@ THD_FUNCTION(trackingThread, arg) {
 
 	// Get last tracking point from memory
 	TRACE_INFO("TRAC > Read last track point from flash memory");
-	trackPoint_t* lastLogPoint = getLastLog();
+	trackPoint_t* lastLogPoint = getNewestLogEntry();
 
 	if(lastLogPoint != NULL) { // If there has been stored a trackpoint, then get the last know GPS fix
 		trackPoints[0].reset     = lastLogPoint->reset+1;
@@ -367,12 +275,12 @@ THD_FUNCTION(trackingThread, arg) {
 
 		// Determine cycle time
 		sysinterval_t track_cycle_time = TIME_S2I(600);
-		if(config.pos_pri.thread_conf.active && config.pos_sec.thread_conf.active) { // Both position threads are active
-			track_cycle_time = config.pos_pri.thread_conf.cycle < config.pos_sec.thread_conf.cycle ? config.pos_pri.thread_conf.cycle : config.pos_sec.thread_conf.cycle; // Choose the smallest cycle
-		} else if(config.pos_pri.thread_conf.active) { // Only primary position thread is active
-			track_cycle_time = config.pos_pri.thread_conf.cycle;
-		} else if(config.pos_sec.thread_conf.active) { // Only secondary position thread is active
-			track_cycle_time = config.pos_pri.thread_conf.cycle;
+		if(conf_sram.pos_pri.thread_conf.active && conf_sram.pos_sec.thread_conf.active) { // Both position threads are active
+			track_cycle_time = conf_sram.pos_pri.thread_conf.cycle < conf_sram.pos_sec.thread_conf.cycle ? conf_sram.pos_pri.thread_conf.cycle : conf_sram.pos_sec.thread_conf.cycle; // Choose the smallest cycle
+		} else if(conf_sram.pos_pri.thread_conf.active) { // Only primary position thread is active
+			track_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
+		} else if(conf_sram.pos_sec.thread_conf.active) { // Only secondary position thread is active
+			track_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
 		} else { // There must be an error
 			TRACE_ERROR("TRAC > Tracking manager started but no position thread is active");
 		}

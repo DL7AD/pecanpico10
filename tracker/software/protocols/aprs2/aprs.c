@@ -210,7 +210,7 @@ static bool aprs_decode_message(packet_t pp)
 	}
 
 	// Try to find out if this message is meant for us
-	if(pinfo[10] == ':' && !strcmp(config.rx.call, dest))
+	if(pinfo[10] == ':' && !strcmp(conf_sram.rx.call, dest))
 	{
 		char msg_id_rx[8];
 		memset(msg_id_rx, 0, sizeof(msg_id_rx));
@@ -258,22 +258,22 @@ static bool aprs_decode_message(packet_t pp)
 
 			TRACE_INFO("Message: Position query");
 			trackPoint_t* trackPoint = getLastTrackPoint();
-			packet_t pp = aprs_encode_position(config.rx.call, config.rx.path, config.rx.symbol, trackPoint);
-			transmitOnRadio(pp, config.rx.radio_conf.freq, config.rx.radio_conf.pwr, config.rx.radio_conf.mod);
+			packet_t pp = aprs_encode_position(conf_sram.rx.call, conf_sram.rx.path, conf_sram.rx.symbol, trackPoint);
+			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
 
 		} else if(!strcmp(command, "?APRSD")) { // Transmit position
 
 			TRACE_INFO("Message: Directs query");
-			packet_t pp = aprs_encode_query_answer_aprsd(config.rx.call, config.rx.path, src);
-			transmitOnRadio(pp, config.rx.radio_conf.freq, config.rx.radio_conf.pwr, config.rx.radio_conf.mod);
+			packet_t pp = aprs_encode_query_answer_aprsd(conf_sram.rx.call, conf_sram.rx.path, src);
+			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
 
 		} else if(!strcmp(command, "?RESET")) { // Transmit position
 
 			TRACE_INFO("Message: System Reset");
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
-			packet_t pp = aprs_encode_message(config.rx.call, config.rx.path, src, buf, true);
-			transmitOnRadio(pp, config.rx.radio_conf.freq, config.rx.radio_conf.pwr, config.rx.radio_conf.mod);
+			packet_t pp = aprs_encode_message(conf_sram.rx.call, conf_sram.rx.path, src, buf, true);
+			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
 			chThdSleep(TIME_S2I(5)); // Give some time to send the message
 
 			NVIC_SystemReset();
@@ -285,8 +285,8 @@ static bool aprs_decode_message(packet_t pp)
 		if(msg_id_rx[0]) { // Message ID has been sent which has to be acknowledged
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
-			packet_t pp = aprs_encode_message(config.rx.call, config.rx.path, src, buf, true);
-			transmitOnRadio(pp, config.rx.radio_conf.freq, config.rx.radio_conf.pwr, config.rx.radio_conf.mod);
+			packet_t pp = aprs_encode_message(conf_sram.rx.call, conf_sram.rx.path, src, buf, true);
+			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
 		}
 
 		return false; // Mark that message dont has to be digipeated
@@ -303,10 +303,10 @@ static void aprs_digipeat(packet_t pp)
 	}
 
 	if(!dedupe_check(pp, 0)) { // Last identical packet older than 10 seconds
-		packet_t result = digipeat_match(0, pp, config.rx.call, config.rx.call, alias_re, wide_re, 0, preempt, NULL);
+		packet_t result = digipeat_match(0, pp, conf_sram.rx.call, conf_sram.rx.call, alias_re, wide_re, 0, preempt, NULL);
 		if(result != NULL) { // Should be digipeated
 			dedupe_remember(result, 0);
-			transmitOnRadio(result, config.rx.radio_conf.freq, config.rx.radio_conf.pwr, config.rx.radio_conf.mod);
+			transmitOnRadio(result, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
 		}
 	}
 }
@@ -367,7 +367,7 @@ void aprs_decode_packet(packet_t pp)
 	if(pinfo[0] == ':') digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
 
 	// Digipeat packet
-	if(config.dig_active && digipeat) {
+	if(conf_sram.dig_active && digipeat) {
 		aprs_digipeat(pp);
 	}
 }

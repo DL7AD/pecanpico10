@@ -7,14 +7,6 @@
 #define FREQ_APRS_DYNAMIC	0
 #define CYCLE_CONTINUOUSLY	0
 
-typedef struct {
-	char callsign[AX25_MAX_ADDR_LEN];	// APRS callsign
-	uint16_t symbol;					// APRS symbol
-	char path[16];						// APRS path
-	uint16_t preamble;					// Preamble in milliseconds
-	uint16_t tel_enc_cycle;				// Telemetry encoding cycle in seconds
-	char tel_comment[64];				// Telemetry comment
-} aprs_conf_t;
 
 typedef enum {
 	SLEEP_DISABLED,
@@ -37,15 +29,6 @@ typedef enum { // Modulation type
 	MOD_2FSK
 } mod_t;
 
-typedef struct { // Radio message type
-	uint8_t* 		buffer;			// Message (data)
-	uint32_t		bin_len;		// Binary length (it bits)
-	uint8_t			power;			// Power in dBm
-	mod_t			mod;			// Modulation
-	uint32_t		speed;			// Speed
-	uint32_t		freq;			// Frequency
-} radioMSG_t;
-
 typedef enum {
 	RES_QQVGA,
 	RES_QVGA,
@@ -55,17 +38,6 @@ typedef enum {
 	RES_UXGA,
 	RES_MAX
 } resolution_t;
-
-
-
-
-
-
-
-
-
-/* ------------------------------------------- NEW ------------------------------------------- */
-
 
 typedef struct {
 	int8_t				pwr;

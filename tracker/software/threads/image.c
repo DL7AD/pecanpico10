@@ -434,7 +434,7 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size, resolution_t res, bool enab
 			size_sampled = OV5640_Snapshot2RAM(buffer, size, res);
 
 			// Switch off camera
-			if(!config.keep_cam_switched_on) {
+			if(!conf_sram.keep_cam_switched_on) {
 				OV5640_deinit();
 				camInitialized = false;
 			}

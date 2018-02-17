@@ -1,10 +1,6 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
-#define LOG_FLASH_ADDR1				0x080C0000	/* Log flash memory address 1 */
-#define LOG_FLASH_ADDR2				0x080E0000	/* Log flash memory address 2 */
-#define LOG_SECTOR_SIZE				0x20000		/* Log flash memory size */
-
 #define TRACE_TIME					TRUE		/* Enables time tracing on debugging port */
 #define TRACE_FILE					TRUE		/* Enables file and line tracing on debugging port */
 
@@ -15,7 +11,8 @@
 
 #include "types.h"
 
-extern conf_t config;
+extern conf_t conf_sram;
+extern const conf_t conf_flash;
 
 #endif
 
