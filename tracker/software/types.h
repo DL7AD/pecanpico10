@@ -124,6 +124,8 @@ typedef struct {
 	uint16_t		gps_off_vbat;			// Battery voltage threshold at which GPS is switched off
 	uint16_t		gps_onper_vbat;			// Battery voltage threshold at which GPS is kept switched on all time. This value must be larger
 											// than gps_on_vbat and gps_off_vbat otherwise this value has no effect. Value 0 disables this feature
+
+	uint32_t magic;
 } conf_t;
 
 #endif

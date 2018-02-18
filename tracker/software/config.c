@@ -5,11 +5,11 @@
 
 conf_t conf_sram;
 
-const conf_t conf_flash __attribute__((section(".flash1.__at_0x0"))) = {
+const conf_t conf_flash_default = {
 	// Primary position transmission thread
 	.pos_pri = {
 		.thread_conf = {
-			.active			= true,
+			.active			= false,
 			.cycle			= TIME_S2I(120),
 			.init_delay		= TIME_S2I(5)
 		},
@@ -111,7 +111,7 @@ const conf_t conf_flash __attribute__((section(".flash1.__at_0x0"))) = {
 	},
 	.rx = {
 		.thread_conf = {
-			.active			= false
+			.active			= true
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -125,7 +125,7 @@ const conf_t conf_flash __attribute__((section(".flash1.__at_0x0"))) = {
 		.symbol				= SYM_DIGIPEATER
 	},
 
-	.rssi					= 0x3F,
+	.rssi					= 0x4F,
 
 	.dig_active				= false,
 
@@ -133,5 +133,7 @@ const conf_t conf_flash __attribute__((section(".flash1.__at_0x0"))) = {
 
 	.gps_on_vbat			= 1000,
 	.gps_off_vbat			= 1000,
-	.gps_onper_vbat			= 1000
+	.gps_onper_vbat			= 1000,
+
+	.magic					= MAGIC // Do not remove. This is the activation bit.
 };

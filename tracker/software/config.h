@@ -12,7 +12,7 @@
 #include "types.h"
 
 extern conf_t conf_sram;
-extern const conf_t conf_flash;
+extern const conf_t conf_flash_default;
 
 #endif
 

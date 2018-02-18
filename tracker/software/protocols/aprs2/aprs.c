@@ -24,6 +24,7 @@
 #include "digipeater.h"
 #include "dedupe.h"
 #include "radio.h"
+#include "flash.h"
 
 #define METER_TO_FEET(m) (((m)*26876) / 8192)
 
@@ -237,39 +238,39 @@ static bool aprs_decode_message(packet_t pp)
 		}
 
 		// Trace
-		TRACE_INFO("APRS > Received message from %s (ID=%s): %s", src, msg_id_rx, &pinfo[11]);
+		TRACE_INFO("RX   > Received message from %s (ID=%s): %s", src, msg_id_rx, &pinfo[11]);
 
 		char *command = strupr((char*)&pinfo[11]);
 
 		// Do control actions
 		if(!strcmp(command, "?GPIO PA8:1")) { // Switch on pin
 
-			TRACE_INFO("Message: GPIO query PA8 HIGH");
+			TRACE_INFO("RX   > Message: GPIO query PA8 HIGH");
 			palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
 			palSetPad(GPIOA, 8);
 
 		} else if(!strcmp(command, "?GPIO PA8:0")) { // Switch off pin
 
-			TRACE_INFO("Message: GPIO query PA8 LOW");
+			TRACE_INFO("RX   > Message: GPIO query PA8 LOW");
 			palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
 			palClearPad(GPIOA, 8);
 
 		} else if(!strcmp(command, "?APRSP")) { // Transmit position
 
-			TRACE_INFO("Message: Position query");
+			TRACE_INFO("RX   > Message: Position query");
 			trackPoint_t* trackPoint = getLastTrackPoint();
 			packet_t pp = aprs_encode_position(conf_sram.rx.call, conf_sram.rx.path, conf_sram.rx.symbol, trackPoint);
 			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
 
 		} else if(!strcmp(command, "?APRSD")) { // Transmit position
 
-			TRACE_INFO("Message: Directs query");
+			TRACE_INFO("RX   > Message: Directs query");
 			packet_t pp = aprs_encode_query_answer_aprsd(conf_sram.rx.call, conf_sram.rx.path, src);
 			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
 
 		} else if(!strcmp(command, "?RESET")) { // Transmit position
 
-			TRACE_INFO("Message: System Reset");
+			TRACE_INFO("RX   > Message: System Reset");
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
 			packet_t pp = aprs_encode_message(conf_sram.rx.call, conf_sram.rx.path, src, buf, true);
@@ -278,8 +279,198 @@ static bool aprs_decode_message(packet_t pp)
 
 			NVIC_SystemReset();
 
+		} else if(!strcmp(command, "?SAVE")) { // Transmit position
+
+			TRACE_INFO("RX   > Message: Save");
+			flashSectorBegin(flashSectorAt(0x08060000));
+			flashErase(0x08060000, 0x20000);
+			flashWrite(0x08060000, (char*)&conf_sram, sizeof(conf_t));
+			flashSectorEnd(flashSectorAt(0x08060000));
+
+		} else if(!strncmp(command, "?CONF,P1:", 8) || !strncmp(command, "?CONF,P2:", 8)) {
+
+			thd_pos_conf_t *pc;
+			if(!strncmp(command, "?CONF,P1:", 8)) {
+				pc = &conf_sram.pos_pri;
+				TRACE_INFO("RX   > Message: Configuration query POS PRI");
+			} else {
+				pc = &conf_sram.pos_sec;
+				TRACE_INFO("RX   > Message: Configuration query POS SEC");
+			}
+
+			char *pt;
+			pt = strtok(&command[9], ";");
+			uint8_t i = 0;
+			while(pt != NULL) {
+				switch(i) {
+					case 0:
+						pc->thread_conf.active = atoi(pt);
+						TRACE_INFO("       ... active         %s", pc->thread_conf.active ? "true" : "false");
+						break;
+					case 1:
+						pc->thread_conf.init_delay = TIME_S2I(strtol(pt, NULL, 16));
+						TRACE_INFO("       ... init_delay     %ds", TIME_I2S(pc->thread_conf.init_delay));
+						break;
+					case 2:
+						pc->thread_conf.packet_spacing = TIME_S2I(strtol(pt, NULL, 16));
+						TRACE_INFO("       ... packet_spacing %ds", TIME_I2S(pc->thread_conf.packet_spacing));
+						break;
+					case 3:
+						pc->thread_conf.sleep_conf.type = atoi(pt);
+						TRACE_INFO("       ... sleep_conf     %d", pc->thread_conf.sleep_conf.type);
+						break;
+					case 4:
+						pc->thread_conf.sleep_conf.vbat_thres = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... vbat_thres     %dmV", pc->thread_conf.sleep_conf.vbat_thres);
+						break;
+					case 5:
+						pc->thread_conf.sleep_conf.vsol_thres = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... vsol_thres     %dmV", pc->thread_conf.sleep_conf.vsol_thres);
+						break;
+					case 6:
+						pc->thread_conf.cycle = TIME_S2I(strtol(pt, NULL, 16));
+						TRACE_INFO("       ... cycle          %ds", TIME_I2S(pc->thread_conf.cycle));
+						break;
+					case 7:
+						pc->radio_conf.pwr = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... pwr            %d", pc->radio_conf.pwr);
+						break;
+					case 8:
+						pc->radio_conf.freq = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... freq           %dHz", pc->radio_conf.freq);
+						break;
+					case 9:
+						pc->radio_conf.mod = atoi(pt);
+						TRACE_INFO("       ... mod            %d", pc->radio_conf.mod);
+						break;
+					case 10:
+						pc->radio_conf.preamble = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... preamble       %dms", pc->radio_conf.preamble);
+						break;
+					case 11:
+						pc->radio_conf.speed = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... speed          %dbaud", pc->radio_conf.speed);
+						break;
+					case 12:
+						pc->radio_conf.redundantTx = atoi(pt);
+						TRACE_INFO("       ... redundantTx    %s", pc->radio_conf.redundantTx ? "true" : "false");
+						break;
+					case 13:
+						strncpy(pc->call, pt, sizeof(pc->call)-1);
+						TRACE_INFO("       ... call           %s", pc->call);
+						break;
+					case 14:
+						strncpy(pc->path, pt, sizeof(pc->call)-1);
+						TRACE_INFO("       ... path           %s", pc->path);
+						break;
+					case 15:
+						pc->symbol = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... symbol         %04x", pc->symbol);
+						break;
+					case 16:
+						pc->tel_enc_cycle = TIME_S2I(strtol(pt, NULL, 16));
+						TRACE_INFO("       ... tel_enc_cycle  %ds", TIME_I2S(pc->tel_enc_cycle));
+						break;
+				}
+				i++;
+				pt = strtok(NULL, ";");
+			}
+
+		} else if(!strncmp(command, "?CONF,I1:", 8) || !strncmp(command, "?CONF,I2:", 8)) {
+
+			thd_img_conf_t *ic;
+			if(!strncmp(command, "?CONF,I1:", 8)) {
+				ic = &conf_sram.img_pri;
+				TRACE_INFO("RX   > Message: Configuration query IMG PRI");
+			} else {
+				ic = &conf_sram.img_sec;
+				TRACE_INFO("RX   > Message: Configuration query IMG SEC");
+			}
+
+			char *pt;
+			pt = strtok(&command[9], ";");
+			uint8_t i = 0;
+			while(pt != NULL) {
+				switch(i) {
+					case 0:
+						ic->thread_conf.active = atoi(pt);
+						TRACE_INFO("       ... active         %s", ic->thread_conf.active ? "true" : "false");
+						break;
+					case 1:
+						ic->thread_conf.init_delay = TIME_S2I(strtol(pt, NULL, 16));
+						TRACE_INFO("       ... init_delay     %ds", TIME_I2S(ic->thread_conf.init_delay));
+						break;
+					case 2:
+						ic->thread_conf.packet_spacing = TIME_S2I(strtol(pt, NULL, 16));
+						TRACE_INFO("       ... packet_spacing %ds", TIME_I2S(ic->thread_conf.packet_spacing));
+						break;
+					case 3:
+						ic->thread_conf.sleep_conf.type = atoi(pt);
+						TRACE_INFO("       ... sleep_conf     %d", ic->thread_conf.sleep_conf.type);
+						break;
+					case 4:
+						ic->thread_conf.sleep_conf.vbat_thres = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... vbat_thres     %dmV", ic->thread_conf.sleep_conf.vbat_thres);
+						break;
+					case 5:
+						ic->thread_conf.sleep_conf.vsol_thres = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... vsol_thres     %dmV", ic->thread_conf.sleep_conf.vsol_thres);
+						break;
+					case 6:
+						ic->thread_conf.cycle = TIME_S2I(strtol(pt, NULL, 16));
+						TRACE_INFO("       ... cycle          %ds", TIME_I2S(ic->thread_conf.cycle));
+						break;
+					case 7:
+						ic->radio_conf.pwr = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... pwr            %d", ic->radio_conf.pwr);
+						break;
+					case 8:
+						ic->radio_conf.freq = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... freq           %dHz", ic->radio_conf.freq);
+						break;
+					case 9:
+						ic->radio_conf.mod = atoi(pt);
+						TRACE_INFO("       ... mod            %d", ic->radio_conf.mod);
+						break;
+					case 10:
+						ic->radio_conf.preamble = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... preamble       %dms", ic->radio_conf.preamble);
+						break;
+					case 11:
+						ic->radio_conf.speed = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... speed          %dbaud", ic->radio_conf.speed);
+						break;
+					case 12:
+						ic->radio_conf.redundantTx = atoi(pt);
+						TRACE_INFO("       ... redundantTx    %s", ic->radio_conf.redundantTx ? "true" : "false");
+						break;
+					case 13:
+						strncpy(ic->call, pt, sizeof(ic->call)-1);
+						TRACE_INFO("       ... call           %s", ic->call);
+						break;
+					case 14:
+						strncpy(ic->path, pt, sizeof(ic->call)-1);
+						TRACE_INFO("       ... path           %s", ic->path);
+						break;
+					case 15:
+						ic->res = atoi(pt);
+						TRACE_INFO("       ... res            %d", ic->res);
+						break;
+					case 16:
+						ic->quality = atoi(pt);
+						TRACE_INFO("       ... quality        %d", ic->quality);
+						break;
+					case 17:
+						ic->buf_size = strtol(pt, NULL, 16);
+						TRACE_INFO("       ... buf_size       %dbyte", ic->buf_size);
+						break;
+				}
+				i++;
+				pt = strtok(NULL, ";");
+			}
+
 		} else {
-			TRACE_ERROR("Command Message not understood");
+			TRACE_ERROR("RX   > Command Message not understood");
 		}
 
 		if(msg_id_rx[0]) { // Message ID has been sent which has to be acknowledged
