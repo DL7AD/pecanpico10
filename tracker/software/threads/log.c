@@ -22,7 +22,9 @@
 #define LOG_RSTandID(tp)		(((uint64_t)(tp)->reset << 32) & (tp)->id)
 #define LOG_IS_EMPTY(tp)		((tp)->id == 0xFFFFFFFF && (tp)->reset == 0xFFFF)
 
-trackPoint_t* getLogBuffer(uint16_t id)
+static uint16_t log_id = 0;
+
+static trackPoint_t* getLogBuffer(uint16_t id)
 {
 	uint32_t addr = LOG_FLASH_ADDR + LOG_SECTOR_ID(id) * 0x20000 + LOG_POS_IN_SECTOR(id) * sizeof(trackPoint_t);
 	if(addr >= LOG_FLASH_ADDR && addr <= LOG_FLASH_ADDR+LOG_FLASH_SIZE-sizeof(trackPoint_t))
@@ -117,16 +119,14 @@ void writeLogTrackPoint(trackPoint_t* tp)
 	}
 }
 
-uint16_t log_id = 0;
-
-trackPoint_t* getNextLogTrackPoint(void)
+static trackPoint_t* getNextLogTrackPoint(uint8_t density)
 {
 	// Determine sector
 	trackPoint_t *tp;
 	uint32_t i = 0;
 	do {
 		if((tp = getLogBuffer(log_id))) {
-			log_id++;
+			log_id += density;
 		} else {
 			log_id = 0;
 			tp = getLogBuffer(0);
@@ -151,7 +151,7 @@ THD_FUNCTION(logThread, arg)
 		if(!p_sleep(&conf->thread_conf.sleep_conf))
 		{
 			// Get log from memory
-			trackPoint_t *log = getNextLogTrackPoint();
+			trackPoint_t *log = getNextLogTrackPoint(conf->density);
 
 			if(log) {
 				// Encode Base91

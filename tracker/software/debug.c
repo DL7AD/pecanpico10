@@ -87,7 +87,7 @@ void readLog(BaseSequentialStream *chp, int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 
-	chprintf(chp, "addr,id,time,lat,lon,alt,sats,ttff,vbat,vsol,vsub,pbat,rbat,press,temp,hum,idimg\r\n");
+	/*chprintf(chp, "addr,id,time,lat,lon,alt,sats,ttff,vbat,vsol,vsub,pbat,rbat,press,temp,hum,idimg\r\n");
 
 	trackPoint_t *tp;
 	for(uint16_t i=0; (tp = getLogBuffer(i)) != NULL; i++)
@@ -101,7 +101,9 @@ void readLog(BaseSequentialStream *chp, int argc, char *argv[])
 						tp->adc_vbat/1000, (tp->adc_vbat%1000), tp->adc_vsol/1000, (tp->adc_vsol%1000), tp->pac_pbat,
 						tp->sen_i1_press/10, tp->sen_i1_press%10, tp->sen_i1_temp/100, tp->sen_i1_temp%100, tp->sen_i1_hum/10, tp->sen_i1_hum%10
 			);
-		}
+		}*/
+
+	chprintf(chp, "TODO: Not implemented\r\n");
 }
 
 void printConfig(BaseSequentialStream *chp, int argc, char *argv[])

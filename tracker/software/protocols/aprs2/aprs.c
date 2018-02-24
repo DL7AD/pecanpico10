@@ -41,6 +41,125 @@ enum preempt_e preempt = PREEMPT_OFF;
 static heard_t heard_list[20];
 static bool dedupe_initialized;
 
+const conf_command_t command_list[] = {
+	{TYPE_INT,  "pos_pri.active",                sizeof(conf_sram.pos_pri.thread_conf.active),                &conf_sram.pos_pri.thread_conf.active               },
+	{TYPE_TIME, "pos_pri.init_delay",            sizeof(conf_sram.pos_pri.thread_conf.init_delay),            &conf_sram.pos_pri.thread_conf.init_delay           },
+	{TYPE_TIME, "pos_pri.packet_spacing",        sizeof(conf_sram.pos_pri.thread_conf.packet_spacing),        &conf_sram.pos_pri.thread_conf.packet_spacing       },
+	{TYPE_INT,  "pos_pri.sleep_conf.type",       sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.type),       &conf_sram.pos_pri.thread_conf.sleep_conf.type      },
+	{TYPE_INT,  "pos_pri.sleep_conf.vbat_thres", sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.vbat_thres), &conf_sram.pos_pri.thread_conf.sleep_conf.vbat_thres},
+	{TYPE_INT,  "pos_pri.sleep_conf.vsol_thres", sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.vsol_thres), &conf_sram.pos_pri.thread_conf.sleep_conf.vsol_thres},
+	{TYPE_TIME, "pos_pri.cycle",                 sizeof(conf_sram.pos_pri.thread_conf.cycle),                 &conf_sram.pos_pri.thread_conf.cycle                },
+	{TYPE_INT,  "pos_pri.pwr",                   sizeof(conf_sram.pos_pri.radio_conf.pwr),                    &conf_sram.pos_pri.radio_conf.pwr                   },
+	{TYPE_INT,  "pos_pri.freq",                  sizeof(conf_sram.pos_pri.radio_conf.freq),                   &conf_sram.pos_pri.radio_conf.freq                  },
+	{TYPE_INT,  "pos_pri.mod",                   sizeof(conf_sram.pos_pri.radio_conf.mod),                    &conf_sram.pos_pri.radio_conf.mod                   },
+	{TYPE_INT,  "pos_pri.preamble",              sizeof(conf_sram.pos_pri.radio_conf.preamble),               &conf_sram.pos_pri.radio_conf.preamble              },
+	{TYPE_INT,  "pos_pri.speed",                 sizeof(conf_sram.pos_pri.radio_conf.speed),                  &conf_sram.pos_pri.radio_conf.speed                 },
+	{TYPE_INT,  "pos_pri.redundantTx",           sizeof(conf_sram.pos_pri.radio_conf.redundantTx),            &conf_sram.pos_pri.radio_conf.redundantTx           },
+	{TYPE_STR,  "pos_pri.call",                  sizeof(conf_sram.pos_pri.call),                              &conf_sram.pos_pri.call                             },
+	{TYPE_STR,  "pos_pri.path",                  sizeof(conf_sram.pos_pri.path),                              &conf_sram.pos_pri.path                             },
+	{TYPE_INT,  "pos_pri.symbol",                sizeof(conf_sram.pos_pri.symbol),                            &conf_sram.pos_pri.symbol                           },
+	{TYPE_TIME, "pos_pri.tel_enc_cycle",         sizeof(conf_sram.pos_pri.tel_enc_cycle),                     &conf_sram.pos_pri.tel_enc_cycle                    },
+
+	{TYPE_INT,  "pos_sec.active",                sizeof(conf_sram.pos_sec.thread_conf.active),                &conf_sram.pos_sec.thread_conf.active               },
+	{TYPE_TIME, "pos_sec.init_delay",            sizeof(conf_sram.pos_sec.thread_conf.init_delay),            &conf_sram.pos_sec.thread_conf.init_delay           },
+	{TYPE_TIME, "pos_sec.packet_spacing",        sizeof(conf_sram.pos_sec.thread_conf.packet_spacing),        &conf_sram.pos_sec.thread_conf.packet_spacing       },
+	{TYPE_INT,  "pos_sec.sleep_conf.type",       sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.type),       &conf_sram.pos_sec.thread_conf.sleep_conf.type      },
+	{TYPE_INT,  "pos_sec.sleep_conf.vbat_thres", sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.vbat_thres), &conf_sram.pos_sec.thread_conf.sleep_conf.vbat_thres},
+	{TYPE_INT,  "pos_sec.sleep_conf.vsol_thres", sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.vsol_thres), &conf_sram.pos_sec.thread_conf.sleep_conf.vsol_thres},
+	{TYPE_TIME, "pos_sec.cycle",                 sizeof(conf_sram.pos_sec.thread_conf.cycle),                 &conf_sram.pos_sec.thread_conf.cycle                },
+	{TYPE_INT,  "pos_sec.pwr",                   sizeof(conf_sram.pos_sec.radio_conf.pwr),                    &conf_sram.pos_sec.radio_conf.pwr                   },
+	{TYPE_INT,  "pos_sec.freq",                  sizeof(conf_sram.pos_sec.radio_conf.freq),                   &conf_sram.pos_sec.radio_conf.freq                  },
+	{TYPE_INT,  "pos_sec.mod",                   sizeof(conf_sram.pos_sec.radio_conf.mod),                    &conf_sram.pos_sec.radio_conf.mod                   },
+	{TYPE_INT,  "pos_sec.preamble",              sizeof(conf_sram.pos_sec.radio_conf.preamble),               &conf_sram.pos_sec.radio_conf.preamble              },
+	{TYPE_INT,  "pos_sec.speed",                 sizeof(conf_sram.pos_sec.radio_conf.speed),                  &conf_sram.pos_sec.radio_conf.speed                 },
+	{TYPE_INT,  "pos_sec.redundantTx",           sizeof(conf_sram.pos_sec.radio_conf.redundantTx),            &conf_sram.pos_sec.radio_conf.redundantTx           },
+	{TYPE_STR,  "pos_sec.call",                  sizeof(conf_sram.pos_sec.call),                              &conf_sram.pos_sec.call                             },
+	{TYPE_STR,  "pos_sec.path",                  sizeof(conf_sram.pos_sec.path),                              &conf_sram.pos_sec.path                             },
+	{TYPE_INT,  "pos_sec.symbol",                sizeof(conf_sram.pos_sec.symbol),                            &conf_sram.pos_sec.symbol                           },
+	{TYPE_TIME, "pos_sec.tel_enc_cycle",         sizeof(conf_sram.pos_sec.tel_enc_cycle),                     &conf_sram.pos_sec.tel_enc_cycle                    },
+
+	{TYPE_INT,  "img_pri.active",                sizeof(conf_sram.img_pri.thread_conf.active),                &conf_sram.img_pri.thread_conf.active               },
+	{TYPE_TIME, "img_pri.init_delay",            sizeof(conf_sram.img_pri.thread_conf.init_delay),            &conf_sram.img_pri.thread_conf.init_delay           },
+	{TYPE_TIME, "img_pri.packet_spacing",        sizeof(conf_sram.img_pri.thread_conf.packet_spacing),        &conf_sram.img_pri.thread_conf.packet_spacing       },
+	{TYPE_INT,  "img_pri.sleep_conf.type",       sizeof(conf_sram.img_pri.thread_conf.sleep_conf.type),       &conf_sram.img_pri.thread_conf.sleep_conf.type      },
+	{TYPE_INT,  "img_pri.sleep_conf.vbat_thres", sizeof(conf_sram.img_pri.thread_conf.sleep_conf.vbat_thres), &conf_sram.img_pri.thread_conf.sleep_conf.vbat_thres},
+	{TYPE_INT,  "img_pri.sleep_conf.vsol_thres", sizeof(conf_sram.img_pri.thread_conf.sleep_conf.vsol_thres), &conf_sram.img_pri.thread_conf.sleep_conf.vsol_thres},
+	{TYPE_TIME, "img_pri.cycle",                 sizeof(conf_sram.img_pri.thread_conf.cycle),                 &conf_sram.img_pri.thread_conf.cycle                },
+	{TYPE_INT,  "img_pri.pwr",                   sizeof(conf_sram.img_pri.radio_conf.pwr),                    &conf_sram.img_pri.radio_conf.pwr                   },
+	{TYPE_INT,  "img_pri.freq",                  sizeof(conf_sram.img_pri.radio_conf.freq),                   &conf_sram.img_pri.radio_conf.freq                  },
+	{TYPE_INT,  "img_pri.mod",                   sizeof(conf_sram.img_pri.radio_conf.mod),                    &conf_sram.img_pri.radio_conf.mod                   },
+	{TYPE_INT,  "img_pri.preamble",              sizeof(conf_sram.img_pri.radio_conf.preamble),               &conf_sram.img_pri.radio_conf.preamble              },
+	{TYPE_INT,  "img_pri.speed",                 sizeof(conf_sram.img_pri.radio_conf.speed),                  &conf_sram.img_pri.radio_conf.speed                 },
+	{TYPE_INT,  "img_pri.redundantTx",           sizeof(conf_sram.img_pri.radio_conf.redundantTx),            &conf_sram.img_pri.radio_conf.redundantTx           },
+	{TYPE_STR,  "img_pri.call",                  sizeof(conf_sram.img_pri.call),                              &conf_sram.img_pri.call                             },
+	{TYPE_STR,  "img_pri.path",                  sizeof(conf_sram.img_pri.path),                              &conf_sram.img_pri.path                             },
+	{TYPE_INT,  "img_pri.res",                   sizeof(conf_sram.img_pri.res),                               &conf_sram.img_pri.res                              },
+	{TYPE_INT,  "img_pri.quality",               sizeof(conf_sram.img_pri.quality),                           &conf_sram.img_pri.quality                          },
+	{TYPE_INT,  "img_pri.buf_size",              sizeof(conf_sram.img_pri.buf_size),                          &conf_sram.img_pri.buf_size                         },
+
+	{TYPE_INT,  "img_sec.active",                sizeof(conf_sram.img_sec.thread_conf.active),                &conf_sram.img_sec.thread_conf.active               },
+	{TYPE_TIME, "img_sec.init_delay",            sizeof(conf_sram.img_sec.thread_conf.init_delay),            &conf_sram.img_sec.thread_conf.init_delay           },
+	{TYPE_TIME, "img_sec.packet_spacing",        sizeof(conf_sram.img_sec.thread_conf.packet_spacing),        &conf_sram.img_sec.thread_conf.packet_spacing       },
+	{TYPE_INT,  "img_sec.sleep_conf.type",       sizeof(conf_sram.img_sec.thread_conf.sleep_conf.type),       &conf_sram.img_sec.thread_conf.sleep_conf.type      },
+	{TYPE_INT,  "img_sec.sleep_conf.vbat_thres", sizeof(conf_sram.img_sec.thread_conf.sleep_conf.vbat_thres), &conf_sram.img_sec.thread_conf.sleep_conf.vbat_thres},
+	{TYPE_INT,  "img_sec.sleep_conf.vsol_thres", sizeof(conf_sram.img_sec.thread_conf.sleep_conf.vsol_thres), &conf_sram.img_sec.thread_conf.sleep_conf.vsol_thres},
+	{TYPE_TIME, "img_sec.cycle",                 sizeof(conf_sram.img_sec.thread_conf.cycle),                 &conf_sram.img_sec.thread_conf.cycle                },
+	{TYPE_INT,  "img_sec.pwr",                   sizeof(conf_sram.img_sec.radio_conf.pwr),                    &conf_sram.img_sec.radio_conf.pwr                   },
+	{TYPE_INT,  "img_sec.freq",                  sizeof(conf_sram.img_sec.radio_conf.freq),                   &conf_sram.img_sec.radio_conf.freq                  },
+	{TYPE_INT,  "img_sec.mod",                   sizeof(conf_sram.img_sec.radio_conf.mod),                    &conf_sram.img_sec.radio_conf.mod                   },
+	{TYPE_INT,  "img_sec.preamble",              sizeof(conf_sram.img_sec.radio_conf.preamble),               &conf_sram.img_sec.radio_conf.preamble              },
+	{TYPE_INT,  "img_sec.speed",                 sizeof(conf_sram.img_sec.radio_conf.speed),                  &conf_sram.img_sec.radio_conf.speed                 },
+	{TYPE_INT,  "img_sec.redundantTx",           sizeof(conf_sram.img_sec.radio_conf.redundantTx),            &conf_sram.img_sec.radio_conf.redundantTx           },
+	{TYPE_STR,  "img_sec.call",                  sizeof(conf_sram.img_sec.call),                              &conf_sram.img_sec.call                             },
+	{TYPE_STR,  "img_sec.path",                  sizeof(conf_sram.img_sec.path),                              &conf_sram.img_sec.path                             },
+	{TYPE_INT,  "img_sec.res",                   sizeof(conf_sram.img_sec.res),                               &conf_sram.img_sec.res                              },
+	{TYPE_INT,  "img_sec.quality",               sizeof(conf_sram.img_sec.quality),                           &conf_sram.img_sec.quality                          },
+	{TYPE_INT,  "img_sec.buf_size",              sizeof(conf_sram.img_sec.buf_size),                          &conf_sram.img_sec.buf_size                         },
+
+	{TYPE_INT,  "log.active",                    sizeof(conf_sram.log.thread_conf.active),                    &conf_sram.log.thread_conf.active                   },
+	{TYPE_TIME, "log.init_delay",                sizeof(conf_sram.log.thread_conf.init_delay),                &conf_sram.log.thread_conf.init_delay               },
+	{TYPE_TIME, "log.packet_spacing",            sizeof(conf_sram.log.thread_conf.packet_spacing),            &conf_sram.log.thread_conf.packet_spacing           },
+	{TYPE_INT,  "log.sleep_conf.type",           sizeof(conf_sram.log.thread_conf.sleep_conf.type),           &conf_sram.log.thread_conf.sleep_conf.type          },
+	{TYPE_INT,  "log.sleep_conf.vbat_thres",     sizeof(conf_sram.log.thread_conf.sleep_conf.vbat_thres),     &conf_sram.log.thread_conf.sleep_conf.vbat_thres    },
+	{TYPE_INT,  "log.sleep_conf.vsol_thres",     sizeof(conf_sram.log.thread_conf.sleep_conf.vsol_thres),     &conf_sram.log.thread_conf.sleep_conf.vsol_thres    },
+	{TYPE_TIME, "log.cycle",                     sizeof(conf_sram.log.thread_conf.cycle),                     &conf_sram.log.thread_conf.cycle                    },
+	{TYPE_INT,  "log.pwr",                       sizeof(conf_sram.log.radio_conf.pwr),                        &conf_sram.log.radio_conf.pwr                       },
+	{TYPE_INT,  "log.freq",                      sizeof(conf_sram.log.radio_conf.freq),                       &conf_sram.log.radio_conf.freq                      },
+	{TYPE_INT,  "log.mod",                       sizeof(conf_sram.log.radio_conf.mod),                        &conf_sram.log.radio_conf.mod                       },
+	{TYPE_INT,  "log.preamble",                  sizeof(conf_sram.log.radio_conf.preamble),                   &conf_sram.log.radio_conf.preamble                  },
+	{TYPE_INT,  "log.speed",                     sizeof(conf_sram.log.radio_conf.speed),                      &conf_sram.log.radio_conf.speed                     },
+	{TYPE_INT,  "log.redundantTx",               sizeof(conf_sram.log.radio_conf.redundantTx),                &conf_sram.log.radio_conf.redundantTx               },
+	{TYPE_STR,  "log.call",                      sizeof(conf_sram.log.call),                                  &conf_sram.log.call                                 },
+	{TYPE_STR,  "log.path",                      sizeof(conf_sram.log.path),                                  &conf_sram.log.path                                 },
+	{TYPE_INT,  "log.density",                   sizeof(conf_sram.log.density),                               &conf_sram.log.density                              },
+
+	{TYPE_INT,  "rx.active",                     sizeof(conf_sram.rx.thread_conf.active),                     &conf_sram.rx.thread_conf.active                    },
+	{TYPE_TIME, "rx.init_delay",                 sizeof(conf_sram.rx.thread_conf.init_delay),                 &conf_sram.rx.thread_conf.init_delay                },
+	{TYPE_TIME, "rx.packet_spacing",             sizeof(conf_sram.rx.thread_conf.packet_spacing),             &conf_sram.rx.thread_conf.packet_spacing            },
+	{TYPE_INT,  "rx.sleep_conf.type",            sizeof(conf_sram.rx.thread_conf.sleep_conf.type),            &conf_sram.rx.thread_conf.sleep_conf.type           },
+	{TYPE_INT,  "rx.sleep_conf.vbat_thres",      sizeof(conf_sram.rx.thread_conf.sleep_conf.vbat_thres),      &conf_sram.rx.thread_conf.sleep_conf.vbat_thres     },
+	{TYPE_INT,  "rx.sleep_conf.vsol_thres",      sizeof(conf_sram.rx.thread_conf.sleep_conf.vsol_thres),      &conf_sram.rx.thread_conf.sleep_conf.vsol_thres     },
+	{TYPE_TIME, "rx.cycle",                      sizeof(conf_sram.rx.thread_conf.cycle),                      &conf_sram.rx.thread_conf.cycle                     },
+	{TYPE_INT,  "rx.pwr",                        sizeof(conf_sram.rx.radio_conf.pwr),                         &conf_sram.rx.radio_conf.pwr                        },
+	{TYPE_INT,  "rx.freq",                       sizeof(conf_sram.rx.radio_conf.freq),                        &conf_sram.rx.radio_conf.freq                       },
+	{TYPE_INT,  "rx.mod",                        sizeof(conf_sram.rx.radio_conf.mod),                         &conf_sram.rx.radio_conf.mod                        },
+	{TYPE_INT,  "rx.preamble",                   sizeof(conf_sram.rx.radio_conf.preamble),                    &conf_sram.rx.radio_conf.preamble                   },
+	{TYPE_INT,  "rx.speed",                      sizeof(conf_sram.rx.radio_conf.speed),                       &conf_sram.rx.radio_conf.speed                      },
+	{TYPE_INT,  "rx.redundantTx",                sizeof(conf_sram.rx.radio_conf.redundantTx),                 &conf_sram.rx.radio_conf.redundantTx                },
+	{TYPE_STR,  "rx.call",                       sizeof(conf_sram.rx.call),                                   &conf_sram.rx.call                                  },
+	{TYPE_STR,  "rx.path",                       sizeof(conf_sram.rx.path),                                   &conf_sram.rx.path                                  },
+	{TYPE_INT,  "rx.symbol",                     sizeof(conf_sram.rx.symbol),                                 &conf_sram.rx.symbol                                },
+
+	{TYPE_INT,  "rssi",                          sizeof(conf_sram.rssi),                                      &conf_sram.rssi                                     },
+	{TYPE_INT,  "dig_active",                    sizeof(conf_sram.dig_active),                                &conf_sram.dig_active                               },
+	{TYPE_INT,  "keep_cam_switched_on",          sizeof(conf_sram.keep_cam_switched_on),                      &conf_sram.keep_cam_switched_on                     },
+	{TYPE_INT,  "gps_on_vbat",                   sizeof(conf_sram.gps_on_vbat),                               &conf_sram.gps_on_vbat                              },
+	{TYPE_INT,  "gps_off_vbat",                  sizeof(conf_sram.gps_off_vbat),                              &conf_sram.gps_off_vbat                             },
+	{TYPE_INT,  "gps_onper_vbat",                sizeof(conf_sram.gps_onper_vbat),                            &conf_sram.gps_onper_vbat                           },
+
+	{TYPE_NULL}
+};
+
 void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 {
 	// Decode packet
@@ -240,35 +359,35 @@ static bool aprs_decode_message(packet_t pp)
 		// Trace
 		TRACE_INFO("RX   > Received message from %s (ID=%s): %s", src, msg_id_rx, &pinfo[11]);
 
-		char *command = strupr((char*)&pinfo[11]);
+		char *command = strlwr((char*)&pinfo[11]);
 
 		// Do control actions
-		if(!strcmp(command, "?GPIO PA8:1")) { // Switch on pin
+		if(!strcmp(command, "?gpio pa8:1")) { // Switch on pin
 
 			TRACE_INFO("RX   > Message: GPIO query PA8 HIGH");
 			palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
 			palSetPad(GPIOA, 8);
 
-		} else if(!strcmp(command, "?GPIO PA8:0")) { // Switch off pin
+		} else if(!strcmp(command, "?gpio pa8:0")) { // Switch off pin
 
 			TRACE_INFO("RX   > Message: GPIO query PA8 LOW");
 			palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
 			palClearPad(GPIOA, 8);
 
-		} else if(!strcmp(command, "?APRSP")) { // Transmit position
+		} else if(!strcmp(command, "?aprsp")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: Position query");
 			trackPoint_t* trackPoint = getLastTrackPoint();
 			packet_t pp = aprs_encode_position(conf_sram.rx.call, conf_sram.rx.path, conf_sram.rx.symbol, trackPoint);
 			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
 
-		} else if(!strcmp(command, "?APRSD")) { // Transmit position
+		} else if(!strcmp(command, "?aprsd")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: Directs query");
 			packet_t pp = aprs_encode_query_answer_aprsd(conf_sram.rx.call, conf_sram.rx.path, src);
 			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
 
-		} else if(!strcmp(command, "?RESET")) { // Transmit position
+		} else if(!strcmp(command, "?reset")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: System Reset");
 			char buf[16];
@@ -279,7 +398,7 @@ static bool aprs_decode_message(packet_t pp)
 
 			NVIC_SystemReset();
 
-		} else if(!strcmp(command, "?SAVE")) { // Transmit position
+		} else if(!strcmp(command, "?save")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: Save");
 			flashSectorBegin(flashSectorAt(0x08060000));
@@ -287,186 +406,28 @@ static bool aprs_decode_message(packet_t pp)
 			flashWrite(0x08060000, (char*)&conf_sram, sizeof(conf_t));
 			flashSectorEnd(flashSectorAt(0x08060000));
 
-		} else if(!strncmp(command, "?CONF,P1:", 8) || !strncmp(command, "?CONF,P2:", 8)) {
+		} else if(!strncmp(command, "?conf ", 6)) { // Modify configuration
 
-			thd_pos_conf_t *pc;
-			if(!strncmp(command, "?CONF,P1:", 8)) {
-				pc = &conf_sram.pos_pri;
-				TRACE_INFO("RX   > Message: Configuration query POS PRI");
-			} else {
-				pc = &conf_sram.pos_sec;
-				TRACE_INFO("RX   > Message: Configuration query POS SEC");
-			}
+			for(uint8_t i=0; command_list[i].type != TYPE_NULL; i++)
+			{
+				if(!strncmp(&command[6], command_list[i].name, strlen(command_list[i].name))) {
 
-			char *pt;
-			pt = strtok(&command[9], ";");
-			uint8_t i = 0;
-			while(pt != NULL) {
-				switch(i) {
-					case 0:
-						pc->thread_conf.active = atoi(pt);
-						TRACE_INFO("       ... active         %s", pc->thread_conf.active ? "true" : "false");
-						break;
-					case 1:
-						pc->thread_conf.init_delay = TIME_S2I(strtol(pt, NULL, 16));
-						TRACE_INFO("       ... init_delay     %ds", TIME_I2S(pc->thread_conf.init_delay));
-						break;
-					case 2:
-						pc->thread_conf.packet_spacing = TIME_S2I(strtol(pt, NULL, 16));
-						TRACE_INFO("       ... packet_spacing %ds", TIME_I2S(pc->thread_conf.packet_spacing));
-						break;
-					case 3:
-						pc->thread_conf.sleep_conf.type = atoi(pt);
-						TRACE_INFO("       ... sleep_conf     %d", pc->thread_conf.sleep_conf.type);
-						break;
-					case 4:
-						pc->thread_conf.sleep_conf.vbat_thres = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... vbat_thres     %dmV", pc->thread_conf.sleep_conf.vbat_thres);
-						break;
-					case 5:
-						pc->thread_conf.sleep_conf.vsol_thres = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... vsol_thres     %dmV", pc->thread_conf.sleep_conf.vsol_thres);
-						break;
-					case 6:
-						pc->thread_conf.cycle = TIME_S2I(strtol(pt, NULL, 16));
-						TRACE_INFO("       ... cycle          %ds", TIME_I2S(pc->thread_conf.cycle));
-						break;
-					case 7:
-						pc->radio_conf.pwr = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... pwr            %d", pc->radio_conf.pwr);
-						break;
-					case 8:
-						pc->radio_conf.freq = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... freq           %dHz", pc->radio_conf.freq);
-						break;
-					case 9:
-						pc->radio_conf.mod = atoi(pt);
-						TRACE_INFO("       ... mod            %d", pc->radio_conf.mod);
-						break;
-					case 10:
-						pc->radio_conf.preamble = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... preamble       %dms", pc->radio_conf.preamble);
-						break;
-					case 11:
-						pc->radio_conf.speed = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... speed          %dbaud", pc->radio_conf.speed);
-						break;
-					case 12:
-						pc->radio_conf.redundantTx = atoi(pt);
-						TRACE_INFO("       ... redundantTx    %s", pc->radio_conf.redundantTx ? "true" : "false");
-						break;
-					case 13:
-						strncpy(pc->call, pt, sizeof(pc->call)-1);
-						TRACE_INFO("       ... call           %s", pc->call);
-						break;
-					case 14:
-						strncpy(pc->path, pt, sizeof(pc->call)-1);
-						TRACE_INFO("       ... path           %s", pc->path);
-						break;
-					case 15:
-						pc->symbol = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... symbol         %04x", pc->symbol);
-						break;
-					case 16:
-						pc->tel_enc_cycle = TIME_S2I(strtol(pt, NULL, 16));
-						TRACE_INFO("       ... tel_enc_cycle  %ds", TIME_I2S(pc->tel_enc_cycle));
-						break;
+					char *value = &command[strlen(command_list[i].name) + 6];
+					TRACE_INFO("RX   > Message: Configuration Command");
+					TRACE_INFO("RX   > %s => %s", &command[6], value);
+
+					if(command_list[i].type == TYPE_INT && command_list[i].size == 1) {
+						*((uint8_t*)command_list[i].ptr) = atoi(value);
+					} else if(command_list[i].type == TYPE_INT && command_list[i].size == 2) {
+						*((uint16_t*)command_list[i].ptr) = atoi(value);
+					} else if(command_list[i].type == TYPE_INT && command_list[i].size == 4) {
+						*((uint32_t*)command_list[i].ptr) = atoi(value);
+					} else if(command_list[i].type == TYPE_TIME) {
+						*((sysinterval_t*)command_list[i].ptr) = TIME_MS2I(atoi(value));
+					} else if(command_list[i].type == TYPE_STR) {
+						strncpy((char*)command_list[i].ptr, value, sizeof(command_list[i].size)-1);
+					}
 				}
-				i++;
-				pt = strtok(NULL, ";");
-			}
-
-		} else if(!strncmp(command, "?CONF,I1:", 8) || !strncmp(command, "?CONF,I2:", 8)) {
-
-			thd_img_conf_t *ic;
-			if(!strncmp(command, "?CONF,I1:", 8)) {
-				ic = &conf_sram.img_pri;
-				TRACE_INFO("RX   > Message: Configuration query IMG PRI");
-			} else {
-				ic = &conf_sram.img_sec;
-				TRACE_INFO("RX   > Message: Configuration query IMG SEC");
-			}
-
-			char *pt;
-			pt = strtok(&command[9], ";");
-			uint8_t i = 0;
-			while(pt != NULL) {
-				switch(i) {
-					case 0:
-						ic->thread_conf.active = atoi(pt);
-						TRACE_INFO("       ... active         %s", ic->thread_conf.active ? "true" : "false");
-						break;
-					case 1:
-						ic->thread_conf.init_delay = TIME_S2I(strtol(pt, NULL, 16));
-						TRACE_INFO("       ... init_delay     %ds", TIME_I2S(ic->thread_conf.init_delay));
-						break;
-					case 2:
-						ic->thread_conf.packet_spacing = TIME_S2I(strtol(pt, NULL, 16));
-						TRACE_INFO("       ... packet_spacing %ds", TIME_I2S(ic->thread_conf.packet_spacing));
-						break;
-					case 3:
-						ic->thread_conf.sleep_conf.type = atoi(pt);
-						TRACE_INFO("       ... sleep_conf     %d", ic->thread_conf.sleep_conf.type);
-						break;
-					case 4:
-						ic->thread_conf.sleep_conf.vbat_thres = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... vbat_thres     %dmV", ic->thread_conf.sleep_conf.vbat_thres);
-						break;
-					case 5:
-						ic->thread_conf.sleep_conf.vsol_thres = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... vsol_thres     %dmV", ic->thread_conf.sleep_conf.vsol_thres);
-						break;
-					case 6:
-						ic->thread_conf.cycle = TIME_S2I(strtol(pt, NULL, 16));
-						TRACE_INFO("       ... cycle          %ds", TIME_I2S(ic->thread_conf.cycle));
-						break;
-					case 7:
-						ic->radio_conf.pwr = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... pwr            %d", ic->radio_conf.pwr);
-						break;
-					case 8:
-						ic->radio_conf.freq = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... freq           %dHz", ic->radio_conf.freq);
-						break;
-					case 9:
-						ic->radio_conf.mod = atoi(pt);
-						TRACE_INFO("       ... mod            %d", ic->radio_conf.mod);
-						break;
-					case 10:
-						ic->radio_conf.preamble = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... preamble       %dms", ic->radio_conf.preamble);
-						break;
-					case 11:
-						ic->radio_conf.speed = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... speed          %dbaud", ic->radio_conf.speed);
-						break;
-					case 12:
-						ic->radio_conf.redundantTx = atoi(pt);
-						TRACE_INFO("       ... redundantTx    %s", ic->radio_conf.redundantTx ? "true" : "false");
-						break;
-					case 13:
-						strncpy(ic->call, pt, sizeof(ic->call)-1);
-						TRACE_INFO("       ... call           %s", ic->call);
-						break;
-					case 14:
-						strncpy(ic->path, pt, sizeof(ic->call)-1);
-						TRACE_INFO("       ... path           %s", ic->path);
-						break;
-					case 15:
-						ic->res = atoi(pt);
-						TRACE_INFO("       ... res            %d", ic->res);
-						break;
-					case 16:
-						ic->quality = atoi(pt);
-						TRACE_INFO("       ... quality        %d", ic->quality);
-						break;
-					case 17:
-						ic->buf_size = strtol(pt, NULL, 16);
-						TRACE_INFO("       ... buf_size       %dbyte", ic->buf_size);
-						break;
-				}
-				i++;
-				pt = strtok(NULL, ";");
 			}
 
 		} else {

@@ -1,4 +1,6 @@
-// Put your configuration settings here
+/**
+  * Put your configuration settings here. See description of all fields in types.h
+  */
 
 #include "config.h"
 #include "aprs.h"
@@ -96,7 +98,7 @@ const conf_t conf_flash_default = {
 	.log = {
 		.thread_conf = {
 			.active			= false,
-			.cycle			= TIME_S2I(5),
+			.cycle			= TIME_S2I(30),
 			.init_delay		= TIME_S2I(5)
 		},
 		.radio_conf = {
@@ -108,6 +110,7 @@ const conf_t conf_flash_default = {
 
 		.call				= "DL7AD-13",
 		.path				= "WIDE1-1",
+		.density			= 10
 	},
 	.rx = {
 		.thread_conf = {
@@ -125,7 +128,7 @@ const conf_t conf_flash_default = {
 		.symbol				= SYM_DIGIPEATER
 	},
 
-	.rssi					= 0x4F,
+	.rssi					= 0x3F,
 
 	.dig_active				= false,
 

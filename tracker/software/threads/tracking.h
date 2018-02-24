@@ -72,8 +72,8 @@ typedef struct {
 
 void waitForNewTrackPoint(void);
 trackPoint_t* getLastTrackPoint(void);
+
 void init_tracking_manager(bool useGPS);
-trackPoint_t* getLogBuffer(uint16_t id);
 
 #endif
 

@@ -7,6 +7,10 @@
 #define FREQ_APRS_DYNAMIC	0
 #define CYCLE_CONTINUOUSLY	0
 
+#define TYPE_NULL			0
+#define TYPE_INT			1
+#define TYPE_TIME			2
+#define TYPE_STR			3
 
 typedef enum {
 	SLEEP_DISABLED,
@@ -76,9 +80,9 @@ typedef struct {
 	char call[AX25_MAX_ADDR_LEN];
 	char path[16];
 
-	resolution_t res;
-	uint8_t quality;
-	uint32_t buf_size;
+	resolution_t res;						// Picture resolution
+	uint8_t quality;						// SSDV Quality ranging from 0-7
+	uint32_t buf_size;						// SRAM buffer size for the picture
 } thd_img_conf_t;
 
 typedef struct {
@@ -88,6 +92,8 @@ typedef struct {
 	// Protocol
 	char call[AX25_MAX_ADDR_LEN];
 	char path[16];
+
+	uint8_t density;						// Density of log points being sent out in 1/x (value 10 => 10%)
 } thd_log_conf_t;
 
 typedef struct {
@@ -99,10 +105,6 @@ typedef struct {
 	char path[16];
 	uint16_t symbol;
 } thd_rx_conf_t;
-
-
-
-
 
 typedef struct {
 	thd_pos_conf_t	pos_pri;				// Primary position thread configuration
@@ -127,6 +129,13 @@ typedef struct {
 
 	uint32_t magic;
 } conf_t;
+
+typedef struct {
+	uint8_t type;
+	char name[64];
+	size_t size;
+	void *ptr;
+} conf_command_t;
 
 #endif
 
