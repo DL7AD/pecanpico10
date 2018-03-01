@@ -236,7 +236,7 @@ packet_t ax25_new (void)
 
 
 #if DEBUG 
-        TRACE_DEBUG("ax25_new(): before alloc, new=%d, delete=%d\n", new_count, delete_count);
+        TRACE_DEBUG("ax25_new(): before alloc, new=%d, delete=%d", new_count, delete_count);
 #endif
 
 	last_seq_num++;
@@ -252,7 +252,7 @@ packet_t ax25_new (void)
 	if (new_count > delete_count + 256) {
 
 
-	  TRACE_ERROR("Report to WB2OSZ - Memory leak for packet objects.  new=%d, delete=%d\n", new_count, delete_count);
+	  TRACE_ERROR("Report to WB2OSZ - Memory leak for packet objects.  new=%d, delete=%d", new_count, delete_count);
 #if AX25MEMDEBUG
 	  // Force on debug option to gather evidence.
 	  ax25memdebug_set();
@@ -268,7 +268,7 @@ packet_t ax25_new (void)
 	this_p = chHeapAlloc(&heapp, sizeof (struct packet_s));
 
 	if (this_p == NULL) {
-	  TRACE_ERROR ("ERROR - can't allocate memory in ax25_new.\n");
+	  TRACE_ERROR ("ERROR - can't allocate memory in ax25_new.");
       return NULL;
 	}
 
@@ -297,11 +297,11 @@ void ax25_delete (packet_t this_p)
 #endif
 {
 #if DEBUG
-        TRACE_DEBUG ("ax25_delete(): before free, new=%d, delete=%d\n", new_count, delete_count);
+        TRACE_DEBUG ("ax25_delete(): before free, new=%d, delete=%d", new_count, delete_count);
 #endif
 
 	if (this_p == NULL) {
-	  TRACE_ERROR ("ERROR - NULL pointer passed to ax25_delete.\n");
+	  TRACE_ERROR ("ERROR - NULL pointer passed to ax25_delete.");
 	  return;
 	}
 
@@ -310,7 +310,7 @@ void ax25_delete (packet_t this_p)
 
 #if AX25MEMDEBUG	
 	if (ax25memdebug) {
-	  TRACE_DEBUG ("ax25_delete, seq=%d, called from %s %d, new_count=%d, delete_count=%d\n", this_p->seq, src_file, src_line, new_count, delete_count);
+	  TRACE_DEBUG ("ax25_delete, seq=%d, called from %s %d, new_count=%d, delete_count=%d", this_p->seq, src_file, src_line, new_count, delete_count);
 	}
 #endif
 
@@ -388,7 +388,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 
 #if AX25MEMDEBUG	
 	if (ax25memdebug) {
-	  TRACE_DEBUG ("ax25_from_text, seq=%d, called from %s %d\n", this_p->seq, src_file, src_line);
+	  TRACE_DEBUG ("ax25_from_text, seq=%d, called from %s %d", this_p->seq, src_file, src_line);
 	}
 #endif
 
@@ -447,13 +447,13 @@ packet_t ax25_from_text (char *monitor, int strict)
  */
 	pa = strtok_r (stuff, ">", &saveptr);
 	if (pa == NULL) {
-	  TRACE_ERROR ("Failed to create packet from text.  No source address\n");
+	  TRACE_ERROR ("Failed to create packet from text.  No source address");
 	  ax25_delete (this_p);
 	  return (NULL);
 	}
 
 	if ( ! ax25_parse_addr (AX25_SOURCE, pa, strict, atemp, &ssid_temp, &heard_temp)) {
-	  TRACE_ERROR ("Failed to create packet from text.  Bad source address\n");
+	  TRACE_ERROR ("Failed to create packet from text.  Bad source address");
 	  ax25_delete (this_p);
 	  return (NULL);
 	}
@@ -468,13 +468,13 @@ packet_t ax25_from_text (char *monitor, int strict)
  
 	pa = strtok_r (NULL, ",", &saveptr);
 	if (pa == NULL) {
-	  TRACE_ERROR ("Failed to create packet from text.  No destination address\n");
+	  TRACE_ERROR ("Failed to create packet from text.  No destination address");
 	  ax25_delete (this_p);
 	  return (NULL);
 	}
 
 	if ( ! ax25_parse_addr (AX25_DESTINATION, pa, strict, atemp, &ssid_temp, &heard_temp)) {
-	  TRACE_ERROR ("Failed to create packet from text.  Bad destination address\n");
+	  TRACE_ERROR ("Failed to create packet from text.  Bad destination address");
 	  ax25_delete (this_p);
 	  return (NULL);
 	}
@@ -493,7 +493,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 	  k = this_p->num_addr;
 
 	  if ( ! ax25_parse_addr (k, pa, strict, atemp, &ssid_temp, &heard_temp)) {
-	    TRACE_ERROR ("Failed to create packet from text.  Bad digipeater address\n");
+	    TRACE_ERROR ("Failed to create packet from text.  Bad digipeater address");
 	    ax25_delete (this_p);
 	    return (NULL);
 	  }
@@ -617,7 +617,7 @@ packet_t ax25_from_frame (unsigned char *fbuf, int flen)
 
 	if (flen < AX25_MIN_PACKET_LEN || flen > AX25_MAX_PACKET_LEN)
 	{
-	  TRACE_ERROR ("Frame length %d not in allowable range of %d to %d.\n", flen, AX25_MIN_PACKET_LEN, AX25_MAX_PACKET_LEN);
+	  TRACE_ERROR ("Frame length %d not in allowable range of %d to %d.", flen, AX25_MIN_PACKET_LEN, AX25_MAX_PACKET_LEN);
 	  return (NULL);
 	}
 
@@ -625,7 +625,7 @@ packet_t ax25_from_frame (unsigned char *fbuf, int flen)
 
 #if AX25MEMDEBUG	
 	if (ax25memdebug) {
-	  TRACE_DEBUG ("ax25_from_frame, seq=%d, called from %s %d\n", this_p->seq, src_file, src_line);
+	  TRACE_DEBUG ("ax25_from_frame, seq=%d, called from %s %d", this_p->seq, src_file, src_line);
 	}
 #endif
 
@@ -679,7 +679,7 @@ packet_t ax25_dup (packet_t copy_from)
 
 #if AX25MEMDEBUG
 	if (ax25memdebug) {	
-	  TRACE_DEBUG ("ax25_dup, seq=%d, called from %s %d, clone of seq %d\n", this_p->seq, src_file, src_line, copy_from->seq);
+	  TRACE_DEBUG ("ax25_dup, seq=%d, called from %s %d, clone of seq %d", this_p->seq, src_file, src_line, copy_from->seq);
 	}
 #endif
 
@@ -738,8 +738,8 @@ int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, in
 
 	if (strict && strlen(in_addr) >= 2 && strncmp(in_addr, "qA", 2) == 0) {
 
-	  TRACE_ERROR ("%sAddress \"%s\" is a \"q-construct\" used for communicating\n", position_name[position], in_addr);
-	  TRACE_ERROR ("with APRS Internet Servers.  It was not expected here.\n");
+	  TRACE_ERROR ("%sAddress \"%s\" is a \"q-construct\" used for communicating", position_name[position], in_addr);
+	  TRACE_ERROR ("with APRS Internet Servers.  It was not expected here.");
 	}
 
 	//printf ("ax25_parse_addr in: %s\n", in_addr);
@@ -753,13 +753,13 @@ int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, in
 	i = 0;
 	for (p = in_addr; isalnum(*p); p++) {
 	  if (i >= maxlen) {
-	    TRACE_ERROR ("%sAddress is too long. \"%s\" has more than %d characters.\n", position_name[position], in_addr, maxlen);
+	    TRACE_ERROR ("%sAddress is too long. \"%s\" has more than %d characters.", position_name[position], in_addr, maxlen);
 	    return 0;
 	  }
 	  out_addr[i++] = *p;
 	  out_addr[i] = '\0';
 	  if (strict && islower(*p)) {
-	    TRACE_ERROR ("%sAddress has lower case letters. \"%s\" must be all upper case.\n", position_name[position], in_addr);
+	    TRACE_ERROR ("%sAddress has lower case letters. \"%s\" must be all upper case.", position_name[position], in_addr);
 	    return 0;
 	  }
 	}
@@ -769,19 +769,19 @@ int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, in
 	if (*p == '-') {
 	  for (p++; isalnum(*p); p++) {
 	    if (j >= 2) {
-	      TRACE_ERROR ("%sSSID is too long. SSID part of \"%s\" has more than 2 characters.\n", position_name[position], in_addr);
+	      TRACE_ERROR ("%sSSID is too long. SSID part of \"%s\" has more than 2 characters.", position_name[position], in_addr);
 	      return 0;
 	    }
 	    sstr[j++] = *p;
 	    sstr[j] = '\0';
 	    if (strict && ! isdigit(*p)) {
-	      TRACE_ERROR ("%sSSID must be digits. \"%s\" has letters in SSID.\n", position_name[position], in_addr);
+	      TRACE_ERROR ("%sSSID must be digits. \"%s\" has letters in SSID.", position_name[position], in_addr);
 	      return 0;
 	    }
 	  }
 	  k = atoi(sstr);
 	  if (k < 0 || k > 15) {
-	    TRACE_ERROR ("%sSSID out of range. SSID of \"%s\" not in range of 0 to 15.\n", position_name[position], in_addr);
+	    TRACE_ERROR ("%sSSID out of range. SSID of \"%s\" not in range of 0 to 15.", position_name[position], in_addr);
 	    return 0;
 	  }
 	  *out_ssid = k;
@@ -793,7 +793,7 @@ int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, in
 	}
 
 	if (*p != '\0') {
-	    TRACE_ERROR ("Invalid character \"%c\" found in %saddress \"%s\".\n", *p, position_name[position], in_addr);
+	    TRACE_ERROR ("Invalid character \"%c\" found in %saddress \"%s\".", *p, position_name[position], in_addr);
 	  return 0;
 	}
 
@@ -859,7 +859,7 @@ int ax25_check_addresses (packet_t pp)
 	}
 
 	if (! all_ok) {
-	  TRACE_ERROR ("*** The origin and journey of this packet should receive some scrutiny. ***\n");
+	  TRACE_ERROR ("*** The origin and journey of this packet should receive some scrutiny. ***");
 	}
 
 	return (all_ok);
@@ -887,7 +887,7 @@ packet_t ax25_unwrap_third_party (packet_t from_pp)
 	packet_t result_pp;
 
 	if (ax25_get_dti(from_pp) != '}') {
-	  TRACE_ERROR ("Internal error: ax25_unwrap_third_party: wrong data type.\n");
+	  TRACE_ERROR ("Internal error: ax25_unwrap_third_party: wrong data type.");
 	  return (NULL);
 	}
 
@@ -969,7 +969,7 @@ void ax25_set_addr (packet_t this_p, int n, char *ad)
 	  ax25_insert_addr (this_p, n, ad);
 	}
 	else { 
-	  TRACE_ERROR ("Internal error, ax25_set_addr, bad position %d for '%s'\n", n, ad);
+	  TRACE_ERROR ("Internal error, ax25_set_addr, bad position %d for '%s'", n, ad);
 	}
 
 }
@@ -1053,7 +1053,7 @@ void ax25_insert_addr (packet_t this_p, int n, char *ad)
 	expect = this_p->num_addr;
 	this_p->num_addr = (-1);
 	if (expect != ax25_get_num_addr (this_p)) {
-	  TRACE_ERROR ("Internal error ax25_remove_addr expect %d, actual %d\n", expect, this_p->num_addr);
+	  TRACE_ERROR ("Internal error ax25_remove_addr expect %d, actual %d", expect, this_p->num_addr);
 	}
 }
 
@@ -1105,7 +1105,7 @@ void ax25_remove_addr (packet_t this_p, int n)
 	expect = this_p->num_addr;
 	this_p->num_addr = (-1);
 	if (expect != ax25_get_num_addr (this_p)) {
-	  TRACE_ERROR ("Internal error ax25_remove_addr expect %d, actual %d\n", expect, this_p->num_addr);
+	  TRACE_ERROR ("Internal error ax25_remove_addr expect %d, actual %d", expect, this_p->num_addr);
 	}
 
 }
@@ -1230,15 +1230,15 @@ void ax25_get_addr_with_ssid (packet_t this_p, int n, char *station)
 
 
 	if (n < 0) {
-	  TRACE_ERROR ("Internal error detected in ax25_get_addr_with_ssid, %s, line %d.\n", __FILE__, __LINE__);
-	  TRACE_ERROR ("Address index, %d, is less than zero.\n", n);
+	  TRACE_ERROR ("Internal error detected in ax25_get_addr_with_ssid, %s, line %d.", __FILE__, __LINE__);
+	  TRACE_ERROR ("Address index, %d, is less than zero.", n);
 	  strlcpy (station, "??????", 10);
 	  return;
 	}
 
 	if (n >= this_p->num_addr) {
-	  TRACE_ERROR ("Internal error detected in ax25_get_addr_with_ssid, %s, line %d.\n", __FILE__, __LINE__);
-	  TRACE_ERROR ("Address index, %d, is too large for number of addresses, %d.\n", n, this_p->num_addr);
+	  TRACE_ERROR ("Internal error detected in ax25_get_addr_with_ssid, %s, line %d.", __FILE__, __LINE__);
+	  TRACE_ERROR ("Address index, %d, is too large for number of addresses, %d.", n, this_p->num_addr);
 	  strlcpy (station, "??????", 10);
 	  return;
 	}
@@ -1295,15 +1295,15 @@ void ax25_get_addr_no_ssid (packet_t this_p, int n, char *station)
 
 
 	if (n < 0) {
-	  TRACE_ERROR ("Internal error detected in ax25_get_addr_no_ssid, %s, line %d.\n", __FILE__, __LINE__);
-	  TRACE_ERROR ("Address index, %d, is less than zero.\n", n);
+	  TRACE_ERROR ("Internal error detected in ax25_get_addr_no_ssid, %s, line %d.", __FILE__, __LINE__);
+	  TRACE_ERROR ("Address index, %d, is less than zero.", n);
 	  strlcpy (station, "??????", 7);
 	  return;
 	}
 
 	if (n >= this_p->num_addr) {
-	  TRACE_ERROR ("Internal error detected in ax25_get_no_with_ssid, %s, line %d.\n", __FILE__, __LINE__);
-	  TRACE_ERROR ("Address index, %d, is too large for number of addresses, %d.\n", n, this_p->num_addr);
+	  TRACE_ERROR ("Internal error detected in ax25_get_no_with_ssid, %s, line %d.", __FILE__, __LINE__);
+	  TRACE_ERROR ("Address index, %d, is too large for number of addresses, %d.", n, this_p->num_addr);
 	  strlcpy (station, "??????", 7);
 	  return;
 	}
@@ -1347,7 +1347,7 @@ int ax25_get_ssid (packet_t this_p, int n)
 	  return ((this_p->frame_data[n*7+6] & SSID_SSID_MASK) >> SSID_SSID_SHIFT);
 	}
 	else {
-	  TRACE_ERROR ("Internal error: ax25_get_ssid(%d), num_addr=%d\n", n, this_p->num_addr);
+	  TRACE_ERROR ("Internal error: ax25_get_ssid(%d), num_addr=%d", n, this_p->num_addr);
 	  return (0);
 	}
 }
@@ -1384,7 +1384,7 @@ void ax25_set_ssid (packet_t this_p, int n, int ssid)
 		((ssid << SSID_SSID_SHIFT) & SSID_SSID_MASK) ;
 	}
 	else {
-	  TRACE_ERROR ("Internal error: ax25_set_ssid(%d,%d), num_addr=%d\n", n, ssid, this_p->num_addr);
+	  TRACE_ERROR ("Internal error: ax25_set_ssid(%d,%d), num_addr=%d", n, ssid, this_p->num_addr);
 	}
 }
 
@@ -1422,7 +1422,7 @@ int ax25_get_h (packet_t this_p, int n)
 	  return ((this_p->frame_data[n*7+6] & SSID_H_MASK) >> SSID_H_SHIFT);
 	}
 	else {
-	  TRACE_ERROR ("Internal error: ax25_get_h(%d), num_addr=%d\n", n, this_p->num_addr);
+	  TRACE_ERROR ("Internal error: ax25_get_h(%d), num_addr=%d", n, this_p->num_addr);
 	  return (0);
 	}
 }
@@ -1457,7 +1457,7 @@ void ax25_set_h (packet_t this_p, int n)
 	  this_p->frame_data[n*7+6] |= SSID_H_MASK;
 	}
 	else {
-	  TRACE_ERROR ("Internal error: ax25_set_hd(%d), num_addr=%d\n", n, this_p->num_addr);
+	  TRACE_ERROR ("Internal error: ax25_set_hd(%d), num_addr=%d", n, this_p->num_addr);
 	}
 }
 
@@ -1567,7 +1567,7 @@ int ax25_get_rr (packet_t this_p, int n)
 	  return ((this_p->frame_data[n*7+6] & SSID_RR_MASK) >> SSID_RR_SHIFT);
 	}
 	else {
-	  TRACE_ERROR ("Internal error: ax25_get_rr(%d), num_addr=%d\n", n, this_p->num_addr);
+	  TRACE_ERROR ("Internal error: ax25_get_rr(%d), num_addr=%d", n, this_p->num_addr);
 	  return (0);
 	}
 }
