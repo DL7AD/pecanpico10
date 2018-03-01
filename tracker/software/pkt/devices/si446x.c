@@ -1044,10 +1044,9 @@ void Si446x_sendAFSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq,
 	                               /*NULL*/pp);
 
 	// Wait for the transmitter to start (because it is used as mutex)
-/*	while(Si446x_getState() != Si446x_STATE_TX)
-		chThdSleep(TIME_MS2I(1));*/
-	/* Wait for TX to finish before releasing the radio. */
-	chThdWait(feeder_thd);
+	while(Si446x_getState() != Si446x_STATE_TX)
+		chThdSleep(TIME_MS2I(1));
+	 //Wait for TX to finish before releasing the radio.
 	unlockRadio();
 }
 
