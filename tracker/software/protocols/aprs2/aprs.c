@@ -25,6 +25,7 @@
 #include "dedupe.h"
 #include "radio.h"
 #include "flash.h"
+#include "image.h"
 
 #define METER_TO_FEET(m) (((m)*26876) / 8192)
 
@@ -405,6 +406,37 @@ static bool aprs_decode_message(packet_t pp)
 			flashErase(0x08060000, 0x20000);
 			flashWrite(0x08060000, (char*)&conf_sram, sizeof(conf_t));
 			flashSectorEnd(flashSectorAt(0x08060000));
+
+		} else if(!strcmp(command, "?img reject pri")) { // Reject image
+
+			reject_pri = true;
+
+		} else if(!strcmp(command, "?img reject sec")) { // Reject image
+
+			reject_sec = true;
+
+		} else if(!strncmp(command, "?img ", 5)) { // Repeat packets
+
+			TRACE_INFO("RX   > Message: Image packet repeat request");
+
+			char *pt;
+			pt = strtok(&command[5], " ");
+			while(pt != NULL) {
+				uint32_t req = strtol(pt, NULL, 16);
+
+				for(uint8_t i=0; i<16; i++) {
+					if(!packetRepeats[i].n_done) {
+						packetRepeats[i].image_id = (req >> 16) & 0xFF;
+						packetRepeats[i].packet_id = req & 0xFFFF;
+						packetRepeats[i].n_done = true;
+
+						TRACE_INFO("RX   > ... Image %3d Packet %3d", packetRepeats[i].image_id, packetRepeats[i].packet_id);
+						break;
+					}
+				}
+
+				pt = strtok(NULL, " ");
+			}
 
 		} else if(!strncmp(command, "?conf ", 6)) { // Modify configuration
 

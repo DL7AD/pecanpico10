@@ -17,6 +17,7 @@
 #include "flash.h"
 #include "sd.h"
 #include "tracking.h"
+#include "image.h"
 
 const uint8_t noCameraFound[4071] = {
 	0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48,
@@ -280,10 +281,65 @@ uint32_t gimage_id; // Global image ID (for all image threads)
 mutex_t camera_mtx;
 bool camera_mtx_init = false;
 
-static void encode_ssdv(const uint8_t *image, uint32_t image_len, thd_img_conf_t* conf, uint8_t image_id, bool redudantTx)
-{
-	(void)redudantTx;
+ssdv_packet_t packetRepeats[16];
+bool reject_pri;
+bool reject_sec;
 
+static void transmit_image_packet(const uint8_t *image, uint32_t image_len, thd_img_conf_t* conf, uint8_t image_id, uint16_t packet_id)
+{
+	ssdv_t ssdv;
+	uint8_t pkt[SSDV_PKT_SIZE];
+	uint8_t pkt_base91[256] = {0};
+	const uint8_t *b;
+	uint32_t bi = 0;
+	uint8_t c = SSDV_OK;
+	uint16_t i = 0;
+
+	// Init SSDV (FEC at 2FSK, non FEC at APRS)
+	bi = 0;
+	ssdv_enc_init(&ssdv, SSDV_TYPE_PADDING, "N0CALL", image_id, conf->quality);
+	ssdv_enc_set_buffer(&ssdv, pkt);
+
+	while(true)
+	{
+		while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME)
+		{
+			b = &image[bi];
+			uint8_t r = bi < image_len-128 ? 128 : image_len - bi;
+			bi += r;
+
+			if(r <= 0)
+			{
+				TRACE_ERROR("SSDV > Premature end of file");
+				break;
+			}
+			ssdv_enc_feed(&ssdv, b, r);
+		}
+
+		if(c == SSDV_EOI) {
+			break;
+		} else if(c != SSDV_OK) {
+			return;
+		}
+
+		if(i == packet_id) {
+			// Sync byte, CRC and FEC of SSDV not transmitted (because its not neccessary inside an APRS packet)
+			base91_encode(&pkt[6], pkt_base91, 174);
+
+			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
+			transmitOnRadio(packet, conf->radio_conf.freq, conf->radio_conf.pwr, conf->radio_conf.mod);
+
+			return;
+		}
+
+		chThdSleep(TIME_MS2I(10)); // Leave other threads some time
+
+		i++;
+	}
+}
+
+static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd_img_conf_t* conf, uint8_t image_id)
+{
 	ssdv_t ssdv;
 	uint8_t pkt[SSDV_PKT_SIZE];
 	uint8_t pkt_base91[256] = {0};
@@ -337,11 +393,30 @@ static void encode_ssdv(const uint8_t *image, uint32_t image_len, thd_img_conf_t
 		packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
 		transmitOnRadio(packet, conf->radio_conf.freq, conf->radio_conf.pwr, conf->radio_conf.mod);
 
-		chThdSleep(TIME_MS2I(100)); // Leave other threads some time
+		chThdSleep(TIME_MS2I(10)); // Leave other threads some time
+
+		// Repeat packets
+		for(uint8_t i=0; i<16; i++) {
+			if(packetRepeats[i].n_done && image_id == packetRepeats[i].image_id) {
+				transmit_image_packet(image, image_len, conf, image_id, packetRepeats[i].packet_id);
+				packetRepeats[i].n_done = false; // Set done
+			}
+			chThdSleep(TIME_MS2I(100)); // Leave other threads some time
+		}
 
 		// Packet spacing (delay)
 		if(conf->thread_conf.packet_spacing)
 			chThdSleep(conf->thread_conf.packet_spacing);
+
+		// Handle image rejection flag
+		if(conf == &conf_sram.img_pri && reject_pri) { // Image rejected
+			reject_pri = false;
+			return;
+		}
+		if(conf == &conf_sram.img_sec && reject_sec) { // Image rejected
+			reject_sec = false;
+			return;
+		}
 
 		i++;
 	}
@@ -498,11 +573,11 @@ THD_FUNCTION(imgThread, arg)
 
 				// Encode and transmit picture
 				TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", gimage_id-1);
-				encode_ssdv(buffer, size_sampled, conf, (uint8_t)(gimage_id-1), conf->radio_conf.redundantTx);
+				transmit_image_packets(buffer, size_sampled, conf, (uint8_t)(gimage_id-1));
 
 			} else { // No camera found
 				TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d", gimage_id-1);
-				encode_ssdv(noCameraFound, sizeof(noCameraFound), conf, (uint8_t)(gimage_id-1), conf->radio_conf.redundantTx);
+				transmit_image_packets(noCameraFound, sizeof(noCameraFound), conf, (uint8_t)(gimage_id-1));
 			}
 		}
 

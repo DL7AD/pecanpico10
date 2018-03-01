@@ -803,7 +803,7 @@ static bool Si4464_restoreRX(void)
 	bool ret = Si446x_receive_noLock(rx_frequency, rx_rssi, rx_mod);
 
 	if(packetHandler) {
-		TRACE_DEBUG("SI    > Start packet handler")
+		TRACE_DEBUG("SI   > Start packet handler")
 		pktStartDataReception(packetHandler); // Start packet handler again
 	}
 
