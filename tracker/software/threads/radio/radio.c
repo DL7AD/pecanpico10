@@ -14,7 +14,10 @@ static const char *getModulation(uint8_t key) {
 };
 
 static void handlePacket(uint8_t *buf, uint32_t len) {
-	// Decode APRS frame
+  /* Remove CRC from frame. */
+  if(len > 2) {
+    len -= 2;
+    // Decode APRS frame
 	packet_t pp = ax25_from_frame(buf, len);
 
 	if(pp != NULL) {
@@ -27,6 +30,9 @@ static void handlePacket(uint8_t *buf, uint32_t len) {
 	} else {
 		TRACE_DEBUG("RX    > Error in packet");
 	}
+	return;
+  }
+  TRACE_DEBUG("RX    > Packet data length < 2");
 }
 
 void start_rx_thread(uint32_t freq, uint8_t rssi) {

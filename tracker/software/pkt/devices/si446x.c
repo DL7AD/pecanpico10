@@ -8,10 +8,12 @@
 //#include "hal.h"
 
 //#include "si446x.h"
-//#include "debug.h"
+#ifndef PKT_IS_TEST_PROJECT
+#include "debug.h"
+#endif
 #include "pktconf.h"
 
-#ifdef PKT_USE_PROJECT_DEFINITIONS
+#ifdef PKT_IS_TEST_PROJECT
 void ax25_delete(packet_t pp);
 #endif
 
@@ -141,8 +143,11 @@ static void Si446x_setProperty32(uint16_t reg, uint8_t val1, uint8_t val2, uint8
  * @param mv Oscillator voltage in mv
  */
 static void Si446x_init(void) {
+#ifdef PKT_IS_TEST_PROJECT
   dbgPrintf(DBG_INFO, "SI   > Init radio\r\n");
-
+#else
+  TRACE_INFO("SI   > Init radio");
+#endif
   pktConfigureRadioGPIO();
 
     // Power up (send oscillator type)
@@ -245,7 +250,11 @@ static void Si446x_init(void) {
 
 	// Temperature readout
 	lastTemp = Si446x_getTemperature();
+#ifdef PKT_IS_TEST_PROJECT
     dbgPrintf(DBG_INFO, "SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
+#else
+    TRACE_INFO("SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
+#endif
 
 	radioInitialized = true;
 }
@@ -633,17 +642,23 @@ static void Si446x_shutdown(void)
 		chThdSleep(TIME_MS2I(1));
 
 	if(!nextTransmissionWaiting) { // No thread is waiting for radio, so shutdown radio
-
-		//TRACE_INFO("SI   > Shutdown radio");
+#ifdef PKT_IS_TEST_PROJECT
+      dbgPrintf(DBG_INFO, "SI   > Shutdown radio");
+#else
+		TRACE_INFO("SI   > Shutdown radio");
+#endif
 	  pktDeconfigureRadioGPIO();
 
 		radioInitialized = false;
 
 	} else {
-
-		//TRACE_INFO("RAD  > Transmission finished");
-		//TRACE_INFO("RAD  > Keep radio switched on");
-
+#ifdef PKT_IS_TEST_PROJECT
+	    dbgPrintf(DBG_INFO, "RAD  > Transmission finished");
+	    dbgPrintf(DBG_INFO, "RAD  > Keep radio switched on");
+#else
+		TRACE_INFO("RAD  > Transmission finished");
+		TRACE_INFO("RAD  > Keep radio switched on");
+#endif
 	}
 }
 
@@ -693,25 +708,34 @@ static bool Si446x_getLatchedCCA(uint8_t ms)
 		cca += Si446x_getCCA();
 		chThdSleep(TIME_US2I(100));
 	}
-	//TRACE_DEBUG("SI   > CCA=%03d RX=%d", cca, cca > ms/10);
-    dbgPrintf(DBG_ERROR, "SI   > CCA=%03d RX=%d\r\n", cca, cca > ms/10);
+#ifdef PKT_IS_TEST_PROJECT
+    dbgPrintf(DBG_INFO, "SI   > CCA=%03d RX=%d\r\n", cca, cca > ms/10);
+#else
+    TRACE_INFO("SI   > CCA=%03d RX=%d", cca, cca > ms/10);
+#endif
 	return cca > ms; // Max. 1 spike per ms
 }
 
 static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uint8_t rssi, sysinterval_t sql_timeout)
 {
 	if(!Si446x_inRadioBand(frequency)) {
-		//TRACE_ERROR("SI   > Frequency out of range");
+#ifdef PKT_IS_TEST_PROJECT
       dbgPrintf(DBG_ERROR, "SI   > Frequency out of range\r\n");
-		//TRACE_ERROR("SI   > abort transmission");
       dbgPrintf(DBG_ERROR, "SI   > abort transmission\r\n");
+#else
+      TRACE_ERROR("SI   > Frequency out of range");
+      TRACE_ERROR("SI   > abort transmission");
+#endif
 		return false;
 	}
 
 	// Switch to ready state
 	if(Si446x_getState() == Si446x_STATE_RX) {
-		//TRACE_INFO("SI   > Switch Si446x to ready state");
+#ifdef PKT_IS_TEST_PROJECT
       dbgPrintf(DBG_INFO, "SI   > Switch Si446x to ready state\r\n");
+#else
+      TRACE_INFO("SI   > Switch Si446x to ready state");
+#endif
 		Si446x_setReadyState();
 	}
 
@@ -722,15 +746,22 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 	// Wait until nobody is transmitting (until timeout)
 	sysinterval_t t0 = chVTGetSystemTime();
 	if(Si446x_getState() != Si446x_STATE_RX || Si446x_getLatchedCCA(50)) {
-		//TRACE_DEBUG("SI   > Wait for CCA to drop");
-	  dbgPrintf(DBG_INFO, "SI   > Wait for CCA to drop\r\n");
+#ifdef PKT_IS_TEST_PROJECT
+	    dbgPrintf(DBG_INFO, "SI   > Wait for CCA to drop\r\n");
+#else
+		TRACE_INFO("SI   > Wait for CCA to drop");
+#endif
+
 		while((Si446x_getState() != Si446x_STATE_RX || Si446x_getLatchedCCA(50)) && chVTGetSystemTime()-t0 < sql_timeout)
 			chThdSleep(TIME_US2I(100));
 	}
 
 	// Transmit
-	//TRACE_INFO("SI   > Tune Si446x (TX)");
+#ifdef PKT_IS_TEST_PROJECT
     dbgPrintf(DBG_INFO, "SI   > Tune Si446x (TX)\r\n");
+#else
+	TRACE_INFO("SI   > Tune Si446x (TX)");
+#endif
     Si446x_setPowerLevel(power);        // Set power level
 	Si446x_setReadyState();
 	Si446x_setTXState(size);
@@ -741,10 +772,15 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 /*static*/ bool Si446x_receive_noLock(uint32_t frequency, uint8_t rssi, mod_t mod)
 {
 	if(!Si446x_inRadioBand(frequency)) {
-		//TRACE_ERROR("SI   > Frequency out of range");
+#ifdef PKT_IS_TEST_PROJECT
       dbgPrintf(DBG_ERROR, "SI   > Frequency out of range\r\n");
-		//TRACE_ERROR("SI   > abort reception");
       dbgPrintf(DBG_ERROR, "SI   > abort reception\r\n");
+#else
+      TRACE_ERROR("SI   > Frequency out of range");
+      TRACE_ERROR("SI   > abort reception");
+#endif
+
+
       return false;
 	}
 
@@ -762,10 +798,13 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 		Si446x_setModemAFSK_RX();
 	} else {
 		Si446x_shutdown();
-		//TRACE_ERROR("SI   > Modulation not supported");
+#ifdef PKT_IS_TEST_PROJECT
         dbgPrintf(DBG_ERROR, "SI   > Unknown modulation\r\n");
-		//TRACE_ERROR("SI   > abort reception");
         dbgPrintf(DBG_ERROR, "SI   > abort reception\r\n");
+#else
+        TRACE_ERROR("SI   > Modulation not supported");
+        TRACE_ERROR("SI   > abort reception");
+#endif
 		return false;
 	}
 
@@ -775,8 +814,11 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 	rx_chan = 0;
 	rx_mod = mod;
 
-	//TRACE_INFO("SI   > Tune Si446x (RX)");
+#ifdef PKT_IS_TEST_PROJECT
     dbgPrintf(DBG_INFO, "SI   > Tune Si446x (RX)\r\n");
+#else
+    TRACE_INFO("SI   > Tune Si446x (RX)");
+#endif
 	Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
 	Si446x_setFrequency(frequency);		// Set frequency
 	Si446x_setRXState();
@@ -801,8 +843,12 @@ static bool Si4464_restoreRX(void)
 	bool ret = Si446x_receive_noLock(rx_frequency, rx_rssi, rx_mod);
 
 	if(packetHandler) {
-		//TRACE_DEBUG("Start packet handler");
-	    dbgPrintf(DBG_INFO, "SI   > Start packet handler\r\n");
+#ifdef PKT_IS_TEST_PROJECT
+      dbgPrintf(DBG_INFO, "SI   > Resume packet reception\r\n");
+#else
+		TRACE_INFO("Resume packet reception");
+#endif
+
 	    /* TODO: This should be handled from radio manager thread. */
 	    pktResumeDecoder(packetHandler);
 	    //pktStartDataReception(packetHandler, 0, 0x3f, NULL); // Start packet handler again
@@ -851,8 +897,12 @@ static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_
 		for(uint8_t j=0; j<8; j++) {
 
 			if(blen >> 3 >= buf_len) { // Buffer overflow
-				//TRACE_ERROR("Packet too long");
-	            dbgPrintf(DBG_ERROR, "SI   > Packet too long\r\n");
+#ifdef PKT_IS_TEST_PROJECT
+              dbgPrintf(DBG_ERROR, "SI   > Packet too long\r\n");
+#else
+				TRACE_ERROR("Packet too long");
+#endif
+
 				return blen;
 			}
 
@@ -872,8 +922,13 @@ static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_
 	while(pos < inlen*8)
 	{
 		if(blen >> 3 >= buf_len) { // Buffer overflow
-			//TRACE_ERROR("Packet too long");
-            dbgPrintf(DBG_ERROR, "SI   > Packet too long\r\n");
+#ifdef PKT_IS_TEST_PROJECT
+          dbgPrintf(DBG_ERROR, "SI   > Packet too long\r\n");
+#else
+          TRACE_ERROR("Packet too long");
+#endif
+
+
 			return blen;
 		}
 
@@ -907,8 +962,12 @@ static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_
 		for(uint8_t j=0; j<8; j++) {
 
 			if(blen >> 3 >= buf_len) { // Buffer overflow
-				//TRACE_ERROR("Packet too long");
+
+#ifdef PKT_IS_TEST_PROJECT
 	            dbgPrintf(DBG_ERROR, "SI   > Packet too long\r\n");
+#else
+                TRACE_ERROR("Packet too long");
+#endif
 				return blen;
 			}
 
@@ -1015,8 +1074,12 @@ void Si446x_sendAFSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq,
 
 	// Stop packet handler (if started)
 	if(packetHandler) {
-		//TRACE_DEBUG("Stop packet handler");
-	    dbgPrintf(DBG_INFO, "SI   > Stop packet handler\r\n");
+
+#ifdef PKT_IS_TEST_PROJECT
+	    dbgPrintf(DBG_INFO, "SI   > Pause packet reception\r\n");
+#else
+        TRACE_INFO("Pause packet reception");
+#endif
 	    pktPauseDecoder(packetHandler);
 		//pktStopDataReception(packetHandler);
 	}
@@ -1070,11 +1133,6 @@ void Si446x_mapCallback(pkt_data_object_t *pkt_buff) {
 void Si446x_startDecoder(radio_freq_t freq, radio_squelch_t sq, void* cb) {
 
 	rx_cb = cb;
-
-    /* Start serial channels. */
-    pktSerialStart();
-
-	pktServiceCreate();
 
 	/* Open packet radio service. */
     pktOpenRadioService(PKT_RADIO_1,

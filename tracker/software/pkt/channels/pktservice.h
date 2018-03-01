@@ -54,7 +54,7 @@ typedef enum {
   DECODE_FSK
 } encoding_type_t;
 
-#ifdef PKT_USE_PROJECT_DEFINITIONS
+#ifdef PKT_IS_TEST_PROJECT
 /* Modulation type. */
 typedef enum {
     MOD_AFSK,

@@ -93,7 +93,7 @@
 typedef uint8_t ax25char_t;
 typedef int16_t ax25size_t;
 
-#ifdef PKT_USE_PROJECT_DEFINITIONS
+#ifdef PKT_IS_TEST_PROJECT
 /* TODO: Create a chFactory FIFO to manage these objects. */
 struct packet_s {
 

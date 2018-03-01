@@ -34,6 +34,11 @@ int main(void) {
 	DEBUG_INIT();
 	TRACE_INFO("MAIN > Startup");
 
+
+    /* Start serial channels. */
+    pktSerialStart();
+    pktServiceCreate();
+
 	// Start USB
 	#if ACTIVATE_USB
 	sduObjectInit(&SDU1);
