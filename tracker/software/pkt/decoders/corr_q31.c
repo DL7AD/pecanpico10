@@ -208,7 +208,7 @@ q31_t push_qcorr_sample(AFSKDemodDriver *myDriver, bit_t sample) {
 #if AFSK_DEBUG_TYPE == AFSK_QCORR_FIR_DEBUG
     char buf[80];
     int out = chsnprintf(buf, sizeof(buf), "%X\r\n", scaledOut);
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(pkt_out, (uint8_t *)buf, out);
 #endif
 
   /*
@@ -262,7 +262,7 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
       int out = chsnprintf(buf, sizeof(buf), "%i, %i\r\n",
         myBin->cos_out, myBin->sin_out);
     }
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(pkt_out, (uint8_t *)buf, out);
 #endif
   }
 
@@ -292,7 +292,7 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
       i, decoder->filter_bins[i].mag,
       decoder->current_n,
       decoder->current_n % decoder->decode_length);
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(pkt_out, (uint8_t *)buf, out);
   }
 #endif
 
@@ -496,7 +496,7 @@ void calc_qcorr_magnitude(AFSKDemodDriver *myDriver) {
       int out = chsnprintf(buf, sizeof(buf),                                 \
         "MAG SQRT failed bin %i, cosQ %X, sinQ %X, cos %f, sin %f, mag2 %f, mag %X, index %i\r\n",                                              \
         i, myBin->cos_out, myBin->sin_out, cos, sin, mag2, raw_mag, decoder->current_n);
-      chnWrite(diag_out, (uint8_t *)buf, out);
+      chnWrite(pkt_out, (uint8_t *)buf, out);
 #endif /* AFSK_ERROR_TYPE == AFSK_SQRT_ERROR */
 
 #else
@@ -516,7 +516,7 @@ void calc_qcorr_magnitude(AFSKDemodDriver *myDriver) {
           "mag2 %X, mag %X, index %i\r\n",
           i, myBin->cos_out, myBin->sin_out, cos, sin, mag2,
           decoder->filter_bins[i].raw_mag, decoder->current_n);
-        chnWrite(diag_out, (uint8_t *)buf, out);
+        chnWrite(pkt_out, (uint8_t *)buf, out);
   #endif /* AFSK_ERROR_TYPE == AFSK_SQRT_ERROR */
 #endif /* QCORR_MAG_USE_FLOAT */
     }
@@ -528,7 +528,7 @@ void calc_qcorr_magnitude(AFSKDemodDriver *myDriver) {
     } else {
       out = chsnprintf(buf, sizeof(buf), "%i\r\n", raw_mag);
     }
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(pkt_out, (uint8_t *)buf, out);
 #endif
   }
 }
@@ -564,7 +564,7 @@ void filter_qcorr_magnitude(AFSKDemodDriver *myDriver) {
                        decoder->filter_bins[i].raw_mag,
                        decoder->filter_bins[i].filtered_mag);
     }
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(pkt_out, (uint8_t *)buf, out);
 #endif
   }
 }
@@ -604,7 +604,7 @@ void evaluate_qcorr_tone(AFSKDemodDriver *myDriver) {
     char buf[200];
     int out = chsnprintf(buf, sizeof(buf), "%i, %i\r\n",
       mark, space);
-    chnWrite(diag_out, (uint8_t *)buf, out);
+    chnWrite(pkt_out, (uint8_t *)buf, out);
 #endif
 }
 
@@ -645,7 +645,7 @@ static void setup_qcorr_prefilter(qcorr_decoder_t *decoder) {
   char buf[80];
   int out = chsnprintf(buf, sizeof(buf),
     "PRE FILTER COEFF %f %x\r\n", coeff_total_f32, coeff_total_q31);
-  chnWrite(diag_out, (uint8_t *)buf, out);
+  chnWrite(pkt_out, (uint8_t *)buf, out);
 #endif
 }
 
@@ -776,7 +776,7 @@ static void setup_qcorr_magfilter(qcorr_decoder_t *decoder) {
   char buf[80];
   int out = chsnprintf(buf, sizeof(buf),
   "MAG FILTER COEFF %f %x\r\n", bin_coeff_total_f32, bin_coeff_total_q31);
-  chnWrite(diag_out, (uint8_t *)buf, out);
+  chnWrite(pkt_out, (uint8_t *)buf, out);
 #endif
 }
 #endif

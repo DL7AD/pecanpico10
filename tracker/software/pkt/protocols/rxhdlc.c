@@ -11,6 +11,11 @@
 /**
  * @brief   Extract HDLC from AFSK.
  * @post    The HDLC state will be updated.
+ * @notes   In the case of an HDLC_RESET HDLC sync can be restarted.
+ * @notes   This is done where the AX25 payload is below minimum size.
+ * @notes   If the payload is above minimum size state HDLC_RESET is set.
+ * @notes   In that case it is left to the decoder to determine an action.
+ *
  * @param[in]   myDriver   pointer to an @p AFSKDemodDriver structure.
  *
  * @return  status of operation
@@ -21,7 +26,7 @@
  */
 bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
 
-  packet_rx_t *myHandler = myDriver->packet_handler;
+  packet_svc_t *myHandler = myDriver->packet_handler;
 
   /* Shift prior HDLC bits up before adding new bit. */
   myDriver->hdlc_bits <<= 1;
@@ -50,8 +55,7 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
            * Dump any bits already put into the AX25 byte.
            */
           myDriver->bit_index = 0;
-          myHandler->packet_count++;
-          /* Inform thread loop of end of frame. */
+          /* Inform decoder thread of end of frame. */
           myDriver->frame_state = FRAME_CLOSE;
           return true;
         } /* End AX25 frame size check. */
@@ -61,7 +65,7 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
          * HDLC sync still in progress.
          * Reset AX25 counts and wait for next HDLC bit.
          */
-        pktResetDataBuffer(myHandler->active_packet_object);
+        pktResetDataCount(myHandler->active_packet_object);
         myDriver->bit_index = 0;
         return true;
       } /* End case. */
@@ -75,11 +79,14 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
 
         myDriver->active_demod_object->status |= EVT_HDLC_RESET_RCVD;
         pktAddEventFlags(myHandler, EVT_HDLC_RESET_RCVD);
-        if(myHandler->active_packet_object->packet_size == 0) {
-          /* No data stored yet so go back to sync search. */
+        if(myHandler->active_packet_object->packet_size < PKT_MIN_FRAME) {
+          /* No data payload stored yet so go back to sync search. */
+          myHandler->active_packet_object->packet_size = 0;
           myDriver->frame_state = FRAME_SEARCH;
+          myHandler->sync_count--;
           break;
         }
+        /* Else let the decoder determine what to do. */
         myDriver->frame_state = FRAME_RESET;
         return true;
       } /* End case. */
@@ -132,7 +139,7 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
     ) {
 
       myDriver->frame_state = FRAME_OPEN;
-
+      myHandler->sync_count++;
       /* Reset AX25 data indexes. */
       myHandler->active_packet_object->packet_size = 0;
       myDriver->bit_index = 0;

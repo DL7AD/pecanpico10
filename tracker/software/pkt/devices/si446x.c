@@ -1,17 +1,19 @@
 /**
  * Si446x driver specialized for APRS transmissions. The driver supports APRS
- * transmission and receiption.
+ * transmission and reception.
  * There can be either used the SLabs Si4463 or Si4464.
  */
 
-#include "ch.h"
-#include "hal.h"
+//#include "ch.h"
+//#include "hal.h"
 
-#include "si446x.h"
-#include "debug.h"
+//#include "si446x.h"
+//#include "debug.h"
 #include "pktconf.h"
 
-#define LINE_LENGTH 40U
+#ifdef PKT_USE_PROJECT_DEFINITIONS
+void ax25_delete(packet_t pp);
+#endif
 
 // Mutex
 static mutex_t radio_mtx;				// Radio mutex
@@ -34,12 +36,13 @@ static bool radioInitialized;
 // Receiver thread variables
 static uint32_t rx_frequency;
 static uint8_t rx_rssi;
+static uint8_t rx_chan;
 static mod_t rx_mod;
-static void (*rx_cb)(uint8_t*,uint32_t);
+static void (*rx_cb)(uint8_t*, uint32_t);
 
-static thread_t* si446x_rx_thd = NULL;
-static THD_WORKING_AREA(si446x_rx_wa, 8192);
-static packet_rx_t *packetHandler;
+//static thread_t* si446x_rx_thd = NULL;
+//static THD_WORKING_AREA(si446x_rx_wa, 8192);
+static packet_svc_t *packetHandler;
 
 static int16_t Si446x_getTemperature(void);
 
@@ -53,15 +56,16 @@ static const SPIConfig ls_spicfg = {
 
 static void Si446x_write(const uint8_t* txData, uint32_t len) {
 	// Transmit data by SPI
+  /* TODO: Add radio unit ID and get SPI accordingly. */
 	uint8_t rxData[len];
 	
 	// SPI transfer
-	spiAcquireBus(&SPID3);
-	spiStart(&SPID3, &ls_spicfg);
+	spiAcquireBus(PKT_RADIO_SPI);
+	spiStart(PKT_RADIO_SPI, &ls_spicfg);
 
-	spiSelect(&SPID3);
-	spiExchange(&SPID3, len, txData, rxData);
-	spiUnselect(&SPID3);
+	spiSelect(PKT_RADIO_SPI);
+	spiExchange(PKT_RADIO_SPI, len, txData, rxData);
+	spiUnselect(PKT_RADIO_SPI);
 
 	// Reqest ACK by Si446x
 	rxData[1] = 0x00;
@@ -71,12 +75,12 @@ static void Si446x_write(const uint8_t* txData, uint32_t len) {
 		uint8_t rx_ready[] = {0x44};
 
 		// SPI transfer
-		spiSelect(&SPID3);
-		spiExchange(&SPID3, 3, rx_ready, rxData);
-		spiUnselect(&SPID3);
+		spiSelect(PKT_RADIO_SPI);
+		spiExchange(PKT_RADIO_SPI, 3, rx_ready, rxData);
+		spiUnselect(PKT_RADIO_SPI);
 	}
-	spiStop(&SPID3);
-	spiReleaseBus(&SPID3);
+	spiStop(PKT_RADIO_SPI);
+	spiReleaseBus(PKT_RADIO_SPI);
 }
 
 /**
@@ -84,14 +88,15 @@ static void Si446x_write(const uint8_t* txData, uint32_t len) {
  */
 static void Si446x_read(const uint8_t* txData, uint32_t txlen, uint8_t* rxData, uint32_t rxlen) {
 	// Transmit data by SPI
+  /* TODO: Add radio unit ID and get SPI accordingly. */
 	uint8_t null_spi[txlen];
 	// SPI transfer
-	spiAcquireBus(&SPID3);
-	spiStart(&SPID3, &ls_spicfg);
+	spiAcquireBus(PKT_RADIO_SPI);
+	spiStart(PKT_RADIO_SPI, &ls_spicfg);
 
-	spiSelect(&SPID3);
-	spiExchange(&SPID3, txlen, txData, null_spi);
-	spiUnselect(&SPID3);
+	spiSelect(PKT_RADIO_SPI);
+	spiExchange(PKT_RADIO_SPI, txlen, txData, null_spi);
+	spiUnselect(PKT_RADIO_SPI);
 
 	// Reqest ACK by Si446x
 	rxData[1] = 0x00;
@@ -102,12 +107,12 @@ static void Si446x_read(const uint8_t* txData, uint32_t txlen, uint8_t* rxData, 
 		rx_ready[0] = 0x44;
 
 		// SPI transfer
-		spiSelect(&SPID3);
-		spiExchange(&SPID3, rxlen, rx_ready, rxData);
-		spiUnselect(&SPID3);
+		spiSelect(PKT_RADIO_SPI);
+		spiExchange(PKT_RADIO_SPI, rxlen, rx_ready, rxData);
+		spiUnselect(PKT_RADIO_SPI);
 	}
-	spiStop(&SPID3);
-	spiReleaseBus(&SPID3);
+	spiStop(PKT_RADIO_SPI);
+	spiReleaseBus(PKT_RADIO_SPI);
 }
 
 static void Si446x_setProperty8(uint16_t reg, uint8_t val) {
@@ -130,35 +135,15 @@ static void Si446x_setProperty32(uint16_t reg, uint8_t val1, uint8_t val2, uint8
 	Si446x_write(msg, 8);
 }
 
-
-
-
-
 /**
- * Initializes Si446x transceiver chip. Adjustes the frequency which is shifted by variable
+ * Initializes Si446x transceiver chip. Adjusts the frequency which is shifted by variable
  * oscillator voltage.
  * @param mv Oscillator voltage in mv
  */
 static void Si446x_init(void) {
-	TRACE_INFO("SI   > Init radio");
+  dbgPrintf(DBG_INFO, "SI   > Init radio\r\n");
 
-    // Configure Radio pins
-    palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);     // SCK
-    palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);    // MISO
-    palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);    // MOSI
-    palSetLineMode(LINE_RADIO_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST); // RADIO CS
-    palSetLineMode(LINE_RADIO_SDN, PAL_MODE_OUTPUT_PUSHPULL);                           // RADIO SDN
-
-    // Pull CS HIGH
-    palSetLine(LINE_RADIO_CS);
-
-    // Reset radio
-    palSetLine(LINE_RADIO_SDN);
-    chThdSleep(TIME_MS2I(10));
-
-    // Power up transceiver
-    palClearLine(LINE_RADIO_SDN);   // Radio SDN low (power up transceiver)
-    chThdSleep(TIME_MS2I(10));      // Wait for transceiver to power up
+  pktConfigureRadioGPIO();
 
     // Power up (send oscillator type)
     const uint8_t x3 = (Si446x_CCLK >> 24) & 0x0FF;
@@ -201,10 +186,12 @@ static void Si446x_init(void) {
     Si446x_write(unreset_fifo, 2);
 
     /*
-     * TODO: Move the TX and RX settings out into the relevant functions.
-     * Leave only common setup and init in here.
+     * TODO: Move the TX and RX settings out into the respective functions.
+     * This would split up into AFSK and FSK for RX & TX.
+     * Leave only common setup and init in here for selected base band frequency.
      */
     Si446x_setProperty8(Si446x_PREAMBLE_TX_LENGTH, 0x00);
+    /* TODO: Use PREAMBLE_CONFIG_NSTD, etc. to send flags? */
     Si446x_setProperty8(Si446x_SYNC_CONFIG, 0x80);
 
     Si446x_setProperty8(Si446x_GLOBAL_CLK_CFG, 0x00);
@@ -258,12 +245,16 @@ static void Si446x_init(void) {
 
 	// Temperature readout
 	lastTemp = Si446x_getTemperature();
-	TRACE_INFO("SI   > Transmitter temperature %d degC", lastTemp/100);
+    dbgPrintf(DBG_INFO, "SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
 
 	radioInitialized = true;
 }
 
-
+void Si446x_conditional_init() {
+// Initialize radio
+if(!radioInitialized)
+    Si446x_init();
+}
 
 /*void init144_800(void) {
 	// Configure Radio pins
@@ -554,7 +545,7 @@ static void Si446x_setModemAFSK_RX(void)
     Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
     Si446x_setProperty8(Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x00);
 
-    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
+/*    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
     Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xC4);
     Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x30);
     Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x7F);
@@ -571,7 +562,7 @@ static void Si446x_setModemAFSK_RX(void)
     Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
     Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
     Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
-    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
+    Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);*/
 }
 
 static void Si446x_setModem2FSK(uint32_t speed)
@@ -643,20 +634,15 @@ static void Si446x_shutdown(void)
 
 	if(!nextTransmissionWaiting) { // No thread is waiting for radio, so shutdown radio
 
-		TRACE_INFO("SI   > Shutdown radio");
-
-		palSetLineMode(LINE_SPI_SCK, PAL_MODE_INPUT_PULLDOWN);		// SCK
-		palSetLineMode(LINE_SPI_MISO, PAL_MODE_INPUT_PULLDOWN);		// MISO
-		palSetLineMode(LINE_SPI_MOSI, PAL_MODE_INPUT_PULLDOWN);		// MOSI
-		palSetLineMode(LINE_RADIO_CS, PAL_MODE_INPUT_PULLDOWN);		// RADIO CS
-		palSetLineMode(LINE_RADIO_SDN, PAL_MODE_INPUT_PULLDOWN);	// RADIO SDN
+		//TRACE_INFO("SI   > Shutdown radio");
+	  pktDeconfigureRadioGPIO();
 
 		radioInitialized = false;
 
 	} else {
 
-		TRACE_INFO("RAD  > Transmission finished");
-		TRACE_INFO("RAD  > Keep radio switched on");
+		//TRACE_INFO("RAD  > Transmission finished");
+		//TRACE_INFO("RAD  > Keep radio switched on");
 
 	}
 }
@@ -707,51 +693,59 @@ static bool Si446x_getLatchedCCA(uint8_t ms)
 		cca += Si446x_getCCA();
 		chThdSleep(TIME_US2I(100));
 	}
-	TRACE_DEBUG("SI   > CCA=%03d RX=%d", cca, cca > ms/10);
+	//TRACE_DEBUG("SI   > CCA=%03d RX=%d", cca, cca > ms/10);
+    dbgPrintf(DBG_ERROR, "SI   > CCA=%03d RX=%d\r\n", cca, cca > ms/10);
 	return cca > ms; // Max. 1 spike per ms
 }
 
 static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uint8_t rssi, sysinterval_t sql_timeout)
 {
 	if(!Si446x_inRadioBand(frequency)) {
-		TRACE_ERROR("SI   > Frequency out of range");
-		TRACE_ERROR("SI   > abort transmission");
+		//TRACE_ERROR("SI   > Frequency out of range");
+      dbgPrintf(DBG_ERROR, "SI   > Frequency out of range\r\n");
+		//TRACE_ERROR("SI   > abort transmission");
+      dbgPrintf(DBG_ERROR, "SI   > abort transmission\r\n");
 		return false;
 	}
 
 	// Switch to ready state
 	if(Si446x_getState() == Si446x_STATE_RX) {
-		TRACE_INFO("SI   > Switch Si446x to ready state");
+		//TRACE_INFO("SI   > Switch Si446x to ready state");
+      dbgPrintf(DBG_INFO, "SI   > Switch Si446x to ready state\r\n");
 		Si446x_setReadyState();
 	}
 
 	Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
 	Si446x_setFrequency(frequency);		// Set frequency
-	Si446x_setPowerLevel(power);		// Set power level
 	Si446x_setRXState();
 
 	// Wait until nobody is transmitting (until timeout)
 	sysinterval_t t0 = chVTGetSystemTime();
 	if(Si446x_getState() != Si446x_STATE_RX || Si446x_getLatchedCCA(50)) {
-		TRACE_DEBUG("SI   > Wait for CCA to drop");
+		//TRACE_DEBUG("SI   > Wait for CCA to drop");
+	  dbgPrintf(DBG_INFO, "SI   > Wait for CCA to drop\r\n");
 		while((Si446x_getState() != Si446x_STATE_RX || Si446x_getLatchedCCA(50)) && chVTGetSystemTime()-t0 < sql_timeout)
 			chThdSleep(TIME_US2I(100));
 	}
 
 	// Transmit
-	TRACE_INFO("SI   > Tune Si446x (TX)");
+	//TRACE_INFO("SI   > Tune Si446x (TX)");
+    dbgPrintf(DBG_INFO, "SI   > Tune Si446x (TX)\r\n");
+    Si446x_setPowerLevel(power);        // Set power level
 	Si446x_setReadyState();
 	Si446x_setTXState(size);
 
 	return true;
 }
 
-static bool Si446x_receive_noLock(uint32_t frequency, uint8_t rssi, mod_t mod)
+/*static*/ bool Si446x_receive_noLock(uint32_t frequency, uint8_t rssi, mod_t mod)
 {
 	if(!Si446x_inRadioBand(frequency)) {
-		TRACE_ERROR("SI   > Frequency out of range");
-		TRACE_ERROR("SI   > abort reception");
-		return false;
+		//TRACE_ERROR("SI   > Frequency out of range");
+      dbgPrintf(DBG_ERROR, "SI   > Frequency out of range\r\n");
+		//TRACE_ERROR("SI   > abort reception");
+      dbgPrintf(DBG_ERROR, "SI   > abort reception\r\n");
+      return false;
 	}
 
 	// Initialize radio
@@ -768,17 +762,21 @@ static bool Si446x_receive_noLock(uint32_t frequency, uint8_t rssi, mod_t mod)
 		Si446x_setModemAFSK_RX();
 	} else {
 		Si446x_shutdown();
-		TRACE_ERROR("SI   > Modulation not supported");
-		TRACE_ERROR("SI   > abort reception");
+		//TRACE_ERROR("SI   > Modulation not supported");
+        dbgPrintf(DBG_ERROR, "SI   > Unknown modulation\r\n");
+		//TRACE_ERROR("SI   > abort reception");
+        dbgPrintf(DBG_ERROR, "SI   > abort reception\r\n");
 		return false;
 	}
 
 	// Preserve settings in case transceiver changes to TX state
 	rx_frequency = frequency;
 	rx_rssi = rssi;
+	rx_chan = 0;
 	rx_mod = mod;
 
-	TRACE_INFO("SI   > Tune Si446x (RX)");
+	//TRACE_INFO("SI   > Tune Si446x (RX)");
+    dbgPrintf(DBG_INFO, "SI   > Tune Si446x (RX)\r\n");
 	Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
 	Si446x_setFrequency(frequency);		// Set frequency
 	Si446x_setRXState();
@@ -803,8 +801,11 @@ static bool Si4464_restoreRX(void)
 	bool ret = Si446x_receive_noLock(rx_frequency, rx_rssi, rx_mod);
 
 	if(packetHandler) {
-		TRACE_DEBUG("SI    > Start packet handler")
-		pktStartDataReception(packetHandler); // Start packet handler again
+		//TRACE_DEBUG("Start packet handler");
+	    dbgPrintf(DBG_INFO, "SI   > Start packet handler\r\n");
+	    /* TODO: This should be handled from radio manager thread. */
+	    pktResumeDecoder(packetHandler);
+	    //pktStartDataReception(packetHandler, 0, 0x3f, NULL); // Start packet handler again
 	}
 
 	return ret;
@@ -850,7 +851,8 @@ static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_
 		for(uint8_t j=0; j<8; j++) {
 
 			if(blen >> 3 >= buf_len) { // Buffer overflow
-				TRACE_ERROR("Packet too long");
+				//TRACE_ERROR("Packet too long");
+	            dbgPrintf(DBG_ERROR, "SI   > Packet too long\r\n");
 				return blen;
 			}
 
@@ -870,7 +872,8 @@ static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_
 	while(pos < inlen*8)
 	{
 		if(blen >> 3 >= buf_len) { // Buffer overflow
-			TRACE_ERROR("Packet too long");
+			//TRACE_ERROR("Packet too long");
+            dbgPrintf(DBG_ERROR, "SI   > Packet too long\r\n");
 			return blen;
 		}
 
@@ -904,7 +907,8 @@ static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_
 		for(uint8_t j=0; j<8; j++) {
 
 			if(blen >> 3 >= buf_len) { // Buffer overflow
-				TRACE_ERROR("Packet too long");
+				//TRACE_ERROR("Packet too long");
+	            dbgPrintf(DBG_ERROR, "SI   > Packet too long\r\n");
 				return blen;
 			}
 
@@ -975,7 +979,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 	// Start transmission
 	Si446x_transmit(radio_freq, radio_pwr, all, 0x4F, TIME_S2I(10));
 
-	while(c < all && Si446x_getState() == Si446x_STATE_TX) { // Do while bytes not written into FIFO completely
+	while(c < all) { // Do while bytes not written into FIFO completely
 		// Determine free memory in Si446x-FIFO
 		uint8_t more = Si446x_freeFIFO();
 		if(more > all-c) {
@@ -991,13 +995,9 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 		chThdSleep(TIME_MS2I(15));
 	}
 
-	if(c < all) {
-		TRACE_ERROR("SI   > Packet was not sent completly");
-	}
-
 	/*
-	 * Shutdown radio if receiption has been interrupted. If receiption was interrupted rx_frequency is set.
-	 * If receiption has not been interrupted rx_frequency is set 0.
+	 * Shutdown radio if reception has been interrupted. If reception was interrupted rx_frequency is set.
+	 * If reception has not been interrupted rx_frequency is set 0.
 	 */
 	if(!rx_frequency) {
 		Si446x_shutdown();
@@ -1007,7 +1007,6 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 
 	// Free packet object memory
 	ax25_delete(pp);
-
 	chThdExit(MSG_OK);
 }
 
@@ -1016,8 +1015,10 @@ void Si446x_sendAFSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq,
 
 	// Stop packet handler (if started)
 	if(packetHandler) {
-		TRACE_DEBUG("SI   > Stop packet handler")
-		pktStopDataReception(packetHandler);
+		//TRACE_DEBUG("Stop packet handler");
+	    dbgPrintf(DBG_INFO, "SI   > Stop packet handler\r\n");
+	    pktPauseDecoder(packetHandler);
+		//pktStopDataReception(packetHandler);
 	}
 
 	// Initialize radio
@@ -1052,186 +1053,41 @@ void Si446x_sendAFSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq,
 
 /* ===================================================================== AFSK Receiver ====================================================================== */
 
-THD_FUNCTION(si_receiver, arg)
-{
-	(void)arg;
+void Si446x_mapCallback(pkt_data_object_t *pkt_buff) {
+  /* Packet buffer. */
+  ax25char_t *frame_buffer = pkt_buff->buffer;
+  uint16_t frame_size = pkt_buff->packet_size;
 
-	chRegSetThreadName("radio_receiver");
-
-	/* Buffer and size params for serial terminal output. */
-	char serial_buf[512];
-	int serial_out;
-
-	/*
-	 * Setup the parameters for the AFSK decoder thread.
-	 * TODO: Radio configuration to be implemented in pktOpenReceiveChannel().
-	 */
-
-	radio_config_t afsk_radio = { PKT_RADIO_1 };
-	char frameCounter = 'A';
-
-	/* set packet instance assignment(s). */
-	pktInitReceiveChannels();
-
-	packetHandler = pktOpenReceiveChannel(DECODE_AFSK, &afsk_radio);
-	chDbgAssert(packetHandler != NULL, "invalid packet type");
-
-	thread_t *the_decoder = ((AFSKDemodDriver *)packetHandler->link_controller)->decoder_thd;
-	chDbgAssert(the_decoder != NULL, "no decoder assigned");
-
-	event_source_t *events = pktGetEventSource(packetHandler);
-
-	/* Start the decoder. */
-	msg_t pstart = pktStartDataReception(packetHandler);
-
-	TRACE_DEBUG("RX   > Starting decoder: start status %i, event source @ %x", pstart, events);
-
-	/* Main loop. */
-	while (true) {
-		frameCounter = ((frameCounter+1-'A') % 26) + 'A';
-
-		pkt_data_fifo_t *myPktFIFO = pktReceiveDataBufferTimeout(packetHandler, TIME_MS2I(1000));
-		if(myPktFIFO == NULL) {
-			continue;
-		}
-		/* Packet buffer sent via FIFO. */
-		ax25char_t *frame_buffer = myPktFIFO->buffer;
-		uint16_t frame_size = myPktFIFO->packet_size;
-		eventmask_t the_events;
-		packetHandler->frame_count++;
-		if(pktIsBufferValidAX25Frame(myPktFIFO) == MSG_OK) {
-			the_events = EVT_DIAG_OUT_END | EVT_PKT_OUT_END;
-			uint16_t actualCRC = frame_buffer[frame_size - 2] | (frame_buffer[frame_size - 1] << 8);
-			uint16_t computeCRC = calc_crc16(frame_buffer, 0, frame_size - 2);
-			uint16_t magicCRC = calc_crc16(frame_buffer, 0, frame_size);
-			if(magicCRC == CRC_INCLUSIVE_CONSTANT)
-				packetHandler->valid_count++;
-			float32_t good = (float32_t)packetHandler->valid_count / (float32_t)packetHandler->packet_count;
-			/* Write out the buffer data.
-			 * TODO: Have a define to put diagnostic data into AX25 buffer object.
-			 */
-			TRACE_DEBUG(
-				"RX %c > AFSK capture: status 0x%08x"
-				", packet count %u frame count %u valid frames %u (%.2f%%) bytes %u"
-				", CRCr %04x, CRCc %04x (%s), CRCm %04x",
-				frameCounter,
-				myPktFIFO->status,
-				packetHandler->packet_count,
-				packetHandler->frame_count,
-				packetHandler->valid_count,
-				(good * 100),
-				frame_size,
-				actualCRC,
-				computeCRC,
-				(actualCRC == computeCRC ? "good" : "bad"),
-				magicCRC
-			);
-
-			uint16_t bufpos;
-			uint16_t bufpos_a = 0;
-			serial_out = 0;
-			/* Write out a buffer line as hex first. */
-			for(bufpos = 0; bufpos < frame_size; bufpos++) {
-				if((bufpos + 1) % LINE_LENGTH == 0) {
-					serial_out += chsnprintf(&serial_buf[serial_out], sizeof(serial_buf)-serial_out, "%02x", frame_buffer[bufpos]);
-					TRACE_DEBUG("RX %c > %s", frameCounter, serial_buf);
-					serial_out = 0;
-					/* Write out full line of converted ASCII under hex.*/
-					bufpos_a = (bufpos + 1) - LINE_LENGTH;
-					do {
-						char asciichar = frame_buffer[bufpos_a];
-						if(asciichar == 0x7e) {
-							asciichar = '^';
-						} else {
-							asciichar >>= 1;
-							if(!((asciichar >= 0x70 && asciichar < 0x7a) || (asciichar > 0x2f && asciichar < 0x3a) || (asciichar > 0x40 && asciichar < 0x5b))) {
-								asciichar = 0x20;
-							} else if(asciichar >= 0x70 && asciichar < 0x7a) {
-								asciichar &= 0x3f;
-							}
-						}
-						if((bufpos_a + 1) % LINE_LENGTH == 0) {
-							serial_out += chsnprintf(&serial_buf[serial_out], sizeof(serial_buf)-serial_out, " %c", asciichar);
-							TRACE_DEBUG("RX %c > %s", frameCounter, serial_buf);
-							serial_out = 0;
-						} else {
-							serial_out += chsnprintf(&serial_buf[serial_out], sizeof(serial_buf)-serial_out, " %c ", asciichar);
-						}
-					} while(bufpos_a++ < bufpos);
-				} else {
-					serial_out += chsnprintf(&serial_buf[serial_out], sizeof(serial_buf)-serial_out, "%02x ", frame_buffer[bufpos]);
-				}
-			} /* End for(bufpos = 0; bufpos < frame_size; bufpos++). */
-
-			TRACE_DEBUG("RX %c > %s", frameCounter, serial_buf);
-			serial_out = 0;
-			/* Write out remaining partial line of converted ASCII under hex. */
-
-			do {
-				char asciichar = frame_buffer[bufpos_a];
-				if(asciichar == 0x7e) {
-					asciichar = '^';
-				} else {
-					asciichar >>= 1;
-					if(!((asciichar >= 0x70 && asciichar < 0x7a) || (asciichar > 0x2f && asciichar < 0x3a) || (asciichar > 0x40 && asciichar < 0x5b))) {
-						asciichar = 0x20;
-					} else if(asciichar >= 0x70 && asciichar < 0x7a) {
-						asciichar &= 0x3f;
-					}
-				}
-				serial_out += chsnprintf(&serial_buf[serial_out], sizeof(serial_buf)-serial_out, " %c ", asciichar);
-			} while(++bufpos_a < bufpos);
-			TRACE_DEBUG("RX %c > %s", frameCounter, serial_buf);
-
-
-			if(actualCRC == computeCRC) {
-				rx_cb(frame_buffer, frame_size);
-			}
-
-		} else {/* End if valid frame. */
-			the_events = EVT_DIAG_OUT_END;
-			TRACE_DEBUG("RX %c > Invalid frame, status 0x%08x, bytes %u", frameCounter, myPktFIFO->status, myPktFIFO->packet_size);
-		}
-
-#if SUSPEND_HANDLING == RELEASE_ON_OUTPUT
-		/*
-		 *  Wait for end of transmission on diagnostic channel.
-		 */
-		eventmask_t evt = chEvtWaitAllTimeout(the_events, TIME_S2I(10));
-		if (!evt) {
-			TRACE_ERROR("RX   > FAIL: Timeout waiting for EOT from serial channels");
-		}
-		chEvtSignal(the_decoder, EVT_SUSPEND_EXIT);
-#else
-		(void)the_events;
+  /* TODO: This is a quick diagnostic implementation only. */
+#if DUMP_PACKET_TO_SERIAL == TRUE
+  pktDiagnosticOutput(pkt_buff->handler, pkt_buff);
 #endif
-		pktReleaseDataBuffer(packetHandler, myPktFIFO);
-		if(packetHandler->packet_count % 100 == 0 && packetHandler->packet_count != 0) {
-			/* Stop the decoder. */
-			msg_t pmsg = pktStopDataReception(packetHandler);
-			TRACE_DEBUG("RX   > Decoder STOP %i", pmsg);
-			if(packetHandler->packet_count % 1000 == 0 && packetHandler->packet_count != 0) {
-				chThdSleep(TIME_S2I(5));
-				pmsg = pktCloseReceiveChannel(packetHandler);
-				TRACE_DEBUG("RX   > Decoder CLOSE %i\r\n", pmsg);
-				chThdSleep(TIME_S2I(5));
-				packetHandler = pktOpenReceiveChannel(DECODE_AFSK, &afsk_radio);
-				TRACE_DEBUG("RX   > Decoder OPEN %x", packetHandler);
-			}
-			chThdSleep(TIME_S2I(5));
-			pmsg = pktStartDataReception(packetHandler);
-			TRACE_DEBUG("RX   > Decoder START %i", pmsg);
-		}
-	}
+
+  /* Perform the callback. */
+  rx_cb(frame_buffer, frame_size);
 }
 
-void Si446x_startDecoder(void* cb) {
+void Si446x_startDecoder(radio_freq_t freq, radio_squelch_t sq, void* cb) {
+
 	rx_cb = cb;
 
-	// Start receiver thread
-	if(si446x_rx_thd == NULL)
-		si446x_rx_thd = chThdCreateStatic(si446x_rx_wa, sizeof(si446x_rx_wa),
-		                                  NORMALPRIO, si_receiver, NULL);
+    /* Start serial channels. */
+    pktSerialStart();
+
+	pktServiceCreate();
+
+	/* Open packet radio service. */
+    pktOpenRadioService(PKT_RADIO_1,
+                         DECODE_AFSK,
+                         freq,
+                         PKT_RADIO_CHANNEL_STEPPING_NONE,
+                         &packetHandler);
+
+    /* Start the decoder. */
+    pktStartDataReception(packetHandler,
+                           94,
+                           sq,
+                           Si446x_mapCallback);
 }
 
 void Si446x_stopDecoder(void) {
@@ -1270,8 +1126,8 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
 	}*/
 
 	/*
-	 * Shutdown radio if receiption has been interrupted. If receiption was interrupted rx_frequency is set.
-	 * If receiption has not been interrupted rx_frequency is set 0.
+	 * Shutdown radio if reception has been interrupted. If reception was interrupted rx_frequency is set.
+	 * If reception has not been interrupted rx_frequency is set 0.
 	 */
 	if(!rx_frequency) {
 		Si446x_shutdown();
@@ -1291,7 +1147,8 @@ void Si446x_send2FSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq,
 
 	// Stop packet handler (if started)
 	if(packetHandler)
-		pktStopDataReception(packetHandler);
+		//pktStopDataReception(packetHandler);
+	  pktPauseDecoder(packetHandler);
 
 	// Initialize radio
 	if(!radioInitialized)
@@ -1337,3 +1194,4 @@ int16_t Si446x_getLastTemperature(void) {
 	return lastTemp;
 }
 
+//#endif

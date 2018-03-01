@@ -1,9 +1,9 @@
 #ifndef __si446x__H__
 #define __si446x__H__
 
-#include "ch.h"
-#include "hal.h"
-#include "types.h"
+//#include "ch.h"
+//#include "hal.h"
+//#include "types.h"
 
 #ifndef Si446x_CLK
 #error Si446x_CLK is not defined which is needed for Si446x.
@@ -156,6 +156,11 @@
 #define Si446x_FREQ_CONTROL_W_SIZE				0x4006
 #define Si446x_FREQ_CONTROL_VCOCNT_RX_ADJ		0x4007
 
+#define RADIO_TASK_QUEUE_MAX                      3
+
+#define PKT_SI446X_APRS_CHANNEL     94
+#define PKT_SI446X_SQUELCH_LEVEL    0x4F
+
 // Public methods
 
 int16_t Si446x_getLastTemperature(void);
@@ -164,11 +169,11 @@ void Si446x_sendAFSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq,
 void Si446x_send2FSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq, uint8_t pwr, uint32_t speed);
 
 bool Si446x_receive(uint32_t frequency, uint8_t rssi, mod_t mod);
-void Si446x_startDecoder(void* cb);
+void Si446x_startDecoder(uint32_t freq, uint8_t sq, void* cb);
 void Si446x_stopDecoder(void);
-
+bool Si446x_receive_noLock(uint32_t frequency, uint8_t rssi, mod_t mod);
 void unlockRadio(void);
 void lockRadioByCamera(void);
-
+void Si446x_conditional_init(void);
 #endif
 

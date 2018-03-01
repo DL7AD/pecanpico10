@@ -39,10 +39,22 @@
  */
 #include "arm_math.h"
 
-/* Decoder system events. */
+/*===========================================================================*/
+/* Aerospace decoder system function includes.                               */
+/*===========================================================================*/
+
+#include "bit_array.h"
+
+
+/* General event definitions. */
 #define EVT_NONE                0
 #define EVT_PRIORITY_BASE       0
 
+/*
+ * Decoder global system events.
+ * The packet channel object holds the global events.
+ * Events are broadcast to any listeners.
+ */
 #define EVT_AX25_FRAME_RDY      EVENT_MASK(EVT_PRIORITY_BASE + 0)
 #define EVT_RADIO_CCA_GLITCH    EVENT_MASK(EVT_PRIORITY_BASE + 1)
 #define EVT_RADIO_CCA_CLOSE     EVENT_MASK(EVT_PRIORITY_BASE + 2)
@@ -51,7 +63,7 @@
 #define EVT_AFSK_TERMINATED     EVENT_MASK(EVT_PRIORITY_BASE + 4)
 #define EVT_PWM_UNKNOWN_INBAND  EVENT_MASK(EVT_PRIORITY_BASE + 5)
 #define EVT_ICU_OVERFLOW        EVENT_MASK(EVT_PRIORITY_BASE + 6)
-#define EVT_SUSPEND_EXIT        EVENT_MASK(EVT_PRIORITY_BASE + 7)
+//#define EVT_SUSPEND_EXIT        EVENT_MASK(EVT_PRIORITY_BASE + 7)
 
 #define EVT_PWM_NO_DATA         EVENT_MASK(EVT_PRIORITY_BASE + 8)
 #define EVT_PWM_FIFO_SENT       EVENT_MASK(EVT_PRIORITY_BASE + 9)
@@ -60,13 +72,13 @@
 
 #define EVT_PWM_FIFO_EMPTY      EVENT_MASK(EVT_PRIORITY_BASE + 12)
 #define EVT_PWM_STREAM_TIMEOUT  EVENT_MASK(EVT_PRIORITY_BASE + 13)
-#define EVT_PWM_FIFO_LOCK       EVENT_MASK(EVT_PRIORITY_BASE + 14)
-#define EVT_DECODER_START       EVENT_MASK(EVT_PRIORITY_BASE + 15)
+#define EVT_PWM_QUEUE_LOCK      EVENT_MASK(EVT_PRIORITY_BASE + 14)
+#define EVT_PKT_DECODER_START   EVENT_MASK(EVT_PRIORITY_BASE + 15)
 
-#define EVT_DECODER_STOP        EVENT_MASK(EVT_PRIORITY_BASE + 16)
+#define EVT_PKT_CHANNEL_STOP    EVENT_MASK(EVT_PRIORITY_BASE + 16)
 #define EVT_RADIO_CCA_FIFO_ERR  EVENT_MASK(EVT_PRIORITY_BASE + 17)
 #define EVT_AX25_BUFFER_FULL    EVENT_MASK(EVT_PRIORITY_BASE + 18)
-//#define EVT_AFSK_DATA_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 19)
+#define EVT_AFSK_INVALID_FRAME  EVENT_MASK(EVT_PRIORITY_BASE + 19)
 
 #define EVT_AX25_CRC_ERROR      EVENT_MASK(EVT_PRIORITY_BASE + 20)
 #define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 21)
@@ -75,10 +87,29 @@
 
 #define EVT_PWM_STREAM_CLOSED   EVENT_MASK(EVT_PRIORITY_BASE + 24)
 #define EVT_PKT_CHANNEL_CLOSE   EVENT_MASK(EVT_PRIORITY_BASE + 25)
-#define EVT_DECODER_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 26)
+#define EVT_PKT_CHANNEL_OPEN    EVENT_MASK(EVT_PRIORITY_BASE + 26)
 #define EVT_AFSK_DECODE_DONE    EVENT_MASK(EVT_PRIORITY_BASE + 27)
 
 #define EVT_RADIO_CCA_SPIKE     EVENT_MASK(EVT_PRIORITY_BASE + 28)
+//#define EVT_SERIAL_PKT_OUT_END  EVENT_MASK(EVT_PRIORITY_BASE + 29)
+#define EVT_ICU_OUT_OF_RANGE    EVENT_MASK(EVT_PRIORITY_BASE + 30)
+
+/* Initiator thread events (from decoder to initiator). */
+#define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 0)
+#define DEC_START_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 1)
+#define DEC_STOP_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 2)
+#define DEC_CLOSE_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 2)
+
+/* Decoder thread events (from initiator to decoder). */
+
+#define DEC_COMMAND_START       EVENT_MASK(EVT_PRIORITY_BASE + 0)
+#define DEC_COMMAND_STOP        EVENT_MASK(EVT_PRIORITY_BASE + 1)
+#define DEC_COMMAND_CLOSE       EVENT_MASK(EVT_PRIORITY_BASE + 2)
+#define DEC_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 3)
+#define DEC_SUSPEND_EXIT        EVENT_MASK(EVT_PRIORITY_BASE + 4)
+
+/* Reserved system thread events (in user threads). */
+#define USR_COMMAND_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 0)
 
 #define EVT_STATUS_CLEAR        EVT_NONE
 
@@ -96,64 +127,28 @@
 #define PAL_TOGGLE              2U
 
 /*===========================================================================*/
-/**
- * @name Subsystems configuration
- * @{
- */
-/*===========================================================================*/
-
-/**
- * @brief   Enables and sets the device parameters.
- * @details Some devices may be optional.
- *
- * @note    The default is @p TRUE.
- */
-#define PKT_CFG_USE_SERIAL          FALSE
-
-/**
- * @brief   Temporary definition of radio unit ID.
- * @details Defines the radio unit used in configuring and enabling a radio.
- *
- * @note    The default is @p TRUE.
- */
-typedef enum radioUnit {
-  PKT_RADIO_1
-} radio_unit_t;
-
-typedef struct radioConfig {
-  radio_unit_t  radio_id;
-  /* Other stuff like frequency goes here. */
-} radio_config_t;
-
-/*===========================================================================*/
-/* Aerospace decoder system function includes.                               */
-/*===========================================================================*/
-
-#include "bit_array.h"
-
-/*===========================================================================*/
 /* Aerospace decoder subsystem includes.                                     */
 /*===========================================================================*/
 
 #include "portab.h"
+#include "rxax25.h"
+#include "pktservice.h"
+#include "pktradio.h"
 #include "dbguart.h"
 #include "dsp.h"
-#include "rxax25.h"
 #include "crc_calc.h"
-#include "rxafsk.h"
 #include "rxpwm.h"
 #include "firfilter_q31.h"
+#include "rxafsk.h"
 #include "corr_q31.h"
 #include "rxhdlc.h"
-#include "rxpacket.h"
 #include "ihex_out.h"
-#include "ax25_pad.h"
 #include "ax25_dump.h"
+#include "si446x.h"
 
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -170,6 +165,7 @@ static inline void pktSetLineModeCCA(void) {
   palSetLineMode(LINE_CCA, PAL_MODE_INPUT_PULLUP);
 }
 
+/* Decoder blinker LED. */
 static inline void pktSetLineModeDecoderLED(void) {
 #if defined(LINE_DECODER_LED)
   palSetLineMode(LINE_DECODER_LED, PAL_MODE_OUTPUT_PUSHPULL);
@@ -193,6 +189,7 @@ static inline void pktWriteDecoderLED(uint8_t state) {
 #endif
 }
 
+/* Squelch (CCA) indicator. */
 static inline void pktSetLineModeSquelchLED(void) {
 #if defined(LINE_SQUELCH_LED)
   palSetLineMode(LINE_SQUELCH_LED, PAL_MODE_OUTPUT_PUSHPULL);
@@ -216,6 +213,7 @@ static inline void pktUnsetLineModeSquelchLED(void) {
 #endif
 }
 
+/* Overflow in FIFO queue space. */
 static inline void pktSetLineModeOverflowLED(void) {
 #if defined(LINE_OVERFLOW_LED)
   palSetLineMode(LINE_OVERFLOW_LED, PAL_MODE_OUTPUT_PUSHPULL);
@@ -239,6 +237,31 @@ static inline void pktUnsetLineModeOverflowLED(void) {
 #endif
 }
 
+/* LED for FIFO out at PWM/ICU side. */
+static inline void pktSetLineModeNoFIFOLED(void) {
+#if defined(LINE_NO_FIFO_LED)
+  palSetLineMode(LINE_NO_FIFO_LED, PAL_MODE_OUTPUT_PUSHPULL);
+#endif
+}
+
+static inline void pktWriteNoFIFOLED(uint8_t state) {
+#if defined(LINE_NO_FIFO_LED)
+  if(state != PAL_TOGGLE)
+    palWriteLine(LINE_NO_FIFO_LED, state);
+  else
+    palToggleLine(LINE_NO_FIFO_LED);
+#else
+  (void)state;
+#endif
+}
+
+static inline void pktUnsetLineModeNoFIFOLED(void) {
+#if defined(LINE_NO_FIFO_LED)
+  palSetLineMode(LINE_NO_FIFO_LED, PAL_MODE_UNCONNECTED);
+#endif
+}
+
+/* PWM mirroring to a GPIO for diagnostics. */
 static inline void pktSetLineModePWMMirror(void) {
 #if defined(LINE_PWM_MIRROR)
   palSetLineMode(LINE_PWM_MIRROR, PAL_MODE_OUTPUT_PUSHPULL);
@@ -262,9 +285,63 @@ static inline void pktWritePWMMirror(uint8_t state) {
 #endif
 }
 
+/* Radio configuration for SPI connected radio. */
+/*static inline msg_t pktOpenRadio(packet_svc_t *handler) {
+#if USE_SPI_ATTACHED_RADIO == TRUE
+  msg_t msg = pktSubmitRadioTask(handler, TIME_S2I(10), NULL);
+  return msg;
+#else
+  (void)handler;
+  return MSG_OK;
+#endif
+}*/
 
+/*static inline msg_t pktStartRadio(packet_svc_t *handler) {
+#if USE_SPI_ATTACHED_RADIO == TRUE
+  msg_t msg = pktSubmitRadioTask(handler, TIME_MS2I(100), NULL);
+  return msg;
+#else
+  (void)handler;
+  return MSG_OK;
+#endif
+}*/
+
+/*static inline void pktStopRadio(packet_svc_t *handler) {
+#if USE_SPI_ATTACHED_RADIO == TRUE
+  (void)handler;
+#else
+  (void)handler;
+#endif
+}*/
+
+/*static inline msg_t pktCloseRadio(packet_svc_t *handler) {
+#if USE_SPI_ATTACHED_RADIO == TRUE
+  (void)handler;
+  //Si446x_shutdown();
+#else
+  (void)handler;
+#endif
+  return MSG_OK;
+}*/
+
+
+static inline msg_t pktSendRadioCommand(packet_svc_t *handler,
+                                        radio_task_object_t *task) {
+#if USE_SPI_ATTACHED_RADIO == TRUE
+  radio_task_object_t *rt = NULL;
+  msg_t msg = pktGetRadioTaskObject(handler, TIME_MS2I(3000), &rt);
+  if(msg != MSG_OK)
+    return MSG_TIMEOUT;
+  *rt = *task;
+  pktSubmitRadioTask(handler, rt, NULL);
+  return msg;
+#else
+  (void)task;
+  (void)handler;
+  return MSG_OK;
+#endif
+}
 
 #endif /* _PKTCONF_H_ */
 
 /** @} */
-

@@ -60,13 +60,13 @@ endif
 # Stack size to be allocated to the Cortex-M process stack. This stack is
 # the stack used by the main() thread.
 ifeq ($(USE_PROCESS_STACKSIZE),)
-  USE_PROCESS_STACKSIZE = 0x2000
+  USE_PROCESS_STACKSIZE = 0x1000
 endif
 
 # Stack size to the allocated to the Cortex-M main/exceptions stack. This
 # stack is used for processing interrupts and exceptions.
 ifeq ($(USE_EXCEPTIONS_STACKSIZE),)
-  USE_EXCEPTIONS_STACKSIZE = 0x2000
+  USE_EXCEPTIONS_STACKSIZE = 0x1000
 endif
 
 # Enables the use of FPU (no, softfp, hard).
@@ -140,7 +140,7 @@ CSRC = $(STARTUPSRC) \
        drivers/wrapper/padc.c \
        drivers/wrapper/ptime.c \
        drivers/ublox.c \
-       drivers/si446x.c \
+       pkt/devices/si446x.c \
        drivers/bme280.c \
        drivers/pac1720.c \
        drivers/ov5640.c \
@@ -160,16 +160,18 @@ CSRC = $(STARTUPSRC) \
        regex/crx.c \
        \
        portab.c \
-	   io/protocols/crc_calc.c \
-	   io/managers/rxafsk.c \
-	   io/channels/rxpwm.c \
-	   io/filters/dsp.c \
-	   io/filters/firfilter_q31.c \
-	   io/decoders/corr_q31.c \
-	   io/protocols/rxhdlc.c \
-	   io/channels/rxpacket.c \
-	   io/devices/dbguart.c \
-	   sys/ihex_out.c \
+	   pkt/protocols/crc_calc.c \
+	   pkt/managers/rxafsk.c \
+	   pkt/managers/pktradio.c \
+	   pkt/channels/rxpwm.c \
+	   pkt/filters/dsp.c \
+	   pkt/filters/firfilter_q31.c \
+	   pkt/decoders/corr_q31.c \
+	   pkt/protocols/rxhdlc.c \
+	   pkt/channels/pktservice.c \
+	   pkt/devices/dbguart.c \
+	   pkt/sys/ihex_out.c \
+	   pkt/diagnostics/ax25_dump.c \
        \
        main.c \
 
@@ -255,7 +257,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4
+UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4 -DSHELL_CMD_TEST_ENABLED=0
 
 # Define ASM defines here
 UADEFS =
@@ -264,8 +266,9 @@ UADEFS =
 UINCDIR = threads/ drivers/ drivers/wrapper/ protocols/aprs2 \
           protocols/ssdv protocols/morse math/ drivers/flash/ \
           fatfs/src/ threads/radio/ \
-          sys io/channels io/managers io/devices io/protocols \
-          io/filters io/decoders CMSIS/include regex/
+          pkt pkt/channels pkt/managers pkt/devices pkt/protocols \
+          pkt/diagnostics pkt/filters pkt/decoders pkt/sys CMSIS/include \
+          regex/
 
 # List the user directory to look for the libraries here
 ULIBDIR = CMSIS/Lib/GCC

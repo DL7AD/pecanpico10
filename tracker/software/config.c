@@ -118,19 +118,19 @@ const conf_t conf_flash_default = {
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
-			.freq			= FREQ_APRS_DYNAMIC,
+			.freq			= 145175000,
 			.mod			= MOD_AFSK,
 			.preamble		= 200
 		},
 
-		.call				= "DL7AD-13",
-		.path				= "WIDE1-1",
+		.call				= "VK2GJ-15",
+		.path				= "WIDE2-1",
 		.symbol				= SYM_DIGIPEATER
 	},
 
-	.rssi					= 0x3F,
+	.rssi					= 0x4F,
 
-	.dig_active				= false,
+	.dig_active				= true,
 
 	.keep_cam_switched_on	= false,
 

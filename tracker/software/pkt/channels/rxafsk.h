@@ -68,7 +68,7 @@
 #define MAG_FILTER_GEN_COEFF        TRUE
 #define MAG_FILTER_HIGH             1400
 
-#define PRE_FILTER_NUM_TAPS         55U //311U
+#define PRE_FILTER_NUM_TAPS         55U
 #define PRE_FILTER_BLOCK_SIZE       1U
 #if PRE_FILTER_BLOCK_SIZE != 1
 #error "Filter block size must be 1"
@@ -90,7 +90,7 @@
  * Coefficients created dynamically are calculated at run-time.
  * Coefficients generated externally in Matlab/Octave need to be re-done.
  */
-#define SYMBOL_DECIMATION           (24U)
+#define SYMBOL_DECIMATION           (12U)
 /* Sample rate in Hz. */
 #define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
 #define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
@@ -108,10 +108,10 @@
 #define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
 #endif
 
-/* Statistic analysis enabling. */
-#define USE_AFSK_PHASE_STATISTICS   FALSE
 
-#define AFSK_COLLISION_RESTART      TRUE
+#define PKT_PWM_QUEUE_PREFIX        "pwmx_"
+
+#define PKT_AFSK_THREAD_NAME_PREFIX "afsk_"
 
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */
@@ -154,25 +154,23 @@ typedef float32_t   pwm_accum_t;
 typedef int16_t     dsp_phase_t;
 
 #include "rxpwm.h"
-#include "rxpacket.h"
+#include "pktservice.h"
 /**
  * @brief   Structure representing an AFSK demod driver.
  */
 typedef struct AFSK_data {
-  /**
-   * @brief radio identifier.
-   */
-  radio_unit_t              radio_id;
+
+  char                      decoder_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
 
   /**
    * @brief pointer to the packet handler.
    */
-  packet_rx_t               *packet_handler;
+  packet_svc_t               *packet_handler;
 
   /**
-   * @brief User thread (for events posted to user).
+   * @brief Event source object.
    */
-  thread_t                  *initiating_thd;
+  event_source_t            event;
 
   /**
    * @brief Decoder thread (for events posted to decoder).
@@ -213,6 +211,8 @@ typedef struct AFSK_data {
    * @brief ICU driver state.
    */
   rx_icu_state_t            icustate;
+
+  char                      pwm_fifo_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
 
   /**
    * @brief ICU guarded FIFO.
@@ -266,8 +266,8 @@ typedef struct AFSK_data {
 /* Module macros.                                                            */
 /*===========================================================================*/
 
-static inline void pktRestartAFSKDecoder(AFSKDemodDriver *myDriver) {
-  packet_rx_t *myHandler = myDriver->packet_handler;
+static inline void pktResyncAFSKDecoder(AFSKDemodDriver *myDriver) {
+  packet_svc_t *myHandler = myDriver->packet_handler;
   myDriver->frame_state = FRAME_OPEN;
   myHandler->active_packet_object->packet_size = 0;
 }
@@ -287,11 +287,10 @@ extern "C" {
   bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver);
   bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver);
   bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[]);
-  AFSKDemodDriver *pktCreateAFSKDecoder(packet_rx_t *pktDriver,
-                                        radio_unit_t radio_id);
+  AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktDriver);
   bool pktCheckAFSKSymbolTime(AFSKDemodDriver *myDriver);
   void pktUpdateAFSKSymbolPLL(AFSKDemodDriver *myDriver);
-  void pktDestroyAFSKDecoder(AFSKDemodDriver *myDriver);
+  void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver);
   void pktResetAFSKDecoder(AFSKDemodDriver *myDriver);
   void pktDisablePWM(AFSKDemodDriver *myDriver);
   void pktAFSKDecoder(void *arg);

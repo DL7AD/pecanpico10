@@ -14,8 +14,8 @@
  * @{
  */
 
-#ifndef IO_FILTERS_DSP_H_
-#define IO_FILTERS_DSP_H_
+#ifndef PKT_FILTERS_DSP_H_
+#define PKT_FILTERS_DSP_H_
 
 #include <limits.h>
 
@@ -79,6 +79,6 @@ typedef enum fd_window_e {
   }
   #endif
 
-#endif /* IO_FILTERS_DSP_H_ */
+#endif /* PKT_FILTERS_DSP_H_ */
 
 /** @} */

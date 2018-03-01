@@ -17,19 +17,21 @@
 #ifndef DEVICES_DBGUART_H_
 #define DEVICES_DBGUART_H_
 
+#include "portab.h"
+
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
 
-extern BaseSequentialStream* diag_out;
-extern BaseSequentialStream* pkt_out;
-
-extern const SerialConfig debug_config;
+#define DBG_ERROR	1
+#define DBG_WARN	2
+#define DBG_INFO	3
+#define DBG_DEBUG	4
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void pktSerialStart(void);
+
 #ifdef __cplusplus
 }
 #endif
