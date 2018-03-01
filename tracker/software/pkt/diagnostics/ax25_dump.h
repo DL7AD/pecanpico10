@@ -15,8 +15,8 @@
  * @{
  */
 
-#ifndef IO_PROTOCOLS_AX25_DUMP_H_
-#define IO_PROTOCOLS_AX25_DUMP_H_
+#ifndef PKT_PROTOCOLS_AX25_DUMP_H_
+#define PKT_PROTOCOLS_AX25_DUMP_H_
 
 /*===========================================================================*/
 /* Module constants.                                                         */
@@ -52,6 +52,8 @@ extern "C" {
 #endif
   void pktDumpAX25Frame(ax25char_t *frame_buffer, ax25size_t frame_size,
                         ax25_select_t which);
+  void pktDiagnosticOutput(packet_svc_t *packetHandler,
+                           pkt_data_object_t *pkt_buffer);
 #ifdef __cplusplus
 }
 #endif
@@ -61,6 +63,6 @@ extern "C" {
 /*===========================================================================*/
 
 
-#endif /* IO_PROTOCOLS_AX25_DUMP_H_ */
+#endif /* PKT_PROTOCOLS_AX25_DUMP_H_ */
 
 /** @} */

@@ -128,6 +128,10 @@ ICUDriver *pktAttachICU(radio_unit_t radio_id) {
   pktSetLineModeOverflowLED();
   pktWriteOverflowLED(PAL_LOW);
 
+  /* Setup the no FIFO LED. */
+  pktSetLineModeNoFIFOLED();
+  pktWriteNoFIFOLED(PAL_LOW);
+
   return myICU;
 }
 
@@ -155,6 +159,9 @@ void pktDetachICU(ICUDriver *myICU) {
   /* Disable overflow LED. */
   pktUnsetLineModeOverflowLED();
 
+  /* Disable no FIFO LED. */
+  pktUnsetLineModeNoFIFOLED();
+
   /* If using PWM mirror disable diagnostic port. */
   pktUnsetLineModePWMMirror();
 }
@@ -174,18 +181,18 @@ void pktICUStart(ICUDriver *myICU) {
 /**
  * @brief   Terminates the PWM stream from the ICU.
  * @post    The ICU notification (callback) is stopped.
- * @post    An end of data (EOD) in-band flag is written to the PWM queue.
- * @post    If the queue is full the yellow LED is lit.
+ * @post    An in-band reason code flag is written to the PWM queue.
+ * @post    If the queue is full the optional LED is lit.
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
  * @param[in]   event flags to be set as to why the channel is closed.
  *
  * @api
  */
-void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt) {
+void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) {
   /* Stop posting data and write end marker. */
   AFSKDemodDriver *myDemod = myICU->link;
-  packet_rx_t *myHandler = myDemod->packet_handler;
+  packet_svc_t *myHandler = myDemod->packet_handler;
   chDbgAssert(myDemod != NULL, "no demod linked");
   chVTResetI(&myICU->pwm_timer);
 
@@ -197,11 +204,15 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   /* Stop the ICU notification (callback). */
   icuDisableNotificationsI(myICU);
   if(myDemod->active_radio_object != NULL) {
-    myDemod->active_radio_object->status |= (EVT_PWM_FIFO_LOCK | evt);
-    pktAddEventFlagsI(myHandler, (EVT_PWM_FIFO_LOCK | evt));
+    myDemod->active_radio_object->status |= (EVT_PWM_QUEUE_LOCK | evt);
+    pktAddEventFlagsI(myHandler, (EVT_PWM_QUEUE_LOCK | evt));
     input_queue_t *myQueue = &myDemod->active_radio_object->radio_pwm_queue;
     /* End of data flag. */
-    byte_packed_pwm_t pack = {{0, 0, 0}};
+#if USE_12_BIT_PWM == TRUE
+    byte_packed_pwm_t pack = {{0, reason, 0}};
+#else
+    byte_packed_pwm_t pack = {{0, reason}};
+#endif
     msg_t qs = pktWritePWMQueue(myQueue, pack);
     if(qs != MSG_OK) {
       pktWriteOverflowLED(PAL_HIGH);
@@ -209,7 +220,7 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt) {
       pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_FULL);
     }
     /* Release the decoder thread if waiting. */
-    chSemSignalI(&myDemod->active_radio_object->sem);
+    chBSemSignalI(&myDemod->active_radio_object->sem);
     /* Remove object reference. */
     myDemod->active_radio_object = NULL;
   } else {
@@ -234,20 +245,20 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt) {
  */
 void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   AFSKDemodDriver *myDemod = myICU->link;
-  packet_rx_t *myHandler = myDemod->packet_handler;
+  packet_svc_t *myHandler = myDemod->packet_handler;
 
   /* Turn on the squelch LED. */
   pktWriteSquelchLED(PAL_HIGH);
 
   /* Turn off the overflow LED. */
-  pktWriteOverflowLED(PAL_LOW);
+  //pktWriteOverflowLED(PAL_LOW);
 
   if(myDemod->active_radio_object != NULL) {
     /* TODO: Work out correct handling.
      * Shouldn't happen unless CCA has not triggered an EXTI trailing edge.
      * For now just flag that an error condition happened.
      */
-    pktClosePWMChannelI(myICU, EVT_RADIO_CCA_FIFO_ERR);
+    pktClosePWMChannelI(myICU, EVT_RADIO_CCA_FIFO_ERR, PWM_TERM_NO_RESOURCE);
     return;
   }
   /* Normal CCA handling. */
@@ -260,6 +271,9 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
      */
     pktAddEventFlagsI(myHandler, EVT_PWM_FIFO_EMPTY);
     icuDisableNotificationsI(myICU);
+
+    /* Turn on the FIFO out LED. */
+    pktWriteNoFIFOLED(PAL_HIGH);
     return;
   }
 
@@ -272,7 +286,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
    * Initialize FIFO release control semaphore.
    * The decoder thread waits on the semaphore before releasing  to pool.
    */
-  chSemObjectInit(&myFIFO->sem, 0);
+  chBSemObjectInit(&myFIFO->sem, true);
 
   /* Each FIFO entry has an embedded input queue with data buffer. */
   (void)iqObjectInit(&myFIFO->radio_pwm_queue,
@@ -340,7 +354,7 @@ void pktICUInactivityTimeout(ICUDriver *myICU) {
    */
   chSysLockFromISR();
   AFSKDemodDriver *myDemod = myICU->link;
-  packet_rx_t *myHandler = myDemod->packet_handler;
+  packet_svc_t *myHandler = myDemod->packet_handler;
   if(myDemod->active_radio_object == NULL) {
     pktSleepICUI(myICU);
     pktAddEventFlagsI(myHandler, EVT_ICU_SLEEP_TIMEOUT);
@@ -375,7 +389,7 @@ void pktPWMInactivityTimeout(ICUDriver *myICU) {
   chSysLockFromISR();
   AFSKDemodDriver *myDemod = myICU->link;
   if(myDemod->active_radio_object != NULL) {
-    pktClosePWMChannelI(myICU, EVT_PWM_NO_DATA);
+    pktClosePWMChannelI(myICU, EVT_PWM_NO_DATA, PWM_TERM_ICU_OVERFLOW);
   }
   chSysUnlockFromISR();
 }
@@ -390,15 +404,15 @@ void pktPWMInactivityTimeout(ICUDriver *myICU) {
  */
 void pktRadioCCALeadTimer(ICUDriver *myICU) {
   chSysLockFromISR();
-  //AFSKDemodDriver *myDemod = myICU->link;
-  //packet_rx_t *myHandler = myDemod->packet_handler;
+  AFSKDemodDriver *myDemod = myICU->link;
+  packet_svc_t *myHandler = myDemod->packet_handler;
   /* CCA de-glitch timer expired. */
   switch(palReadLine(LINE_CCA)) {
     case PAL_LOW: {
         /*
-         * We shouldn't arrive here unless EXTI failed to assert interrupt.
-         * In that case the trailing edge callback didn't happen.
+         * CAA has dropped so it is a spike.
          */
+      pktAddEventFlagsI(myHandler, EVT_RADIO_CCA_SPIKE);
       break;
       }
 
@@ -422,8 +436,8 @@ void pktRadioCCALeadTimer(ICUDriver *myICU) {
  */
 void pktRadioCCATrailTimer(ICUDriver *myICU) {
   chSysLockFromISR();
-  //AFSKDemodDriver *myDemod = myICU->link;
-
+  AFSKDemodDriver *myDemod = myICU->link;
+  packet_svc_t *myHandler = myDemod->packet_handler;
   /* CCA de-glitch timer for trailing edge expired. */
   switch(palReadLine(LINE_CCA)) {
     case PAL_LOW: {
@@ -432,12 +446,13 @@ void pktRadioCCATrailTimer(ICUDriver *myICU) {
        * When the decoder ends it returns its FIFO object to the pool.
        * Closing PWM sets the FIFO management semaphore.
        */
-      pktClosePWMChannelI(myICU, EVT_RADIO_CCA_CLOSE);
+      pktClosePWMChannelI(myICU, EVT_RADIO_CCA_CLOSE, PWM_TERM_CCA_CLOSE);
       break;
       }
 
     case PAL_HIGH: {
       /* CCA is active again so leave PWM open. */
+      pktAddEventFlagsI(myHandler, EVT_RADIO_CCA_GLITCH);
       break;
     }
   }
@@ -554,15 +569,16 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    *
    */
   if((myDemod->active_radio_object->status & EVT_AFSK_DECODE_DONE) != 0) {
-    pktClosePWMChannelI(myICU, EVT_PWM_STREAM_CLOSED);
+    pktClosePWMChannelI(myICU, EVT_PWM_STREAM_CLOSED, PWM_TERM_DECODE_ENDED);
     chSysUnlockFromISR();
     return;
   }
 
+  /* Check and write ICU values if OK. */
   msg_t qs = pktQueuePWMDataI(myICU);
   if(qs != MSG_OK) {
     pktWriteOverflowLED(PAL_HIGH);
-    pktClosePWMChannelI(myICU, EVT_PWM_QUEUE_FULL);
+    pktClosePWMChannelI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);
   }
   chSysUnlockFromISR();
   return;
@@ -580,10 +596,10 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 void PktRadioICUOverflow(ICUDriver *myICU) {
   chSysLockFromISR();
   AFSKDemodDriver *myDemod = myICU->link;
-  packet_rx_t *myHandler = myDemod->packet_handler;
+  packet_svc_t *myHandler = myDemod->packet_handler;
   pktAddEventFlagsI(myHandler, EVT_ICU_OVERFLOW);
   if(myDemod->active_radio_object != NULL) {
-    pktClosePWMChannelI(myICU, EVT_ICU_OVERFLOW);
+    pktClosePWMChannelI(myICU, EVT_ICU_OVERFLOW, PWM_TERM_ICU_OVERFLOW);
   } else {
     /* Just stop the ICU notification. */
     icuDisableNotificationsI(myICU);

@@ -20,6 +20,9 @@
 char serial_buf[1024];
 int serial_out;
 
+/* Access control semaphore. */
+extern binary_semaphore_t callback_sem;
+
 void pktDumpAX25Frame(ax25char_t *frame_buffer,
                       ax25size_t frame_size, ax25_select_t which) {
   if(which == AX25_DUMP_ALL || which == AX25_DUMP_RAW) {
@@ -30,7 +33,7 @@ void pktDumpAX25Frame(ax25char_t *frame_buffer,
         if((bufpos + 1) % DUMP_LINE_LENGTH == 0) {
             serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
                                     "%02x\r\n", frame_buffer[bufpos]);
-            chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
+            pktWrite((uint8_t *)serial_buf, serial_out);
             /* Write out full line of converted ASCII under hex.*/
             bufpos_a = (bufpos + 1) - DUMP_LINE_LENGTH;
             do {
@@ -47,7 +50,7 @@ void pktDumpAX25Frame(ax25char_t *frame_buffer,
                         asciichar &= 0x3f;
                     }
                 }
-                if((bufpos_a + 1) % LINE_LENGTH == 0) {
+                if((bufpos_a + 1) % DUMP_LINE_LENGTH == 0) {
                     serial_out = chsnprintf(serial_buf,
                                             sizeof(serial_buf),
                                             " %c\r\n", asciichar);
@@ -56,16 +59,16 @@ void pktDumpAX25Frame(ax25char_t *frame_buffer,
                                             sizeof(serial_buf),
                                             " %c ", asciichar);
                 }
-                chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
+                pktWrite((uint8_t *)serial_buf, serial_out);
             } while(bufpos_a++ < bufpos);
         } else {
             serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
                                     "%02x ", frame_buffer[bufpos]);
-            chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
+            pktWrite((uint8_t *)serial_buf, serial_out);
         }
     } /* End for(bufpos = 0; bufpos < frame_size; bufpos++). */
     serial_out = chsnprintf(serial_buf, sizeof(serial_buf), "\r\n");
-    chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
+    pktWrite((uint8_t *)serial_buf, serial_out);
     /* Write out remaining partial line of converted ASCII under hex. */
     do {
         char asciichar = frame_buffer[bufpos_a];
@@ -83,53 +86,76 @@ void pktDumpAX25Frame(ax25char_t *frame_buffer,
         }
         serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
                                 " %c ", asciichar);
-        chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
+        pktWrite((uint8_t *)serial_buf, serial_out);
     } while(++bufpos_a < bufpos);
     serial_out = chsnprintf(serial_buf, sizeof(serial_buf), "\r\n");
-    chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
+    pktWrite((uint8_t *)serial_buf, serial_out);
   } /* End raw dump. */
-
-  if(which == AX25_DUMP_ALL || which == AX25_DUMP_APRS) {
-    uint16_t magicCRC = calc_crc16(frame_buffer, 0, frame_size);
-    if(magicCRC == CRC_INCLUSIVE_CONSTANT) {
-      /* CRC is good => decode APRS packet */
-      packet_t pp = ax25_from_frame(frame_buffer, frame_size - 2);
-      if(pp != NULL) {
-        char rec[1024];
-        unsigned char *pinfo;
-        ax25_format_addrs(pp, rec);
-        ax25_get_info(pp, &pinfo);
-        serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
-                                "%s", rec);
-        chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
-        for(uint32_t i=0; pinfo[i]; i++) {
-          if(pinfo[i] < 32 || pinfo[i] > 126) {
-            /* Printable char */
-            serial_out = chsnprintf(serial_buf,
-                                    sizeof(serial_buf),
-                                    "<0x%02x>", pinfo[i]);
-          } else {
-            serial_out = chsnprintf(serial_buf,
-                                    sizeof(serial_buf),
-                                    "%c", pinfo[i]);
-          }
-          chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
-        }
-        serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
-                                "\r\n");
-        chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
-        ax25_delete(pp);
-      } else {
-          serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
-                                  "APRS: Error in packet\r\n");
-          chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
-      }
-    } else {
-        serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
-                                "APRS: Bad CRC\r\n");
-        chnWrite(diag_out, (uint8_t *)serial_buf, serial_out);
-    } /* End CRC check. */
-  } /* End APRS dump. */
 }
+
+
+void pktDiagnosticOutput(packet_svc_t *packetHandler,
+                         pkt_data_object_t *myPktFIFO) {
+  chBSemWait(&callback_sem);
+  /* Buffer and size params for serial terminal output. */
+    char serial_buf[1024];
+    int serial_out;
+
+  /* Packet buffer. */
+  ax25char_t *frame_buffer = myPktFIFO->buffer;
+  uint16_t frame_size = myPktFIFO->packet_size;
+  eventmask_t the_events;
+
+  if(pktIsBufferValidAX25Frame(myPktFIFO)) {
+      the_events = EVT_DIAG_OUT_END | EVT_PKT_OUT_END;
+      uint16_t magicCRC = calc_crc16(frame_buffer, 0, frame_size);
+
+      float32_t good = (float32_t)packetHandler->good_count
+          / (float32_t)packetHandler->valid_count;
+      serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
+          "AFSK... mode: %s, factory: %s, status: %x"
+          ", packet count: %u sync count: %u"
+          " valid frames: %u"
+          " good frames: %u (%.2f%%), bytes: %u"
+          ", CRCm: %04x\r\n",
+          ((packetHandler->usr_callback == NULL) ? "polling" : "callback"),
+          packetHandler->pbuff_name,
+          myPktFIFO->status,
+          packetHandler->sync_count,
+          packetHandler->frame_count,
+          packetHandler->valid_count,
+          packetHandler->good_count,
+          (good * 100),
+          frame_size,
+          magicCRC
+      );
+      dbgWrite(DBG_INFO, (uint8_t *)serial_buf, serial_out);
+      /* Dump the frame contents out. */
+      pktDumpAX25Frame(frame_buffer, frame_size, AX25_DUMP_RAW);
+  } else { /* End if valid frame. */
+    the_events = EVT_DIAG_OUT_END;
+    serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
+                        "Invalid frame, status %x, bytes %u\r\n",
+                        myPktFIFO->status, myPktFIFO->packet_size);
+    dbgWrite(DBG_INFO, (uint8_t *)serial_buf, serial_out);
+  }
+
+#if SUSPEND_HANDLING == RELEASE_ON_OUTPUT
+  /*
+  *  Wait for end of transmission on diagnostic channel.
+  */
+  eventmask_t evt = chEvtWaitAllTimeout(the_events, TIME_S2I(10));
+  if (!evt) {
+  serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
+             "FAIL: Timeout waiting for EOT from serial channels\r\n");
+  dbgWrite(DBG_INFO, (uint8_t *)serial_buf, serial_out);
+  }
+  chEvtSignal(the_decoder, DEC_SUSPEND_EXIT);
+#else
+  (void)the_events;
+#endif
+  chBSemSignal(&callback_sem);
+}
+
 
 /** @} */

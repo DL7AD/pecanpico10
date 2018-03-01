@@ -47,13 +47,13 @@ int main(void) {
 	#endif
 
 	// Startup threads
-	start_essential_threads();	// Startup required modules (tracking managemer, watchdog)
+	start_essential_threads();	// Startup required modules (tracking manager, watchdog)
 	start_user_threads();		// Startup optional modules (eg. POSITION, LOG, ...)
 
 	while(true) {
 		#if ACTIVATE_USB
 		if(SDU1.config->usbp->state == USB_ACTIVE) {
-			thread_t *shelltp = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(512), "shell", NORMALPRIO+1, shellThread, (void*)&shell_cfg);
+			thread_t *shelltp = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(512), "shell", NORMALPRIO - 50, shellThread, (void*)&shell_cfg);
 			chThdWait(shelltp);
 		}
 		#endif

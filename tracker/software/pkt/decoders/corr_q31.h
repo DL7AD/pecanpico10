@@ -58,16 +58,6 @@
 /*===========================================================================*/
 
 /**
- * @brief   Correlation diagnostics statistics.
- *
- */
-typedef struct qStats {
-  dsp_phase_t   correction;
-  dsp_phase_t   drift_max;
-  dsp_phase_t   drift_min;
-} qcorr_stats_t;
-
-/**
  * @brief   Correlation decoder bin (tone) structure.
  *
  * @note    Each bin is defined and maintains its specific parameters.
@@ -110,9 +100,7 @@ typedef struct qCorrFilter {
   int32_t           symbol_pll;
   int32_t           prior_pll;
 #endif
-#if USE_AFSK_PHASE_STATISTICS == TRUE
-  qcorr_stats_t     statistics;
-#endif
+
 } qcorr_decoder_t;
 
 /*===========================================================================*/
@@ -139,13 +127,6 @@ extern "C" {
 /* Module inline functions.                                                  */
 /*===========================================================================*/
 
-#if USE_AFSK_PHASE_STATISTICS
-static inline qcorr_stats_t *get_qcorr_statistics(AFSKDemodDriver *myDriver) {
-  qcorr_decoder_t *decoder = (qcorr_decoder_t *)myDriver->tone_decoder;
-  qcorr_stats_t *statistics = &decoder->statistics;
-  return statistics;
-}
-#endif
 
 #endif /* IO_DECODERS_QCORR_H_ */
 

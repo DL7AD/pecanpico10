@@ -6,16 +6,16 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 */
 
-#ifndef IO_PROTOCOLS_RXHDLC_H_
-#define IO_PROTOCOLS_RXHDLC_H_
+#ifndef PKT_PROTOCOLS_RXHDLC_H_
+#define PKT_PROTOCOLS_RXHDLC_H_
 
 /* HDLC bit pattern definitions. */
 #define HDLC_CODE_MASK      0xFFU
 #define HDLC_FLAG           0x7EU
 #define HDLC_ZERO           0x00U
-#define HDLC_FRAME_MASK_A   0x000000FFU
+#define HDLC_FRAME_MASK_A   0x00FFFFFFU
 #define HDLC_FRAME_OPEN_A   0x7E7E7E7EU
-#define HDLC_FRAME_MASK_B   0x0000FFFFU
+#define HDLC_FRAME_MASK_B   0x00FFFFFFU
 #define HDLC_FRAME_OPEN_B   0x0000007EU
 
 #define HDLC_FRAME_CLOSE    HDLC_FLAG
@@ -36,4 +36,4 @@
   }
   #endif
 
-#endif /* IO_PROTOCOLS_RXHDLC_H_ */
+#endif /* PKT_PROTOCOLS_RXHDLC_H_ */

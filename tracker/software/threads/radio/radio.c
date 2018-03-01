@@ -30,17 +30,12 @@ static void handlePacket(uint8_t *buf, uint32_t len) {
 }
 
 void start_rx_thread(uint32_t freq, uint8_t rssi) {
-	uint32_t f;
-	if(freq == FREQ_APRS_DYNAMIC)
-		f = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
-	else
-		f = freq;
 
-	// Start transceiver
-	Si446x_receive(f, rssi, MOD_AFSK);
+	if(freq == FREQ_APRS_DYNAMIC)
+		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
 
 	// Start decoder
-	Si446x_startDecoder(handlePacket);
+	Si446x_startDecoder(freq, rssi, handlePacket);
 }
 
 bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod)
