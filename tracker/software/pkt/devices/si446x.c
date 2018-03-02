@@ -744,14 +744,14 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 	Si446x_setRXState();
 
 	// Wait until nobody is transmitting (until timeout)
-	sysinterval_t t0 = chVTGetSystemTime();
+
 	if(Si446x_getState() != Si446x_STATE_RX || Si446x_getLatchedCCA(50)) {
 #ifdef PKT_IS_TEST_PROJECT
 	    dbgPrintf(DBG_INFO, "SI   > Wait for CCA to drop\r\n");
 #else
 		TRACE_INFO("SI   > Wait for CCA to drop");
 #endif
-
+	    sysinterval_t t0 = chVTGetSystemTime();
 		while((Si446x_getState() != Si446x_STATE_RX || Si446x_getLatchedCCA(50)) && chVTGetSystemTime()-t0 < sql_timeout)
 			chThdSleep(TIME_US2I(100));
 	}
@@ -846,7 +846,7 @@ static bool Si4464_restoreRX(void)
 #ifdef PKT_IS_TEST_PROJECT
       dbgPrintf(DBG_INFO, "SI   > Resume packet reception\r\n");
 #else
-		TRACE_INFO("Resume packet reception");
+		TRACE_INFO("SI   > Resume packet reception");
 #endif
 
 	    /* TODO: This should be handled from radio manager thread. */
@@ -1078,10 +1078,9 @@ void Si446x_sendAFSK(/*uint8_t *frame, uint32_t len*/packet_t pp, uint32_t freq,
 #ifdef PKT_IS_TEST_PROJECT
 	    dbgPrintf(DBG_INFO, "SI   > Pause packet reception\r\n");
 #else
-        TRACE_INFO("Pause packet reception");
+        TRACE_INFO("SI   > Pause packet reception");
 #endif
 	    pktPauseDecoder(packetHandler);
-		//pktStopDataReception(packetHandler);
 	}
 
 	// Initialize radio
@@ -1194,8 +1193,6 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
 	}
 
 	// Delete packet
-	// IMPORTANT TODO
-	//ax25_delete(radio_packet);
 	ax25_delete(pp);
 	chThdExit(MSG_OK);
 }
