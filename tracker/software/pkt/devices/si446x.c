@@ -182,13 +182,16 @@ static void Si446x_init(void) {
     Si446x_setProperty8(Si446x_FRR_CTL_C_MODE, 0x00);
     Si446x_setProperty8(Si446x_FRR_CTL_D_MODE, 0x00);
     Si446x_setProperty8(Si446x_INT_CTL_ENABLE, 0x00);
-    Si446x_setProperty8(Si446x_GLOBAL_CONFIG, 0x60);
+    /* Set combined FIFO mode = 0x70. */
+    //Si446x_setProperty8(Si446x_GLOBAL_CONFIG, 0x60);
+    Si446x_setProperty8(Si446x_GLOBAL_CONFIG, 0x70);
 
     // Reset FIFO
     const uint8_t reset_fifo[] = {0x15, 0x01};
     Si446x_write(reset_fifo, 2);
-    const uint8_t unreset_fifo[] = {0x15, 0x00};
-    Si446x_write(unreset_fifo, 2);
+    /* No need to do this unreset... see si docs. */
+    //const uint8_t unreset_fifo[] = {0x15, 0x00};
+    //Si446x_write(unreset_fifo, 2);
 
     /*
      * TODO: Move the TX and RX settings out into the respective functions.
@@ -1026,8 +1029,10 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 	packet_pos = 0;
 	current_sample_in_baud = 0;
 	current_byte = 0;
-	uint8_t localBuffer[129];
-	uint16_t c = 129;
+	/* The maximum amount of FIFO data for either separate or combined. */
+	uint8_t localBuffer[Si446x_FIFO_COMBINED_SIZE];
+	/* Get the FIFO buffer amount currently available. */
+	uint16_t c = Si446x_freeFIFO();
 	uint16_t all = (layer0_blen*SAMPLES_PER_BAUD+7)/8;
 
 	// Initial FIFO fill

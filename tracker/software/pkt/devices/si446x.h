@@ -158,8 +158,11 @@
 
 #define RADIO_TASK_QUEUE_MAX                      3
 
-#define PKT_SI446X_APRS_CHANNEL     94
-#define PKT_SI446X_SQUELCH_LEVEL    0x4F
+#define PKT_SI446X_APRS_CHANNEL                 94
+#define PKT_SI446X_SQUELCH_LEVEL                0x4F
+
+#define Si446x_FIFO_SEPARATE_SIZE                64
+#define Si446x_FIFO_COMBINED_SIZE               129
 
 // Public methods
 
