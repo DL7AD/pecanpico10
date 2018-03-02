@@ -20,6 +20,7 @@
  * The radio manager thread.
  */
 THD_FUNCTION(pktRadioManager, arg) {
+#define PKT_RADIO_TASK_MANAGER_POLL_RATE    100
   dyn_objects_fifo_t *the_radio_fifo = arg;
 
   chDbgCheck(arg != NULL);
@@ -35,15 +36,15 @@ THD_FUNCTION(pktRadioManager, arg) {
     radio_task_object_t *task_object;
     msg_t fifo_msg = chFifoReceiveObjectTimeout(radio_queue,
                          (void *)&task_object,
-                         TIME_MS2I(100));
+                         TIME_MS2I(PKT_RADIO_TASK_MANAGER_POLL_RATE));
     if(fifo_msg == MSG_TIMEOUT)
       continue;
 
-    /* Something to do. object pointer is in fifo_msg. */
+    /* Something to do. Handler pointer is in fifo_msg. */
 
     packet_svc_t *handler = task_object->handler;
 
-    /* TODO: Use radio ID to determine handling... later. */
+    /* Process command. */
     switch(task_object->command) {
     case PKT_RADIO_OPEN: {
       /* Create the packet management services. */
@@ -51,9 +52,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       pktCallbackManagerCreate(handler);
       switch(task_object->type) {
         case DECODE_AFSK: {
-          /*
-           * Create the AFSK decoder (includes PWM, filters, etc.).
-           */
+          /* Create the AFSK decoder (includes PWM, filters, etc.). */
           AFSKDemodDriver *driver = pktCreateAFSKDecoder(handler);
           handler->link_controller = driver;
           chDbgCheck(driver != NULL);
@@ -62,39 +61,62 @@ THD_FUNCTION(pktRadioManager, arg) {
             break;
           }
           break;
-        } /* End case. */
+        } /* End case PKT_RADIO_OPEN. */
 
         case DECODE_NOT_SET:
         case DECODE_FSK: {
           break;
         }
-      } /* End switch. */
+      } /* End switch on task_object->type. */
+
+      /* Initialise the radio. */
       Si446x_conditional_init();
       break;
-      }
+    } /* End case PKT_RADIO_OPEN. */
 
-    /* TODO: Switch on encoding. Tune radio to channel. */
+    /* TODO: Tune radio to channel. */
     case PKT_RADIO_RX: {
-      pktStartDecoder(handler);
-      radio_squelch_t sq = task_object->squelch;
-      radio_freq_t freq = task_object->base_frequency;
-      Si446x_receive_noLock(freq, sq, MOD_AFSK);
-      rx_active = true;
+      switch(task_object->type) {
+      case DECODE_AFSK: {
+        pktStartDecoder(handler);
+        radio_squelch_t sq = task_object->squelch;
+        radio_freq_t freq = task_object->base_frequency;
+        radio_ch_t chan = task_object->channel;
+        Si446x_receive_noLock(freq, sq, chan, MOD_AFSK);
+        rx_active = true;
+        break;
+        } /* End case PKT_RADIO_RX. */
+
+      case DECODE_NOT_SET:
+      case DECODE_FSK: {
+        break;
+        }
+      } /* End switch on task_object->type. */
       break;
-      }
+    } /* End case PKT_RADIO_RX. */
 
     case PKT_RADIO_RX_STOP: {
-      pktStopDecoder(handler);
-      rx_active = false;
+      switch(task_object->type) {
+            case DECODE_AFSK: {
+              pktStopDecoder(handler);
+              rx_active = false;
+              break;
+              } /* End case. */
+
+            case DECODE_NOT_SET:
+            case DECODE_FSK: {
+              break;
+              }
+       } /* End switch. */
       break;
-    }
+    } /* End case PKT_RADIO_RX_STOP. */
 
     case PKT_RADIO_TX: {
       /* TODO: Switch on encoding. */
       if(rx_active)
         pktPauseDecoder(handler);
 
-      /* Transmit here... */
+      /* TODO: Transmit code migrates into here... */
 
       if(rx_active)
         pktResumeDecoder(handler);
@@ -108,9 +130,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       switch(task_object->type) {
       case DECODE_AFSK: {
         esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
-
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
-
         decoder = ((AFSKDemodDriver *)(handler->link_controller))->decoder_thd;
 
         /* Send event to release AFSK resources and terminate thread. */
@@ -138,7 +158,6 @@ THD_FUNCTION(pktRadioManager, arg) {
          */
         evt = chEvtGetAndClearFlags(&el);
       } while (evt != DEC_CLOSE_EXEC);
-
       pktUnregisterEventListener(esp, &el);
 
       /*
@@ -157,7 +176,7 @@ THD_FUNCTION(pktRadioManager, arg) {
     if(task_object->callback != NULL)
       /* Perform the callback. */
       task_object->callback(handler);
-    /* Return task object to free list. */
+    /* Return radio task object to free list. */
     chFifoReturnObject(radio_queue, (radio_task_object_t *)task_object);
   }
   chThdExit(MSG_OK);
