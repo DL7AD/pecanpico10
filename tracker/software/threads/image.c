@@ -564,12 +564,20 @@ THD_FUNCTION(imgThread, arg)
 			if(size_sampled) {
 
 				// Write picture to SD card
-				/*if(initSD())
+				if(initSD())
 				{
-					char filename[64];
-					chsnprintf(filename, sizeof(filename), "IMG%d_%d.jpg", getLastTrackPoint()->reset, gimage_id-1);
-					writeBufferToFile(filename, conf->ssdv_conf.ram_buffer, size_sampled);
-				}*/
+					char filename[32];
+					chsnprintf(filename, sizeof(filename), "r%02xi%04x.jpg", getLastTrackPoint()->reset % 0xFF, (gimage_id-1) % 0xFFFF);
+
+					// Find SOI
+					uint32_t soi;
+					for(soi=0; soi<conf->buf_size; soi++)
+						if(buffer[soi] == 0xFF && buffer[soi+1] == 0xD8)
+							break;
+					TRACE_DEBUG("IMG  > SOI at byte %d");
+
+					writeBufferToFile(filename, &buffer[soi], size_sampled-soi);
+				}
 
 				// Encode and transmit picture
 				TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", gimage_id-1);
