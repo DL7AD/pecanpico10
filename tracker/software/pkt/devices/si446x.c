@@ -64,12 +64,12 @@ static void Si446x_write(const uint8_t* txData, uint32_t len) {
     spiStart(PKT_RADIO_SPI, &ls_spicfg);
 
     /* Poll for CTS. */
-    uint8_t rx_ready[] = {0x44, 0x00};
+    uint8_t rx_ready[] = {Si446x_READ_CMD_BUFF, 0x00};
     do {
       spiSelect(PKT_RADIO_SPI);
       spiExchange(PKT_RADIO_SPI, 1, rx_ready, &rx_ready[1]);
       spiUnselect(PKT_RADIO_SPI);
-    } while(rx_ready[1] != 0xFF);
+    } while(rx_ready[1] != Si446x_COMMAND_CTS);
 
     /* Transfer data. Discard read back. */
     spiSelect(PKT_RADIO_SPI);
@@ -94,12 +94,12 @@ static void Si446x_read(const uint8_t* txData, uint32_t txlen, uint8_t* rxData, 
     spiStart(PKT_RADIO_SPI, &ls_spicfg);
 
     /* Poll for CTS. */
-    uint8_t rx_ready[] = {0x44, 0x00};
+    uint8_t rx_ready[] = {Si446x_READ_CMD_BUFF, 0x00};
     do {
       spiSelect(PKT_RADIO_SPI);
       spiExchange(PKT_RADIO_SPI, 1, rx_ready, &rx_ready[1]);
       spiUnselect(PKT_RADIO_SPI);
-    } while(rx_ready[1] != 0xFF);
+    } while(rx_ready[1] != Si446x_COMMAND_CTS);
 
     /* Write data. Discard read back. */
     spiSelect(PKT_RADIO_SPI);
@@ -110,7 +110,7 @@ static void Si446x_read(const uint8_t* txData, uint32_t txlen, uint8_t* rxData, 
       spiUnselect(PKT_RADIO_SPI);
       spiSelect(PKT_RADIO_SPI);
       spiExchange(PKT_RADIO_SPI, rxlen, rx_ready, rxData);
-    } while(rxData[1] != 0xFF);
+    } while(rxData[1] != Si446x_COMMAND_CTS);
 
     /* Stop SPI and relinquish bus. */
     spiStop(PKT_RADIO_SPI);

@@ -161,14 +161,14 @@ CSRC = $(STARTUPSRC) \
        \
        portab.c \
 	   pkt/protocols/crc_calc.c \
-	   pkt/managers/rxafsk.c \
+	   pkt/channels/rxafsk.c \
 	   pkt/managers/pktradio.c \
 	   pkt/channels/rxpwm.c \
 	   pkt/filters/dsp.c \
 	   pkt/filters/firfilter_q31.c \
 	   pkt/decoders/corr_q31.c \
 	   pkt/protocols/rxhdlc.c \
-	   pkt/channels/pktservice.c \
+	   pkt/managers/pktservice.c \
 	   pkt/devices/dbguart.c \
 	   pkt/sys/ihex_out.c \
 	   pkt/diagnostics/ax25_dump.c \
