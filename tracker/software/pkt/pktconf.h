@@ -115,6 +115,7 @@
 
 /*
  * Diagnostic output definitions.
+ * TODO: Deprecate.
  *
  */
 
@@ -161,11 +162,22 @@ extern "C" {
 /* Module inline functions.                                                  */
 /*===========================================================================*/
 
+/**
+* @brief   Define GPIO port where the NIRQ from the radio is connected.
+* @notes   The NIRQ line is set in the radio to output the CCA condition.
+*
+* @api
+*/
 static inline void pktSetLineModeCCA(void) {
   palSetLineMode(LINE_CCA, PAL_MODE_INPUT_PULLUP);
 }
 
-/* Decoder blinker LED. */
+/**
+ * @brief   For driving an indicator LED for decoder status.
+ * @notes   These functions control the LED on a GPIO line if defined.
+ *
+ * @api
+ */
 static inline void pktSetLineModeDecoderLED(void) {
 #if defined(LINE_DECODER_LED)
   palSetLineMode(LINE_DECODER_LED, PAL_MODE_OUTPUT_PUSHPULL);
@@ -189,7 +201,12 @@ static inline void pktWriteDecoderLED(uint8_t state) {
 #endif
 }
 
-/* Squelch (CCA) indicator. */
+/**
+ * @brief   For driving an indicator LED for PWM CCA asserted.
+ * @notes   These functions control the LED on a GPIO line if defined.
+ *
+ * @api
+ */
 static inline void pktSetLineModeSquelchLED(void) {
 #if defined(LINE_SQUELCH_LED)
   palSetLineMode(LINE_SQUELCH_LED, PAL_MODE_OUTPUT_PUSHPULL);
@@ -213,7 +230,12 @@ static inline void pktUnsetLineModeSquelchLED(void) {
 #endif
 }
 
-/* Overflow in FIFO queue space. */
+/**
+ * @brief   For driving an indicator LED for PWM queue space exhausted.
+ * @notes   These functions control the LED on a GPIO line if defined.
+ *
+ * @api
+ */
 static inline void pktSetLineModeOverflowLED(void) {
 #if defined(LINE_OVERFLOW_LED)
   palSetLineMode(LINE_OVERFLOW_LED, PAL_MODE_OUTPUT_PUSHPULL);
@@ -237,7 +259,12 @@ static inline void pktUnsetLineModeOverflowLED(void) {
 #endif
 }
 
-/* LED for FIFO out at PWM/ICU side. */
+/**
+ * @brief   For driving an indicator LED for PWM buffers exhausted.
+ * @notes   These functions control the LED on a GPIO line if defined.
+ *
+ * @api
+ */
 static inline void pktSetLineModeNoFIFOLED(void) {
 #if defined(LINE_NO_FIFO_LED)
   palSetLineMode(LINE_NO_FIFO_LED, PAL_MODE_OUTPUT_PUSHPULL);
@@ -261,7 +288,12 @@ static inline void pktUnsetLineModeNoFIFOLED(void) {
 #endif
 }
 
-/* PWM mirroring to a GPIO for diagnostics. */
+/**
+ * @brief   For diagnostics only.
+ * @notes   These functions control the mirroring of radio PWM data to a GPIO.
+ *
+ * @notapi
+ */
 static inline void pktSetLineModePWMMirror(void) {
 #if defined(LINE_PWM_MIRROR)
   palSetLineMode(LINE_PWM_MIRROR, PAL_MODE_OUTPUT_PUSHPULL);
@@ -285,46 +317,15 @@ static inline void pktWritePWMMirror(uint8_t state) {
 #endif
 }
 
-/* Radio configuration for SPI connected radio. */
-/*static inline msg_t pktOpenRadio(packet_svc_t *handler) {
-#if USE_SPI_ATTACHED_RADIO == TRUE
-  msg_t msg = pktSubmitRadioTask(handler, TIME_S2I(10), NULL);
-  return msg;
-#else
-  (void)handler;
-  return MSG_OK;
-#endif
-}*/
-
-/*static inline msg_t pktStartRadio(packet_svc_t *handler) {
-#if USE_SPI_ATTACHED_RADIO == TRUE
-  msg_t msg = pktSubmitRadioTask(handler, TIME_MS2I(100), NULL);
-  return msg;
-#else
-  (void)handler;
-  return MSG_OK;
-#endif
-}*/
-
-/*static inline void pktStopRadio(packet_svc_t *handler) {
-#if USE_SPI_ATTACHED_RADIO == TRUE
-  (void)handler;
-#else
-  (void)handler;
-#endif
-}*/
-
-/*static inline msg_t pktCloseRadio(packet_svc_t *handler) {
-#if USE_SPI_ATTACHED_RADIO == TRUE
-  (void)handler;
-  //Si446x_shutdown();
-#else
-  (void)handler;
-#endif
-  return MSG_OK;
-}*/
-
-
+/**
+ * @brief   Sends a command request to a radio.
+ * @post    The command object posted to the radio manager queue.
+ *
+ * @param[in]   handler     pointer to a @p packet handler object
+ * @param[in]   task        pointer to a task object.
+ *
+ * @api
+ */
 static inline msg_t pktSendRadioCommand(packet_svc_t *handler,
                                         radio_task_object_t *task) {
 #if USE_SPI_ATTACHED_RADIO == TRUE

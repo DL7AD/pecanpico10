@@ -37,10 +37,23 @@
 #define Si446x_STATE_TX             7
 #define Si446x_STATE_RX             8
 
-// Si4464 Registers
+/*
+ * Commands.
+ */
 
 #define Si446x_READ_CMD_BUFF                      0x44
+#define Si446x_START_TX                           0x31
+#define Si446x_START_RX                           0x32
+#define Si446x_RX_HOP                             0x36
+
+/* Defined response values. */
+
 #define Si446x_COMMAND_CTS                        0xFF
+
+/*
+ * Property group commands.
+ * Format is 0xGGNN (GG = group, NN = number).
+ */
 #define Si446x_GLOBAL_XO_TUNE                   0x0000
 #define Si446x_GLOBAL_CLK_CFG                   0x0001
 #define Si446x_GLOBAL_CONFIG                    0x0003

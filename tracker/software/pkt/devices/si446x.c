@@ -1059,16 +1059,6 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
           c += more;
           chThdSleep(TIME_MS2I(15));
       }
-
-      /*
-       * Shutdown radio if reception has been interrupted. If reception was interrupted rx_frequency is set.
-       * If reception has not been interrupted rx_frequency is set 0.
-       */
-      if(!rx_frequency) {
-          Si446x_shutdown();
-      } else {
-          Si4464_restoreRX();
-      }
     } else {
       /* Transmit start failed. */
 #ifdef PKT_IS_TEST_PROJECT
@@ -1076,6 +1066,15 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 #else
           TRACE_ERROR("SI   > Transmit failed");
 #endif
+    }
+    /*
+     * Shutdown radio if reception has been interrupted. If reception was interrupted rx_frequency is set.
+     * If reception has not been interrupted rx_frequency is set 0.
+     */
+    if(!rx_frequency) {
+        Si446x_shutdown();
+    } else {
+        Si4464_restoreRX();
     }
     // Free packet object memory
     ax25_delete(pp);
