@@ -458,7 +458,7 @@ static inline msg_t pktReceiveDataBufferTimeout(packet_svc_t *handler,
  *
  * @api
  */
-static inline msg_t pktIsBufferValidAX25Frame(pkt_data_object_t *object) {
+static inline bool pktIsBufferValidAX25Frame(pkt_data_object_t *object) {
   chDbgAssert(object != NULL, "no pointer to packet object buffer");
   uint16_t frame_size = object->packet_size;
   return ((object->status & EVT_AFSK_DECODE_DONE)

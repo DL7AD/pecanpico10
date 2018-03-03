@@ -1128,9 +1128,16 @@ void Si446x_mapCallback(pkt_data_object_t *pkt_buff) {
 #if DUMP_PACKET_TO_SERIAL == TRUE
   pktDiagnosticOutput(pkt_buff->handler, pkt_buff);
 #endif
-
+if(pktIsBufferValidAX25Frame(pkt_buff)) {
   /* Perform the callback. */
   rx_cb(frame_buffer, frame_size);
+  } else {
+#ifdef PKT_IS_TEST_PROJECT
+    dbgPrintf(DBG_INFO, "RX   > Invalid frame - dropped\r\n");
+#else
+    TRACE_INFO("RX   > Invalid frame - dropped");
+#endif
+  }
 }
 
 void Si446x_startDecoder(radio_freq_t freq, radio_squelch_t sq, void* cb) {
