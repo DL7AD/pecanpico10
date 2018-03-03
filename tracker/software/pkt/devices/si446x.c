@@ -1042,34 +1042,41 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
     Si446x_writeFIFO(localBuffer, c);
 
     // Start transmission
-    Si446x_transmit(radio_freq, radio_pwr, all, 0x4F, TIME_S2I(10));
+    if(Si446x_transmit(radio_freq, radio_pwr, all, 0x4F, TIME_S2I(10))) {
+      /* Transmit started OK. */
+      while(c < all) { // Do while bytes not written into FIFO completely
+          // Determine free memory in Si446x-FIFO
+          uint8_t more = Si446x_freeFIFO();
+          if(more > all-c) {
+              if((more = all-c) == 0) // Calculate remainder to send
+                break; // End if nothing left
+          }
 
-    while(c < all) { // Do while bytes not written into FIFO completely
-        // Determine free memory in Si446x-FIFO
-        uint8_t more = Si446x_freeFIFO();
-        if(more > all-c) {
-            if((more = all-c) == 0) // Calculate remainder to send
-              break; // End if nothing left
-        }
+          for(uint16_t i=0; i<more; i++)
+              localBuffer[i] = getAFSKbyte(layer0, layer0_blen);
 
-        for(uint16_t i=0; i<more; i++)
-            localBuffer[i] = getAFSKbyte(layer0, layer0_blen);
+          Si446x_writeFIFO(localBuffer, more); // Write into FIFO
+          c += more;
+          chThdSleep(TIME_MS2I(15));
+      }
 
-        Si446x_writeFIFO(localBuffer, more); // Write into FIFO
-        c += more;
-        chThdSleep(TIME_MS2I(15));
-    }
-
-    /*
-     * Shutdown radio if reception has been interrupted. If reception was interrupted rx_frequency is set.
-     * If reception has not been interrupted rx_frequency is set 0.
-     */
-    if(!rx_frequency) {
-        Si446x_shutdown();
+      /*
+       * Shutdown radio if reception has been interrupted. If reception was interrupted rx_frequency is set.
+       * If reception has not been interrupted rx_frequency is set 0.
+       */
+      if(!rx_frequency) {
+          Si446x_shutdown();
+      } else {
+          Si4464_restoreRX();
+      }
     } else {
-        Si4464_restoreRX();
+      /* Transmit start failed. */
+#ifdef PKT_IS_TEST_PROJECT
+          dbgPrintf(DBG_ERROR, "SI   > Transmit failed\r\n");
+#else
+          TRACE_ERROR("SI   > Transmit failed");
+#endif
     }
-
     // Free packet object memory
     ax25_delete(pp);
     chThdExit(MSG_OK);
