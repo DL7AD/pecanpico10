@@ -39,8 +39,8 @@ int main(void) {
     pktSerialStart();
     pktServiceCreate();
 
-	// Start USB
 	#if ACTIVATE_USB
+	// Start USB
 	sduObjectInit(&SDU1);
 	sduStart(&SDU1, &serusbcfg);
 
@@ -49,6 +49,12 @@ int main(void) {
 	usbStart(serusbcfg.usbp, &usbcfg);
 	usbConnectBus(serusbcfg.usbp);
 	usb_initialized = true;
+
+	// Initialize shell
+	thread_t *shelltp = NULL;
+	event_listener_t shell_el;
+	shellInit();
+	chEvtRegister(&shell_terminated, &shell_el, 0);
 	#endif
 
 	// Startup threads
@@ -58,8 +64,14 @@ int main(void) {
 	while(true) {
 		#if ACTIVATE_USB
 		if(SDU1.config->usbp->state == USB_ACTIVE) {
-			thread_t *shelltp = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(512), "shell", NORMALPRIO - 50, shellThread, (void*)&shell_cfg);
-			chThdWait(shelltp);
+			if(shelltp == NULL) {
+				shelltp = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(1024), "shell", NORMALPRIO + 1, shellThread, (void*)&shell_cfg);
+			}
+			chEvtWaitAny(EVENT_MASK(0));
+			if(chThdTerminatedX(shelltp)) {
+				chThdRelease(shelltp);
+				shelltp = NULL;
+			}
 		}
 		#endif
 		chThdSleep(TIME_S2I(1));
