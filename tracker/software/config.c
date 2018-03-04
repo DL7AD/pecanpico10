@@ -138,5 +138,5 @@ const conf_t conf_flash_default = {
 	.gps_off_vbat			= 1000,
 	.gps_onper_vbat			= 1000,
 
-	.magic					= MAGIC // Do not remove. This is the activation bit.
+	.magic					= CONFIG_MAGIC_DEFAULT // Do not remove. This is the activation bit.
 };
