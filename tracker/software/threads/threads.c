@@ -26,7 +26,9 @@ void start_essential_threads(void)
 void start_user_threads(void)
 {
 	conf_t *conf_flash = (conf_t*)0x08060000;
-	if(conf_flash->magic != MAGIC) { // No configuration found in flash memory, so write default values to memory
+	if(conf_flash->magic != MAGIC
+	    || memcmp(&conf_flash, &conf_flash_default, sizeof(conf_t)) != 0) {
+	  /* No configuration found in flash memory or default config has changed. */
 		flashSectorBegin(flashSectorAt((uint32_t)conf_flash));
 		flashErase((uint32_t)conf_flash, 0x20000);
 		flashWrite((uint32_t)conf_flash, (char*)&conf_flash_default, sizeof(conf_t));
@@ -34,8 +36,7 @@ void start_user_threads(void)
 	}
 
 	// Copy 
-	//memcpy(&conf_sram, conf_flash, sizeof(conf_t));
-	memcpy(&conf_sram, &conf_flash_default, sizeof(conf_t));
+	memcpy(&conf_sram, conf_flash, sizeof(conf_t));
 
 	if(conf_sram.pos_pri.thread_conf.active) start_position_thread(&conf_sram.pos_pri);
 	if(conf_sram.pos_sec.thread_conf.active) start_position_thread(&conf_sram.pos_sec);
