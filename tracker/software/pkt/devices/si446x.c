@@ -199,11 +199,26 @@ static void Si446x_init(void) {
      * Leave only common setup and init in here for selected base band frequency.
      */
     Si446x_setProperty8(Si446x_PREAMBLE_TX_LENGTH, 0x00);
-    /* TODO: Use PREAMBLE_CONFIG_NSTD, etc. to send flags? */
+    /* TODO: Use PREAMBLE_CONFIG_NSTD, etc. to send flags?
+     * Unfortunately this requires a preamble pattern of 88 bits.
+     * The 446x only has up to 32 pattern bits.
+     * Why 88 bits? Due to the oversampling used to create AFSK at 13.2ksps.
+     * Each HDLC bit requires 11 TX bit times.
+     *
+     * The alternative is to use TX_FIELDS.
+     * Send preamble (HDLC flags) using FIELD_1 in a loop with fixed data 0x7E.
+     * Field length can be 4096 bytes so up to 372 flags could be sent.
+     * The flag bit stream uses 11 bytes per flag.
+     * Using 200 flags would be 11 * 200 = 2200 bytes (17,600 stream bits).
+     * Set FIELD_1 as 2,200 bytes and feed 200 x the bit pattern to the FIFO.
+     * The transition to FIELD_2 is handled in the 446x packet handler.
+     * Then FIELD_2 FIFO data is fed from the layer0 (bit stream) data buffer.
+     */
     Si446x_setProperty8(Si446x_SYNC_CONFIG, 0x80);
 
     Si446x_setProperty8(Si446x_GLOBAL_CLK_CFG, 0x00);
     Si446x_setProperty8(Si446x_MODEM_RSSI_CONTROL, 0x00);
+    /* TODO: Don't need this setting? */
     Si446x_setProperty8(Si446x_PREAMBLE_CONFIG_STD_1, 0x14);
     Si446x_setProperty8(Si446x_PKT_CONFIG1, 0x41);
     Si446x_setProperty8(Si446x_MODEM_MAP_CONTROL, 0x00);
@@ -984,8 +999,9 @@ static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_
 
 static uint8_t getAFSKbyte(uint8_t* buf, uint32_t blen)
 {
-    if(packet_pos == blen)  // Packet transmission finished
-        return false;
+    if(packet_pos == blen)
+      /* Packet transmission finished already so just return a zero. */
+      return 0;
 
     uint8_t b = 0;
     for(uint8_t i=0; i<8; i++)
@@ -1030,14 +1046,27 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
     packet_pos = 0;
     current_sample_in_baud = 0;
     current_byte = 0;
+
+    /* Create bit pattern for an HDLC flag. */
+    //uint8_t flag_buffer[SAMPLES_PER_BAUD];
+    //uint8_t a_flag[] = {0x7E};
+    // WIP
+
     /* The maximum amount of FIFO data for either separate or combined. */
     uint8_t localBuffer[Si446x_FIFO_COMBINED_SIZE];
+
     /* Get the FIFO buffer amount currently available. */
-    uint16_t c = Si446x_freeFIFO();
-    uint16_t all = (layer0_blen*SAMPLES_PER_BAUD+7)/8;
+    uint8_t free = Si446x_freeFIFO();
+
+    /*
+     * Round up modulation bits into next byte.
+     * Calculate initial FIFO fill.
+     */
+    uint16_t all = ((layer0_blen * SAMPLES_PER_BAUD) + 7) / 8;
+    uint16_t c = (all > free) ? free : all;
 
     // Initial FIFO fill
-    for(uint16_t i=0; i<c; i++)
+    for(uint16_t i = 0;  i < c; i++)
         localBuffer[i] = getAFSKbyte(layer0, layer0_blen);
     Si446x_writeFIFO(localBuffer, c);
 
@@ -1047,12 +1076,12 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
       while(c < all) { // Do while bytes not written into FIFO completely
           // Determine free memory in Si446x-FIFO
           uint8_t more = Si446x_freeFIFO();
-          if(more > all-c) {
-              if((more = all-c) == 0) // Calculate remainder to send
+          if(more > all - c) {
+              if((more = all - c) == 0) // Calculate remainder to send
                 break; // End if nothing left
           }
 
-          for(uint16_t i=0; i<more; i++)
+          for(uint16_t i = 0; i < more; i++)
               localBuffer[i] = getAFSKbyte(layer0, layer0_blen);
 
           Si446x_writeFIFO(localBuffer, more); // Write into FIFO
