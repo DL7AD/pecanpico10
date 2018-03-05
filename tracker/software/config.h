@@ -11,6 +11,9 @@
 
 #include "types.h"
 
+#define CONFIG_MAGIC_DEFAULT        0x41583235
+#define CONFIG_MAGIC_UPDATED        0x46583235
+
 extern conf_t conf_sram;
 extern const conf_t conf_flash_default;
 

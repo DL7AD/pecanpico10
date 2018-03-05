@@ -67,7 +67,12 @@
 #define Si446x_FRR_CTL_D_MODE                   0x0203
 
 #define Si446x_PREAMBLE_TX_LENGTH               0x1000
+
 #define Si446x_PREAMBLE_CONFIG_STD_1            0x1001
+#define Si446x_PREAMBLE_CONFIG_NSTD             0x1002
+#define Si446x_PREAMBLE_CONFIG_STD_2            0x1003
+#define Si446x_PREAMBLE_CONFIG                  0x1004
+#define Si446x_PREAMBLE_PATTERN                 0x1005
 
 #define Si446x_SYNC_CONFIG                      0x1100
 
