@@ -212,7 +212,7 @@ static void Si446x_init(void) {
      * Unfortunately this requires a preamble pattern of 88 bits.
      * The 446x only has up to 32 pattern bits.
      * Why 88 bits? Due to the oversampling used to create AFSK at 13.2ksps.
-     * Each HDLC bit requires 11 TX bit times.
+     * Each HDLC bit takes 11 TX bit times.
      *
      * The alternative is to use TX_FIELDS.
      * Send preamble (HDLC flags) using FIELD_1 in a loop with fixed data 0x7E.
@@ -704,7 +704,7 @@ static void Si446x_shutdown(void)
 
 /* ======================================================================== Locking ========================================================================= */
 
-static void Si446xLockRadio(void)
+static void Si446x_lockRadio(void)
 {
 #if Si446x_LOCK_BY_SEMAPHORE == TRUE
   /* Initialize semaphore. */
@@ -733,7 +733,7 @@ static void Si446xLockRadio(void)
         chThdWait(feeder_thd);
 }
 
-void Si446xUnlockRadio(void)
+void Si446x_unlockRadio(void)
 {
   nextTransmissionWaiting = false;
 #if Si446x_LOCK_BY_SEMAPHORE == TRUE
@@ -743,16 +743,14 @@ void Si446xUnlockRadio(void)
 #endif
 }
 
-void lockRadioByCamera(void)
+void Si446x_lockRadioByCamera(void)
 {
 #if Si446x_LOCK_BY_SEMAPHORE == TRUE
   /* Initialize semaphore. */
   if(!radio_bsem_init)
     chBSemObjectInit(&radio_bsem, false);
   radio_bsem_init = true;
-
   chBSemWait(&radio_bsem);
-
 #else
     // Initialize mutex
     if(!radio_mtx_init)
@@ -773,6 +771,7 @@ static bool Si446x_getLatchedCCA(uint8_t ms)
     uint16_t cca = 0;
     for(uint16_t i=0; i<ms*10; i++) {
         cca += Si446x_getCCA();
+        /* FIXME: Using 5KHz systick lowest resolution is 200uS. */
         chThdSleep(TIME_US2I(100));
     }
 #ifdef PKT_IS_TEST_PROJECT
@@ -804,6 +803,7 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
       TRACE_INFO("SI   > Switch Si446x to ready state");
 #endif
         Si446x_setReadyState();
+        chThdSleep(TIME_MS2I(1));
     }
 
     Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
@@ -818,8 +818,11 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 #else
         TRACE_INFO("SI   > Wait for CCA to drop");
 #endif
+        /* FIXME: Fix timeout. Using 5KHz systick lowest resolution is 200uS. */
         sysinterval_t t0 = chVTGetSystemTime();
-        while((Si446x_getState() != Si446x_STATE_RX || Si446x_getLatchedCCA(50)) && chVTGetSystemTime()-t0 < sql_timeout)
+        while((Si446x_getState() != Si446x_STATE_RX
+            || Si446x_getLatchedCCA(50))
+            && chVTGetSystemTime() - t0 < sql_timeout)
             chThdSleep(TIME_US2I(100));
     }
 
@@ -833,10 +836,15 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
     Si446x_setReadyState();
     Si446x_setTXState(size);
 
+    // Wait until transceiver enters transmission state
+    while(Si446x_getState() != Si446x_STATE_TX) {
+        chThdSleep(TIME_US2I(500));
+    }
+
     return true;
 }
 
-/*static*/ bool Si446x_receive_noLock(uint32_t frequency,
+/*static*/ bool Si446x_receiveNoLock(uint32_t frequency,
                                       uint8_t channel,
                                       uint8_t rssi,
                                       mod_t mod) {
@@ -900,16 +908,16 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 
 bool Si446x_receive(uint32_t frequency, uint8_t rssi, uint8_t chan, mod_t mod)
 {
-    Si446xLockRadio();
-    bool ret = Si446x_receive_noLock(frequency, chan, rssi, mod);
-    Si446xUnlockRadio();
+    Si446x_lockRadio();
+    bool ret = Si446x_receiveNoLock(frequency, chan, rssi, mod);
+    Si446x_unlockRadio();
 
     return ret;
 }
 
 static bool Si4464_restoreRX(void)
 {
-    bool ret = Si446x_receive_noLock(rx_frequency, rx_chan, rx_rssi, rx_mod);
+    bool ret = Si446x_receiveNoLock(rx_frequency, rx_chan, rx_rssi, rx_mod);
 
     if(packetHandler) {
 #ifdef PKT_IS_TEST_PROJECT
@@ -948,33 +956,35 @@ static uint32_t current_sample_in_baud; // 1 bit = SAMPLES_PER_BAUD samples
 static uint8_t current_byte;
 static uint8_t ctone = 0;
 
-static bool encode_nrzi(bool bit)
-{
+static bool Si446x_getBitAsNRZI(bool bit) {
     if((bit & 0x1) == 0)
         ctone = !ctone;
     return ctone;
 }
 
-static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_len)
-{
+/*
+ * Create a bit stream of AFSK (NRZI & HDLC) encoded packet data.
+ */
+static uint32_t Si446x_encodeDataToAFSK(uint8_t *inbuf, uint32_t inlen,
+                     uint8_t* buf, uint32_t buf_len, uint8_t pre_len) {
     memset(buf, 0, buf_len); // Clear buffer
     uint32_t blen = 0;
 
-    // Preamble
-    for(uint8_t i=0; i<30; i++) {
-        for(uint8_t j=0; j<8; j++) {
+    // Preamble (HDLC flags)
+    for(uint8_t i = 0; i <= pre_len; i++) {
+        for(uint8_t j = 0; j < 8; j++) {
 
             if(blen >> 3 >= buf_len) { // Buffer overflow
 #ifdef PKT_IS_TEST_PROJECT
-              dbgPrintf(DBG_ERROR, "SI   > Packet too long\r\n");
+              dbgPrintf(DBG_ERROR, "SI   > Preamble too long\r\n");
 #else
-                TRACE_ERROR("SI   > Packet too long");
+                TRACE_ERROR("SI   > Preamble too long");
 #endif
 
                 return blen;
             }
 
-            buf[blen >> 3] |= encode_nrzi((0x7E >> j) & 0x1) << (blen % 8);
+            buf[blen >> 3] |= Si446x_getBitAsNRZI((0x7E >> j) & 0x1) << (blen % 8);
             blen++;
         }
     }
@@ -1019,7 +1029,7 @@ static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_
         }
 
         // NRZ-I encode bit
-        bool nrzi = encode_nrzi(bit);
+        bool nrzi = Si446x_getBitAsNRZI(bit);
 
         buf[blen >> 3] |= nrzi << (blen % 8);
         blen++;
@@ -1039,21 +1049,24 @@ static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_
                 return blen;
             }
 
-            buf[blen >> 3] |= encode_nrzi((0x7E >> j) & 0x1) << (blen % 8);
+            buf[blen >> 3] |= Si446x_getBitAsNRZI((0x7E >> j) & 0x1) << (blen % 8);
             blen++;
         }
 
     return blen;
 }
 
-static uint8_t getUpsampledAFSKbyte(uint8_t* buf, uint32_t blen)
+static uint8_t Si446x_getUpsampledAFSKbits(uint8_t* buf, uint32_t blen)
 {
-    if(packet_pos == blen)
+  /* This function may be called with different bit stream sources.
+   * These will have their own blen so checking is not valid.
+   */
+    //if(packet_pos == blen)
       /* Packet transmission finished already so just return a zero. */
-      return 0;
+      //return 0;
 
     uint8_t b = 0;
-    for(uint8_t i=0; i<8; i++)
+    for(uint8_t i = 0; i < 8; i++)
     {
         if(current_sample_in_baud == 0) {
             if((packet_pos & 7) == 0) { // Load up next byte
@@ -1065,8 +1078,8 @@ static uint8_t getUpsampledAFSKbyte(uint8_t* buf, uint32_t blen)
 
         // Toggle tone (1200 <> 2200)
         phase_delta = (current_byte & 1) ? PHASE_DELTA_1200 : PHASE_DELTA_2200;
-
-        phase += phase_delta;           // Add delta-phase (delta-phase tone dependent)
+        /* Add delta-phase (bit count within SAMPLES_PER_BAUD). */
+        phase += phase_delta;
         b |= ((phase >> 16) & 1) << i;  // Set modulation bit
 
         current_sample_in_baud++;
@@ -1085,30 +1098,42 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
     packet_t pp = arg;
     chRegSetThreadName("radio_afsk_feeder");
 
+    /* Initialize variables for AFSK encoder. */
+    ctone = 0;
+
+#define PREAMBLE_FLAGS_A 30
+#define PREAMBLE_FLAGS_B  0
+
     uint8_t layer0[3072];
-    uint32_t layer0_blen = pack(pp->frame_data,
-                                pp->frame_len, layer0, sizeof(layer0));
+    /* Encode packet to AFSK (NRZI & HDLC) with optional premable. */
+    uint32_t layer0_blen = Si446x_encodeDataToAFSK(pp->frame_data, pp->frame_len,
+                                layer0, sizeof(layer0),
+                                PREAMBLE_FLAGS_A);
 
-    // Initialize variables for timer
-    phase_delta = PHASE_DELTA_1200;
-    phase = 0;
-    packet_pos = 0;
-    current_sample_in_baud = 0;
-    current_byte = 0;
+#if PREAMBLE_FLAGS_B > 0
+    /* Create NRZI pattern for an HDLC flag. */
+      uint8_t a_flag[] = {0x7e};
+      uint8_t flag_nrz[sizeof(a_flag)];
+      uint32_t flag_blen = Si446x_encodeDataToAFSK(a_flag, sizeof(a_flag),
+                                                   flag_nrz, sizeof(flag_nrz),
+                                                   0);
+#endif
 
-    /* Create bit pattern for an HDLC flag. */
-    //uint8_t flag_buffer[SAMPLES_PER_BAUD];
-    //uint8_t a_flag[] = {0x7E};
-    // WIP
+      /* Initialize variables for up sampler. */
+      phase_delta = PHASE_DELTA_1200;
+      phase = 0;
+      packet_pos = 0;
+      current_sample_in_baud = 0;
+      current_byte = 0;
 
-    /* The maximum amount of FIFO data for either separate or combined. */
+    /* Maximum amount of FIFO data when using combined TX+RX (safe size). */
     uint8_t localBuffer[Si446x_FIFO_COMBINED_SIZE];
 
     /* Get the FIFO buffer amount currently available. */
     uint8_t free = Si446x_freeFIFO();
 
     /*
-     * Round up modulation bits into next byte.
+     * Account for all modulation bits (round up to a byte boundary).
      * Calculate initial FIFO fill.
      */
     uint16_t all = ((layer0_blen * SAMPLES_PER_BAUD) + 7) / 8;
@@ -1116,7 +1141,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 
     // Initial FIFO fill
     for(uint16_t i = 0;  i < c; i++)
-        localBuffer[i] = getUpsampledAFSKbyte(layer0, layer0_blen);
+        localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0, layer0_blen);
     Si446x_writeFIFO(localBuffer, c);
 
     // Start transmission
@@ -1131,7 +1156,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
           }
 
           for(uint16_t i = 0; i < more; i++)
-              localBuffer[i] = getUpsampledAFSKbyte(layer0, layer0_blen);
+              localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0, layer0_blen);
 
           Si446x_writeFIFO(localBuffer, more); // Write into FIFO
           c += more;
@@ -1145,6 +1170,9 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
           TRACE_ERROR("SI   > Transmit failed");
 #endif
     }
+
+    /* Drop priority to enable other threads to run. */
+    chThdSetPriority(LOWPRIO);
     /*
      * Shutdown radio if reception has been interrupted. If reception was interrupted rx_frequency is set.
      * If reception has not been interrupted rx_frequency is set 0.
@@ -1160,7 +1188,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 }
 
 void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint8_t pwr) {
-    Si446xLockRadio();
+    Si446x_lockRadio();
 
     // Stop packet handler (if started)
     if(packetHandler) {
@@ -1197,7 +1225,7 @@ void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint8_t pwr) {
     while(Si446x_getState() != Si446x_STATE_TX)
         chThdSleep(TIME_MS2I(1));
 
-    Si446xUnlockRadio();
+    Si446x_unlockRadio();
 }
 
 
@@ -1206,7 +1234,7 @@ void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint8_t pwr) {
 void Si446x_mapCallback(pkt_data_object_t *pkt_buff) {
   /* Packet buffer. */
   ax25char_t *frame_buffer = pkt_buff->buffer;
-  uint16_t frame_size = pkt_buff->packet_size;
+  ax25size_t frame_size = pkt_buff->packet_size;
 
   /* FIXME: This is a quick diagnostic implementation only. */
 #if DUMP_PACKET_TO_SERIAL == TRUE
@@ -1295,7 +1323,7 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
 }
 
 void Si446x_send2FSK(packet_t pp, uint32_t freq, uint8_t pwr, uint32_t speed) {
-    Si446xLockRadio();
+    Si446x_lockRadio();
 
     // Stop packet handler (if started)
     if(packetHandler)
@@ -1321,7 +1349,7 @@ void Si446x_send2FSK(packet_t pp, uint32_t freq, uint8_t pwr, uint32_t speed) {
     while(Si446x_getState() != Si446x_STATE_TX)
         chThdSleep(TIME_MS2I(1));
 
-    Si446xUnlockRadio();
+    Si446x_unlockRadio();
 }
 
 /* ========================================================================== Misc ========================================================================== */

@@ -942,7 +942,7 @@ bool OV5640_Capture(uint8_t* buffer, uint32_t size)
 	 */
 
 	I2C_Lock(); // Lock I2C because it uses the same DMA
-	lockRadioByCamera(); // Lock the radio because it uses the DMA too
+	Si446x_lockRadioByCamera(); // Lock the radio because it uses the DMA too
 
 	/* Setup DMA for transfer on TIM8_CH1 - DMA2 stream 2, channel 7 */
 	dmastp  = STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 2));
@@ -1049,7 +1049,7 @@ bool OV5640_Capture(uint8_t* buffer, uint32_t size)
 	}
 
 	// Capture done, unlock I2C and the radio
-	Si446xUnlockRadio();
+	Si446x_unlockRadio();
 	I2C_Unlock();
 
 	if(dma_error)

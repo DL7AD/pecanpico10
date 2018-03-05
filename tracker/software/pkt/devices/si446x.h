@@ -200,10 +200,10 @@ bool Si446x_receive(uint32_t frequency, uint8_t chan,
                     uint8_t rssi, mod_t mod);
 void Si446x_startDecoder(uint32_t freq, uint8_t sq, void* cb);
 void Si446x_stopDecoder(void);
-bool Si446x_receive_noLock(uint32_t frequency, uint8_t chan,
+bool Si446x_receiveNoLock(uint32_t frequency, uint8_t chan,
                     uint8_t rssi, mod_t mod);
-void unlockRadio(void);
-void lockRadioByCamera(void);
+void Si446x_unlockRadio(void);
+void Si446x_lockRadioByCamera(void);
 void Si446x_conditional_init(void);
 
 #endif /* Si446x_CLK_OFFSET */

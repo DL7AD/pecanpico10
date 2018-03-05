@@ -1615,7 +1615,7 @@ int ax25_get_info (packet_t this_p, unsigned char **paddr)
 	  info_len = this_p->frame_len;
 	}
 
-	/* Add nul character in case caller treats as printable string. */
+	/* Add null character in case caller treats as printable string. */
 	
 	if(!info_len) {
 		TRACE_ERROR("No data in packet");
