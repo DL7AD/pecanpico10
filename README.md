@@ -1,6 +1,6 @@
 # Pecan Pico 10 - A lightweight APRS tracker and digipeater
 This project contains the Pecan Pico project in it's 10th version. A Pecan is a cheap lightweight APRS position tracker designed especially for small ballons which may fly for months. This tracker has been made in respect of weight, functionality and price because it's usually used once like a satellite. While the balloon can fly for a long time, this tracker is solar powered and recharges it's battery at daytime and uses the power stored in the battery at night.
-Since this version, the tracker is also able to receive APRS (AFSK and FSK). Therefore it's able to operate as solar enabled digipeater.
+Since this version the tracker is also able to receive APRS (AFSK and FSK). So it's able to operate as solar enabled digipeater.
 
 <img src="tracker/hardware/pico/output/pecanpico10_front.png" alt="Pecan Pico 10a front" width="430"> <img src="tracker/hardware/pico/output/pecanpico10_back.png" alt="Pecan Pico 10a back" width="430">
 <img src="pp10a_kicad.png" alt="Pecan Pico 10a KiCAD" width="864">
@@ -13,7 +13,7 @@ The main features are:
 - Measuring Temperature/Airpressure/Humidity (up to 3 separate sensors)
 - Digipeating
 
-__Powering:__ The Pecan Pico 10 can be powered either by USB or by a single LiPO cell which are charged with solar cells. In power safe mode, it uses 50mW and around 150-200mW in normal operation.
+__Powering:__ The Pecan Pico 10 can be powered either by USB or by a single LiPO cell which are charged with solar cells. In power safe mode, it uses 50mW and around 150-200mW in normal operation. [dive deeper](blob/master/powering.md)
 
 __Storage:__ There can be stored up to 14,560 data points (GPS & telemetry) without any external memory devices. For additional storage and picture logging, a Micro SD card can be inserted into the device.
 
@@ -30,6 +30,10 @@ __Additional sensors:__ The Pecan provides an external I2C bus from where addion
 __GNSS (GPS):__ The ublox EVA-7M chip can receive GPS which is used to determine the region specific APRS frequency. Since the GPS draws a lot of power, it can be switched on and off as needed. The device is also compatible with the ublox EVA-M8.
 
 __Debugging/Configuration:__ The device can be accessed over USB in order to configure it or get debug messages out of the device. The log memory can also be accessed over USB.
+
+__Schematic:__ Here we go! [Download](https://raw.githubusercontent.com/DL7AD/pecanpico10/master/tracker/hardware/pico/output/pecanpico10.pdf)
+
+__More:__ *Flashing the chip (link missing)*
 
 # Transmitted test pictures
 
