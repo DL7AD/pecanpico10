@@ -1049,7 +1049,7 @@ bool OV5640_Capture(uint8_t* buffer, uint32_t size)
 	}
 
 	// Capture done, unlock I2C and the radio
-	unlockRadio();
+	Si446xUnlockRadio();
 	I2C_Unlock();
 
 	if(dma_error)

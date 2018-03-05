@@ -17,10 +17,19 @@
 void ax25_delete(packet_t pp);
 #endif
 
+// Access locking
+
+#if Si446x_LOCK_BY_SEMAPHORE != TRUE
 // Mutex
 static mutex_t radio_mtx;               // Radio mutex
-static bool nextTransmissionWaiting;    // Flag that informs the feeder thread to keep the radio switched on
 static bool radio_mtx_init = false;
+#else
+// Binary semaphore
+static binary_semaphore_t radio_bsem;
+static bool radio_bsem_init = false;
+#endif
+
+static bool nextTransmissionWaiting;    // Flag that informs the feeder thread to keep the radio switched on
 
 // Feeder thread variables
 static thread_t* feeder_thd = NULL;
@@ -609,6 +618,16 @@ static void Si446x_setModem2FSK(uint32_t speed)
     Si446x_setProperty8(Si446x_MODEM_MOD_TYPE, 0x03);
 }
 
+
+/* ====================================================================== Radio Settings ====================================================================== */
+
+static uint8_t Si446x_getChannel(void) {
+    const uint8_t state_info[] = {0x33};
+    uint8_t rxData[3];
+    Si446x_read(state_info, sizeof(state_info), rxData, 3);
+    return rxData[3];
+}
+
 /* ======================================================================= Radio FIFO ======================================================================= */
 
 static void Si446x_writeFIFO(uint8_t *msg, uint8_t size) {
@@ -619,9 +638,9 @@ static void Si446x_writeFIFO(uint8_t *msg, uint8_t size) {
 }
 
 static uint8_t Si446x_freeFIFO(void) {
-    const uint8_t fifo_info[2] = {0x15, 0x00};
+    const uint8_t fifo_info[] = {0x15, 0x00};
     uint8_t rxData[4];
-    Si446x_read(fifo_info, 2, rxData, 4);
+    Si446x_read(fifo_info, sizeof(fifo_info), rxData, sizeof(rxData));
     return rxData[3];
 }
 
@@ -631,26 +650,29 @@ static uint8_t Si446x_getState(void)
 {
     const uint8_t state_info[] = {0x33};
     uint8_t rxData[3];
-    Si446x_read(state_info, sizeof(state_info), rxData, 3);
+    Si446x_read(state_info, sizeof(state_info), rxData, sizeof(rxData));
     return rxData[2] & 0xF;
 }
 
 static void Si446x_setTXState(uint16_t size)
 {
-    uint8_t change_state_command[] = {0x31, 0x00, (Si446x_STATE_READY << 4), (size >> 8) & 0x1F, size & 0xFF};
-    Si446x_write(change_state_command, 5);
+    uint8_t change_state_command[] = {0x31, 0x00,
+                                      (Si446x_STATE_READY << 4),
+                                      (size >> 8) & 0x1F, size & 0xFF};
+    Si446x_write(change_state_command, sizeof(change_state_command));
 }
 
 static void Si446x_setReadyState(void)
 {
     const uint8_t change_state_command[] = {0x34, 0x03};
-    Si446x_write(change_state_command, 2);
+    Si446x_write(change_state_command, sizeof(change_state_command));
 }
 
 static void Si446x_setRXState(void)
 {
-    const uint8_t change_state_command[] = {0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x08};
-    Si446x_write(change_state_command, 8);
+    const uint8_t change_state_command[] = {0x32, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x08, 0x08};
+    Si446x_write(change_state_command, sizeof(change_state_command));
 }
 
 static void Si446x_shutdown(void)
@@ -682,36 +704,63 @@ static void Si446x_shutdown(void)
 
 /* ======================================================================== Locking ========================================================================= */
 
-static void lockRadio(void)
+static void Si446xLockRadio(void)
 {
+#if Si446x_LOCK_BY_SEMAPHORE == TRUE
+  /* Initialize semaphore. */
+  if(!radio_bsem_init)
+    chBSemObjectInit(&radio_bsem, false);
+  radio_bsem_init = true;
+
+  chSysLock();
+  chBSemWaitS(&radio_bsem);
+  nextTransmissionWaiting = true;
+  chSysUnlock();
+#else
     // Initialize mutex
     if(!radio_mtx_init)
         chMtxObjectInit(&radio_mtx);
     radio_mtx_init = true;
 
-    chMtxLock(&radio_mtx);
+    chSysLock();
+    chMtxLockS(&radio_mtx);
     nextTransmissionWaiting = true;
+    ChSysUnlock();
+#endif
 
     // Wait for old feeder thread to terminate
     if(feeder_thd != NULL) // No waiting on first use
         chThdWait(feeder_thd);
 }
 
-void unlockRadio(void)
+void Si446xUnlockRadio(void)
 {
-    nextTransmissionWaiting = false;
+  nextTransmissionWaiting = false;
+#if Si446x_LOCK_BY_SEMAPHORE == TRUE
+  chBSemSignal(&radio_bsem);
+#else
     chMtxUnlock(&radio_mtx);
+#endif
 }
 
 void lockRadioByCamera(void)
 {
+#if Si446x_LOCK_BY_SEMAPHORE == TRUE
+  /* Initialize semaphore. */
+  if(!radio_bsem_init)
+    chBSemObjectInit(&radio_bsem, false);
+  radio_bsem_init = true;
+
+  chBSemWait(&radio_bsem);
+
+#else
     // Initialize mutex
     if(!radio_mtx_init)
         chMtxObjectInit(&radio_mtx);
     radio_mtx_init = true;
 
     chMtxLock(&radio_mtx);
-
+#endif
     // Wait for old feeder thread to terminate
     if(feeder_thd != NULL) // No waiting on first use
         chThdWait(feeder_thd);
@@ -851,9 +900,9 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 
 bool Si446x_receive(uint32_t frequency, uint8_t rssi, uint8_t chan, mod_t mod)
 {
-    lockRadio();
+    Si446xLockRadio();
     bool ret = Si446x_receive_noLock(frequency, chan, rssi, mod);
-    unlockRadio();
+    Si446xUnlockRadio();
 
     return ret;
 }
@@ -1111,7 +1160,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 }
 
 void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint8_t pwr) {
-    lockRadio();
+    Si446xLockRadio();
 
     // Stop packet handler (if started)
     if(packetHandler) {
@@ -1148,7 +1197,7 @@ void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint8_t pwr) {
     while(Si446x_getState() != Si446x_STATE_TX)
         chThdSleep(TIME_MS2I(1));
 
-    unlockRadio();
+    Si446xUnlockRadio();
 }
 
 
@@ -1246,7 +1295,7 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
 }
 
 void Si446x_send2FSK(packet_t pp, uint32_t freq, uint8_t pwr, uint32_t speed) {
-    lockRadio();
+    Si446xLockRadio();
 
     // Stop packet handler (if started)
     if(packetHandler)
@@ -1272,7 +1321,7 @@ void Si446x_send2FSK(packet_t pp, uint32_t freq, uint8_t pwr, uint32_t speed) {
     while(Si446x_getState() != Si446x_STATE_TX)
         chThdSleep(TIME_MS2I(1));
 
-    unlockRadio();
+    Si446xUnlockRadio();
 }
 
 /* ========================================================================== Misc ========================================================================== */

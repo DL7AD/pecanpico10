@@ -521,8 +521,10 @@ THD_FUNCTION(pktCallback, arg) {
 }
 
 /**
- * @brief   Process releasae of completed callbacks.
+ * @brief   Process release of completed callbacks.
  * @notes   Release is initiated by posting the packet buffer to the queue.
+ * @notes   The queue is used as a completion mechanism in callback mode.
+ * @notes   In poll mode the received packet is posted to the consumer
  *
  * @post    Call back thread has been released.
  * @post    Packet buffer object is returned to free pool.
@@ -531,7 +533,7 @@ THD_FUNCTION(pktCallback, arg) {
  *
  * @param[in] arg pointer to a @p packet service object.
  *
- * @return  status (MSG_OK).
+ * @return  status (MSG_OK) on exit.
  *
  * @notapi
  */

@@ -16,8 +16,16 @@
 
 #include "pktconf.h"
 
-/*
- * The radio manager thread.
+/**
+ * @brief   Process radio task requests.
+ * @notes   Task objects posted to the queue are processed per radio.
+ * @notes   The queue is blocked while the radio driver executes.
+ *
+ * @param[in] arg pointer to a @p radio task queue for this thread.
+ *
+ * @return  status (MSG_OK) on exit.
+ *
+ * @notapi
  */
 THD_FUNCTION(pktRadioManager, arg) {
 #define PKT_RADIO_TASK_MANAGER_POLL_RATE    100

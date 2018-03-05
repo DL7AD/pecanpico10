@@ -5,6 +5,8 @@
 //#include "hal.h"
 //#include "types.h"
 
+#define Si446x_LOCK_BY_SEMAPHORE    TRUE
+
 #ifndef Si446x_CLK
 #error "Si446x_CLK is not defined which is needed for Si446x."
 #endif
