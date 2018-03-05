@@ -68,13 +68,13 @@
  * Maximum size for APRS.
  * The payload excluding CRC.
  */
-#define PKT_MAX_INFO_LEN       2048
+#define PKT_MAX_RX_INFO_LEN       512
 
-/* An AX.25 packet maximum - closing flag is not included. */
-#define PKT_MAX_PACKET_LEN     (PKT_MAX_ADDRS * PKT_DS_ADDRESS_LEN          \
+/* An AX.25 receive packet maximum - closing flag is not included. */
+#define PKT_MAX_RX_PACKET_LEN     (PKT_MAX_ADDRS * PKT_DS_ADDRESS_LEN       \
                                   + PKT_CONTROL_LEN                         \
                                   + PKT_PROTOCOL_LEN                        \
-                                  + PKT_MAX_INFO_LEN                        \
+                                  + PKT_MAX_RX_INFO_LEN                     \
                                   + PKT_CRC_LEN)
 
 #define PKT_MIN_FRAME          ((PKT_MIN_PACKET_LEN) + PKT_CRC_LEN)

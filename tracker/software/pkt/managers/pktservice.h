@@ -17,7 +17,7 @@
 #define EVT_DIAG_OUT_END        EVENT_MASK(0)
 #define EVT_PKT_OUT_END         EVENT_MASK(1)
 
-#define PKT_BUFFER_SIZE         PKT_MAX_PACKET_LEN
+#define PKT_RX_BUFFER_SIZE      PKT_MAX_RX_PACKET_LEN
 
 #define PKT_FRAME_QUEUE_PREFIX  "pktx_"
 #define PKT_CALLBACK_TERMINATOR_PREFIX "cbtx_"
@@ -78,7 +78,7 @@ typedef struct packetBuffer {
   volatile eventflags_t     status;
   size_t                    buffer_size;
   size_t                    packet_size;
-  ax25char_t                buffer[PKT_BUFFER_SIZE];
+  ax25char_t                buffer[PKT_RX_BUFFER_SIZE];
 } pkt_data_object_t;
 
 
@@ -324,7 +324,7 @@ static inline pkt_data_object_t *pktTakeDataBufferS(packet_svc_t *handler,
     pkt_buffer->handler = handler;
     pkt_buffer->status = EVT_STATUS_CLEAR;
     pkt_buffer->packet_size = 0;
-    pkt_buffer->buffer_size = PKT_BUFFER_SIZE;
+    pkt_buffer->buffer_size = PKT_RX_BUFFER_SIZE;
     pkt_buffer->cb_func = handler->usr_callback;
 
     /* Save the pointer to the packet factory for use when releasing buffer. */

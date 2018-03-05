@@ -117,7 +117,7 @@ const conf_t conf_flash_default = {
 			.active			= true
 		},
 		.radio_conf = {
-			.pwr			= 0x0F,
+			.pwr			= 0x7F,
 			.freq			= 145175000,
 			.mod			= MOD_AFSK,
 			.preamble		= 200
@@ -128,7 +128,7 @@ const conf_t conf_flash_default = {
 		.symbol				= SYM_DIGIPEATER
 	},
 
-	.rssi					= 0x4F,
+	.rssi					= 0x48,
 
 	.dig_active				= true,
 

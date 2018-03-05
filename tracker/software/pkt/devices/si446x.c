@@ -629,10 +629,10 @@ static uint8_t Si446x_freeFIFO(void) {
 
 static uint8_t Si446x_getState(void)
 {
-    const uint8_t fifo_info[1] = {0x33};
-    uint8_t rxData[4];
-    Si446x_read(fifo_info, 1, rxData, 4);
-    return rxData[2];
+    const uint8_t state_info[] = {0x33};
+    uint8_t rxData[3];
+    Si446x_read(state_info, sizeof(state_info), rxData, 3);
+    return rxData[2] & 0xF;
 }
 
 static void Si446x_setTXState(uint16_t size)
@@ -997,7 +997,7 @@ static uint32_t pack(uint8_t *inbuf, uint32_t inlen, uint8_t* buf, uint32_t buf_
     return blen;
 }
 
-static uint8_t getAFSKbyte(uint8_t* buf, uint32_t blen)
+static uint8_t getUpsampledAFSKbyte(uint8_t* buf, uint32_t blen)
 {
     if(packet_pos == blen)
       /* Packet transmission finished already so just return a zero. */
@@ -1067,7 +1067,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 
     // Initial FIFO fill
     for(uint16_t i = 0;  i < c; i++)
-        localBuffer[i] = getAFSKbyte(layer0, layer0_blen);
+        localBuffer[i] = getUpsampledAFSKbyte(layer0, layer0_blen);
     Si446x_writeFIFO(localBuffer, c);
 
     // Start transmission
@@ -1082,7 +1082,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
           }
 
           for(uint16_t i = 0; i < more; i++)
-              localBuffer[i] = getAFSKbyte(layer0, layer0_blen);
+              localBuffer[i] = getUpsampledAFSKbyte(layer0, layer0_blen);
 
           Si446x_writeFIFO(localBuffer, more); // Write into FIFO
           c += more;
