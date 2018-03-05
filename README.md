@@ -13,7 +13,7 @@ The main features are:
 - Measuring Temperature/Airpressure/Humidity (up to 3 separate sensors)
 - Digipeating
 
-__Powering:__ The Pecan Pico 10 can be powered either by USB or by a single LiPO cell which are charged with solar cells. In power safe mode, it uses 50mW and around 150-200mW in normal operation. [dive deeper](blob/master/powering.md)
+__Powering:__ The Pecan Pico 10 can be powered either by USB or by a single LiPO cell which are charged with solar cells. In power safe mode, it uses 50mW and around 150-200mW in normal operation. [dive deeper](powering.md)
 
 __Storage:__ There can be stored up to 14,560 data points (GPS & telemetry) without any external memory devices. For additional storage and picture logging, a Micro SD card can be inserted into the device.
 
