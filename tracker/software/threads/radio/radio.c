@@ -28,7 +28,7 @@ static void handlePacket(uint8_t *buf, uint32_t len) {
 		if(pp->num_addr > 0) {
 	      aprs_decode_packet(pp);
 		} else {
-	      TRACE_DEBUG("RX    > No addresses in packet");
+	      TRACE_DEBUG("RX   > No addresses in packet");
 		}
 		ax25_delete(pp);
 	} else {
