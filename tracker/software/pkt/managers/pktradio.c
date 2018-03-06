@@ -69,6 +69,7 @@ THD_FUNCTION(pktRadioManager, arg) {
           if(driver == NULL) {
             break;
           }
+          /* TODO: Check for success/fail from band set. */
           Si446x_setBandParameters(task_object->base_frequency,
                                   task_object->step_hz,
                                   RADIO_RX);

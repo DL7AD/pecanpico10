@@ -457,38 +457,49 @@ if(!radioInitialized)
     Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
 }*/
 
-/*static*/ void Si446x_setBandParameters(uint32_t freq,
-                                        uint16_t step,
-                                        radio_mode_t mode) {
-  // Initialize radio
+bool Si446x_setBandParameters(uint32_t freq,
+                              uint16_t step,
+                              radio_mode_t mode) {
+
+  /* Check band is in range. */
+  if(freq < 144000000UL || freq > 900000000UL)
+    return false;
+
+  /* Set the output divider as recommended in Si446x data sheet. */
+  uint32_t band = 0;
+  if(freq < 705000000UL) {outdiv = 6;  band = 1;}
+  if(freq < 525000000UL) {outdiv = 8;  band = 2;}
+  if(freq < 353000000UL) {outdiv = 12; band = 3;}
+  if(freq < 239000000UL) {outdiv = 16; band = 4;}
+  if(freq < 177000000UL) {outdiv = 24; band = 5;}
+
+  /* Initialize radio GPIO and primary register set. */
   if(!radioInitialized)
-    /* Setup GPIO, etc. */
     Si446x_init();
 
-  if(mode == RADIO_RX) {
+  switch(mode) {
+  case RADIO_RX:
     rx_step = step;
     rx_frequency = freq;
-  }
+    break;
 
-  else {
+  case RADIO_TX:
     tx_frequency = freq;
     tx_step = step;
-  }
+    break;
 
-    // Set the output divider according to recommended ranges given in Si446x datasheet
-    uint32_t band = 0;
-    if(freq < 705000000UL) {outdiv = 6;  band = 1;};
-    if(freq < 525000000UL) {outdiv = 8;  band = 2;};
-    if(freq < 353000000UL) {outdiv = 12; band = 3;};
-    if(freq < 239000000UL) {outdiv = 16; band = 4;};
-    if(freq < 177000000UL) {outdiv = 24; band = 5;};
+  case RADIO_CCA:
+    break;
+  } /* End switch. */
 
-    // Set the band parameter
+
+
+    /* Set the band parameter. */
     uint32_t sy_sel = 8;
     uint8_t set_band_property_command[] = {0x11, 0x20, 0x01, 0x51, (band + sy_sel)};
     Si446x_write(set_band_property_command, 5);
 
-    // Set the PLL parameters
+    /* Set the PLL parameters. */
     uint32_t f_pfd = 2 * Si446x_CCLK / outdiv;
     uint32_t n = ((uint32_t)(freq / f_pfd)) - 1;
     float ratio = (float)freq / (float)f_pfd;
@@ -512,6 +523,7 @@ if(!radioInitialized)
     uint8_t x0 = (x >>  0) & 0xFF;
     uint8_t set_deviation[] = {0x11, 0x20, 0x03, 0x0a, x2, x1, x0};
     Si446x_write(set_deviation, 7);
+    return true;
 }
 
 /*static void Si446x_setShift(uint16_t shift)
@@ -809,8 +821,7 @@ static bool Si446x_isRadioInBand(uint8_t chan, radio_mode_t mode) {
   return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
 }
 
-static bool Si446x_getLatchedCCA(uint8_t ms)
-{
+static bool Si446x_getLatchedCCA(uint8_t ms) {
     uint16_t cca = 0;
     for(uint16_t i=0; i<ms*10; i++) {
         cca += Si446x_getCCA();
@@ -855,17 +866,17 @@ static bool Si446x_transmit(uint8_t chan,
     }
 
     Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
-    /* FIXME: This should save RX params, set TX as RX and then restore RX. */
-    //Si446x_setBandParameters(tx_frequency, tx_step, RADIO_RX);     // Set frequency
+    /* Change band parameters for CCA RX temporarily. */
+    Si446x_setBandParameters(tx_frequency, tx_step, RADIO_CCA);     // Set frequency
     Si446x_setRXState(chan);
 
     // Wait until nobody is transmitting (until timeout)
 
     if(Si446x_getState() != Si446x_STATE_RX || Si446x_getLatchedCCA(50)) {
 #ifdef PKT_IS_TEST_PROJECT
-        dbgPrintf(DBG_INFO, "SI   > Wait for CCA to drop\r\n");
+        dbgPrintf(DBG_INFO, "SI   > Wait for clear channel\r\n");
 #else
-        TRACE_INFO("SI   > Wait for CCA to drop");
+        TRACE_INFO("SI   > Wait for clear channel");
 #endif
         /* FIXME: Fix timeout. Using 5KHz systick lowest resolution is 200uS. */
         sysinterval_t t0 = chVTGetSystemTime();
@@ -882,7 +893,8 @@ static bool Si446x_transmit(uint8_t chan,
     TRACE_INFO("SI   > Tune Si446x (TX)");
 #endif
     Si446x_setReadyState();
-    //Si446x_setBandParameters(tx_frequency, tx_step, RADIO_TX);     // Set frequency
+    /* Set band parameters back to normal TX. */
+    Si446x_setBandParameters(tx_frequency, tx_step, RADIO_CCA);     // Set frequency
     Si446x_setPowerLevel(power);        // Set power level
     Si446x_setTXState(chan, size);
 
@@ -989,14 +1001,14 @@ static bool Si4464_restoreRX(void)
 #ifdef PKT_IS_TEST_PROJECT
 
       dbgPrintf(DBG_INFO, "SI   > Resume packet reception %d.%03d MHz,"
-                " (ch %d), Rssi %d, %s\r\n",
+                " (ch %d), RSSI %d, %s\r\n",
                 op_freq/1000000, (op_freq % 1000000)/1000,
                 Si446x_getChannel(),
                 rx_rssi, getModulation(rx_mod);
 #else
 
         TRACE_INFO( "SI   > Resume packet reception %d.%03d MHz (ch %d),"
-                    " Rssi %d, %s",
+                    " RSSI %d, %s",
                     op_freq/1000000, (op_freq % 1000000)/1000,
                     Si446x_getChannel(),
                     rx_rssi, getModulation(rx_mod)

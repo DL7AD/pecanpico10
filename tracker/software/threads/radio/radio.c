@@ -65,8 +65,13 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 	{
 
         /* Set band and step size in 446x. */
-      Si446x_setBandParameters(freq, step, RADIO_TX);
+      /* TODO: Check for success/fail from band set. */
+      if(!Si446x_setBandParameters(freq, step, RADIO_TX)) {
 
+        TRACE_ERROR("RAD  > Transmit base frequency of %d.%03d MHz is invalid",
+                      freq/1000000, (freq%1000000)/1000);
+        return false;
+      }
       uint32_t op_freq = Si446x_computeOperatingFrequency(chan, RADIO_TX);
 		TRACE_INFO(	"RAD  > Transmit %d.%03d MHz (ch %d), Pwr %d, %s, %d byte",
 					op_freq/1000000, (op_freq%1000000)/1000, Si446x_getChannel(),
@@ -76,7 +81,6 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 		char buf[1024];
 		aprs_debug_getPacket(pp, buf, sizeof(buf));
 		TRACE_INFO("TX   > %s", buf);
-
 
 		switch(mod)
 		{

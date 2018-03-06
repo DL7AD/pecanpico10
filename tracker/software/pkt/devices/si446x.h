@@ -192,7 +192,8 @@
 
 typedef enum radioMode {
   RADIO_RX,
-  RADIO_TX
+  RADIO_TX,
+  RADIO_CCA
 } radio_mode_t;
 
 
@@ -216,7 +217,7 @@ void Si446x_unlockRadio(void);
 void Si446x_lockRadioByCamera(void);
 void Si446x_conditional_init(void);
 uint8_t Si446x_getChannel(void);
-void Si446x_setBandParameters(uint32_t freq,
+bool Si446x_setBandParameters(uint32_t freq,
                                    uint16_t step,
                                    radio_mode_t mode);
 uint32_t Si446x_computeOperatingFrequency(uint8_t chan, radio_mode_t mode);
