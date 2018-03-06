@@ -128,7 +128,7 @@ const conf_t conf_flash_default = {
 		.symbol				= SYM_DIGIPEATER
 	},
 
-	.rssi					= 0x48,
+	.rssi					= 0x3F,
 
 	.dig_active				= true,
 

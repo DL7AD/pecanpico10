@@ -12,6 +12,7 @@
 #include "debug.h"
 #endif
 #include "pktconf.h"
+#include "radio.h"
 
 #ifdef PKT_IS_TEST_PROJECT
 void ax25_delete(packet_t pp);
@@ -621,10 +622,10 @@ static void Si446x_setModem2FSK(uint32_t speed)
 
 /* ====================================================================== Radio Settings ====================================================================== */
 
-static uint8_t Si446x_getChannel(void) {
-    const uint8_t state_info[] = {0x33};
-    uint8_t rxData[3];
-    Si446x_read(state_info, sizeof(state_info), rxData, 3);
+uint8_t Si446x_getChannel(void) {
+    const uint8_t state_info[] = {Si446x_REQUEST_DEVICE_STATE};
+    uint8_t rxData[4];
+    Si446x_read(state_info, sizeof(state_info), rxData, sizeof(rxData));
     return rxData[3];
 }
 
@@ -637,8 +638,8 @@ static void Si446x_writeFIFO(uint8_t *msg, uint8_t size) {
     Si446x_write(write_fifo, size+1);
 }
 
-static uint8_t Si446x_freeFIFO(void) {
-    const uint8_t fifo_info[] = {0x15, 0x00};
+static uint8_t Si446x_getTXfreeFIFO(void) {
+    const uint8_t fifo_info[] = {Si446x_FIFO_INFO, 0x00};
     uint8_t rxData[4];
     Si446x_read(fifo_info, sizeof(fifo_info), rxData, sizeof(rxData));
     return rxData[3];
@@ -648,8 +649,8 @@ static uint8_t Si446x_freeFIFO(void) {
 
 static uint8_t Si446x_getState(void)
 {
-    const uint8_t state_info[] = {0x33};
-    uint8_t rxData[3];
+    const uint8_t state_info[] = {Si446x_REQUEST_DEVICE_STATE};
+    uint8_t rxData[4];
     Si446x_read(state_info, sizeof(state_info), rxData, sizeof(rxData));
     return rxData[2] & 0xF;
 }
@@ -867,9 +868,11 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
     uint16_t tot = 0;
     // Wait until transceiver finishes transmission (if there is any)
     while(Si446x_getState() == Si446x_STATE_TX) {
-        chThdSleep(TIME_MS2I(5));
-        if(tot++ < 2000)
+        chThdSleep(TIME_MS2I(10));
+        if(tot++ < 500)
           continue;
+        /* Remove TX state. */
+        Si446x_setReadyState();
 #ifdef PKT_IS_TEST_PROJECT
       dbgPrintf(DBG_ERROR, "SI   > Timeout waiting for TX state end\r\n");
       dbgPrintf(DBG_ERROR, "SI   > Attempt start of receive\r\n");
@@ -877,8 +880,6 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
       TRACE_ERROR("SI   > Timeout waiting for TX state end");
       TRACE_ERROR("SI   > Attempt start of receive");
 #endif
-      /* Remove TX state. */
-      Si446x_setReadyState();
       break;
     }
 
@@ -888,10 +889,10 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
     } else {
         Si446x_shutdown();
 #ifdef PKT_IS_TEST_PROJECT
-        dbgPrintf(DBG_ERROR, "SI   > Unknown modulation\r\n");
+        dbgPrintf(DBG_ERROR, "SI   > Modulation type not supported in receive\r\n");
         dbgPrintf(DBG_ERROR, "SI   > abort reception\r\n");
 #else
-        TRACE_ERROR("SI   > Modulation not supported");
+        TRACE_ERROR("SI   > Modulation type not supported in receive");
         TRACE_ERROR("SI   > abort reception");
 #endif
         return false;
@@ -933,9 +934,19 @@ static bool Si4464_restoreRX(void)
 
     if(packetHandler) {
 #ifdef PKT_IS_TEST_PROJECT
-      dbgPrintf(DBG_INFO, "SI   > Resume packet reception\r\n");
+
+      dbgPrintf(DBG_INFO, "SI   > Resume packet reception %d.%03d MHz,"
+                " Chn %d, Rssi %d, %s\r\n",
+                rx_frequency/1000000, (rx_frequency%1000000)/1000,
+                Si446x_getChannel(),
+                rx_rssi, getModulation(rx_mod);
 #else
-        TRACE_INFO("SI   > Resume packet reception");
+
+        TRACE_INFO( "SI   > Resume packet reception %d.%03d MHz, Chn %d, Rssi %d, %s",
+                    rx_frequency/1000000, (rx_frequency%1000000)/1000,
+                    Si446x_getChannel(),
+                    rx_rssi, getModulation(rx_mod)
+          );
 #endif
 
         /* Resume decoding. */
@@ -1068,7 +1079,7 @@ static uint32_t Si446x_encodeDataToAFSK(uint8_t *inbuf, uint32_t inlen,
     return blen;
 }
 
-static uint8_t Si446x_getUpsampledAFSKbits(uint8_t* buf, uint32_t blen)
+static uint8_t Si446x_getUpsampledAFSKbits(uint8_t* buf/*, uint32_t blen*/)
 {
   /* This function may be called with different bit stream sources.
    * These will have their own blen so checking is not valid.
@@ -1142,7 +1153,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
     uint8_t localBuffer[Si446x_FIFO_COMBINED_SIZE];
 
     /* Get the FIFO buffer amount currently available. */
-    uint8_t free = Si446x_freeFIFO();
+    uint8_t free = Si446x_getTXfreeFIFO();
 
     /*
      * Account for all modulation bits (round up to a byte boundary).
@@ -1153,7 +1164,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
 
     // Initial FIFO fill
     for(uint16_t i = 0;  i < c; i++)
-        localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0, layer0_blen);
+        localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0/*, layer0_blen*/);
     Si446x_writeFIFO(localBuffer, c);
 
     // Start transmission
@@ -1161,14 +1172,14 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
       /* Transmit started OK. */
       while(c < all) { // Do while bytes not written into FIFO completely
           // Determine free memory in Si446x-FIFO
-          uint8_t more = Si446x_freeFIFO();
+          uint8_t more = Si446x_getTXfreeFIFO();
           if(more > all - c) {
               if((more = all - c) == 0) // Calculate remainder to send
                 break; // End if nothing left
           }
 
           for(uint16_t i = 0; i < more; i++)
-              localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0, layer0_blen);
+              localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0/*, layer0_blen*/);
 
           Si446x_writeFIFO(localBuffer, more); // Write into FIFO
           c += more;
@@ -1277,7 +1288,7 @@ void Si446x_startDecoder(radio_freq_t freq, radio_squelch_t sq, void* cb) {
 
     /* Start the decoder. */
     pktStartDataReception(packetHandler,
-                           94,
+                           0,
                            sq,
                            Si446x_mapCallback);
 }

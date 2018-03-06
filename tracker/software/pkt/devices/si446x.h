@@ -15,7 +15,7 @@
 #define Si446x_CLK_OFFSET 0
 #endif
 
-// Varios macros
+// Various macros
 
 #define Si446x_getGPIO0()           palReadLine(LINE_RADIO_GPIO0)
 #define Si446x_getGPIO1()           palReadLine(LINE_RADIO_GPIO1)
@@ -46,7 +46,9 @@
 #define Si446x_READ_CMD_BUFF                      0x44
 #define Si446x_START_TX                           0x31
 #define Si446x_START_RX                           0x32
+#define Si446x_REQUEST_DEVICE_STATE               0x33
 #define Si446x_RX_HOP                             0x36
+#define Si446x_FIFO_INFO                          0x15
 
 /* Defined response values. */
 
@@ -205,6 +207,7 @@ bool Si446x_receiveNoLock(uint32_t frequency, uint8_t chan,
 void Si446x_unlockRadio(void);
 void Si446x_lockRadioByCamera(void);
 void Si446x_conditional_init(void);
+uint8_t Si446x_getChannel(void);
 
-#endif /* Si446x_CLK_OFFSET */
+#endif /* __si446x__H__ */
 

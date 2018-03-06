@@ -21,5 +21,11 @@
 void start_rx_thread(uint32_t freq, uint8_t rssi);
 bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod);
 
-#endif
+inline const char *getModulation(uint8_t key) {
+    const char *val[] = {"AFSK", "2FSK"};
+    return val[key];
+};
+
+
+#endif /* __RADIO_H__ */
 

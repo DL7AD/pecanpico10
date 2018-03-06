@@ -6,12 +6,7 @@
 #include "geofence.h"
 #include "aprs.h"
 #include "pktconf.h"
-
-
-static const char *getModulation(uint8_t key) {
-	const char *val[] = {"AFSK", "2FSK"};
-	return val[key];
-};
+#include "radio.h"
 
 static void handlePacket(uint8_t *buf, uint32_t len) {
   /* Remove CRC from frame. */
@@ -46,6 +41,7 @@ void start_rx_thread(uint32_t freq, uint8_t rssi) {
 
 	// Start decoder
 	Si446x_startDecoder(freq, rssi, handlePacket);
+
 }
 
 bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod)
@@ -58,9 +54,9 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod)
 
 	if(len) // Message length is not zero
 	{
-		TRACE_INFO(	"RAD  > Transmit %d.%03d MHz, Pwr %d, %s, %d byte",
-					freq/1000000, (freq%1000000)/1000, pwr,
-					getModulation(mod), len
+		TRACE_INFO(	"RAD  > Transmit %d.%03d MHz, Chn %d, Pwr %d, %s, %d byte",
+					freq/1000000, (freq%1000000)/1000, Si446x_getChannel(),
+					pwr, getModulation(mod), len
 		);
 
 		char buf[1024];

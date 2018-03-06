@@ -402,6 +402,7 @@ static bool aprs_decode_message(packet_t pp)
 		} else if(!strcmp(command, "?save")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: Save");
+			conf_sram.magic = CONFIG_MAGIC_UPDATED;
 			flashSectorBegin(flashSectorAt(0x08060000));
 			flashErase(0x08060000, 0x20000);
 			flashWrite(0x08060000, (char*)&conf_sram, sizeof(conf_t));

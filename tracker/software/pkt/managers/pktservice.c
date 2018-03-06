@@ -149,6 +149,7 @@ msg_t pktOpenRadioService(radio_unit_t radio,
  *
  * @param[in]   handler pointer to a @p packet handler object.
  * @param[in]   channel radio channel number to select
+ * @param[in]   sq      the RSSI setting to be used.
  * @param[in]   cb      callback function called on receipt of packet.
  *
  * @return              Status of the operation.

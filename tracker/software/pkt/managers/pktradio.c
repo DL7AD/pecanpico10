@@ -15,6 +15,7 @@
  */
 
 #include "pktconf.h"
+#include "radio.h"
 
 /**
  * @brief   Process radio task requests.
@@ -90,7 +91,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         radio_squelch_t sq = task_object->squelch;
         radio_freq_t freq = task_object->base_frequency;
         radio_ch_t chan = task_object->channel;
-        Si446x_receiveNoLock(freq, sq, chan, MOD_AFSK);
+        Si446x_receiveNoLock(freq, chan, sq, MOD_AFSK);
         rx_active = true;
         break;
         } /* End case PKT_RADIO_RX. */
