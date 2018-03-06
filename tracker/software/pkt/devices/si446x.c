@@ -864,10 +864,22 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
     // Initialize radio
     if(!radioInitialized)
         Si446x_init();
-
+    uint16_t tot = 0;
     // Wait until transceiver finishes transmission (if there is any)
     while(Si446x_getState() == Si446x_STATE_TX) {
         chThdSleep(TIME_MS2I(5));
+        if(tot++ < 2000)
+          continue;
+#ifdef PKT_IS_TEST_PROJECT
+      dbgPrintf(DBG_ERROR, "SI   > Timeout waiting for TX state end\r\n");
+      dbgPrintf(DBG_ERROR, "SI   > Attempt start of receive\r\n");
+#else
+      TRACE_ERROR("SI   > Timeout waiting for TX state end");
+      TRACE_ERROR("SI   > Attempt start of receive");
+#endif
+      /* Remove TX state. */
+      Si446x_setReadyState();
+      break;
     }
 
     // Initialize radio
