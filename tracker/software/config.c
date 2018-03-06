@@ -119,6 +119,8 @@ const conf_t conf_flash_default = {
 		.radio_conf = {
 			.pwr			= 0x7F,
 			.freq			= 145175000,
+			.step           = 12500,
+			.chan           = 00,
 			.mod			= MOD_AFSK,
 			.preamble		= 200
 		},

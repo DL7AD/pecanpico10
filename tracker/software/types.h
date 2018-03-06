@@ -46,10 +46,12 @@ typedef enum {
 typedef struct {
 	int8_t				pwr;
 	uint32_t			freq;	// 0: APRS region frequency (determined by geofencing), f>0 static frequency
+	uint16_t            step;
+	uint8_t             chan;
 	mod_t				mod;
 	uint16_t			preamble;
 	uint32_t			speed;
-	bool redundantTx;
+	bool                redundantTx;
 } radio_conf_t; // Radio / Modulation
 
 typedef struct {
@@ -116,7 +118,7 @@ typedef struct {
 	thd_log_conf_t	log;					// Log transmission configuration
 	thd_rx_conf_t	rx;						// Receiver configuration
 
-	uint8_t			rssi;					// Squelch for receiption
+	uint8_t			rssi;					// Squelch for reception
 
 	bool			dig_active;				// Digipeater active flag
 

@@ -200,7 +200,7 @@ void Si446x_send2FSK(packet_t pp, uint32_t freq, uint8_t pwr, uint32_t speed);
 
 bool Si446x_receive(uint32_t frequency, uint8_t chan,
                     uint8_t rssi, mod_t mod);
-void Si446x_startDecoder(uint32_t freq, uint8_t sq, void* cb);
+void Si446x_startPacketReception(uint32_t freq, uint8_t ch, uint8_t sq, void* cb);
 void Si446x_stopDecoder(void);
 bool Si446x_receiveNoLock(uint32_t frequency, uint8_t chan,
                     uint8_t rssi, mod_t mod);

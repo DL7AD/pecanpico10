@@ -49,6 +49,9 @@ void start_user_threads(void)
 
 	if(conf_sram.log.thread_conf.active) start_logging_thread(&conf_sram.log);
 
-	if(conf_sram.rx.thread_conf.active) start_rx_thread(conf_sram.rx.radio_conf.freq, conf_sram.rssi);
+	if(conf_sram.rx.thread_conf.active)
+	  start_rx_thread(conf_sram.rx.radio_conf.freq,
+	                  conf_sram.rx.radio_conf.chan,
+	                  conf_sram.rssi);
 }
 

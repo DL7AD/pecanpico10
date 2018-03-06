@@ -31,16 +31,19 @@ static void handlePacket(uint8_t *buf, uint32_t len) {
 	}
 	return;
   }
-  TRACE_DEBUG("RX    > Packet data length < 2");
+  TRACE_DEBUG("RX    > Packet dropped due to data length < 2");
 }
 
-void start_rx_thread(uint32_t freq, uint8_t rssi) {
+void start_rx_thread(uint32_t freq, radio_ch_t chan, uint8_t rssi) {
 
-	if(freq == FREQ_APRS_DYNAMIC)
+	if(freq == FREQ_APRS_DYNAMIC) {
 		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
+		/* If using geofence ignore channel. */
+		chan = 0;
+	}
 
 	// Start decoder
-	Si446x_startDecoder(freq, rssi, handlePacket);
+	Si446x_startPacketReception(freq, chan, rssi, handlePacket);
 
 }
 

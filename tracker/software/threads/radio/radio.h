@@ -5,6 +5,7 @@
 #include "hal.h"
 #include "config.h"
 #include "ax25_pad.h"
+#include "pktconf.h"
 
 // APRS region frequencies
 #define APRS_FREQ_OTHER				144800000
@@ -18,7 +19,7 @@
 #define APRS_FREQ_ARGENTINA			144930000
 #define APRS_FREQ_BRAZIL			145575000
 
-void start_rx_thread(uint32_t freq, uint8_t rssi);
+void start_rx_thread(uint32_t freq, radio_ch_t chan, uint8_t rssi);
 bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod);
 
 inline const char *getModulation(uint8_t key) {

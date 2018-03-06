@@ -1275,7 +1275,8 @@ if(pktIsBufferValidAX25Frame(pkt_buff)) {
   }
 }
 
-void Si446x_startDecoder(radio_freq_t freq, radio_squelch_t sq, void* cb) {
+void Si446x_startPacketReception(radio_freq_t freq, radio_ch_t ch,
+                         radio_squelch_t sq, void* cb) {
 
     rx_cb = cb;
 
@@ -1288,7 +1289,7 @@ void Si446x_startDecoder(radio_freq_t freq, radio_squelch_t sq, void* cb) {
 
     /* Start the decoder. */
     pktStartDataReception(packetHandler,
-                           0,
+                           ch,
                            sq,
                            Si446x_mapCallback);
 }

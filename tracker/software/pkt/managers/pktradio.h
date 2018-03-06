@@ -94,7 +94,6 @@ typedef void (*radio_task_cb_t)(packet_svc_t *handler);
 } radio_request_t;*/
 
 
-
 /**
  * @brief       Radio task object.
  * @details     object submitted by FIFO to manager for radio task requests.
