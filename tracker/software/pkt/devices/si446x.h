@@ -20,8 +20,6 @@
 #define Si446x_getGPIO0()           palReadLine(LINE_RADIO_GPIO0)
 #define Si446x_getGPIO1()           palReadLine(LINE_RADIO_GPIO1)
 #define Si446x_getCCA()             palReadLine(LINE_RADIO_IRQ)
-#define Si446x_inRadioBand(freq)    (Si446x_MIN_FREQ <= (freq)               \
-                                      && (freq) < Si446x_MAX_FREQ)
 
  /* Frequency offset corrected oscillator frequency */
 #define Si446x_CCLK                 ((Si446x_CLK) + (Si446x_CLK_OFFSET)      \
@@ -191,23 +189,36 @@
 #define Si446x_FIFO_SEPARATE_SIZE                64
 #define Si446x_FIFO_COMBINED_SIZE               129
 
+
+typedef enum radioMode {
+  RADIO_RX,
+  RADIO_TX
+} radio_mode_t;
+
+
 // Public methods
 
 int16_t Si446x_getLastTemperature(void);
 
-void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint8_t pwr);
-void Si446x_send2FSK(packet_t pp, uint32_t freq, uint8_t pwr, uint32_t speed);
+void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint16_t step,
+                     uint8_t chan, uint8_t pwr);
+void Si446x_send2FSK(packet_t pp, uint32_t freq, uint16_t step,
+                     uint8_t chan,
+                     uint8_t pwr, uint32_t speed);
 
-bool Si446x_receive(uint32_t frequency, uint8_t chan,
+bool Si446x_receive(uint32_t frequency, uint16_t step, uint8_t chan,
                     uint8_t rssi, mod_t mod);
-void Si446x_startPacketReception(uint32_t freq, uint8_t ch, uint8_t sq, void* cb);
+void Si446x_startPacketReception(uint32_t freq, uint16_t step,
+                                 uint8_t ch, uint8_t sq, void* cb);
 void Si446x_stopDecoder(void);
-bool Si446x_receiveNoLock(uint32_t frequency, uint8_t chan,
-                    uint8_t rssi, mod_t mod);
+bool Si446x_receiveNoLock(uint8_t chan, uint8_t rssi, mod_t mod);
 void Si446x_unlockRadio(void);
 void Si446x_lockRadioByCamera(void);
 void Si446x_conditional_init(void);
 uint8_t Si446x_getChannel(void);
-
+void Si446x_setBandParameters(uint32_t freq,
+                                   uint16_t step,
+                                   radio_mode_t mode);
+uint32_t Si446x_computeOperatingFrequency(uint8_t chan, radio_mode_t mode);
 #endif /* __si446x__H__ */
 

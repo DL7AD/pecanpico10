@@ -70,6 +70,8 @@ const conf_command_t command_list[] = {
 	{TYPE_TIME, "pos_sec.cycle",                 sizeof(conf_sram.pos_sec.thread_conf.cycle),                 &conf_sram.pos_sec.thread_conf.cycle                },
 	{TYPE_INT,  "pos_sec.pwr",                   sizeof(conf_sram.pos_sec.radio_conf.pwr),                    &conf_sram.pos_sec.radio_conf.pwr                   },
 	{TYPE_INT,  "pos_sec.freq",                  sizeof(conf_sram.pos_sec.radio_conf.freq),                   &conf_sram.pos_sec.radio_conf.freq                  },
+    {TYPE_INT,  "pos_sec.step",                  sizeof(conf_sram.pos_sec.radio_conf.step),                   &conf_sram.pos_sec.radio_conf.step                  },
+    {TYPE_INT,  "pos_sec.chan",                  sizeof(conf_sram.pos_sec.radio_conf.chan),                   &conf_sram.pos_sec.radio_conf.chan                  },
 	{TYPE_INT,  "pos_sec.mod",                   sizeof(conf_sram.pos_sec.radio_conf.mod),                    &conf_sram.pos_sec.radio_conf.mod                   },
 	{TYPE_INT,  "pos_sec.preamble",              sizeof(conf_sram.pos_sec.radio_conf.preamble),               &conf_sram.pos_sec.radio_conf.preamble              },
 	{TYPE_INT,  "pos_sec.speed",                 sizeof(conf_sram.pos_sec.radio_conf.speed),                  &conf_sram.pos_sec.radio_conf.speed                 },
@@ -380,13 +382,21 @@ static bool aprs_decode_message(packet_t pp)
 			TRACE_INFO("RX   > Message: Position query");
 			trackPoint_t* trackPoint = getLastTrackPoint();
 			packet_t pp = aprs_encode_position(conf_sram.rx.call, conf_sram.rx.path, conf_sram.rx.symbol, trackPoint);
-			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
+            transmitOnRadio(pp, conf_sram.rx.radio_conf.freq,
+                            conf_sram.rx.radio_conf.step,
+                            conf_sram.rx.radio_conf.chan,
+                            conf_sram.rx.radio_conf.pwr,
+                            conf_sram.rx.radio_conf.mod);
 
 		} else if(!strcmp(command, "?aprsd")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: Directs query");
 			packet_t pp = aprs_encode_query_answer_aprsd(conf_sram.rx.call, conf_sram.rx.path, src);
-			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
+            transmitOnRadio(pp, conf_sram.rx.radio_conf.freq,
+                            conf_sram.rx.radio_conf.step,
+                            conf_sram.rx.radio_conf.chan,
+                            conf_sram.rx.radio_conf.pwr,
+                            conf_sram.rx.radio_conf.mod);
 
 		} else if(!strcmp(command, "?reset")) { // Transmit position
 
@@ -394,7 +404,11 @@ static bool aprs_decode_message(packet_t pp)
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
 			packet_t pp = aprs_encode_message(conf_sram.rx.call, conf_sram.rx.path, src, buf, true);
-			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
+            transmitOnRadio(pp, conf_sram.rx.radio_conf.freq,
+                            conf_sram.rx.radio_conf.step,
+                            conf_sram.rx.radio_conf.chan,
+                            conf_sram.rx.radio_conf.pwr,
+                            conf_sram.rx.radio_conf.mod);
 			chThdSleep(TIME_S2I(5)); // Give some time to send the message
 
 			NVIC_SystemReset();
@@ -471,7 +485,11 @@ static bool aprs_decode_message(packet_t pp)
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
 			packet_t pp = aprs_encode_message(conf_sram.rx.call, conf_sram.rx.path, src, buf, true);
-			transmitOnRadio(pp, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
+            transmitOnRadio(pp, conf_sram.rx.radio_conf.freq,
+                            conf_sram.rx.radio_conf.step,
+                            conf_sram.rx.radio_conf.chan,
+                            conf_sram.rx.radio_conf.pwr,
+                            conf_sram.rx.radio_conf.mod);
 		}
 
 		return false; // Mark that message dont has to be digipeated
@@ -491,7 +509,11 @@ static void aprs_digipeat(packet_t pp)
 		packet_t result = digipeat_match(0, pp, conf_sram.rx.call, conf_sram.rx.call, alias_re, wide_re, 0, preempt, NULL);
 		if(result != NULL) { // Should be digipeated
 			dedupe_remember(result, 0);
-			transmitOnRadio(result, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
+			transmitOnRadio(result, conf_sram.rx.radio_conf.freq,
+                            conf_sram.rx.radio_conf.step,
+                            conf_sram.rx.radio_conf.chan,
+                            conf_sram.rx.radio_conf.pwr,
+                            conf_sram.rx.radio_conf.mod);
 		}
 	}
 }

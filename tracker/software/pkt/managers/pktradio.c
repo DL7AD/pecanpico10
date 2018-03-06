@@ -69,6 +69,9 @@ THD_FUNCTION(pktRadioManager, arg) {
           if(driver == NULL) {
             break;
           }
+          Si446x_setBandParameters(task_object->base_frequency,
+                                  task_object->step_hz,
+                                  RADIO_RX);
           break;
         } /* End case PKT_RADIO_OPEN. */
 
@@ -79,7 +82,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       } /* End switch on task_object->type. */
 
       /* Initialise the radio. */
-      Si446x_conditional_init();
+      //Si446x_conditional_init();
       break;
     } /* End case PKT_RADIO_OPEN. */
 
@@ -89,9 +92,11 @@ THD_FUNCTION(pktRadioManager, arg) {
       case DECODE_AFSK: {
         pktStartDecoder(handler);
         radio_squelch_t sq = task_object->squelch;
-        radio_freq_t freq = task_object->base_frequency;
+        //radio_freq_t freq = task_object->base_frequency;
+        //channel_hz_t step = task_object->step_hz;
         radio_ch_t chan = task_object->channel;
-        Si446x_receiveNoLock(freq, chan, sq, MOD_AFSK);
+        /* TODO: Use channel only to start receive. */
+        Si446x_receiveNoLock(chan, sq, MOD_AFSK);
         rx_active = true;
         break;
         } /* End case PKT_RADIO_RX. */

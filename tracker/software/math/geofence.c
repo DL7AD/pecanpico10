@@ -614,7 +614,7 @@ static bool isPointInPolygon(const coord_t *poly, uint32_t size, int32_t lat, in
 }
 
 /**
-  * Determines if point is located in America
+  * Determines location of GPS point.
   * @param lat Latitude in deg*10000000
   * @param lat Longitude in deg*10000000
   */

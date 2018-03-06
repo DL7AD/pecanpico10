@@ -162,7 +162,11 @@ THD_FUNCTION(logThread, arg)
 				packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'L', pkt_base91); // Encode packet
 
 				// Transmit packet
-				transmitOnRadio(packet, conf->radio_conf.freq, conf->radio_conf.pwr, conf->radio_conf.mod);
+				transmitOnRadio(packet, conf->radio_conf.freq,
+	                            conf_sram.rx.radio_conf.step,
+	                            conf_sram.rx.radio_conf.chan,
+	                            conf_sram.rx.radio_conf.pwr,
+	                            conf_sram.rx.radio_conf.mod);
 			} else {
 				TRACE_INFO("LOG  > No log point in memory");
 			}

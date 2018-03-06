@@ -162,8 +162,14 @@ void send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[])
 	chprintf(chp, "Destination: %s\r\n", argv[0]);
 	chprintf(chp, "Message: %s\r\n", argv[1]);
 
-	packet_t packet = aprs_encode_message(conf_sram.rx.call, conf_sram.rx.path, argv[0], argv[1], false);
-	transmitOnRadio(packet, conf_sram.rx.radio_conf.freq, conf_sram.rx.radio_conf.pwr, conf_sram.rx.radio_conf.mod);
+	packet_t packet = aprs_encode_message(conf_sram.rx.call,
+	                                      conf_sram.rx.path,
+	                                      argv[0], argv[1], false);
+	transmitOnRadio(packet, conf_sram.rx.radio_conf.freq,
+                    conf_sram.rx.radio_conf.step,
+                    conf_sram.rx.radio_conf.chan,
+                    conf_sram.rx.radio_conf.pwr,
+                    conf_sram.rx.radio_conf.mod);
 
 	chprintf(chp, "Message sent!\r\n");
 }

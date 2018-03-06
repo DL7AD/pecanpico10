@@ -35,10 +35,13 @@ static bool nextTransmissionWaiting;    // Flag that informs the feeder thread t
 // Feeder thread variables
 static thread_t* feeder_thd = NULL;
 static THD_WORKING_AREA(si_fifo_feeder_wa, 4096);
-//static uint8_t *radio_frame;
-//static uint8_t *radio_frame_len;
-static uint32_t radio_freq;
-static uint8_t radio_pwr;
+
+/* Transmitter global variables. */
+static uint32_t tx_frequency;
+static uint16_t tx_step;
+static uint16_t tx_chan;
+static uint8_t tx_pwr;
+//static uint8_t tx_mod;
 
 // Si446x variables
 static uint32_t outdiv;
@@ -47,8 +50,9 @@ static bool radioInitialized;
 
 // Receiver thread variables
 static uint32_t rx_frequency;
-static uint8_t rx_rssi;
+static uint16_t rx_step;
 static uint8_t rx_chan;
+static uint8_t rx_rssi;
 static mod_t rx_mod;
 static void (*rx_cb)(uint8_t*, uint32_t);
 
@@ -284,11 +288,13 @@ static void Si446x_init(void) {
     TRACE_INFO("SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
 #endif
 
+
     radioInitialized = true;
 }
 
 void Si446x_conditional_init() {
 // Initialize radio
+
 if(!radioInitialized)
     Si446x_init();
 }
@@ -451,9 +457,23 @@ if(!radioInitialized)
     Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
 }*/
 
-static void Si446x_setFrequency(uint32_t freq)
-{
-    uint16_t shift = 0;
+/*static*/ void Si446x_setBandParameters(uint32_t freq,
+                                        uint16_t step,
+                                        radio_mode_t mode) {
+  // Initialize radio
+  if(!radioInitialized)
+    /* Setup GPIO, etc. */
+    Si446x_init();
+
+  if(mode == RADIO_RX) {
+    rx_step = step;
+    rx_frequency = freq;
+  }
+
+  else {
+    tx_frequency = freq;
+    tx_step = step;
+  }
 
     // Set the output divider according to recommended ranges given in Si446x datasheet
     uint32_t band = 0;
@@ -479,7 +499,7 @@ static void Si446x_setFrequency(uint32_t freq)
     uint32_t m1 = (m - m2 * 0x10000) >> 8;
     uint32_t m0 = (m - m2 * 0x10000 - (m1 << 8));
 
-    uint32_t channel_increment = 524288 * outdiv * shift / (2 * Si446x_CCLK);
+    uint32_t channel_increment = 524288 * outdiv * step / (2 * Si446x_CCLK);
     uint8_t c1 = channel_increment / 0x100;
     uint8_t c0 = channel_increment - (0x100 * c1);
 
@@ -655,9 +675,9 @@ static uint8_t Si446x_getState(void)
     return rxData[2] & 0xF;
 }
 
-static void Si446x_setTXState(uint16_t size)
+static void Si446x_setTXState(uint8_t chan, uint16_t size)
 {
-    uint8_t change_state_command[] = {0x31, 0x00,
+    uint8_t change_state_command[] = {0x31, chan,
                                       (Si446x_STATE_READY << 4),
                                       (size >> 8) & 0x1F, size & 0xFF};
     Si446x_write(change_state_command, sizeof(change_state_command));
@@ -669,9 +689,9 @@ static void Si446x_setReadyState(void)
     Si446x_write(change_state_command, sizeof(change_state_command));
 }
 
-static void Si446x_setRXState(void)
+static void Si446x_setRXState(uint8_t chan)
 {
-    const uint8_t change_state_command[] = {0x32, 0x00, 0x00, 0x00,
+    const uint8_t change_state_command[] = {0x32, chan, 0x00, 0x00,
                                             0x00, 0x00, 0x08, 0x08};
     Si446x_write(change_state_command, sizeof(change_state_command));
 }
@@ -767,6 +787,28 @@ void Si446x_lockRadioByCamera(void)
 
 /* ====================================================================== Radio TX/RX ======================================================================= */
 
+uint32_t Si446x_computeOperatingFrequency(uint8_t chan, radio_mode_t mode) {
+  uint32_t freq = 0;
+  switch(mode) {
+  case RADIO_RX:
+    freq = chan * rx_step + rx_frequency;
+    break;
+
+  case RADIO_TX:
+    freq = chan * tx_step + tx_frequency;
+    break;
+
+  default:
+    break;
+  }
+  return freq;
+}
+
+static bool Si446x_isRadioInBand(uint8_t chan, radio_mode_t mode) {
+  uint32_t freq = Si446x_computeOperatingFrequency(chan, mode);
+  return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
+}
+
 static bool Si446x_getLatchedCCA(uint8_t ms)
 {
     uint16_t cca = 0;
@@ -783,9 +825,14 @@ static bool Si446x_getLatchedCCA(uint8_t ms)
     return cca > ms; // Max. 1 spike per ms
 }
 
-static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uint8_t rssi, sysinterval_t sql_timeout)
+/*
+ * Wait for a clear time slot and initiate packet transmission.
+ */
+static bool Si446x_transmit(uint8_t chan,
+                            int8_t power, uint16_t size,
+                            uint8_t rssi, sysinterval_t sql_timeout)
 {
-    if(!Si446x_inRadioBand(frequency)) {
+    if(!Si446x_isRadioInBand(chan, RADIO_TX)) {
 #ifdef PKT_IS_TEST_PROJECT
       dbgPrintf(DBG_ERROR, "SI   > Frequency out of range\r\n");
       dbgPrintf(DBG_ERROR, "SI   > abort transmission\r\n");
@@ -808,8 +855,9 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
     }
 
     Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
-    Si446x_setFrequency(frequency);     // Set frequency
-    Si446x_setRXState();
+    /* FIXME: This should save RX params, set TX as RX and then restore RX. */
+    //Si446x_setBandParameters(tx_frequency, tx_step, RADIO_RX);     // Set frequency
+    Si446x_setRXState(chan);
 
     // Wait until nobody is transmitting (until timeout)
 
@@ -833,11 +881,13 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
 #else
     TRACE_INFO("SI   > Tune Si446x (TX)");
 #endif
-    Si446x_setPowerLevel(power);        // Set power level
     Si446x_setReadyState();
-    Si446x_setTXState(size);
+    //Si446x_setBandParameters(tx_frequency, tx_step, RADIO_TX);     // Set frequency
+    Si446x_setPowerLevel(power);        // Set power level
+    Si446x_setTXState(chan, size);
 
     // Wait until transceiver enters transmission state
+    /* TODO: Make a function to handle timeout on fail to reach state. */
     while(Si446x_getState() != Si446x_STATE_TX) {
         chThdSleep(TIME_US2I(500));
     }
@@ -845,11 +895,11 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
     return true;
 }
 
-/*static*/ bool Si446x_receiveNoLock(uint32_t frequency,
-                                      uint8_t channel,
-                                      uint8_t rssi,
-                                      mod_t mod) {
-    if(!Si446x_inRadioBand(frequency)) {
+/*static*/ bool Si446x_receiveNoLock(uint8_t channel,
+                                     uint8_t rssi,
+                                     mod_t mod) {
+  /* TODO: compute f + s*c. */
+    if(!Si446x_isRadioInBand(channel, RADIO_RX)) {
 #ifdef PKT_IS_TEST_PROJECT
       dbgPrintf(DBG_ERROR, "SI   > Frequency out of range\r\n");
       dbgPrintf(DBG_ERROR, "SI   > abort reception\r\n");
@@ -865,6 +915,7 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
     // Initialize radio
     if(!radioInitialized)
         Si446x_init();
+
     uint16_t tot = 0;
     // Wait until transceiver finishes transmission (if there is any)
     while(Si446x_getState() == Si446x_STATE_TX) {
@@ -899,7 +950,6 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
     }
 
     // Preserve settings in case transceiver changes to TX state
-    rx_frequency = frequency;
     rx_rssi = rssi;
     rx_chan = channel;
     rx_mod = mod;
@@ -910,8 +960,8 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
     TRACE_INFO("SI   > Tune Si446x (RX)");
 #endif
     Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
-    Si446x_setFrequency(frequency);     // Set frequency
-    Si446x_setRXState();
+    //Si446x_setBandParameters(rx_frequency, rx_step, RADIO_RX);     // Set frequency
+    Si446x_setRXState(channel);
 
     // Wait for the receiver to start (because it is used as mutex)
     while(Si446x_getState() != Si446x_STATE_RX)
@@ -919,31 +969,35 @@ static bool Si446x_transmit(uint32_t frequency, int8_t power, uint16_t size, uin
     return true;
 }
 
-bool Si446x_receive(uint32_t frequency, uint8_t rssi, uint8_t chan, mod_t mod)
+/*bool Si446x_receive(uint32_t frequency, uint16_t step,
+                    uint8_t rssi, uint8_t chan, mod_t mod)
 {
     Si446x_lockRadio();
-    bool ret = Si446x_receiveNoLock(frequency, chan, rssi, mod);
+    bool ret = Si446x_receiveNoLock(chan, rssi, mod);
     Si446x_unlockRadio();
 
     return ret;
-}
+}*/
 
 static bool Si4464_restoreRX(void)
 {
-    bool ret = Si446x_receiveNoLock(rx_frequency, rx_chan, rx_rssi, rx_mod);
+    bool ret = Si446x_receiveNoLock(rx_chan, rx_rssi, rx_mod);
+
+    uint32_t op_freq = Si446x_computeOperatingFrequency(rx_chan, RADIO_RX);
 
     if(packetHandler) {
 #ifdef PKT_IS_TEST_PROJECT
 
       dbgPrintf(DBG_INFO, "SI   > Resume packet reception %d.%03d MHz,"
-                " Chn %d, Rssi %d, %s\r\n",
-                rx_frequency/1000000, (rx_frequency%1000000)/1000,
+                " (ch %d), Rssi %d, %s\r\n",
+                op_freq/1000000, (op_freq % 1000000)/1000,
                 Si446x_getChannel(),
                 rx_rssi, getModulation(rx_mod);
 #else
 
-        TRACE_INFO( "SI   > Resume packet reception %d.%03d MHz, Chn %d, Rssi %d, %s",
-                    rx_frequency/1000000, (rx_frequency%1000000)/1000,
+        TRACE_INFO( "SI   > Resume packet reception %d.%03d MHz (ch %d),"
+                    " Rssi %d, %s",
+                    op_freq/1000000, (op_freq % 1000000)/1000,
                     Si446x_getChannel(),
                     rx_rssi, getModulation(rx_mod)
           );
@@ -1168,7 +1222,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
     Si446x_writeFIFO(localBuffer, c);
 
     // Start transmission
-    if(Si446x_transmit(radio_freq, radio_pwr, all, 0x4F, TIME_S2I(10))) {
+    if(Si446x_transmit(tx_chan, tx_pwr, all, 0x4F, TIME_S2I(10))) {
       /* Transmit started OK. */
       while(c < all) { // Do while bytes not written into FIFO completely
           // Determine free memory in Si446x-FIFO
@@ -1210,7 +1264,8 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
     chThdExit(MSG_OK);
 }
 
-void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint8_t pwr) {
+void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint16_t step,
+                     uint8_t chan, uint8_t pwr) {
     Si446x_lockRadio();
 
     // Stop packet handler (if started)
@@ -1231,11 +1286,13 @@ void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint8_t pwr) {
 
     // Set pointers for feeder
     /*
-     * TODO: The frame object should contain freq and power as well.
+     * TODO: The frame object should contain radio parameters as well.
      */
 
-    radio_freq = freq;
-    radio_pwr = pwr;
+    tx_frequency = freq;
+    tx_step = step;
+    tx_chan = chan;
+    tx_pwr = pwr;
 
     // Start/re-start FIFO feeder
     feeder_thd = chThdCreateStatic(si_fifo_feeder_wa,
@@ -1275,8 +1332,9 @@ if(pktIsBufferValidAX25Frame(pkt_buff)) {
   }
 }
 
-void Si446x_startPacketReception(radio_freq_t freq, radio_ch_t ch,
-                         radio_squelch_t sq, void* cb) {
+void Si446x_startPacketReception(radio_freq_t freq, channel_hz_t step,
+                                 radio_ch_t ch,
+                                 radio_squelch_t sq, void* cb) {
 
     rx_cb = cb;
 
@@ -1284,7 +1342,7 @@ void Si446x_startPacketReception(radio_freq_t freq, radio_ch_t ch,
     pktOpenRadioService(PKT_RADIO_1,
                          DECODE_AFSK,
                          freq,
-                         PKT_RADIO_CHANNEL_STEPPING_NONE,
+                         step,
                          &packetHandler);
 
     /* Start the decoder. */
@@ -1346,7 +1404,9 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
     chThdExit(MSG_OK);
 }
 
-void Si446x_send2FSK(packet_t pp, uint32_t freq, uint8_t pwr, uint32_t speed) {
+void Si446x_send2FSK(packet_t pp, uint32_t freq, uint16_t step,
+                     uint8_t chan,
+                     uint8_t pwr, uint32_t speed) {
     Si446x_lockRadio();
 
     // Stop packet handler (if started)
@@ -1359,8 +1419,10 @@ void Si446x_send2FSK(packet_t pp, uint32_t freq, uint8_t pwr, uint32_t speed) {
     Si446x_setModem2FSK(speed);
 
     // Set pointers for feeder
-    radio_freq = freq;
-    radio_pwr = pwr;
+    tx_frequency = freq;
+    tx_step = step;
+    tx_chan = chan;
+    tx_pwr = pwr;
 
     // Start/re-start FIFO feeder
     feeder_thd = chThdCreateStatic(si_fifo_feeder_wa,

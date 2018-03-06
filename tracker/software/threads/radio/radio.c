@@ -34,20 +34,26 @@ static void handlePacket(uint8_t *buf, uint32_t len) {
   TRACE_DEBUG("RX    > Packet dropped due to data length < 2");
 }
 
-void start_rx_thread(uint32_t freq, radio_ch_t chan, uint8_t rssi) {
+void start_rx_thread(uint32_t freq, uint16_t step,
+                     radio_ch_t chan, uint8_t rssi) {
 
 	if(freq == FREQ_APRS_DYNAMIC) {
 		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
-		/* If using geofence ignore channel. */
+		/* If using geofence ignore channel and step for now. */
 		chan = 0;
+		step = 0;
 	}
 
 	// Start decoder
-	Si446x_startPacketReception(freq, chan, rssi, handlePacket);
+	Si446x_startPacketReception(freq, step, chan, rssi, handlePacket);
 
 }
 
-bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod)
+/*
+ *
+ */
+bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
+                     uint8_t pwr, mod_t mod)
 {
 	if(freq == FREQ_APRS_DYNAMIC)
 		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
@@ -57,8 +63,13 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod)
 
 	if(len) // Message length is not zero
 	{
-		TRACE_INFO(	"RAD  > Transmit %d.%03d MHz, Chn %d, Pwr %d, %s, %d byte",
-					freq/1000000, (freq%1000000)/1000, Si446x_getChannel(),
+
+        /* Set band and step size in 446x. */
+      Si446x_setBandParameters(freq, step, RADIO_TX);
+
+      uint32_t op_freq = Si446x_computeOperatingFrequency(chan, RADIO_TX);
+		TRACE_INFO(	"RAD  > Transmit %d.%03d MHz (ch %d), Pwr %d, %s, %d byte",
+					op_freq/1000000, (op_freq%1000000)/1000, Si446x_getChannel(),
 					pwr, getModulation(mod), len
 		);
 
@@ -66,22 +77,22 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint8_t pwr, mod_t mod)
 		aprs_debug_getPacket(pp, buf, sizeof(buf));
 		TRACE_INFO("TX   > %s", buf);
 
+
 		switch(mod)
 		{
 			case MOD_2FSK:
-				Si446x_send2FSK(pp, freq, pwr, 9600);
+				Si446x_send2FSK(pp, freq, step, chan, pwr, 9600);
 				break;
 			case MOD_AFSK:
-				Si446x_sendAFSK(pp, freq, pwr);
+				Si446x_sendAFSK(pp, freq, step, chan, pwr);
 				break;
 		}
 
 	} else {
 
 		TRACE_ERROR("RAD  > It is nonsense to transmit 0 bits, %d.%03d MHz, Pwr dBm, %s, %d byte",
-					freq/1000000, (freq%1000000)/1000, pwr, getModulation(mod), len
-		);
-
+					freq/1000000, (freq%1000000)/1000, pwr,
+					getModulation(mod), len);
 	}
 
 	return true;
