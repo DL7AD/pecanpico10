@@ -42,20 +42,22 @@ THD_FUNCTION(posThread, arg)
 
 			// Encode/Transmit position packet
 			packet_t packet = aprs_encode_position(conf->call, conf->path, conf->symbol, trackPoint);
-			transmitOnRadio(packet, conf->radio_conf.freq,
-                            conf_sram.rx.radio_conf.step,
-                            conf_sram.rx.radio_conf.chan,
-                            conf_sram.rx.radio_conf.pwr,
-                            conf_sram.rx.radio_conf.mod);
+			transmitOnRadio(packet,
+                            conf->radio_conf.freq,
+                            conf->radio_conf.step,
+                            conf->radio_conf.chan,
+                            conf->radio_conf.pwr,
+                            conf->radio_conf.mod);
 			chThdSleep(TIME_S2I(5));
 
 			// Encode/Transmit APRSD packet
 			packet_t pp = aprs_encode_query_answer_aprsd(conf->call, conf->path, conf->call);
-			transmitOnRadio(pp, conf->radio_conf.freq,
-                            conf_sram.rx.radio_conf.step,
-                            conf_sram.rx.radio_conf.chan,
-                            conf_sram.rx.radio_conf.pwr,
-                            conf_sram.rx.radio_conf.mod);
+			transmitOnRadio(pp,
+			                conf->radio_conf.freq,
+                            conf->radio_conf.step,
+                            conf->radio_conf.chan,
+                            conf->radio_conf.pwr,
+                            conf->radio_conf.mod);
 
 			// Telemetry encoding parameter transmission
 			if(conf->tel_enc_cycle != 0 && last_conf_transmission + conf->tel_enc_cycle < chVTGetSystemTime())
@@ -68,11 +70,12 @@ THD_FUNCTION(posThread, arg)
 				for(uint8_t type=0; type<4; type++)
 				{
 					packet = aprs_encode_telemetry_configuration(conf->call, conf->path, type);
-					transmitOnRadio(packet, conf->radio_conf.freq,
-		                            conf_sram.rx.radio_conf.step,
-		                            conf_sram.rx.radio_conf.chan,
-		                            conf_sram.rx.radio_conf.pwr,
-		                            conf_sram.rx.radio_conf.mod);
+					transmitOnRadio(packet,
+		                            conf->radio_conf.freq,
+		                            conf->radio_conf.step,
+		                            conf->radio_conf.chan,
+		                            conf->radio_conf.pwr,
+		                            conf->radio_conf.mod);
 					chThdSleep(TIME_S2I(5));
 				}
 

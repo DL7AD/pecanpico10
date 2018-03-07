@@ -11,19 +11,21 @@ const conf_t conf_flash_default = {
 	// Primary position transmission thread
 	.pos_pri = {
 		.thread_conf = {
-			.active			= false,
-			.cycle			= TIME_S2I(120),
+			.active			= true,
+			.cycle			= TIME_S2I(300),
 			.init_delay		= TIME_S2I(5)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
-			.freq			= FREQ_APRS_DYNAMIC,
+			.freq			= 144000000,
+			.step           = 12500,
+			.chan           = 94,
 			.mod			= MOD_AFSK,
 			.preamble		= 200
 		},
 
-		.call				= "DL7AD-13",
-		.path				= "WIDE1-1",
+		.call				= "VK2GJ-15",
+		.path				= "WIDE2-1",
 		.symbol				= SYM_DIGIPEATER,
 
 		.tel_enc_cycle		= TIME_S2I(10800),
@@ -38,6 +40,8 @@ const conf_t conf_flash_default = {
 		.radio_conf = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
+			.step           = 12500,
+			.chan           = 0,
 			.mod			= MOD_AFSK,
 			.preamble		= 200
 		},
@@ -60,6 +64,8 @@ const conf_t conf_flash_default = {
 		.radio_conf = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
+			.step           = 12500,
+			.chan           = 0,
 			.mod			= MOD_AFSK,
 			.preamble		= 200,
 			.redundantTx	= true
@@ -82,6 +88,8 @@ const conf_t conf_flash_default = {
 		.radio_conf = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
+			.step           = 12500,
+			.chan           = 0,
 			.mod			= MOD_AFSK,
 			.preamble		= 200
 		},
@@ -104,6 +112,8 @@ const conf_t conf_flash_default = {
 		.radio_conf = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
+			.step           = 12500,
+			.chan           = 0,
 			.mod			= MOD_AFSK,
 			.preamble		= 200
 		},

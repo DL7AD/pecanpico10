@@ -127,14 +127,38 @@ THD_FUNCTION(pktRadioManager, arg) {
     } /* End case PKT_RADIO_RX_STOP. */
 
     case PKT_RADIO_TX: {
-      /* TODO: Switch on encoding. */
-      if(rx_active)
-        pktPauseDecoder(handler);
+      switch(task_object->type) {
+      case DECODE_AFSK: {
+        /*
+         * TODO: The 446x driver currently pauses decoding
+         * Consider moving it to here.
+         */
+/*        switch(mod)
+        {
+            case MOD_2FSK:
+                Si446x_send2FSK(pp, freq, step, chan, pwr, 9600);
+                break;
+            case MOD_AFSK:
+                Si446x_sendAFSK(pp, freq, step, chan, pwr);
+                break;
+        }*/
+        //=============================
+        pktStartDecoder(handler);
+        radio_squelch_t sq = task_object->squelch;
+        //radio_freq_t freq = task_object->base_frequency;
+        //channel_hz_t step = task_object->step_hz;
+        radio_ch_t chan = task_object->channel;
+        /* TODO: Use channel only to start receive. */
+        Si446x_receiveNoLock(chan, sq, MOD_AFSK);
+        rx_active = true;
+        break;
+        } /* End case PKT_RADIO_RX. */
 
-      /* TODO: Transmit code migrates into here... */
-
-      if(rx_active)
-        pktResumeDecoder(handler);
+      case DECODE_NOT_SET:
+      case DECODE_FSK: {
+        break;
+        }
+      } /* End switch on task_object->type. */
       break;
     }
 

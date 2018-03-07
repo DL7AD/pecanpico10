@@ -327,11 +327,12 @@ static void transmit_image_packet(const uint8_t *image, uint32_t image_len, thd_
 			base91_encode(&pkt[6], pkt_base91, 174);
 
 			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
-            transmitOnRadio(packet, conf_sram.rx.radio_conf.freq,
-                            conf_sram.rx.radio_conf.step,
-                            conf_sram.rx.radio_conf.chan,
-                            conf_sram.rx.radio_conf.pwr,
-                            conf_sram.rx.radio_conf.mod);
+            transmitOnRadio(packet,
+                            conf->radio_conf.freq,
+                            conf->radio_conf.step,
+                            conf->radio_conf.chan,
+                            conf->radio_conf.pwr,
+                            conf->radio_conf.mod);
 
 			return;
 		}
@@ -362,11 +363,12 @@ static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
 		// Proccess redundant transmission from last cycle
 		if(strlen((char*)pkt_base91) && conf->radio_conf.redundantTx) {
 			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
-            transmitOnRadio(packet, conf_sram.rx.radio_conf.freq,
-                            conf_sram.rx.radio_conf.step,
-                            conf_sram.rx.radio_conf.chan,
-                            conf_sram.rx.radio_conf.pwr,
-                            conf_sram.rx.radio_conf.mod);
+            transmitOnRadio(packet,
+                            conf->radio_conf.freq,
+                            conf->radio_conf.step,
+                            conf->radio_conf.chan,
+                            conf->radio_conf.pwr,
+                            conf->radio_conf.mod);
 		}
 
 		// Encode packet
@@ -399,11 +401,12 @@ static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
 		base91_encode(&pkt[6], pkt_base91, 174);
 
 		packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
-        transmitOnRadio(packet, conf_sram.rx.radio_conf.freq,
-                        conf_sram.rx.radio_conf.step,
-                        conf_sram.rx.radio_conf.chan,
-                        conf_sram.rx.radio_conf.pwr,
-                        conf_sram.rx.radio_conf.mod);
+        transmitOnRadio(packet,
+                        conf->radio_conf.freq,
+                        conf->radio_conf.step,
+                        conf->radio_conf.chan,
+                        conf->radio_conf.pwr,
+                        conf->radio_conf.mod);
 
 		chThdSleep(TIME_MS2I(10)); // Leave other threads some time
 
