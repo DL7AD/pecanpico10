@@ -52,8 +52,8 @@ const conf_command_t command_list[] = {
 	{TYPE_TIME, "pos_pri.cycle",                 sizeof(conf_sram.pos_pri.thread_conf.cycle),                 &conf_sram.pos_pri.thread_conf.cycle                },
 	{TYPE_INT,  "pos_pri.pwr",                   sizeof(conf_sram.pos_pri.radio_conf.pwr),                    &conf_sram.pos_pri.radio_conf.pwr                   },
 	{TYPE_INT,  "pos_pri.freq",                  sizeof(conf_sram.pos_pri.radio_conf.freq),                   &conf_sram.pos_pri.radio_conf.freq                  },
-	{TYPE_INT,  "pos_pri.mod",                   sizeof(conf_sram.pos_pri.radio_conf.mod),                    &conf_sram.pos_pri.radio_conf.mod                   },
-	{TYPE_INT,  "pos_pri.preamble",              sizeof(conf_sram.pos_pri.radio_conf.preamble),               &conf_sram.pos_pri.radio_conf.preamble              },
+    {TYPE_INT,  "pos_pri.step",                  sizeof(conf_sram.pos_pri.radio_conf.step),                   &conf_sram.pos_pri.radio_conf.step                  },	{TYPE_INT,  "pos_pri.mod",                   sizeof(conf_sram.pos_pri.radio_conf.mod),                    &conf_sram.pos_pri.radio_conf.mod                   },
+    {TYPE_INT,  "pos_pri.chan",                  sizeof(conf_sram.pos_pri.radio_conf.chan),                   &conf_sram.pos_pri.radio_conf.chan                  },	{TYPE_INT,  "pos_pri.preamble",              sizeof(conf_sram.pos_pri.radio_conf.preamble),               &conf_sram.pos_pri.radio_conf.preamble              },
 	{TYPE_INT,  "pos_pri.speed",                 sizeof(conf_sram.pos_pri.radio_conf.speed),                  &conf_sram.pos_pri.radio_conf.speed                 },
 	{TYPE_INT,  "pos_pri.redundantTx",           sizeof(conf_sram.pos_pri.radio_conf.redundantTx),            &conf_sram.pos_pri.radio_conf.redundantTx           },
 	{TYPE_STR,  "pos_pri.call",                  sizeof(conf_sram.pos_pri.call),                              &conf_sram.pos_pri.call                             },
@@ -89,7 +89,9 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "img_pri.sleep_conf.vsol_thres", sizeof(conf_sram.img_pri.thread_conf.sleep_conf.vsol_thres), &conf_sram.img_pri.thread_conf.sleep_conf.vsol_thres},
 	{TYPE_TIME, "img_pri.cycle",                 sizeof(conf_sram.img_pri.thread_conf.cycle),                 &conf_sram.img_pri.thread_conf.cycle                },
 	{TYPE_INT,  "img_pri.pwr",                   sizeof(conf_sram.img_pri.radio_conf.pwr),                    &conf_sram.img_pri.radio_conf.pwr                   },
-	{TYPE_INT,  "img_pri.freq",                  sizeof(conf_sram.img_pri.radio_conf.freq),                   &conf_sram.img_pri.radio_conf.freq                  },
+    {TYPE_INT,  "img_pri.freq",                  sizeof(conf_sram.img_pri.radio_conf.freq),                   &conf_sram.img_pri.radio_conf.freq                  },
+    {TYPE_INT,  "img_pri.step",                  sizeof(conf_sram.img_pri.radio_conf.step),                   &conf_sram.img_pri.radio_conf.step                  },
+    {TYPE_INT,  "img_pri.chan",                  sizeof(conf_sram.img_pri.radio_conf.chan),                   &conf_sram.img_pri.radio_conf.chan                  },
 	{TYPE_INT,  "img_pri.mod",                   sizeof(conf_sram.img_pri.radio_conf.mod),                    &conf_sram.img_pri.radio_conf.mod                   },
 	{TYPE_INT,  "img_pri.preamble",              sizeof(conf_sram.img_pri.radio_conf.preamble),               &conf_sram.img_pri.radio_conf.preamble              },
 	{TYPE_INT,  "img_pri.speed",                 sizeof(conf_sram.img_pri.radio_conf.speed),                  &conf_sram.img_pri.radio_conf.speed                 },
@@ -109,6 +111,8 @@ const conf_command_t command_list[] = {
 	{TYPE_TIME, "img_sec.cycle",                 sizeof(conf_sram.img_sec.thread_conf.cycle),                 &conf_sram.img_sec.thread_conf.cycle                },
 	{TYPE_INT,  "img_sec.pwr",                   sizeof(conf_sram.img_sec.radio_conf.pwr),                    &conf_sram.img_sec.radio_conf.pwr                   },
 	{TYPE_INT,  "img_sec.freq",                  sizeof(conf_sram.img_sec.radio_conf.freq),                   &conf_sram.img_sec.radio_conf.freq                  },
+    {TYPE_INT,  "img_sec.step",                  sizeof(conf_sram.img_sec.radio_conf.step),                   &conf_sram.img_sec.radio_conf.step                  },
+    {TYPE_INT,  "img_sec.chan",                  sizeof(conf_sram.img_sec.radio_conf.chan),                   &conf_sram.img_sec.radio_conf.chan                  },
 	{TYPE_INT,  "img_sec.mod",                   sizeof(conf_sram.img_sec.radio_conf.mod),                    &conf_sram.img_sec.radio_conf.mod                   },
 	{TYPE_INT,  "img_sec.preamble",              sizeof(conf_sram.img_sec.radio_conf.preamble),               &conf_sram.img_sec.radio_conf.preamble              },
 	{TYPE_INT,  "img_sec.speed",                 sizeof(conf_sram.img_sec.radio_conf.speed),                  &conf_sram.img_sec.radio_conf.speed                 },
@@ -128,6 +132,8 @@ const conf_command_t command_list[] = {
 	{TYPE_TIME, "log.cycle",                     sizeof(conf_sram.log.thread_conf.cycle),                     &conf_sram.log.thread_conf.cycle                    },
 	{TYPE_INT,  "log.pwr",                       sizeof(conf_sram.log.radio_conf.pwr),                        &conf_sram.log.radio_conf.pwr                       },
 	{TYPE_INT,  "log.freq",                      sizeof(conf_sram.log.radio_conf.freq),                       &conf_sram.log.radio_conf.freq                      },
+    {TYPE_INT,  "log.step",                      sizeof(conf_sram.log.radio_conf.step),                       &conf_sram.log.radio_conf.step                      },
+    {TYPE_INT,  "log.chan",                      sizeof(conf_sram.log.radio_conf.chan),                       &conf_sram.log.radio_conf.chan                      },
 	{TYPE_INT,  "log.mod",                       sizeof(conf_sram.log.radio_conf.mod),                        &conf_sram.log.radio_conf.mod                       },
 	{TYPE_INT,  "log.preamble",                  sizeof(conf_sram.log.radio_conf.preamble),                   &conf_sram.log.radio_conf.preamble                  },
 	{TYPE_INT,  "log.speed",                     sizeof(conf_sram.log.radio_conf.speed),                      &conf_sram.log.radio_conf.speed                     },
@@ -145,6 +151,8 @@ const conf_command_t command_list[] = {
 	{TYPE_TIME, "rx.cycle",                      sizeof(conf_sram.rx.thread_conf.cycle),                      &conf_sram.rx.thread_conf.cycle                     },
 	{TYPE_INT,  "rx.pwr",                        sizeof(conf_sram.rx.radio_conf.pwr),                         &conf_sram.rx.radio_conf.pwr                        },
 	{TYPE_INT,  "rx.freq",                       sizeof(conf_sram.rx.radio_conf.freq),                        &conf_sram.rx.radio_conf.freq                       },
+    {TYPE_INT,  "rx.step",                       sizeof(conf_sram.rx.radio_conf.step),                        &conf_sram.rx.radio_conf.step                       },
+    {TYPE_INT,  "rx.chan",                       sizeof(conf_sram.rx.radio_conf.chan),                        &conf_sram.rx.radio_conf.chan                       },
 	{TYPE_INT,  "rx.mod",                        sizeof(conf_sram.rx.radio_conf.mod),                         &conf_sram.rx.radio_conf.mod                        },
 	{TYPE_INT,  "rx.preamble",                   sizeof(conf_sram.rx.radio_conf.preamble),                    &conf_sram.rx.radio_conf.preamble                   },
 	{TYPE_INT,  "rx.speed",                      sizeof(conf_sram.rx.radio_conf.speed),                       &conf_sram.rx.radio_conf.speed                      },
@@ -299,7 +307,7 @@ packet_t aprs_encode_query_answer_aprsd(const char *callsign, const char *path, 
 		if(heard_list[i].time && heard_list[i].time + TIME_S2I(600) >= chVTGetSystemTime() && heard_list[i].time <= chVTGetSystemTime())
 			out += chsnprintf(&buf[out], sizeof(buf)-out, "%s ", heard_list[i].call);
 	}
-	buf[out-1] = 0; // Remove last spacer
+	buf[out-1] = 0; // Remove last space
 
 	return aprs_encode_message(callsign, path, receiver, buf, true);
 }
@@ -352,8 +360,6 @@ static bool aprs_decode_message(packet_t pp)
 						break;
 					}
 				}
-						
-
 				pinfo[i] = 0; // Mark end of message
 			}
 			if(pinfo[i] == '\r' || pinfo[i] == '\n') {
@@ -483,7 +489,7 @@ static bool aprs_decode_message(packet_t pp)
 			}
 
 		} else {
-			TRACE_ERROR("RX   > Command Message not understood");
+			TRACE_INFO("RX   > Message does not contain s recognized command");
 		}
 
 		if(msg_id_rx[0]) { // Message ID has been sent which has to be acknowledged
