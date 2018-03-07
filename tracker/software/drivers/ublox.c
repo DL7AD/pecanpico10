@@ -367,11 +367,12 @@ bool GPS_Init(void) {
 	TRACE_INFO("GPS  > Init pins");
 	palSetLineMode(LINE_GPS_RESET, PAL_MODE_OUTPUT_PUSHPULL);	// GPS reset
 	palSetLineMode(LINE_GPS_EN, PAL_MODE_OUTPUT_PUSHPULL);		// GPS off
-	palSetLineMode(LINE_GPS_RXD, PAL_MODE_ALTERNATE(11));		// UART RXD
-	palSetLineMode(LINE_GPS_TXD, PAL_MODE_ALTERNATE(11));		// UART TXD
+
 
 	// Init UART
 	#if defined(UBLOX_USE_UART)
+    palSetLineMode(LINE_GPS_RXD, PAL_MODE_ALTERNATE(11));       // UART RXD
+    palSetLineMode(LINE_GPS_TXD, PAL_MODE_ALTERNATE(11));       // UART TXD
 	TRACE_INFO("GPS  > Init GPS UART");
 	sdStart(&SD5, &gps_config);
 	#endif

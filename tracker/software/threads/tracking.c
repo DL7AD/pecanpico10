@@ -159,6 +159,7 @@ static void getSensors(trackPoint_t* tp)
 		bme280_error |= 0x1;
 	}
 
+#if     ENABLE_EXTERNAL_I2C == TRUE
 	// External BME280 Sensor 1
 	if(BME280_isAvailable(BME280_E1)) {
 		BME280_Init(&handle, BME280_E1);
@@ -186,7 +187,7 @@ static void getSensors(trackPoint_t* tp)
 		tp->sen_e2_temp = 0;
 		bme280_error |= 0x4;
 	}
-
+#endif
 	// Measure various temperature sensors
 	tp->stm32_temp = stm32_get_temp();
 	tp->si446x_temp = Si446x_getLastTemperature();

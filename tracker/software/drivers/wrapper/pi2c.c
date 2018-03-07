@@ -14,8 +14,8 @@ static bool mtx_init;
 
 const I2CConfig _i2cfg = {
 	OPMODE_I2C,
-	200000,
-	FAST_DUTY_CYCLE_2,
+	50000,
+	STD_DUTY_CYCLE,
 };
 
 static bool I2C_transmit(uint8_t addr, uint8_t *txbuf, uint32_t txbytes, uint8_t *rxbuf, uint32_t rxbytes, sysinterval_t timeout) {

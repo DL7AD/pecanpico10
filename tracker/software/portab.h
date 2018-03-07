@@ -61,8 +61,10 @@
 //#define LINE_UART4_TX               PAL_LINE(GPIOA, 12U)
 //#define LINE_UART4_RX               PAL_LINE(GPIOA, 11U)
 
+#if ENABLE_EXTERNAL_I2C == FALSE
 #define LINE_USART3_TX              LINE_IO_TXD
 #define LINE_USART3_RX              LINE_IO_RXD
+#endif
 
 #define LINE_PWM_MIRROR             PAL_LINE(GPIOA, 8U)
 
