@@ -891,7 +891,8 @@ packet_t ax25_unwrap_third_party (packet_t from_pp)
 	  return (NULL);
 	}
 
-	(void) ax25_get_info (from_pp, &info_p);
+	if(ax25_get_info(from_pp, &info_p) == 0)
+	  return NULL;
 
 	// Want strict because addresses should conform to AX.25 here.
 	// That's not the case for something from an Internet Server.
@@ -1587,11 +1588,11 @@ int ax25_get_rr (packet_t this_p, int n)
  *
  * Returns:	Number of octets in the Information part.
  *		Should be in the range of AX25_MIN_INFO_LEN .. AX25_MAX_INFO_LEN.
+ *		Returns 0 for malformed packet or buffer overflow.
  *
  *------------------------------------------------------------------------------*/
 
-int ax25_get_info (packet_t this_p, unsigned char **paddr)
-{
+int ax25_get_info (packet_t this_p, unsigned char **paddr) {
 	unsigned char *info_ptr;
 	int info_len;
 
@@ -1619,7 +1620,6 @@ int ax25_get_info (packet_t this_p, unsigned char **paddr)
 	
 	if(!info_len) {
 		TRACE_ERROR("No data in packet");
-		return 0;
 	}
 
 	info_ptr[info_len] = '\0';
@@ -1661,7 +1661,8 @@ int ax25_cut_at_crlf (packet_t this_p)
 		return 0;
 	}
 
-	info_len = ax25_get_info (this_p, &info_ptr);
+	if((info_len = ax25_get_info (this_p, &info_ptr)) == 0)
+	    return 0;
 
 	// Can't use strchr because there is potential of nul character.
 
@@ -2388,7 +2389,8 @@ unsigned short ax25_dedupe_crc (packet_t pp)
 
 	ax25_get_addr_with_ssid(pp, AX25_SOURCE, src);
 	ax25_get_addr_with_ssid(pp, AX25_DESTINATION, dest);
-	info_len = ax25_get_info (pp, &pinfo);
+	if((info_len = ax25_get_info (pp, &pinfo)) == 0)
+	  return 0;
 
 	while (info_len >= 1 && (pinfo[info_len-1] == '\r' ||
 	                         pinfo[info_len-1] == '\n' ||

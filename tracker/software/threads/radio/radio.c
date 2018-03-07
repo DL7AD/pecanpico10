@@ -23,11 +23,11 @@ static void handlePacket(uint8_t *buf, uint32_t len) {
 		if(pp->num_addr > 0) {
 	      aprs_decode_packet(pp);
 		} else {
-	      TRACE_DEBUG("RX   > No addresses in packet");
+	      TRACE_DEBUG("RX   > No addresses in packet - dropped");
 		}
 		ax25_delete(pp);
 	} else {
-		TRACE_DEBUG("RX    > Error in packet");
+		TRACE_DEBUG("RX    > Error in packet - dropped");
 	}
 	return;
   }
@@ -73,7 +73,7 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
         return false;
       }
       uint32_t op_freq = Si446x_computeOperatingFrequency(chan, RADIO_TX);
-		TRACE_INFO(	"RAD  > Transmit %d.%03d MHz (ch %d), Pwr %d, %s, %d byte",
+		TRACE_INFO(	"RAD  > Transmit packet on %d.%03d MHz (ch %d), Pwr %d, %s, %d byte",
 					op_freq/1000000, (op_freq%1000000)/1000, Si446x_getChannel(),
 					pwr, getModulation(mod), len
 		);

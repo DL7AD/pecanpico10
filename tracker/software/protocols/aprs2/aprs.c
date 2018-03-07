@@ -169,17 +169,18 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 	char rec[256];
 	unsigned char *pinfo;
 	ax25_format_addrs(pp, rec);
-	ax25_get_info(pp, &pinfo);
+	if(ax25_get_info(pp, &pinfo) == 0)
+	  return;
 
-	// Print decoded packet
-	uint32_t out = chsnprintf(buf, len, "%s", rec);
-	for(uint32_t i=0; pinfo[i]; i++) {
-		if(pinfo[i] < 32 || pinfo[i] > 126) {
-			out += chsnprintf(&buf[out], len-out, "<0x%02x>", pinfo[i]);
-		} else {
-			out += chsnprintf(&buf[out], len-out, "%c", pinfo[i]);
-		}
-	}
+    // Print decoded packet
+    uint32_t out = chsnprintf(buf, len, "%s", rec);
+    for(uint32_t i=0; pinfo[i]; i++) {
+        if(pinfo[i] < 32 || pinfo[i] > 126) {
+            out += chsnprintf(&buf[out], len-out, "<0x%02x>", pinfo[i]);
+        } else {
+            out += chsnprintf(&buf[out], len-out, "%c", pinfo[i]);
+        }
+    }
 }
 
 /**
@@ -308,7 +309,8 @@ static bool aprs_decode_message(packet_t pp)
 	// Get Info field
 	char src[256];
 	unsigned char *pinfo;
-	ax25_get_info(pp, &pinfo);
+	if(ax25_get_info(pp, &pinfo) == 0)
+	  return false;
 	ax25_format_addrs(pp, src);
 
 	// Decode destination callsign
@@ -570,7 +572,8 @@ void aprs_decode_packet(packet_t pp)
 	// Decode message packets
 	bool digipeat = true;
 	unsigned char *pinfo;
-	ax25_get_info(pp, &pinfo);
+	if(ax25_get_info(pp, &pinfo) == 0)
+	    return;
 	if(pinfo[0] == ':') digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
 
 	// Digipeat packet
