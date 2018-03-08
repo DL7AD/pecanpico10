@@ -55,26 +55,30 @@ void start_rx_thread(uint32_t freq, uint16_t step,
 bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
                      uint8_t pwr, mod_t mod)
 {
-	if(freq == FREQ_APRS_DYNAMIC)
+	if(freq == FREQ_APRS_DYNAMIC) {
 		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
+		step = 0;
+		chan = 0;
+	}
 
 	uint8_t *c;
 	uint32_t len = ax25_get_info(pp, &c);
 
 	if(len) // Message length is not zero
 	{
-
-        /* Set band and step size in 446x.
-         * TODO: move this into radio manager. */
-      if(!Si446x_setBandParameters(freq, step, RADIO_TX)) {
+	  /* Check frequency. */
+	  if(!Si446x_isFrequencyInBand(freq, step, chan)) {
 
         TRACE_ERROR("RAD  > Transmit base frequency of %d.%03d MHz is invalid",
                       freq/1000000, (freq%1000000)/1000);
         return false;
       }
-      uint32_t op_freq = Si446x_computeOperatingFrequency(chan, RADIO_TX);
-		TRACE_INFO(	"RAD  > Transmit packet on %d.%03d MHz (ch %d), Pwr %d, %s, %d byte",
-					op_freq/1000000, (op_freq%1000000)/1000, Si446x_getChannel(),
+
+      uint32_t op_freq = Si446x_computeOperatingFrequency(freq, step, chan);
+		TRACE_INFO(	"RAD  > Transmit packet on %d.%03d MHz (ch %d),"
+		            " Pwr %d, %s, %d byte",
+					op_freq/1000000, (op_freq%1000000)/1000,
+					Si446x_getChannel(),
 					pwr, getModulation(mod), len
 		);
 

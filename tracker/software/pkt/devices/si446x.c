@@ -799,25 +799,22 @@ void Si446x_lockRadioByCamera(void)
 
 /* ====================================================================== Radio TX/RX ======================================================================= */
 
-uint32_t Si446x_computeOperatingFrequency(uint8_t chan, radio_mode_t mode) {
-  uint32_t freq = 0;
+static bool Si446x_isRadioInBand(uint8_t chan, radio_mode_t mode) {
+  uint32_t base_freq;
+  uint16_t step;
   switch(mode) {
   case RADIO_RX:
-    freq = chan * rx_step + rx_frequency;
+    base_freq = rx_frequency;
+    step = rx_step;
     break;
 
+  case RADIO_CCA:
   case RADIO_TX:
-    freq = chan * tx_step + tx_frequency;
-    break;
-
-  default:
+    base_freq = tx_frequency;
+    step = tx_step;
     break;
   }
-  return freq;
-}
-
-static bool Si446x_isRadioInBand(uint8_t chan, radio_mode_t mode) {
-  uint32_t freq = Si446x_computeOperatingFrequency(chan, mode);
+  uint32_t freq = Si446x_computeOperatingFrequency(base_freq, step, chan);
   return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
 }
 
@@ -995,7 +992,9 @@ static bool Si4464_restoreRX(void)
 {
     bool ret = Si446x_receiveNoLock(rx_chan, rx_rssi, rx_mod);
 
-    uint32_t op_freq = Si446x_computeOperatingFrequency(rx_chan, RADIO_RX);
+    uint32_t op_freq = Si446x_computeOperatingFrequency(rx_frequency,
+                                                        rx_step,
+                                                        rx_chan);
 
     if(packetHandler) {
 #ifdef PKT_IS_TEST_PROJECT
@@ -1276,8 +1275,9 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
     chThdExit(MSG_OK);
 }
 
-void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint16_t step,
-                     uint8_t chan, uint8_t pwr) {
+void Si446x_sendAFSK(packet_t pp,
+                     uint8_t chan,
+                     uint8_t pwr) {
     Si446x_lockRadio();
 
     // Stop packet handler (if started)
@@ -1301,8 +1301,6 @@ void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint16_t step,
      * TODO: The frame object should contain radio parameters as well.
      */
 
-    tx_frequency = freq;
-    tx_step = step;
     tx_chan = chan;
     tx_pwr = pwr;
 
@@ -1419,9 +1417,10 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
     chThdExit(MSG_OK);
 }
 
-void Si446x_send2FSK(packet_t pp, uint32_t freq, uint16_t step,
+void Si446x_send2FSK(packet_t pp,
                      uint8_t chan,
-                     uint8_t pwr, uint32_t speed) {
+                     uint8_t pwr,
+                     uint32_t speed) {
     Si446x_lockRadio();
 
     // Stop packet handler (if started)
@@ -1434,8 +1433,6 @@ void Si446x_send2FSK(packet_t pp, uint32_t freq, uint16_t step,
     Si446x_setModem2FSK(speed);
 
     // Set pointers for feeder
-    tx_frequency = freq;
-    tx_step = step;
     tx_chan = chan;
     tx_pwr = pwr;
 

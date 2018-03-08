@@ -201,10 +201,8 @@ typedef enum radioMode {
 
 int16_t Si446x_getLastTemperature(void);
 
-void Si446x_sendAFSK(packet_t pp, uint32_t freq, uint16_t step,
-                     uint8_t chan, uint8_t pwr);
-void Si446x_send2FSK(packet_t pp, uint32_t freq, uint16_t step,
-                     uint8_t chan,
+void Si446x_sendAFSK(packet_t pp, uint8_t chan, uint8_t pwr);
+void Si446x_send2FSK(packet_t pp, uint8_t chan,
                      uint8_t pwr, uint32_t speed);
 
 bool Si446x_receive(uint32_t frequency, uint16_t step, uint8_t chan,
@@ -220,6 +218,19 @@ uint8_t Si446x_getChannel(void);
 bool Si446x_setBandParameters(uint32_t freq,
                                    uint16_t step,
                                    radio_mode_t mode);
-uint32_t Si446x_computeOperatingFrequency(uint8_t chan, radio_mode_t mode);
+
+/* Inline. */
+static inline uint32_t Si446x_computeOperatingFrequency(uint32_t base_freq,
+                                          uint16_t step,
+                                          uint8_t chan) {
+  return base_freq + (step * chan);
+}
+
+static inline bool Si446x_isFrequencyInBand(uint32_t base_freq,
+                                            uint16_t step, uint8_t chan) {
+  uint32_t freq = Si446x_computeOperatingFrequency(base_freq, step, chan);
+  return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
+}
+
 #endif /* __si446x__H__ */
 

@@ -137,16 +137,19 @@ THD_FUNCTION(pktRadioManager, arg) {
       uint8_t pwr = task_object->tx_power;
       uint32_t speed = task_object->tx_speed;
 
+      Si446x_setBandParameters(freq, step, RADIO_TX);
+
       switch(task_object->type) {
       case MOD_2FSK:
-        Si446x_send2FSK(pp, freq, step, chan, pwr, speed);
+        Si446x_send2FSK(pp, chan, pwr, speed);
         break;
 
       case MOD_AFSK:
-        Si446x_sendAFSK(pp, freq, step, chan, pwr);
+        Si446x_sendAFSK(pp, chan, pwr);
         break;
 
       case MOD_NONE:
+        ax25_delete(pp);
         break;
       } /* End switch on task_object->type. */
       break;
