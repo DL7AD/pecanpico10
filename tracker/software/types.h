@@ -29,6 +29,7 @@ typedef struct {
 } sleep_conf_t;
 
 typedef enum { // Modulation type
+    MOD_NONE,
 	MOD_AFSK,
 	MOD_2FSK
 } mod_t;

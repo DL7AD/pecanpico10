@@ -204,7 +204,7 @@ void pktStartDecoder(packet_svc_t *handler) {
   event_source_t *esp;
 
   switch(handler->radio_config.type) {
-    case DECODE_AFSK: {
+    case MOD_AFSK: {
 
       esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
 
@@ -216,7 +216,7 @@ void pktStartDecoder(packet_svc_t *handler) {
       break;
     } /* End case. */
 
-    case DECODE_FSK: {
+    case MOD_2FSK: {
       return;
     }
 
@@ -289,7 +289,7 @@ void pktStopDecoder(packet_svc_t *handler) {
   event_source_t *esp;
 
   switch(handler->radio_config.type) {
-    case DECODE_AFSK: {
+    case MOD_AFSK: {
       esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
 
       pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_STOP_EXEC);
@@ -300,7 +300,7 @@ void pktStopDecoder(packet_svc_t *handler) {
       break;
     } /* End case. */
 
-    case DECODE_FSK: {
+    case MOD_2FSK: {
       return;
     }
 

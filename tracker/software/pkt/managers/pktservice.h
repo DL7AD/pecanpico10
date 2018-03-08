@@ -47,21 +47,18 @@ typedef enum HDLCFrameStates {
   FRAME_RESET
 } frame_state_t;
 
-/* Link level encoding type. */
-typedef enum {
-  DECODE_NOT_SET,
-  DECODE_AFSK,
-  DECODE_FSK
-} encoding_type_t;
-
 #ifdef PKT_IS_TEST_PROJECT
 /* Modulation type. */
 typedef enum {
-    MOD_AFSK,
-    MOD_2FSK
+  MOD_NONE,
+  MOD_AFSK,
+  MOD_2FSK
 } mod_t;
 
 #endif
+
+/* Link level encoding type. */
+typedef mod_t encoding_type_t;
 
 #include "pktradio.h"
 

@@ -1352,7 +1352,7 @@ void Si446x_startPacketReception(radio_freq_t freq, channel_hz_t step,
 
     /* Open packet radio service. */
     pktOpenRadioService(PKT_RADIO_1,
-                         DECODE_AFSK,
+                         MOD_AFSK,
                          freq,
                          step,
                          &packetHandler);

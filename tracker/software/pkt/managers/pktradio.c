@@ -60,7 +60,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       pktBufferManagerCreate(handler);
       pktCallbackManagerCreate(handler);
       switch(task_object->type) {
-        case DECODE_AFSK: {
+        case MOD_AFSK: {
           /* Create the AFSK decoder (includes PWM, filters, etc.). */
           AFSKDemodDriver *driver = pktCreateAFSKDecoder(handler);
           handler->link_controller = driver;
@@ -76,8 +76,8 @@ THD_FUNCTION(pktRadioManager, arg) {
           break;
         } /* End case PKT_RADIO_OPEN. */
 
-        case DECODE_NOT_SET:
-        case DECODE_FSK: {
+        case MOD_NONE:
+        case MOD_2FSK: {
           break;
         }
       } /* End switch on task_object->type. */
@@ -90,7 +90,7 @@ THD_FUNCTION(pktRadioManager, arg) {
     /* TODO: Tune radio to channel. */
     case PKT_RADIO_RX: {
       switch(task_object->type) {
-      case DECODE_AFSK: {
+      case MOD_AFSK: {
         pktStartDecoder(handler);
         radio_squelch_t sq = task_object->squelch;
         //radio_freq_t freq = task_object->base_frequency;
@@ -102,8 +102,8 @@ THD_FUNCTION(pktRadioManager, arg) {
         break;
         } /* End case PKT_RADIO_RX. */
 
-      case DECODE_NOT_SET:
-      case DECODE_FSK: {
+      case MOD_NONE:
+      case MOD_2FSK: {
         break;
         }
       } /* End switch on task_object->type. */
@@ -112,14 +112,14 @@ THD_FUNCTION(pktRadioManager, arg) {
 
     case PKT_RADIO_RX_STOP: {
       switch(task_object->type) {
-            case DECODE_AFSK: {
+            case MOD_AFSK: {
               pktStopDecoder(handler);
               rx_active = false;
               break;
               } /* End case. */
 
-            case DECODE_NOT_SET:
-            case DECODE_FSK: {
+            case MOD_NONE:
+            case MOD_2FSK: {
               break;
               }
        } /* End switch. */
@@ -128,7 +128,7 @@ THD_FUNCTION(pktRadioManager, arg) {
 
     case PKT_RADIO_TX: {
       switch(task_object->type) {
-      case DECODE_AFSK: {
+      case MOD_AFSK: {
         /*
          * TODO: The 446x driver currently pauses decoding
          * Consider moving it to here.
@@ -154,8 +154,8 @@ THD_FUNCTION(pktRadioManager, arg) {
         break;
         } /* End case PKT_RADIO_RX. */
 
-      case DECODE_NOT_SET:
-      case DECODE_FSK: {
+      case MOD_NONE:
+      case MOD_2FSK: {
         break;
         }
       } /* End switch on task_object->type. */
@@ -167,7 +167,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       event_source_t *esp;
       thread_t *decoder = NULL;
       switch(task_object->type) {
-      case DECODE_AFSK: {
+      case MOD_AFSK: {
         esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
         decoder = ((AFSKDemodDriver *)(handler->link_controller))->decoder_thd;
@@ -179,8 +179,8 @@ THD_FUNCTION(pktRadioManager, arg) {
         break;
         }
 
-      case DECODE_NOT_SET:
-      case DECODE_FSK: {
+      case MOD_NONE:
+      case MOD_2FSK: {
         break;
         } /* End case DECODE_FSK. */
       } /* End switch on link_type. */

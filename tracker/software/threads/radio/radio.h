@@ -25,7 +25,7 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
                      uint8_t pwr, mod_t mod);
 
 inline const char *getModulation(uint8_t key) {
-    const char *val[] = {"AFSK", "2FSK"};
+    const char *val[] = {"NONE", "AFSK", "2FSK"};
     return val[key];
 };
 
