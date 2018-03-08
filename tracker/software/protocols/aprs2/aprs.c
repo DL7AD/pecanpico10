@@ -489,7 +489,7 @@ static bool aprs_decode_message(packet_t pp)
 			}
 
 		} else {
-			TRACE_INFO("RX   > Message does not contain a recognized command");
+			TRACE_INFO("RX   > Message does not contain a known command");
 		}
 
 		if(msg_id_rx[0]) { // Message ID has been sent which has to be acknowledged

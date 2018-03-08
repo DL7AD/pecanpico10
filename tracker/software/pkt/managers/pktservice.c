@@ -39,14 +39,20 @@ packet_svc_t RPKTD1;
  * @brief   Initializes packet handlers and starts the radio manager.
  * @note    The option to manage multiple radios is not yet implemented.
  *
+ *@return   result of operation.
+ *@retval   true    service was created.
+ *@retval   false   service creation failed or state was not idle.
  *
  * @api
  */
-void pktServiceCreate() {
+bool pktServiceCreate() {
 
-  /* TODO: This should create the top level object for each radio (RPKTDx). */
+  /* TODO: This should create the top level object for each radio (RPKTDx).
+   */
   packet_svc_t *handler = &RPKTD1;
 
+  if(handler->state != PACKET_IDLE)
+    return false;
   /*
    * Initialize the packet common event object.
    */
@@ -55,23 +61,41 @@ void pktServiceCreate() {
   memset(&handler->radio_rx_config, 0, sizeof(radio_task_object_t));
   memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
 
-  /* Set parameters and send request. */
+  /* Set parameters. */
   handler->radio_rx_config.radio_id = PKT_RADIO_1;
   handler->radio_tx_config.radio_id = PKT_RADIO_1;
 
   /* Set service semaphore to idle state. */
   chBSemObjectInit(&handler->close_sem, false);
 
-  pktRadioManagerCreate(handler);
-  handler->state = PACKET_IDLE;
+  /* Send request to create radio manager. */
+  if (pktRadioManagerCreate(handler) == NULL)
+    return false;
+  handler->state = PACKET_READY;
+  return true;
 }
 
-void pktServiceRelease() {
+/**
+ * @brief   Releases packet service.
+ * @note    The option to manage multiple radios is not yet implemented.
+ * @post    The packet handler is at ready after resources are released.
+ *
+ *@return   result of operation.
+ *@retval   true    service was released.
+ *@retval   false   service state is incorrect.
+ *
+ * @api
+ */
+bool pktServiceRelease() {
 
   /* TODO: This should release top level resources for each radio (RPKTDx). */
   packet_svc_t *handler = &RPKTD1;
 
+  if(handler->state != PACKET_READY)
+    return false;
   pktRadioManagerRelease(handler);
+  handler->state = PACKET_IDLE;
+  return true;
 }
 
 /**
@@ -97,15 +121,15 @@ msg_t pktOpenRadioService(radio_unit_t radio,
                            channel_hz_t ch_step,
                            packet_svc_t **ph) {
 
-  /* TODO: implement mapping from radio config to packet handler object.
-   * TODO: implement channel step size in Hz in radio driver.
+  /*
+   * TODO: implement mapping from radio config to packet handler object.
    */
   (void)radio;
   packet_svc_t *handler = &RPKTD1;
 
-  chDbgCheck(handler->state == PACKET_IDLE);
+  chDbgCheck(handler->state == PACKET_READY);
 
-  if(handler->state != PACKET_IDLE)
+  if(handler->state != PACKET_READY)
     return MSG_RESET;
 
   /* Wait for any prior session to complete closing. */
@@ -355,8 +379,8 @@ msg_t pktCloseRadioService(packet_svc_t *handler) {
   if(msg != MSG_OK)
     return msg;
 
-  handler->state = PACKET_IDLE;
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_CLOSE);
+  handler->state = PACKET_READY;
   return MSG_OK;
 }
 

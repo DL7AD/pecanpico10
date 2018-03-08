@@ -1190,8 +1190,8 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg)
     /* Initialize variables for AFSK encoder. */
     ctone = 0;
 
-#define PREAMBLE_FLAGS_A 30
-#define PREAMBLE_FLAGS_B  0
+#define PREAMBLE_FLAGS_A    30
+#define PREAMBLE_FLAGS_B     0
 
     uint8_t layer0[3072];
     /* Encode packet to AFSK (NRZI & HDLC) with optional premable. */
@@ -1344,7 +1344,9 @@ if(pktIsBufferValidAX25Frame(pkt_buff)) {
   }
 }
 
-void Si446x_startPacketReception(radio_freq_t freq, channel_hz_t step,
+
+void Si446x_startPacketReception(radio_freq_t freq,
+                                 channel_hz_t step,
                                  radio_ch_t ch,
                                  radio_squelch_t sq, void* cb) {
 
@@ -1363,6 +1365,7 @@ void Si446x_startPacketReception(radio_freq_t freq, channel_hz_t step,
                            sq,
                            Si446x_mapCallback);
 }
+
 
 void Si446x_stopDecoder(void) {
     // TODO: Nothing yet here

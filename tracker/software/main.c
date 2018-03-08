@@ -37,7 +37,11 @@ int main(void) {
 
     /* Start serial channels. */
     pktSerialStart();
-    pktServiceCreate();
+
+    /* Create packet radio service. */
+    if(!pktServiceCreate()) {
+      TRACE_ERROR("PKT  > Unable to create packet services");
+    }
 
 	#if ACTIVATE_USB
 	// Start USB

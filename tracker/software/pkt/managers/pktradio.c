@@ -34,7 +34,7 @@ THD_FUNCTION(pktRadioManager, arg) {
 
   chDbgCheck(arg != NULL);
 
-  bool rx_active = false;
+  //bool rx_active = false;
 
   objects_fifo_t *radio_queue = chFactoryGetObjectsFIFO(the_radio_fifo);
 
@@ -97,7 +97,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         radio_squelch_t sq = task_object->squelch;
 
         Si446x_receiveNoLock(chan, sq, MOD_AFSK);
-        rx_active = true;
+        //rx_active = true;
         break;
         } /* End case PKT_RADIO_RX. */
 
@@ -113,7 +113,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       switch(task_object->type) {
             case MOD_AFSK: {
               pktStopDecoder(handler);
-              rx_active = false;
+              //rx_active = false;
               break;
               } /* End case. */
 
@@ -211,7 +211,7 @@ THD_FUNCTION(pktRadioManager, arg) {
 }
 
 
-void pktRadioManagerCreate(packet_svc_t *handler) {
+thread_t *pktRadioManagerCreate(packet_svc_t *handler) {
 
   /* The radio associated with this packet handler. */
   radio_unit_t rid = handler->radio_rx_config.radio_id;
@@ -226,6 +226,9 @@ void pktRadioManagerCreate(packet_svc_t *handler) {
       RADIO_TASK_QUEUE_MAX, sizeof(msg_t));
 
   chDbgAssert(the_radio_fifo != NULL, "unable to create radio task queue");
+
+  if(the_radio_fifo == NULL)
+    return NULL;
 
   handler->the_radio_fifo = the_radio_fifo;
 
@@ -242,6 +245,12 @@ void pktRadioManagerCreate(packet_svc_t *handler) {
 
   chDbgAssert(handler->radio_manager != NULL,
               "unable to create radio task thread");
+
+  if(handler->radio_manager == NULL) {
+    chFactoryReleaseObjectsFIFO(the_radio_fifo);
+    return NULL;
+  }
+  return handler->radio_manager;
 }
 
 /**

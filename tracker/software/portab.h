@@ -66,7 +66,7 @@
 #define LINE_USART3_RX              LINE_IO_RXD
 #endif
 
-#define LINE_PWM_MIRROR             PAL_LINE(GPIOA, 8U)
+//#define LINE_PWM_MIRROR             PAL_LINE(GPIOA, 8U)
 
 /**
  *  ICU related definitions.

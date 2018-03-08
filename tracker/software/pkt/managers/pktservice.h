@@ -32,6 +32,7 @@
 /* Packet handler states. */
 typedef enum packetHandlerStates {
   PACKET_IDLE = 0,
+  PACKET_READY,
   PACKET_OPEN,
   PACKET_RUN,
   PACKET_STOP,
@@ -178,8 +179,8 @@ typedef struct packetHandlerData {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void pktServiceCreate(void);
-  void pktServiceRelease(void);
+  bool pktServiceCreate(void);
+  bool pktServiceRelease(void);
   msg_t pktOpenRadioService(radio_unit_t radio,
                                      encoding_type_t encoding,
                                      radio_freq_t frequency,

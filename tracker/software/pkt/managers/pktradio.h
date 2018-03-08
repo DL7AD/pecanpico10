@@ -125,7 +125,7 @@ struct radioTask {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void pktRadioManagerCreate(packet_svc_t *handler);
+  thread_t *pktRadioManagerCreate(packet_svc_t *handler);
   void pktRadioManagerRelease(packet_svc_t *handler);
   void pktRadioManager(void *arg);
   msg_t pktGetRadioTaskObject(packet_svc_t *handler,
