@@ -40,11 +40,11 @@
  * @details Radio task requests execute these commands.
  */
 typedef enum radioCommand {
-  PKT_RADIO_OPEN,
-  PKT_RADIO_RX,
+  PKT_RADIO_RX_OPEN,
+  PKT_RADIO_RX_START,
   PKT_RADIO_RX_STOP,
-  PKT_RADIO_TX,
-  PKT_RADIO_CLOSE
+  PKT_RADIO_TX_SEND,
+  PKT_RADIO_RX_CLOSE
 } radio_command_t;
 
 /**
@@ -73,6 +73,9 @@ typedef uint8_t radio_squelch_t;
  */
 typedef struct radioTask radio_task_object_t;
 typedef struct packetHandlerData packet_svc_t;
+#ifdef PKT_IS_TEST_PROJECT
+typedef void * packet_t;
+#endif
 
 /**
  * @brief           Radio task notification callback type.
@@ -110,6 +113,9 @@ struct radioTask {
   radio_squelch_t           squelch;
   radio_task_cb_t           callback;
   packet_svc_t              *handler;
+  packet_t                  packet_out;
+  uint8_t                   tx_power;
+  uint32_t                  tx_speed;
 };
 
 /*===========================================================================*/

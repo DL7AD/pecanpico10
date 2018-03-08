@@ -52,10 +52,12 @@ void pktServiceCreate() {
    */
   chEvtObjectInit(pktGetEventSource(handler));
 
-  memset(&handler->radio_config, 0, sizeof(radio_task_object_t));
+  memset(&handler->radio_rx_config, 0, sizeof(radio_task_object_t));
+  memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
 
   /* Set parameters and send request. */
-  handler->radio_config.radio_id = PKT_RADIO_1;
+  handler->radio_rx_config.radio_id = PKT_RADIO_1;
+  handler->radio_tx_config.radio_id = PKT_RADIO_1;
 
   /* Set service semaphore to idle state. */
   chBSemObjectInit(&handler->close_sem, false);
@@ -110,9 +112,9 @@ msg_t pktOpenRadioService(radio_unit_t radio,
   chBSemWait(&handler->close_sem);
 
   /* Save radio configuration. */
-  handler->radio_config.type = encoding;
-  handler->radio_config.base_frequency = frequency;
-  handler->radio_config.step_hz = ch_step;
+  handler->radio_rx_config.type = encoding;
+  handler->radio_rx_config.base_frequency = frequency;
+  handler->radio_rx_config.step_hz = ch_step;
 
   /* Reset the statistics collection variables. */
   handler->sync_count = 0;
@@ -120,10 +122,10 @@ msg_t pktOpenRadioService(radio_unit_t radio,
   handler->valid_count = 0;
   handler->good_count = 0;
 
-  radio_task_object_t rt = handler->radio_config;
+  radio_task_object_t rt = handler->radio_rx_config;
 
   /* Set parameters for radio command. */
-  rt.command = PKT_RADIO_OPEN;
+  rt.command = PKT_RADIO_RX_OPEN;
 
   /*
    * Open (init) the radio (via submit radio task).
@@ -171,12 +173,12 @@ msg_t pktStartDataReception(packet_svc_t *handler,
 
   handler->usr_callback = cb;
 
-  handler->radio_config.channel = channel;
-  handler->radio_config.squelch = sq;
+  handler->radio_rx_config.channel = channel;
+  handler->radio_rx_config.squelch = sq;
 
-  radio_task_object_t rt = handler->radio_config;
+  radio_task_object_t rt = handler->radio_rx_config;
 
-  rt.command = PKT_RADIO_RX;
+  rt.command = PKT_RADIO_RX_START;
 
   msg_t msg = pktSendRadioCommand(handler, &rt);
   if(msg != MSG_OK)
@@ -203,7 +205,7 @@ void pktStartDecoder(packet_svc_t *handler) {
   event_listener_t el;
   event_source_t *esp;
 
-  switch(handler->radio_config.type) {
+  switch(handler->radio_rx_config.type) {
     case MOD_AFSK: {
 
       esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
@@ -259,7 +261,7 @@ msg_t pktStopDataReception(packet_svc_t *handler) {
 
   /* Stop the radio processing. */
 
-  radio_task_object_t rt = handler->radio_config;
+  radio_task_object_t rt = handler->radio_rx_config;
 
   rt.command = PKT_RADIO_RX_STOP;
 
@@ -288,7 +290,7 @@ void pktStopDecoder(packet_svc_t *handler) {
   event_listener_t el;
   event_source_t *esp;
 
-  switch(handler->radio_config.type) {
+  switch(handler->radio_rx_config.type) {
     case MOD_AFSK: {
       esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
 
@@ -344,9 +346,9 @@ msg_t pktCloseRadioService(packet_svc_t *handler) {
 
   /* Set parameters for radio. */;
 
-  radio_task_object_t rt = handler->radio_config;
+  radio_task_object_t rt = handler->radio_rx_config;
 
-  rt.command = PKT_RADIO_CLOSE;
+  rt.command = PKT_RADIO_RX_CLOSE;
 
   /* Submit command. A timeout can occur waiting for a command queue object. */
   msg_t msg = pktSendRadioCommand(handler, &rt);
@@ -589,7 +591,7 @@ THD_FUNCTION(pktCompletion, arg) {
 
 void pktCallbackManagerOpen(packet_svc_t *handler) {
 
-  radio_unit_t rid = handler->radio_config.radio_id;
+  radio_unit_t rid = handler->radio_rx_config.radio_id;
 
   /* Create the callback handler thread name. */
   chsnprintf(handler->cbend_name, sizeof(handler->cbend_name),
@@ -609,7 +611,7 @@ void pktCallbackManagerOpen(packet_svc_t *handler) {
 
 dyn_objects_fifo_t *pktBufferManagerCreate(packet_svc_t *handler) {
   /* The radio associated with this AFSK driver. */
-  radio_unit_t rid = handler->radio_config.radio_id;
+  radio_unit_t rid = handler->radio_rx_config.radio_id;
 
   /* Create the packet buffer name for this radio. */
   chsnprintf(handler->pbuff_name, sizeof(handler->pbuff_name),
@@ -645,7 +647,7 @@ dyn_objects_fifo_t *pktBufferManagerCreate(packet_svc_t *handler) {
 
 
 void pktCallbackManagerCreate(packet_svc_t *handler) {
-  radio_unit_t rid = handler->radio_config.radio_id;
+  radio_unit_t rid = handler->radio_rx_config.radio_id;
 
   /* Create the callback termination thread name. */
   chsnprintf(handler->cbend_name, sizeof(handler->cbend_name),

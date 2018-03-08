@@ -49,13 +49,13 @@ THD_FUNCTION(pktRadioManager, arg) {
     if(fifo_msg == MSG_TIMEOUT)
       continue;
 
-    /* Something to do. Handler pointer is in fifo_msg. */
+    /* Something to do. Handler pointer is in fifo_msg for RX tasks. */
 
     packet_svc_t *handler = task_object->handler;
 
     /* Process command. */
     switch(task_object->command) {
-    case PKT_RADIO_OPEN: {
+    case PKT_RADIO_RX_OPEN: {
       /* Create the packet management services. */
       pktBufferManagerCreate(handler);
       pktCallbackManagerCreate(handler);
@@ -88,15 +88,14 @@ THD_FUNCTION(pktRadioManager, arg) {
     } /* End case PKT_RADIO_OPEN. */
 
     /* TODO: Tune radio to channel. */
-    case PKT_RADIO_RX: {
+    case PKT_RADIO_RX_START: {
       switch(task_object->type) {
       case MOD_AFSK: {
         pktStartDecoder(handler);
-        radio_squelch_t sq = task_object->squelch;
-        //radio_freq_t freq = task_object->base_frequency;
-        //channel_hz_t step = task_object->step_hz;
+
         radio_ch_t chan = task_object->channel;
-        /* TODO: Use channel only to start receive. */
+        radio_squelch_t sq = task_object->squelch;
+
         Si446x_receiveNoLock(chan, sq, MOD_AFSK);
         rx_active = true;
         break;
@@ -126,43 +125,34 @@ THD_FUNCTION(pktRadioManager, arg) {
       break;
     } /* End case PKT_RADIO_RX_STOP. */
 
-    case PKT_RADIO_TX: {
+    case PKT_RADIO_TX_SEND: {
+      /*
+       * TODO: The 446x driver currently pauses decoding itself.
+       * Consider moving it to here?
+       */
+      packet_t pp = task_object->packet_out;
+      radio_freq_t freq = task_object->base_frequency;
+      channel_hz_t step = task_object->step_hz;
+      radio_ch_t chan = task_object->channel;
+      uint8_t pwr = task_object->tx_power;
+      uint32_t speed = task_object->tx_speed;
+
       switch(task_object->type) {
-      case MOD_AFSK: {
-        /*
-         * TODO: The 446x driver currently pauses decoding
-         * Consider moving it to here.
-         */
-/*        switch(mod)
-        {
-            case MOD_2FSK:
-                Si446x_send2FSK(pp, freq, step, chan, pwr, 9600);
-                break;
-            case MOD_AFSK:
-                Si446x_sendAFSK(pp, freq, step, chan, pwr);
-                break;
-        }*/
-        //=============================
-        pktStartDecoder(handler);
-        radio_squelch_t sq = task_object->squelch;
-        //radio_freq_t freq = task_object->base_frequency;
-        //channel_hz_t step = task_object->step_hz;
-        radio_ch_t chan = task_object->channel;
-        /* TODO: Use channel only to start receive. */
-        Si446x_receiveNoLock(chan, sq, MOD_AFSK);
-        rx_active = true;
+      case MOD_2FSK:
+        Si446x_send2FSK(pp, freq, step, chan, pwr, speed);
         break;
-        } /* End case PKT_RADIO_RX. */
+
+      case MOD_AFSK:
+        Si446x_sendAFSK(pp, freq, step, chan, pwr);
+        break;
 
       case MOD_NONE:
-      case MOD_2FSK: {
         break;
-        }
       } /* End switch on task_object->type. */
       break;
-    }
+    } /* End case PKT_RADIO_TX. */
 
-    case PKT_RADIO_CLOSE: {
+    case PKT_RADIO_RX_CLOSE: {
       event_listener_t el;
       event_source_t *esp;
       thread_t *decoder = NULL;
@@ -211,7 +201,6 @@ THD_FUNCTION(pktRadioManager, arg) {
       break;
       } /*end case close. */
     } /* End switch on command. */
-
     if(task_object->callback != NULL)
       /* Perform the callback. */
       task_object->callback(handler);
@@ -225,7 +214,7 @@ THD_FUNCTION(pktRadioManager, arg) {
 void pktRadioManagerCreate(packet_svc_t *handler) {
 
   /* The radio associated with this packet handler. */
-  radio_unit_t rid = handler->radio_config.radio_id;
+  radio_unit_t rid = handler->radio_rx_config.radio_id;
 
   /* Create the radio manager name. */
   chsnprintf(handler->rtask_name, sizeof(handler->rtask_name),

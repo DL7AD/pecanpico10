@@ -64,8 +64,8 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 	if(len) // Message length is not zero
 	{
 
-        /* Set band and step size in 446x. */
-      /* TODO: Check for success/fail from band set. */
+        /* Set band and step size in 446x.
+         * TODO: move this into radio manager. */
       if(!Si446x_setBandParameters(freq, step, RADIO_TX)) {
 
         TRACE_ERROR("RAD  > Transmit base frequency of %d.%03d MHz is invalid",
@@ -82,7 +82,42 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 		aprs_debug_getPacket(pp, buf, sizeof(buf));
 		TRACE_INFO("TX   > %s", buf);
 
-		switch(mod)
+        /*
+         * TODO: The following is an interim setup.
+         * The management of TX is only partially integrated.
+         * Packet services also has WIP in handler <> radio mapping, etc.
+         */
+
+		extern packet_svc_t RPKTD1;
+		packet_svc_t *handler = &RPKTD1;
+
+		if(!(handler->state == PACKET_OPEN || handler->state == PACKET_RUN)) {
+          TRACE_ERROR("RAD  > Packet services are not open for transmit");
+		  return false;
+		}
+
+		/* Update  the saved radio data with this new request. */
+        radio_task_object_t rt = handler->radio_tx_config;
+
+        rt.handler = handler;
+		rt.command = PKT_RADIO_TX_SEND;
+		rt.type = mod;
+		rt.base_frequency = freq;
+		rt.step_hz = step;
+		rt.channel = chan;
+		rt.tx_power = pwr;
+		rt.tx_speed = (mod == MOD_2FSK ? 9600 : 1200);
+		rt.packet_out = pp;
+		rt.callback = NULL;
+
+		/* Save the current data. */
+		handler->radio_tx_config = rt;
+
+        msg_t msg = pktSendRadioCommand(rt.handler, &rt);
+        if(msg != MSG_OK)
+          return false;
+
+/*		switch(mod)
 		{
 			case MOD_2FSK:
 				Si446x_send2FSK(pp, freq, step, chan, pwr, 9600);
@@ -90,7 +125,7 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 			case MOD_AFSK:
 				Si446x_sendAFSK(pp, freq, step, chan, pwr);
 				break;
-		}
+		}*/
 
 	} else {
 

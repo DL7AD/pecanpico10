@@ -124,7 +124,7 @@
 
 #define SUSPEND_HANDLING        NO_SUSPEND
 
-/* Extra GPIO value. */
+/* Extra GPIO value used in local GPIO set/clear/toggle functions. */
 #define PAL_TOGGLE              2U
 
 /*===========================================================================*/

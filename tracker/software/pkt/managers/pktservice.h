@@ -86,9 +86,14 @@ typedef struct packetHandlerData {
   packet_state_t            state;
 
   /**
-   * @brief Radio operating parameters.
+   * @brief Radio receiver operating parameters.
    */
-  radio_task_object_t       radio_config;
+  radio_task_object_t       radio_rx_config;
+
+  /**
+   * @brief Radio transmitter operating parameters.
+   */
+  radio_task_object_t       radio_tx_config;
 
   /**
    * @brief Pointer to link level protocol data.
