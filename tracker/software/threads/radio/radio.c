@@ -78,8 +78,7 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 		TRACE_INFO(	"RAD  > Transmit packet on %d.%03d MHz (ch %d),"
 		            " Pwr %d, %s, %d byte",
 					op_freq/1000000, (op_freq%1000000)/1000,
-					Si446x_getChannel(),
-					pwr, getModulation(mod), len
+					chan, pwr, getModulation(mod), len
 		);
 
 		char buf[1024];

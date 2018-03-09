@@ -214,7 +214,6 @@ bool Si446x_receiveNoLock(uint8_t chan, uint8_t rssi, mod_t mod);
 void Si446x_unlockRadio(void);
 void Si446x_lockRadioByCamera(void);
 void Si446x_conditional_init(void);
-uint8_t Si446x_getChannel(void);
 bool Si446x_setBandParameters(uint32_t freq,
                                    uint16_t step,
                                    radio_mode_t mode);

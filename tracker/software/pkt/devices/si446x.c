@@ -280,15 +280,6 @@ static void Si446x_init(void) {
     Si446x_setProperty8(Si446x_MODEM_ANT_DIV_CONTROL, 0x80);
     Si446x_setProperty8(Si446x_MODEM_RSSI_COMP, 0x40);
 
-    // Temperature readout
-    lastTemp = Si446x_getTemperature();
-#ifdef PKT_IS_TEST_PROJECT
-    dbgPrintf(DBG_INFO, "SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
-#else
-    TRACE_INFO("SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
-#endif
-
-
     radioInitialized = true;
 }
 
@@ -654,7 +645,7 @@ static void Si446x_setModem2FSK(uint32_t speed)
 
 /* ====================================================================== Radio Settings ====================================================================== */
 
-uint8_t Si446x_getChannel(void) {
+static uint8_t Si446x_getChannel(void) {
     const uint8_t state_info[] = {Si446x_REQUEST_DEVICE_STATE};
     uint8_t rxData[4];
     Si446x_read(state_info, sizeof(state_info), rxData, sizeof(rxData));
@@ -1453,21 +1444,33 @@ void Si446x_send2FSK(packet_t pp,
 /* ========================================================================== Misc ========================================================================== */
 
 static int16_t Si446x_getTemperature(void) {
-  Si446x_lockRadio();
   const uint8_t txData[2] = {0x14, 0x10};
   uint8_t rxData[8];
   Si446x_read(txData, 2, rxData, 8);
   uint16_t adc = rxData[7] | ((rxData[6] & 0x7) << 8);
-  Si446x_unlockRadio();
   return (89900*adc)/4096 - 29300;
 }
 
 int16_t Si446x_getLastTemperature(void) {
   if(lastTemp == 0x7FFF) { // Temperature was never measured => measure it now
-    Si446x_lockRadio();
-    Si446x_init();
-    Si446x_shutdown();
-    Si446x_unlockRadio();
+    if(radioInitialized) {
+      Si446x_lockRadio();
+      // Temperature readout
+      lastTemp = Si446x_getTemperature();
+#ifdef PKT_IS_TEST_PROJECT
+      dbgPrintf(DBG_INFO, "SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
+#else
+      TRACE_INFO("SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
+#endif
+      Si446x_unlockRadio();
+    } else {
+#ifdef PKT_IS_TEST_PROJECT
+      dbgPrintf(DBG_INFO, "SI   > Transmitter temperature not available\r\n");
+#else
+      TRACE_INFO("SI   > Transmitter temperature not available");
+#endif
+    }
+    return 0;
   }
   return lastTemp;
 }
