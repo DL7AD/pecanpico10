@@ -1318,7 +1318,7 @@ void Si446x_mapCallback(pkt_data_object_t *pkt_buff) {
   ax25size_t frame_size = pkt_buff->packet_size;
 
   /* FIXME: This is a quick diagnostic implementation only. */
-#if DUMP_PACKET_TO_SERIAL == TRUE
+#if DUMP_PACKET_TO_SERIAL == TRUE && ENABLE_EXTERNAL_I2C != TRUE
   pktDiagnosticOutput(pkt_buff->handler, pkt_buff);
 #endif
 if(pktIsBufferValidAX25Frame(pkt_buff)) {
@@ -1469,8 +1469,8 @@ int16_t Si446x_getLastTemperature(void) {
 #else
       TRACE_INFO("SI   > Transmitter temperature not available");
 #endif
+      return 0;
     }
-    return 0;
   }
   return lastTemp;
 }

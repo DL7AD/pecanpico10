@@ -124,7 +124,7 @@ const conf_t conf_flash_default = {
 	},
 	.rx = {
 		.thread_conf = {
-			.active			= false
+			.active			= true
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
