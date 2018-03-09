@@ -95,8 +95,9 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 		extern packet_svc_t RPKTD1;
 		packet_svc_t *handler = &RPKTD1;
 
-		if(!(handler->state == PACKET_OPEN || handler->state == PACKET_RUN)) {
+		if(handler->state == PACKET_IDLE || handler->state == PACKET_CLOSE) {
           TRACE_ERROR("RAD  > Packet services are not open for transmit");
+          ax25_delete(pp);
 		  return false;
 		}
 
@@ -115,12 +116,13 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 		rt.callback = NULL;
 
 		/* Save the current data. */
-		handler->radio_tx_config = rt;
+		//handler->radio_tx_config = rt;
 
-        msg_t msg = pktSendRadioCommand(rt.handler, &rt);
-        if(msg != MSG_OK)
+        msg_t msg = pktSendRadioCommand(handler, &rt);
+        if(msg != MSG_OK) {
+          ax25_delete(pp);
           return false;
-
+        }
 /*		switch(mod)
 		{
 			case MOD_2FSK:
@@ -136,6 +138,7 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 		TRACE_ERROR("RAD  > It is nonsense to transmit 0 bits, %d.%03d MHz, Pwr dBm, %s, %d byte",
 					freq/1000000, (freq%1000000)/1000, pwr,
 					getModulation(mod), len);
+	    ax25_delete(pp);
 	}
 
 	return true;

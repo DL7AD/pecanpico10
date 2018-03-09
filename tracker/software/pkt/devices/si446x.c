@@ -1453,20 +1453,23 @@ void Si446x_send2FSK(packet_t pp,
 /* ========================================================================== Misc ========================================================================== */
 
 static int16_t Si446x_getTemperature(void) {
-    const uint8_t txData[2] = {0x14, 0x10};
-    uint8_t rxData[8];
-    Si446x_read(txData, 2, rxData, 8);
-    uint16_t adc = rxData[7] | ((rxData[6] & 0x7) << 8);
-    return (89900*adc)/4096 - 29300;
+  Si446x_lockRadio();
+  const uint8_t txData[2] = {0x14, 0x10};
+  uint8_t rxData[8];
+  Si446x_read(txData, 2, rxData, 8);
+  uint16_t adc = rxData[7] | ((rxData[6] & 0x7) << 8);
+  Si446x_unlockRadio();
+  return (89900*adc)/4096 - 29300;
 }
 
 int16_t Si446x_getLastTemperature(void) {
-    if(lastTemp == 0x7FFF) { // Temperature was never measured => measure it now
-        Si446x_init();
-        Si446x_shutdown();
-    }
-
-    return lastTemp;
+  if(lastTemp == 0x7FFF) { // Temperature was never measured => measure it now
+    Si446x_lockRadio();
+    Si446x_init();
+    Si446x_shutdown();
+    Si446x_unlockRadio();
+  }
+  return lastTemp;
 }
 
 //#endif

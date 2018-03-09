@@ -107,6 +107,7 @@ bool pktServiceRelease() {
  * @param[in] encoding  radio link level encoding.
  * @param[in] frequency operating frequency (in Hz).
  * @param[in] ch_step   frequency step per channel (in Hz).
+ * @param[in] ph        variable to receive the reference to the packet handler.
  *
  * @return              the reference to the packet handler object.
  * @retval MSG_OK       if the open request was processed.
