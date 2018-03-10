@@ -303,6 +303,7 @@
 
 // Misc
 #define LINE_TCXO_EN                PAL_LINE(GPIOC, 13U)
+#define LINE_SD_DET                 PAL_LINE(GPIOC, 8U)
 
 // Hardware dependent settings
 

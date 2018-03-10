@@ -9,18 +9,25 @@ bool sdInitialized = false;
 
 bool initSD(void)
 {
-	TRACE_INFO("SD   > Initialize SD card");
-
 	// Setup pins
 	palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);		// SCK
 	palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MISO
 	palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MOSI
 	palSetLineMode(LINE_SD_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// SD CS
+	palSetLineMode(LINE_SD_DET, PAL_MODE_INPUT_PULLUP | PAL_STM32_OSPEED_HIGHEST);	    // SD DET
 	palSetLineMode(LINE_RADIO_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// RADIO CS
 
 	// Pull CS of all SPI slaves high
 	palSetLine(LINE_SD_CS);
 	palSetLine(LINE_RADIO_CS);
+
+	if(palReadLine(LINE_SD_DET)) {
+		TRACE_INFO("SD   > No SD card inserted");
+		sdInitialized = false;
+		return false;
+	}
+
+	TRACE_INFO("SD   > Initialize SD card");
 
 	// Maximum speed SPI configuration
 	static SPIConfig hs_spicfg = {
@@ -48,9 +55,9 @@ bool initSD(void)
 
 	TRACE_DEBUG("SD   > Connect");
 	if(mmcConnect(&MMCD1)) {
-		TRACE_WARN("SD   > No SD card found");
+		TRACE_ERROR("SD   > SD card connection error");
 	} else {
-		TRACE_INFO("SD   > SD card found");
+		TRACE_INFO("SD   > SD card connection OK");
 		sdInitialized = true;
 	}
 	spiReleaseBus(&SPID3);

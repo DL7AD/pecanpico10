@@ -579,6 +579,7 @@ THD_FUNCTION(imgThread, arg)
 			if(size_sampled) {
 
 				// Write picture to SD card
+				TRACE_INFO("IMG  > Save image to SD card");
 				if(initSD())
 				{
 					char filename[32];
