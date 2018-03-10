@@ -61,6 +61,10 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 		chan = 0;
 	}
 
+	if(freq == FREQ_APRS_RECEIVE) {
+	  /* TODO: Get current RX frequency (if valid) and use that. */
+	}
+
 	uint8_t *c;
 	uint32_t len = ax25_get_info(pp, &c);
 

@@ -5,6 +5,10 @@
 #include "ax25_pad.h"
 
 #define FREQ_APRS_DYNAMIC	0
+#define FREQ_APRS_SCAN      1
+#define FREQ_APRS_RECEIVE   2
+#define FREQ_CNC_RECEIVE    3
+
 #define CYCLE_CONTINUOUSLY	0
 
 #define TYPE_NULL			0

@@ -237,7 +237,7 @@ bool gps_get_fix(gpsFix_t *fix) {
 	}
 
 	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%d.%02d",
-		fix->time.year, fix->time.month, fix->time.day, fix->time.hour, fix->time.minute, fix->time.day,
+		fix->time.year, fix->time.month, fix->time.day, fix->time.hour, fix->time.minute, fix->time.second,
 		fix->lat/10000000, (fix->lat > 0 ? 1:-1)*(fix->lat/100)%100000, fix->lon/10000000, (fix->lon > 0 ? 1:-1)*(fix->lon/100)%100000,
 		fix->alt, fix->num_svs, fix->fixOK, fix->pdop/100, fix->pdop%100
 	);
