@@ -1,0 +1,21 @@
+Why does PP10 have frequency, step and channel parameters in config.c?
+
+Firstly the ability to specify a frequency directly in the freq parameter of config.c has not changed.
+Simply set freq in Hz to a desired frequency and leave step and channel set to 0.
+Geofence frequencies remain unaffected as well since step and chan are set to 0 when using geofence.
+
+Q: So why add step and chan?
+A: The addition of step and chan is aimed at providing additional functionality in future features as follows...
+
+A) A table of channels may be specified for scanning/seeking packet signals under software control.
+
+B) The feature of the Si446x to automatically scan using a channel table is being investigated
+ - This reduces the amount of control from the host MCU required to manage such a channel scanning application.
+ - Automatic detection of packet channels would enable operation where GPS location is inactive.
+ 
+C) The software base may be used for other than balloon projects or incorporate other bands, protocols and radios
+ - It can be envisaged that a step and channel format could be useful in such instances.
+ 
+D) Configuring the radio(s) won't usually be done by editing config.c directly.
+ - In over the air or command line configuration changes the UI would not require user knowledge of the structure of config.c
+ - Some settings may be better described by a band base frequency, a step size and a channel.

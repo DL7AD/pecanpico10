@@ -58,7 +58,7 @@ static void (*rx_cb)(uint8_t*, uint32_t);
 
 static packet_svc_t *packetHandler;
 
-static int16_t Si446x_getTemperature(void);
+//static int16_t Si446x_getTemperature(void);
 
 /* =================================================================== SPI communication ==================================================================== */
 
