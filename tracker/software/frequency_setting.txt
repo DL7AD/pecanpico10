@@ -5,7 +5,7 @@ Simply set freq in Hz to a desired frequency and leave step and channel set to 0
 Geofence frequencies remain unaffected as well since step and chan are set to 0 when using geofence.
 
 Q: So why add step and chan?
-A: The addition of step and size is aimed at providing additional functionality in future features as follows...
+A: The addition of step and chan is aimed at providing additional functionality in future features as follows...
 
 A) A table of channels may be specified for scanning/seeking packet signals under software control.
 
