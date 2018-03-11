@@ -196,7 +196,6 @@ typedef enum radioMode {
   RADIO_CCA
 } radio_mode_t;
 
-
 // Public methods
 
 int16_t Si446x_getLastTemperature(void);
@@ -205,14 +204,15 @@ void Si446x_sendAFSK(packet_t pp, uint8_t chan, uint8_t pwr);
 void Si446x_send2FSK(packet_t pp, uint8_t chan,
                      uint8_t pwr, uint32_t speed);
 
-bool Si446x_receive(uint32_t frequency, uint16_t step, uint8_t chan,
-                    uint8_t rssi, mod_t mod);
+void Si446x_receiveStop(void);
 void Si446x_startPacketReception(uint32_t freq, uint16_t step,
                                  uint8_t ch, uint8_t sq, void* cb);
 void Si446x_stopDecoder(void);
 bool Si446x_receiveNoLock(uint8_t chan, uint8_t rssi, mod_t mod);
-void Si446x_unlockRadio(void);
+void Si446x_lockRadio(radio_mode_t mode);
+void Si446x_unlockRadio(radio_mode_t mode);
 void Si446x_lockRadioByCamera(void);
+void Si446x_unlockRadioByCamera(void);
 void Si446x_conditional_init(void);
 bool Si446x_setBandParameters(uint32_t freq,
                                    uint16_t step,

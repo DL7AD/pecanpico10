@@ -9,9 +9,11 @@
 #include "hal.h"
 #include "types.h"
 
-#define OV5640_I2C_ADR		0x3C
+#define OV5640_I2C_ADR		    0x3C
 
-#define OV5640_USE_DMA_DBM  TRUE
+#define OV5640_USE_DMA_DBM      TRUE
+#define DMA_SEGMENT_SIZE        1024
+#define DMA_FIFO_BURST_ALIGN    32
 
 uint32_t OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size, resolution_t resolution);
 bool OV5640_Capture(uint8_t* buffer, uint32_t size);

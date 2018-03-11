@@ -562,7 +562,7 @@ THD_FUNCTION(imgThread, arg)
 	TRACE_INFO("IMG  > Startup image thread");
 
 	// Create buffer
-	uint8_t buffer[conf->buf_size] __attribute__((aligned(32)));
+	uint8_t buffer[conf->buf_size] __attribute__((aligned(DMA_FIFO_BURST_ALIGN)));
 
 	sysinterval_t time = chVTGetSystemTime();
 	while(true)

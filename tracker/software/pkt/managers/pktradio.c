@@ -16,6 +16,7 @@
 
 #include "pktconf.h"
 #include "radio.h"
+#include "si446x.h"
 
 /**
  * @brief   Process radio task requests.
@@ -69,10 +70,6 @@ THD_FUNCTION(pktRadioManager, arg) {
           if(driver == NULL) {
             break;
           }
-          /* TODO: Check for success/fail from band set. */
-          Si446x_setBandParameters(task_object->base_frequency,
-                                  task_object->step_hz,
-                                  RADIO_RX);
           break;
         } /* End case PKT_RADIO_OPEN. */
 
@@ -80,23 +77,31 @@ THD_FUNCTION(pktRadioManager, arg) {
         case MOD_2FSK: {
           break;
         }
-      } /* End switch on task_object->type. */
+        break;
+      } /* End switch on modulation type. */
 
       /* Initialise the radio. */
-      //Si446x_conditional_init();
+      Si446x_conditional_init();
       break;
     } /* End case PKT_RADIO_OPEN. */
 
-    /* TODO: Tune radio to channel. */
+
     case PKT_RADIO_RX_START: {
       switch(task_object->type) {
       case MOD_AFSK: {
+        Si446x_lockRadio(RADIO_RX);
+        Si446x_setBandParameters(task_object->base_frequency,
+                                task_object->step_hz,
+                                RADIO_RX);
         pktStartDecoder(handler);
 
         radio_ch_t chan = task_object->channel;
         radio_squelch_t sq = task_object->squelch;
 
         Si446x_receiveNoLock(chan, sq, MOD_AFSK);
+
+        /* Allow transmit requests. */
+        Si446x_unlockRadio(RADIO_RX);
         //rx_active = true;
         break;
         } /* End case PKT_RADIO_RX. */
@@ -137,7 +142,6 @@ THD_FUNCTION(pktRadioManager, arg) {
       uint8_t pwr = task_object->tx_power;
       uint32_t speed = task_object->tx_speed;
 
-      Si446x_setBandParameters(freq, step, RADIO_TX);
 
       switch(task_object->type) {
       case MOD_2FSK:
@@ -145,6 +149,8 @@ THD_FUNCTION(pktRadioManager, arg) {
         break;
 
       case MOD_AFSK:
+        Si446x_lockRadio(RADIO_TX);
+        Si446x_setBandParameters(freq, step, RADIO_TX);
         Si446x_sendAFSK(pp, chan, pwr);
         break;
 
@@ -161,6 +167,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       thread_t *decoder = NULL;
       switch(task_object->type) {
       case MOD_AFSK: {
+        Si446x_receiveStop();
         esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
         decoder = ((AFSKDemodDriver *)(handler->link_controller))->decoder_thd;
@@ -204,12 +211,13 @@ THD_FUNCTION(pktRadioManager, arg) {
       break;
       } /*end case close. */
     } /* End switch on command. */
+    /* Perform radio task callback if specified. */
     if(task_object->callback != NULL)
       /* Perform the callback. */
       task_object->callback(handler);
     /* Return radio task object to free list. */
     chFifoReturnObject(radio_queue, (radio_task_object_t *)task_object);
-  }
+  } /* End while should terminate). */
   chThdExit(MSG_OK);
 }
 

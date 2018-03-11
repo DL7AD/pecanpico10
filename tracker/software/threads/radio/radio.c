@@ -8,7 +8,7 @@
 #include "pktconf.h"
 #include "radio.h"
 
-static void handlePacket(uint8_t *buf, uint32_t len) {
+static void processPacket(uint8_t *buf, uint32_t len) {
   /* Remove CRC from frame. */
   if(len > 2) {
     len -= 2;
@@ -34,6 +34,23 @@ static void handlePacket(uint8_t *buf, uint32_t len) {
   TRACE_DEBUG("RX    > Packet dropped due to data length < 2");
 }
 
+void mapCallback(pkt_data_object_t *pkt_buff) {
+  /* Packet buffer. */
+  ax25char_t *frame_buffer = pkt_buff->buffer;
+  ax25size_t frame_size = pkt_buff->packet_size;
+
+  /* FIXME: This is a quick diagnostic implementation only. */
+#if DUMP_PACKET_TO_SERIAL == TRUE && ENABLE_EXTERNAL_I2C != TRUE
+  pktDiagnosticOutput(pkt_buff->handler, pkt_buff);
+#endif
+if(pktIsBufferValidAX25Frame(pkt_buff)) {
+  /* Perform the callback. */
+  processPacket(frame_buffer, frame_size);
+  } else {
+    TRACE_INFO("RX   > Invalid frame - dropped");
+  }
+}
+
 void start_rx_thread(uint32_t freq, uint16_t step,
                      radio_ch_t chan, uint8_t rssi) {
 
@@ -45,8 +62,29 @@ void start_rx_thread(uint32_t freq, uint16_t step,
 	}
 
 	// Start decoder
-	Si446x_startPacketReception(freq, step, chan, rssi, handlePacket);
+	extern packet_svc_t *packetHandler;
 
+    /* Open packet radio service. */
+    msg_t omsg = pktOpenRadioService(PKT_RADIO_1,
+                         MOD_AFSK,
+                         freq,
+                         step,
+                         &packetHandler);
+
+    if(omsg != MSG_OK) {
+      TRACE_DEBUG("RX   > Open of radio service failed");
+      return;
+    }
+
+    /* Start the decoder. */
+    msg_t smsg = pktStartDataReception(packetHandler,
+                           chan,
+                           rssi,
+                           mapCallback);
+    if(smsg != MSG_OK) {
+      pktCloseRadioService(packetHandler);
+      TRACE_DEBUG("RX   > Open of radio service failed");
+    }
 }
 
 /*

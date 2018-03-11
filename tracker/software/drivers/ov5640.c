@@ -367,7 +367,7 @@ static const struct regval_list OV5640_JPEG_QSXGA[]  =
 };
 
 //5MP
-static const struct regval_list OV5640_5MP_JPEG[]  =
+static const struct regval_list OV5640_5MP_JPEG[] __attribute__((unused)) =
 {
 	{0x3800 ,0x00},                            
 	{0x3801 ,0x00},                                                            
@@ -491,7 +491,7 @@ static const struct regval_list OV5640_QSXGA2VGA[]  =
 };
 
 //800x480 WVGA
-static const struct regval_list OV5640_QSXGA2WVGA[]  =	
+static const struct regval_list OV5640_QSXGA2WVGA[] __attribute__((unused)) =
 {
 	{0x3800 ,0x00}, 
 	{0x3801 ,0x00}, 
@@ -526,7 +526,7 @@ static const struct regval_list OV5640_QSXGA2WVGA[]  =
 };
 
 //352x288 CIF
-static const struct regval_list OV5640_QSXGA2CIF[]  =	
+static const struct regval_list OV5640_QSXGA2CIF[] __attribute__((unused)) =
 {
 	{0x3800 ,0x00}, 
 	{0x3801 ,0x00}, 
@@ -561,7 +561,7 @@ static const struct regval_list OV5640_QSXGA2CIF[]  =
 };
 
 //1280x960 SXGA
-static const struct regval_list OV5640_QSXGA2SXGA[]  =	
+static const struct regval_list OV5640_QSXGA2SXGA[] __attribute__((unused)) =
 {
 	{0x3800 ,0x00},
 	{0x3801 ,0x00},
@@ -592,7 +592,7 @@ static const struct regval_list OV5640_QSXGA2SXGA[]  =
 };
 
 //2048x1536 QXGA
-static const struct regval_list OV5640_QSXGA2QXGA[]  =	
+static const struct regval_list OV5640_QSXGA2QXGA[] __attribute__((unused)) =
 {
 	{0x3800 ,0x00},
 	{0x3801 ,0x00},
@@ -709,7 +709,7 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size, resolution_t res)
 	bool status;
 	uint32_t size_sampled;
 
-	// Set resoultion
+	// Set resolution
 	if(res == RES_MAX) {
 		OV5640_SetResolution(RES_UXGA); // FIXME: We actually have to choose the resolution which fits in the memory
 	} else {
@@ -741,8 +741,7 @@ const stm32_dma_stream_t *dmastp;
 #if OV5640_USE_DMA_DBM == TRUE
 uint16_t dma_index;
 uint16_t dma_buffers;
-#define DMA_SEGMENT_SIZE 1024
-#define DMA_FIFO_BURST_ALIGN 32
+
 
 
 #if !defined(dmaStreamGetCurrentTarget)
@@ -930,6 +929,22 @@ void vsync_cb(void *arg) {
 	chSysUnlockFromISR();
 }
 
+/*
+ * Other drivers using resources that can cause DMA competition are locked.
+ */
+void OV5640_lockResourcesForCapture(void) {
+  I2C_Lock(); // Lock I2C because it uses the same DMA
+  Si446x_lockRadioByCamera(); // Lock the radio because it uses the DMA too
+}
+
+/*
+ * Unlock competing drivers.
+ */
+void OV5640_unlockResourcesForCapture(void) {
+  Si446x_unlockRadioByCamera();
+  I2C_Unlock();
+}
+
 bool OV5640_Capture(uint8_t* buffer, uint32_t size)
 {
 	OV5640_setLightIntensity();
@@ -940,9 +955,7 @@ bool OV5640_Capture(uint8_t* buffer, uint32_t size)
 	 *  In makefile add entry to UDEFS:
 	 *   UDEFS = -DSTM32_DMA_REQUIRED
 	 */
-
-	I2C_Lock(); // Lock I2C because it uses the same DMA
-	Si446x_lockRadioByCamera(); // Lock the radio because it uses the DMA too
+	OV5640_lockResourcesForCapture();
 
 	/* Setup DMA for transfer on TIM8_CH1 - DMA2 stream 2, channel 7 */
 	dmastp  = STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 2));
@@ -975,7 +988,7 @@ bool OV5640_Capture(uint8_t* buffer, uint32_t size)
      * See RM0430 9.3.12
      *
      * TODO: To use DMA_FIFO_BURST_ALIGN in setting of ssdv buffer alignment.
-     * Currently this is set to 32 manually in config.c.
+     * Currently this is set to 16 manually in image.c.
      */
 
     if (((uint32_t)buffer % DMA_FIFO_BURST_ALIGN) != 0) {
@@ -1048,9 +1061,8 @@ bool OV5640_Capture(uint8_t* buffer, uint32_t size)
 		palDisableLineEventI(LINE_CAM_VSYNC);
 	}
 
-	// Capture done, unlock I2C and the radio
-	Si446x_unlockRadio();
-	I2C_Unlock();
+    // Capture done, unlock competing processes.
+	OV5640_unlockResourcesForCapture();
 
 	if(dma_error)
 	{

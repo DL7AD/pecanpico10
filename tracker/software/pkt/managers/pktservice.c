@@ -444,16 +444,17 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer) {
                 ? EVT_AX25_FRAME_RDY
                 : EVT_AX25_CRC_ERROR;
   } else {
-    flags |= EVT_AFSK_INVALID_FRAME;
+    flags |= EVT_PKT_INVALID_FRAME;
   }
 
   /* Update status in packet buffer object. */
   pkt_buffer->status |= flags;
 
-  if(pkt_buffer->cb_func == NULL) {
-    objects_fifo_t *pkt_fifo = chFactoryGetObjectsFIFO(pkt_buffer->pkt_factory);
+  objects_fifo_t *pkt_fifo = chFactoryGetObjectsFIFO(pkt_buffer->pkt_factory);
 
-    chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
+  chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
+
+  if(pkt_buffer->cb_func == NULL) {
 
     /* Send the packet buffer to the FIFO queue. */
     chFifoSendObject(pkt_fifo, pkt_buffer);
@@ -463,8 +464,16 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer) {
 
     chDbgAssert(cb_thd != NULL, "failed to create callback thread");
 
-    /* Increase outstanding callback count. */
-    handler->cb_count++;
+    if(cb_thd == NULL) {
+      /* Failed to create CB thread. Release buffer. Flag event. */
+      chFifoReturnObject(pkt_fifo, pkt_buffer);
+      flags |= EVT_PKT_FAILED_CB_THD;
+
+    } else {
+      /* Increase outstanding callback count. */
+      handler->cb_count++;
+    }
+
   }
   return flags;
 }
