@@ -200,7 +200,7 @@ static void Si446x_init(void) {
     //Si446x_setProperty8(Si446x_GLOBAL_CONFIG, 0x60);
     Si446x_setProperty8(Si446x_GLOBAL_CONFIG, 0x70);
 
-    // Reset FIFO
+    /* Clear FIFO. */
     const uint8_t reset_fifo[] = {0x15, 0x01};
     Si446x_write(reset_fifo, 2);
     /* No need to do this unreset... see si docs. */
@@ -558,7 +558,7 @@ static void Si446x_setModemAFSK_TX(void)
     // Setup the NCO data rate for APRS
     Si446x_setProperty24(Si446x_MODEM_DATA_RATE, 0x00, 0x33, 0x90);
 
-    // Use 2FSK from FIFO (PH)
+    // Use upsampled AFSK from FIFO (PH)
     Si446x_setProperty8(Si446x_MODEM_MOD_TYPE, 0x02);
 
     // Set AFSK filter
@@ -1000,7 +1000,7 @@ void Si446x_receiveStop(void)
   /* FIXME: */
   if(Si446x_getState() == Si446x_STATE_RX) {
     rx_frequency = 0;
-      Si446x_shutdown();
+    Si446x_shutdown();
   }
 }
 
@@ -1153,9 +1153,11 @@ static uint8_t Si446x_getUpsampledAFSKbits(uint8_t* buf/*, uint32_t blen*/)
     return b;
 }
 
+#define SI446X_EVT_AFSK_TX_TIMEOUT      EVENT_MASK(0)
+
 static void Si446x_AFSKtransmitTimeout(thread_t *tp) {
   /* The tell the thread to terminate. */
-  tp->flags |= CH_FLAG_TERMINATE;
+  chEvtSignal(tp, SI446X_EVT_AFSK_TX_TIMEOUT);
 }
 
 THD_FUNCTION(si_fifo_feeder_afsk, arg) {
@@ -1172,10 +1174,11 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
 #define PREAMBLE_FLAGS_B     0
 
     uint8_t layer0[3072];
-    /* Encode packet to AFSK (NRZI & HDLC) with optional premable. */
-    uint32_t layer0_blen = Si446x_encodeDataToAFSK(pp->frame_data, pp->frame_len,
-                                layer0, sizeof(layer0),
-                                PREAMBLE_FLAGS_A);
+    /* Encode packet to AFSK (NRZI & HDLC) with optional preamble. */
+    uint32_t layer0_blen = Si446x_encodeDataToAFSK(pp->frame_data,
+                                                   pp->frame_len,
+                                                   layer0, sizeof(layer0),
+                                                   PREAMBLE_FLAGS_A);
 
 #if PREAMBLE_FLAGS_B > 0
     /* Create NRZI pattern for an HDLC flag. */
@@ -1188,14 +1191,16 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
       /* WIP. */
 #endif
 
-      Si446x_setReadyState();
+    /* Reset TX FIFO in case some remnant unsent data is left there. */
+    const uint8_t reset_fifo[] = {0x15, 0x01};
+    Si446x_write(reset_fifo, 2);
 
-      /* Initialize variables for up sampler. */
-      phase_delta = PHASE_DELTA_1200;
-      phase = 0;
-      packet_pos = 0;
-      current_sample_in_baud = 0;
-      current_byte = 0;
+    /* Initialize variables for up sampler. */
+    phase_delta = PHASE_DELTA_1200;
+    phase = 0;
+    packet_pos = 0;
+    current_sample_in_baud = 0;
+    current_byte = 0;
 
     /* Maximum amount of FIFO data when using combined TX+RX (safe size). */
     uint8_t localBuffer[Si446x_FIFO_COMBINED_SIZE];
@@ -1211,73 +1216,74 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
     uint16_t c = (all > free) ? free : all;
 
 #ifdef PKT_IS_TEST_PROJECT
-          dbgPrintf(DBG_INFO, "SI   > AFSK upsampled bytes to send %i\r\n", c);
+          dbgPrintf(DBG_INFO, "SI   > AFSK upsampled bytes to send %i\r\n", all);
 #else
-          TRACE_INFO("SI   > AFSK upsampled bytes to send %i", c);
+          TRACE_INFO("SI   > AFSK upsampled bytes to send %i", all);
 #endif
     /*
-     * Start send timeout timer.
+     * Start transmission timeout timer.
      * If the 446x gets locked up we'll exit TX and release packet object.
      */
     chVTSet(&send_timer, TIME_S2I(10),
              (vtfunc_t)Si446x_AFSKtransmitTimeout, chThdGetSelfX());
 
-    msg_t exit_msg = MSG_TIMEOUT;
+    /* The exit message if all goes well. */
+    msg_t exit_msg = MSG_OK;
 
-    // Initial FIFO fill
+    /* Initial FIFO load. */
     for(uint16_t i = 0;  i < c; i++)
-        localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0/*, layer0_blen*/);
+        localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
     Si446x_writeFIFO(localBuffer, c);
 
-    // Start transmission
+    volatile uint8_t more;
+    /* Request start of transmission. */
     if(Si446x_transmit(tx_chan, tx_pwr, all, 0x4F, TIME_S2I(10))) {
-      /* Transmit started OK. */
-      while(c < all) { // Do while bytes not written into FIFO completely
-        if(chThdShouldTerminateX()) {
-#ifdef PKT_IS_TEST_PROJECT
-          dbgPrintf(DBG_ERROR, "SI   > AFSK transmit timed out\r\n");
-#else
-          TRACE_ERROR("SI   > AFSK transmit timed out");
-#endif
+      /* Feed the FIFO while data remains to be sent. */
+      while((all - c) > 0) {
+        /* Get TX FIFO free count. */
+        more = Si446x_getTXfreeFIFO();
+        /* If there is more free than we need to send set to remainder only. */
+        more = (more > (all - c)) ? (all - c) : more;
+
+        /* Load the FIFO. */
+        for(uint16_t i = 0; i < more; i++)
+            localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
+        Si446x_writeFIFO(localBuffer, more); // Write into FIFO
+        c += more;
+        //chThdSleep(TIME_MS2I(15));
+
+        /*
+         * Wait for a timeout event during upsampled AFSK byte time period wa.
+         * If all is good go back and load more data to FIFO.
+         */
+        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_AFSK_TX_TIMEOUT,
+                                   chTimeUS2I(833 * 8 * SAMPLES_PER_BAUD));
+        if(evt) {
           /* Force 446x out of TX state. */
           Si446x_setReadyState();
+          exit_msg = MSG_TIMEOUT;
           break;
         }
-        // Determine free memory in Si446x-FIFO
-        uint8_t more = Si446x_getTXfreeFIFO();
-        if(more > (all - c)) {
-          // Calculate remainder to send
-          more -= (all - c);
-          if(more < 1) {
-            /* Nothing remaining to send. Stop timer. */
-
-
-            /* Drop priority to enable other threads to run. */
-            //chThdSetPriority(LOWPRIO);
-
-            exit_msg = MSG_OK;
-            break;
-          }
-        }
-        uint16_t i;
-        for(i = 0; i < more; i++)
-            localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0/*, layer0_blen*/);
-
-        Si446x_writeFIFO(localBuffer, more); // Write into FIFO
-        c += (++i);
-        chThdSleep(TIME_MS2I(15));
-      } /* End while. */
+      }
     } else {
       /* Transmit start failed. */
 #ifdef PKT_IS_TEST_PROJECT
-          dbgPrintf(DBG_ERROR, "SI   > Transmit failed\r\n");
+          dbgPrintf(DBG_ERROR, "SI   > Transmit start failed\r\n");
 #else
-          TRACE_ERROR("SI   > Transmit failed");
+          TRACE_ERROR("SI   > Transmit start failed");
 #endif
     }
     chVTReset(&send_timer);
-    while(Si446x_getState() == Si446x_STATE_TX)
+
+    /*
+     * If nothing went wrong wait for TX to finish.
+     * Else don't wait.
+     */
+    while(Si446x_getState() == Si446x_STATE_TX && exit_msg == MSG_OK) {
+      /* Sleep for an AFSK upsampled byte time. */
+      chThdSleep(chTimeUS2I(833 * 8 * SAMPLES_PER_BAUD));
       continue;
+    }
 
     // Free packet object memory
     ax25_delete(pp);
@@ -1289,11 +1295,15 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
 void Si446x_sendAFSK(packet_t pp,
                      uint8_t chan,
                      uint8_t pwr) {
-    //Si446x_lockRadio();
 
     // Initialize radio
     if(!radioInitialized)
         Si446x_init();
+
+    /* Set 446x back to READY. */
+    Si446x_setReadyState();
+
+    /* Set parameters for AFSK transmission. */
     Si446x_setModemAFSK_TX();
 
     // Set pointers for feeder
@@ -1366,8 +1376,8 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
 */
 
     /*
-     * Shutdown radio if reception has been interrupted. If reception was interrupted rx_frequency is set.
-     * If reception has not been interrupted rx_frequency is set 0.
+     * If reception was interrupted rx_frequency is set.
+     * Otherwise rx_frequwncy is zero in which case the radio can be shutdown.
      */
     if(!rx_frequency) {
         Si446x_shutdown();
