@@ -189,6 +189,12 @@
 #define Si446x_FIFO_SEPARATE_SIZE                64
 #define Si446x_FIFO_COMBINED_SIZE               129
 
+#define AFSK_FEEDER_BUFFER_SIZE                 3072
+#define USE_DYNAMIC_AFSK_TX                     TRUE
+#define SI_AFSK_FIFO_FEEDER_WA_SIZE             (AFSK_FEEDER_BUFFER_SIZE + 1024)
+
+#define USE_DYNAMIC_FSK_TX                      FALSE
+#define SI_FSK_FIFO_FEEDER_WA_SIZE              4096
 
 typedef enum radioMode {
   RADIO_RX,

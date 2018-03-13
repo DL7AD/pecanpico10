@@ -179,8 +179,8 @@ typedef struct packetHandlerData {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  bool pktServiceCreate(void);
-  bool pktServiceRelease(void);
+  bool pktServiceCreate(packet_svc_t *handler);
+  bool pktServiceRelease(packet_svc_t *handler);
   msg_t pktOpenRadioService(radio_unit_t radio,
                                      encoding_type_t encoding,
                                      radio_freq_t frequency,

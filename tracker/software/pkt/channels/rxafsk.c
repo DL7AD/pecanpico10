@@ -207,6 +207,11 @@ void pktDisablePWM(AFSKDemodDriver *myDriver) {
 
   myDriver->icustate = PKT_PWM_STOP;
 
+  /*
+   * FIXME: This reschedule is required due to potential bug in event system.
+   *
+   */
+  chSchRescheduleS();
   chSysUnlock();
 }
 
