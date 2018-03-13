@@ -179,21 +179,21 @@ typedef struct packetHandlerData {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  bool pktServiceCreate(packet_svc_t *handler);
-  bool pktServiceRelease(packet_svc_t *handler);
+  bool pktServiceCreate(radio_unit_t radio);
+  bool pktServiceRelease(radio_unit_t radio);
   msg_t pktOpenRadioService(radio_unit_t radio,
                                      encoding_type_t encoding,
                                      radio_freq_t frequency,
                                      channel_hz_t ch_step,
                                      packet_svc_t **handler);
-  msg_t pktStartDataReception(packet_svc_t *handler,
+  msg_t pktStartDataReception(radio_unit_t radio,
                               radio_ch_t channel,
                               radio_squelch_t sq,
                               pkt_buffer_cb_t cb);
-  void pktStartDecoder(packet_svc_t *handler);
-  msg_t pktStopDataReception(packet_svc_t *handler);
-  void pktStopDecoder(packet_svc_t *handler);
-  msg_t pktCloseRadioService(packet_svc_t *handler);
+  void pktStartDecoder(radio_unit_t radio);
+  msg_t pktStopDataReception(radio_unit_t radio);
+  void pktStopDecoder(radio_unit_t radio);
+  msg_t pktCloseRadioService(radio_unit_t radio);
   bool  pktStoreBufferData(pkt_data_object_t *buffer, ax25char_t data);
   eventflags_t  pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer);
   thread_t *pktCreateBufferCallback(pkt_data_object_t *pkt_buffer);

@@ -93,7 +93,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         Si446x_setBandParameters(task_object->base_frequency,
                                 task_object->step_hz,
                                 RADIO_RX);
-        pktStartDecoder(handler);
+        pktStartDecoder(PKT_RADIO_1);
 
         radio_ch_t chan = task_object->channel;
         radio_squelch_t sq = task_object->squelch;
@@ -117,7 +117,7 @@ THD_FUNCTION(pktRadioManager, arg) {
     case PKT_RADIO_RX_STOP: {
       switch(task_object->type) {
             case MOD_AFSK: {
-              pktStopDecoder(handler);
+              pktStopDecoder(PKT_RADIO_1);
               //rx_active = false;
               break;
               } /* End case. */

@@ -41,7 +41,7 @@ int main(void) {
     event_listener_t pkt_el;
 
     /* Create packet radio service. */
-    if(!pktServiceCreate(&RPKTD1)) {
+    if(!pktServiceCreate(PKT_RADIO_1)) {
       TRACE_ERROR("PKT  > Unable to create packet services");
     } else {
       chEvtRegister(pktGetEventSource(&RPKTD1), &pkt_el, 1);
@@ -79,7 +79,7 @@ int main(void) {
 				                              shellThread,
 				                              (void*)&shell_cfg);
 			}
-			eventmask_t evt = chEvtWaitAnyTimeout(EVENT_MASK(0) /*| EVENT_MASK(1)*/, TIME_S2I(1));
+			eventmask_t evt = chEvtWaitAnyTimeout(EVENT_MASK(0) | EVENT_MASK(1), TIME_S2I(1));
 			if(chThdTerminatedX(shelltp)) {
 				chThdRelease(shelltp);
 				shelltp = NULL;
@@ -87,9 +87,12 @@ int main(void) {
 			}
 			if(evt & EVENT_MASK(1)) {
 			  eventflags_t flags = chEvtGetAndClearFlags(&pkt_el);
-			  if(flags & EVT_ICU_SLEEP_TIMEOUT) {
-			    TRACE_INFO("PKT  > PWM ICU has gone to sleep");
+			  if(flags & EVT_PWM_QUEUE_FULL) {
+			    TRACE_WARN("PKT  > PWM queue full");
 			  }
+              if(flags & EVT_PWM_FIFO_EMPTY) {
+                TRACE_WARN("PKT  > PWM FIFO exhausted");
+              }
 			}
 		}
 		#endif

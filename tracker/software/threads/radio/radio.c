@@ -77,12 +77,12 @@ void start_rx_thread(uint32_t freq, uint16_t step,
     }
 
     /* Start the decoder. */
-    msg_t smsg = pktStartDataReception(packetHandler,
+    msg_t smsg = pktStartDataReception(PKT_RADIO_1,
                            chan,
                            rssi,
                            mapCallback);
     if(smsg != MSG_OK) {
-      pktCloseRadioService(packetHandler);
+      pktCloseRadioService(PKT_RADIO_1);
       TRACE_DEBUG("RX   > Open of radio service failed");
     }
 }
@@ -136,7 +136,7 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 		extern packet_svc_t RPKTD1;
 		packet_svc_t *handler = &RPKTD1;
 
-		if(handler->state == PACKET_IDLE || handler->state == PACKET_CLOSE) {
+		if(handler->state == PACKET_IDLE) {
           TRACE_ERROR("RAD  > Packet services are not open for transmit");
           ax25_delete(pp);
 		  return false;

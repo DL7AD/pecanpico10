@@ -37,7 +37,7 @@
  * @brief   Initializes packet handlers and starts the radio manager.
  * @note    The option to manage multiple radios is not yet implemented.
  *
- * @param[in]   pointer to packet service object.
+ * @param[in]   radio unit ID.
  *
  *@return   result of operation.
  *@retval   true    service was created.
@@ -45,11 +45,16 @@
  *
  * @api
  */
-bool pktServiceCreate(packet_svc_t *handler) {
+bool pktServiceCreate(radio_unit_t radio) {
 
-  /* TODO: This should create the top level object for each radio (RPKTDx).
+  /*
+   * TODO: This should lookup radio and assign handler (RPKTDx).
    */
-  //packet_svc_t *handler = &RPKTD1;
+  packet_svc_t *handler = NULL;
+  if(radio == PKT_RADIO_1)
+    handler = &RPKTD1;
+  else
+    return false;
 
   if(handler->state != PACKET_IDLE)
     return false;
@@ -80,16 +85,24 @@ bool pktServiceCreate(packet_svc_t *handler) {
  * @note    The option to manage multiple radios is not yet implemented.
  * @post    The packet handler is at ready after resources are released.
  *
+ * @param[in] radio unit ID
+ *
  *@return   result of operation.
  *@retval   true    service was released.
  *@retval   false   service state is incorrect.
  *
  * @api
  */
-bool pktServiceRelease(packet_svc_t *handler) {
+bool pktServiceRelease(radio_unit_t radio) {
 
-  /* TODO: This should release top level resources for each radio (RPKTDx). */
-  //packet_svc_t *handler = &RPKTD1;
+  /*
+   * TODO: This should lookup radio and assign handler (RPKTDx).
+   */
+  packet_svc_t *handler = NULL;
+  if(radio == PKT_RADIO_1)
+    handler = &RPKTD1;
+  else
+    return false;
 
   if(handler->state != PACKET_READY)
     return false;
@@ -125,8 +138,11 @@ msg_t pktOpenRadioService(radio_unit_t radio,
   /*
    * TODO: implement mapping from radio config to packet handler object.
    */
-  (void)radio;
-  packet_svc_t *handler = &RPKTD1;
+  packet_svc_t *handler = NULL;
+  if(radio == PKT_RADIO_1)
+    handler = &RPKTD1;
+  else
+    return MSG_RESET;
 
   chDbgCheck(handler->state == PACKET_READY);
 
@@ -186,12 +202,16 @@ msg_t pktOpenRadioService(radio_unit_t radio,
  *
  * @api
  */
-msg_t pktStartDataReception(packet_svc_t *handler,
+msg_t pktStartDataReception(radio_unit_t radio,
                             radio_ch_t channel,
                             radio_squelch_t sq,
                             pkt_buffer_cb_t cb) {
 
-  chDbgAssert(handler != NULL, "invalid handler reference");
+  packet_svc_t *handler = NULL;
+  if(radio == PKT_RADIO_1)
+    handler = &RPKTD1;
+  else
+    return MSG_RESET;
 
   if(!(handler->state == PACKET_OPEN || handler->state == PACKET_STOP))
     return MSG_RESET;
@@ -219,13 +239,17 @@ msg_t pktStartDataReception(packet_svc_t *handler,
  * @pre     The packet channel must have been opened.
  * @post    The packet decoder is running.
  *
- * @param[in]   handler pointer to a @p packet handler object.
+ * @param[in]   radio unit ID.
  *
  * @api
  */
-void pktStartDecoder(packet_svc_t *handler) {
+void pktStartDecoder(radio_unit_t radio) {
 
-  //chDbgAssert(handler->state == PACKET_RUN, "invalid handler state");
+  packet_svc_t *handler = NULL;
+  if(radio == PKT_RADIO_1)
+    handler = &RPKTD1;
+  else
+    chDbgAssert(false, "invalid radio ID");
 
   event_listener_t el;
   event_source_t *esp;
@@ -271,7 +295,7 @@ void pktStartDecoder(packet_svc_t *handler) {
  * @pre     The packet channel must be running.
  * @post    The packet channel is stopped.
  *
- * @param[in] handler       pointer to a @p packet handler object.
+ * @param[in] radio     radio unit ID..
  *
  * @return              Status of the operation.
  * @retval MSG_OK       if the channel was stopped.
@@ -280,7 +304,14 @@ void pktStartDecoder(packet_svc_t *handler) {
  *
  * @api
  */
-msg_t pktStopDataReception(packet_svc_t *handler) {
+msg_t pktStopDataReception(radio_unit_t radio) {
+
+  packet_svc_t *handler = NULL;
+  if(radio == PKT_RADIO_1)
+    handler = &RPKTD1;
+  else
+    return MSG_RESET;
+
   if(handler->state != PACKET_RUN)
     return MSG_RESET;
 
@@ -304,13 +335,17 @@ msg_t pktStopDataReception(packet_svc_t *handler) {
  * @pre     The packet channel must be running.
  * @post    The packet decoder is stopped.
  *
- * @param[in]   handler pointer to a @p packet handler object.
+ * @param[in]   radio unit ID.
  *
  * @api
  */
-void pktStopDecoder(packet_svc_t *handler) {
+void pktStopDecoder(radio_unit_t radio) {
 
-  //chDbgAssert(handler->state == PACKET_STOP, "invalid handler state");
+  packet_svc_t *handler = NULL;
+  if(radio == PKT_RADIO_1)
+    handler = &RPKTD1;
+  else
+    chDbgAssert(false, "invalid radio ID");
 
   event_listener_t el;
   event_source_t *esp;
@@ -350,10 +385,10 @@ void pktStopDecoder(packet_svc_t *handler) {
 /**
  * @brief   Closes a packet service.
  * @pre     The packet service must have been stopped.
- * @post    The packet service is closed.
+ * @post    The packet service is closed and returned to ready state.
  * @post    Memory used by the decoder thread is released.
  *
- * @param[in] handler       pointer to a @p packet handler object.
+ * @param[in] radio     radio unit ID.
  *
  * @return              Status of the operation.
  * @retval MSG_OK       if the service was closed successfully.
@@ -362,9 +397,15 @@ void pktStopDecoder(packet_svc_t *handler) {
  *
  * @api
  */
-msg_t pktCloseRadioService(packet_svc_t *handler) {
+msg_t pktCloseRadioService(radio_unit_t radio) {
 
-  if(handler->state != PACKET_STOP)
+  packet_svc_t *handler = NULL;
+  if(radio == PKT_RADIO_1)
+    handler = &RPKTD1;
+  else
+    return MSG_RESET;
+
+  if(!(handler->state == PACKET_STOP || handler->state == PACKET_CLOSE))
     return MSG_RESET;
 
   handler->state = PACKET_CLOSE;

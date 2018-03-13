@@ -733,7 +733,7 @@ void Si446x_lockRadio(radio_mode_t mode) {
 
     if(rx_frequency && mode == RADIO_TX) {
       TRACE_INFO("SI   > Pause packet reception for packet transmit");
-      pktPauseDecoder(packetHandler);
+      pktPauseDecoder(PKT_RADIO_1);
     }
 }
 
@@ -944,7 +944,7 @@ static bool Si4464_restoreRX(void) {
           );
 
         /* Resume decoding. */
-        pktResumeDecoder(packetHandler);
+        pktResumeDecoder(PKT_RADIO_1);
     }
     return ret;
 }
