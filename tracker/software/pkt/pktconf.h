@@ -124,6 +124,14 @@
 
 #define SUSPEND_HANDLING        NO_SUSPEND
 
+#ifdef PKT_IS_TEST_PROJECT
+/* Define macro replacements for TRACE. */
+#define TRACE_DEBUG(format, args...) dbgPrintf(DBG_DEBUG, format, args...)
+#define TRACE_INFO(format, args...) dbgPrintf(DBG_INFO, format, args...)
+#define TRACE_WARN(format, args...) dbgPrintf(DBG_WARN, format, args...)
+#define TRACE_ERROR(format, args...) dbgPrintf(DBG_ERROR, format, args...)
+#endif
+
 /* Extra GPIO value used in local GPIO set/clear/toggle functions. */
 #define PAL_TOGGLE              2U
 
@@ -146,6 +154,8 @@
 #include "ihex_out.h"
 #include "ax25_dump.h"
 #include "si446x.h"
+
+extern packet_svc_t RPKTD1;
 
 /*===========================================================================*/
 /* External declarations.                                                    */

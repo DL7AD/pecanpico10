@@ -160,6 +160,7 @@ CSRC = $(STARTUPSRC) \
        regex/crx.c \
        \
        portab.c \
+       pkt/pktconf.c \
 	   pkt/protocols/crc_calc.c \
 	   pkt/channels/rxafsk.c \
 	   pkt/managers/pktradio.c \

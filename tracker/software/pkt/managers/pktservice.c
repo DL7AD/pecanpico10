@@ -17,8 +17,6 @@
 /* Module exported variables.                                                */
 /*===========================================================================*/
 
-packet_svc_t RPKTD1;
-
 /*===========================================================================*/
 /* Module local types.                                                       */
 /*===========================================================================*/
@@ -39,17 +37,19 @@ packet_svc_t RPKTD1;
  * @brief   Initializes packet handlers and starts the radio manager.
  * @note    The option to manage multiple radios is not yet implemented.
  *
+ * @param[in]   pointer to packet service object.
+ *
  *@return   result of operation.
  *@retval   true    service was created.
  *@retval   false   service creation failed or state was not idle.
  *
  * @api
  */
-bool pktServiceCreate() {
+bool pktServiceCreate(packet_svc_t *handler) {
 
   /* TODO: This should create the top level object for each radio (RPKTDx).
    */
-  packet_svc_t *handler = &RPKTD1;
+  //packet_svc_t *handler = &RPKTD1;
 
   if(handler->state != PACKET_IDLE)
     return false;
@@ -86,10 +86,10 @@ bool pktServiceCreate() {
  *
  * @api
  */
-bool pktServiceRelease() {
+bool pktServiceRelease(packet_svc_t *handler) {
 
   /* TODO: This should release top level resources for each radio (RPKTDx). */
-  packet_svc_t *handler = &RPKTD1;
+  //packet_svc_t *handler = &RPKTD1;
 
   if(handler->state != PACKET_READY)
     return false;

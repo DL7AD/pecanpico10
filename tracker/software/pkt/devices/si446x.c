@@ -33,8 +33,14 @@ static bool radio_sem_init = false;
 //static bool nextTransmissionWaiting;    // Flag that informs the feeder thread to keep the radio switched on
 
 // Feeder thread variables
-static thread_t* feeder_thd = NULL;
-static THD_WORKING_AREA(si_fifo_feeder_wa, 4096);
+static thread_t* fsk_feeder_thd = NULL;
+//static thread_t* afsk_feeder_thd = NULL;
+#if USE_DYNAMIC_AFSK_TX != TRUE
+static THD_WORKING_AREA(si_afsk_fifo_feeder_wa, SI_AFSK_FIFO_FEEDER_WA_SIZE);
+#endif
+#if USE_DYNAMIC_FSK_TX != TRUE
+static THD_WORKING_AREA(si_fsk_fifo_feeder_wa, SI_FSK_FIFO_FEEDER_WA_SIZE);
+#endif
 
 /* Transmitter global variables. */
 static uint32_t tx_frequency;
@@ -157,11 +163,7 @@ static void Si446x_setProperty32(uint16_t reg, uint8_t val1, uint8_t val2, uint8
  * @param mv Oscillator voltage in mv
  */
 static void Si446x_init(void) {
-#ifdef PKT_IS_TEST_PROJECT
-  dbgPrintf(DBG_INFO, "SI   > Init radio\r\n");
-#else
   TRACE_INFO("SI   > Init radio");
-#endif
   pktConfigureRadioGPIO();
 
     // Power up (send oscillator type)
@@ -701,13 +703,9 @@ static void Si446x_setRXState(uint8_t chan)
 
 static void Si446x_shutdown(void)
 {
-#ifdef PKT_IS_TEST_PROJECT
-     dbgPrintf(DBG_INFO, "SI   > Shutdown radio");
-#else
-     TRACE_INFO("SI   > Shutdown radio");
-#endif
-    pktDeconfigureRadioGPIO();
-    radioInitialized = false;
+  TRACE_INFO("SI   > Shutdown radio");
+  pktDeconfigureRadioGPIO();
+  radioInitialized = false;
 }
 
 /* ======================================================================== Locking ========================================================================= */
@@ -734,13 +732,8 @@ void Si446x_lockRadio(radio_mode_t mode) {
 
 
     if(rx_frequency && mode == RADIO_TX) {
-
-  #ifdef PKT_IS_TEST_PROJECT
-        dbgPrintf(DBG_INFO, "SI   > Pause packet reception for packet transmit\r\n");
-  #else
-        TRACE_INFO("SI   > Pause packet reception for packet transmit");
-  #endif
-        pktPauseDecoder(packetHandler);
+      TRACE_INFO("SI   > Pause packet reception for packet transmit");
+      pktPauseDecoder(packetHandler);
     }
 }
 
@@ -814,11 +807,7 @@ static bool Si446x_getLatchedCCA(uint8_t ms) {
         /* FIXME: Using 5KHz systick lowest resolution is 200uS. */
         chThdSleep(TIME_US2I(100));
     }
-#ifdef PKT_IS_TEST_PROJECT
-    dbgPrintf(DBG_INFO, "SI   > CCA=%03d RX=%d\r\n", cca, cca > ms/10);
-#else
     TRACE_INFO("SI   > CCA=%03d RX=%d", cca, cca > ms/10);
-#endif
     return cca > ms; // Max. 1 spike per ms
 }
 
@@ -830,25 +819,16 @@ static bool Si446x_transmit(uint8_t chan,
                             uint8_t rssi, sysinterval_t sql_timeout)
 {
     if(!Si446x_isRadioInBand(chan, RADIO_TX)) {
-#ifdef PKT_IS_TEST_PROJECT
-      dbgPrintf(DBG_ERROR, "SI   > Frequency out of range\r\n");
-      dbgPrintf(DBG_ERROR, "SI   > abort transmission\r\n");
-#else
       TRACE_ERROR("SI   > Frequency out of range");
       TRACE_ERROR("SI   > abort transmission");
-#endif
-        return false;
+      return false;
     }
 
     // Switch to ready state
     if(Si446x_getState() == Si446x_STATE_RX) {
-#ifdef PKT_IS_TEST_PROJECT
-      dbgPrintf(DBG_INFO, "SI   > Switch Si446x to ready state\r\n");
-#else
       TRACE_INFO("SI   > Switch Si446x to ready state");
-#endif
-        Si446x_setReadyState();
-        chThdSleep(TIME_MS2I(1));
+      Si446x_setReadyState();
+      chThdSleep(TIME_MS2I(1));
     }
 
     Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
@@ -859,11 +839,9 @@ static bool Si446x_transmit(uint8_t chan,
     // Wait until nobody is transmitting (until timeout)
 
     if(Si446x_getState() != Si446x_STATE_RX || Si446x_getLatchedCCA(50)) {
-#ifdef PKT_IS_TEST_PROJECT
-        dbgPrintf(DBG_INFO, "SI   > Wait for clear channel\r\n");
-#else
+
         TRACE_INFO("SI   > Wait for clear channel");
-#endif
+
         /* FIXME: Fix timeout. Using 5KHz systick lowest resolution is 200uS. */
         sysinterval_t t0 = chVTGetSystemTime();
         while((Si446x_getState() != Si446x_STATE_RX
@@ -873,11 +851,7 @@ static bool Si446x_transmit(uint8_t chan,
     }
 
     // Transmit
-#ifdef PKT_IS_TEST_PROJECT
-    dbgPrintf(DBG_INFO, "SI   > Tune Si446x (TX)\r\n");
-#else
     TRACE_INFO("SI   > Tune Si446x (TX)");
-#endif
     Si446x_setReadyState();
     /* Set band parameters back to normal TX. */
     Si446x_setBandParameters(tx_frequency, tx_step, RADIO_CCA);     // Set frequency
@@ -898,13 +872,8 @@ static bool Si446x_transmit(uint8_t chan,
                                      mod_t mod) {
   /* TODO: compute f + s*c. */
     if(!Si446x_isRadioInBand(channel, RADIO_RX)) {
-#ifdef PKT_IS_TEST_PROJECT
-      dbgPrintf(DBG_ERROR, "SI   > Frequency out of range\r\n");
-      dbgPrintf(DBG_ERROR, "SI   > abort reception\r\n");
-#else
       TRACE_ERROR("SI   > Frequency out of range");
       TRACE_ERROR("SI   > abort reception");
-#endif
       return false;
     }
 
@@ -920,13 +889,10 @@ static bool Si446x_transmit(uint8_t chan,
           continue;
         /* Remove TX state. */
         Si446x_setReadyState();
-#ifdef PKT_IS_TEST_PROJECT
-      dbgPrintf(DBG_ERROR, "SI   > Timeout waiting for TX state end\r\n");
-      dbgPrintf(DBG_ERROR, "SI   > Attempt start of receive\r\n");
-#else
+
       TRACE_ERROR("SI   > Timeout waiting for TX state end");
       TRACE_ERROR("SI   > Attempt start of receive");
-#endif
+
       break;
     }
 
@@ -935,13 +901,10 @@ static bool Si446x_transmit(uint8_t chan,
         Si446x_setModemAFSK_RX();
     } else {
         //Si446x_shutdown();
-#ifdef PKT_IS_TEST_PROJECT
-        dbgPrintf(DBG_ERROR, "SI   > Modulation type not supported in receive\r\n");
-        dbgPrintf(DBG_ERROR, "SI   > abort reception\r\n");
-#else
+
         TRACE_ERROR("SI   > Modulation type not supported in receive");
         TRACE_ERROR("SI   > abort reception");
-#endif
+
         return false;
     }
 
@@ -950,11 +913,9 @@ static bool Si446x_transmit(uint8_t chan,
     rx_chan = channel;
     rx_mod = mod;
 
-#ifdef PKT_IS_TEST_PROJECT
-    dbgPrintf(DBG_INFO, "SI   > Tune Si446x (RX)\r\n");
-#else
+
     TRACE_INFO("SI   > Tune Si446x (RX)");
-#endif
+
     Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
     //Si446x_setBandParameters(rx_frequency, rx_step, RADIO_RX);     // Set frequency
     Si446x_setRXState(channel);
@@ -973,14 +934,7 @@ static bool Si4464_restoreRX(void) {
                                                         rx_chan);
 
     if(rx_frequency) {
-#ifdef PKT_IS_TEST_PROJECT
 
-      dbgPrintf(DBG_INFO, "SI   > Resume packet reception %d.%03d MHz,"
-                " (ch %d), RSSI %d, %s\r\n",
-                op_freq/1000000, (op_freq % 1000000)/1000,
-                rx_chan,
-                rx_rssi, getModulation(rx_mod);
-#else
 
         TRACE_INFO( "SI   > Resume packet reception %d.%03d MHz (ch %d),"
                     " RSSI %d, %s",
@@ -988,7 +942,7 @@ static bool Si4464_restoreRX(void) {
                     rx_chan,
                     rx_rssi, getModulation(rx_mod)
           );
-#endif
+
         /* Resume decoding. */
         pktResumeDecoder(packetHandler);
     }
@@ -1038,13 +992,11 @@ static uint32_t Si446x_encodeDataToAFSK(uint8_t *inbuf, uint32_t inlen,
         for(uint8_t j = 0; j < 8; j++) {
 
             if(blen >> 3 >= buf_len) { // Buffer overflow
-#ifdef PKT_IS_TEST_PROJECT
-              dbgPrintf(DBG_ERROR, "SI   > Preamble too long\r\n");
-#else
-                TRACE_ERROR("SI   > Preamble too long");
-#endif
 
-                return blen;
+                TRACE_ERROR("SI   > Preamble too long");
+
+
+                return 0;
             }
 
             buf[blen >> 3] |= Si446x_getBitAsNRZI((0x7E >> j) & 0x1) << (blen % 8);
@@ -1063,12 +1015,10 @@ static uint32_t Si446x_encodeDataToAFSK(uint8_t *inbuf, uint32_t inlen,
     while(pos < inlen*8)
     {
         if(blen >> 3 >= buf_len) { // Buffer overflow
-#ifdef PKT_IS_TEST_PROJECT
-          dbgPrintf(DBG_ERROR, "SI   > Packet too long\r\n");
-#else
+
           TRACE_ERROR("SI   > Packet too long");
-#endif
-            return blen;
+
+            return 0;
         }
 
         bool bit;
@@ -1102,12 +1052,10 @@ static uint32_t Si446x_encodeDataToAFSK(uint8_t *inbuf, uint32_t inlen,
 
             if(blen >> 3 >= buf_len) { // Buffer overflow
 
-#ifdef PKT_IS_TEST_PROJECT
-                dbgPrintf(DBG_ERROR, "SI   > Packet too long\r\n");
-#else
+
                 TRACE_ERROR("SI   > Packet too long");
-#endif
-                return blen;
+
+                return 0;
             }
 
             buf[blen >> 3] |= Si446x_getBitAsNRZI((0x7E >> j) & 0x1) << (blen % 8);
@@ -1155,7 +1103,7 @@ static uint8_t Si446x_getUpsampledAFSKbits(uint8_t* buf/*, uint32_t blen*/)
 
 #define SI446X_EVT_AFSK_TX_TIMEOUT      EVENT_MASK(0)
 
-static void Si446x_AFSKtransmitTimeout(thread_t *tp) {
+static void Si446x_AFSKtransmitTimeoutI(thread_t *tp) {
   /* The tell the thread to terminate. */
   chEvtSignal(tp, SI446X_EVT_AFSK_TX_TIMEOUT);
 }
@@ -1173,13 +1121,19 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
 #define PREAMBLE_FLAGS_A    30
 #define PREAMBLE_FLAGS_B     0
 
-    uint8_t layer0[3072];
+    uint8_t layer0[AFSK_FEEDER_BUFFER_SIZE];
     /* Encode packet to AFSK (NRZI & HDLC) with optional preamble. */
     uint32_t layer0_blen = Si446x_encodeDataToAFSK(pp->frame_data,
                                                    pp->frame_len,
                                                    layer0, sizeof(layer0),
                                                    PREAMBLE_FLAGS_A);
+    if(layer0_blen == 0) {
+      // Free packet object memory
+      ax25_delete(pp);
 
+      /* Exit thread. */
+      chThdExit(MSG_RESET);
+    }
 #if PREAMBLE_FLAGS_B > 0
     /* Create NRZI pattern for an HDLC flag. */
       uint8_t a_flag[] = {0x7e};
@@ -1215,17 +1169,15 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
     uint16_t all = ((uint64_t)(layer0_blen * SAMPLES_PER_BAUD) + 7) / 8;
     uint16_t c = (all > free) ? free : all;
 
-#ifdef PKT_IS_TEST_PROJECT
-          dbgPrintf(DBG_INFO, "SI   > AFSK upsampled bytes to send %i\r\n", all);
-#else
-          TRACE_INFO("SI   > AFSK upsampled bytes to send %i", all);
-#endif
+
+    TRACE_INFO("SI   > AFSK upsampled bytes to send %i", all);
+
     /*
      * Start transmission timeout timer.
      * If the 446x gets locked up we'll exit TX and release packet object.
      */
     chVTSet(&send_timer, TIME_S2I(10),
-             (vtfunc_t)Si446x_AFSKtransmitTimeout, chThdGetSelfX());
+             (vtfunc_t)Si446x_AFSKtransmitTimeoutI, chThdGetSelfX());
 
     /* The exit message if all goes well. */
     msg_t exit_msg = MSG_OK;
@@ -1235,14 +1187,15 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
         localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
     Si446x_writeFIFO(localBuffer, c);
 
-    volatile uint8_t more;
-    /* Request start of transmission. */
+    /* Request start of transmission.
+     * TODO: Don't use fixed RSSI.
+     */
     if(Si446x_transmit(tx_chan, tx_pwr, all, 0x4F, TIME_S2I(10))) {
       /* Feed the FIFO while data remains to be sent. */
       while((all - c) > 0) {
         /* Get TX FIFO free count. */
-        more = Si446x_getTXfreeFIFO();
-        /* If there is more free than we need to send set to remainder only. */
+        uint8_t more = Si446x_getTXfreeFIFO();
+        /* If there is more free than we need for send use remainder only. */
         more = (more > (all - c)) ? (all - c) : more;
 
         /* Load the FIFO. */
@@ -1250,11 +1203,11 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
             localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
         Si446x_writeFIFO(localBuffer, more); // Write into FIFO
         c += more;
-        //chThdSleep(TIME_MS2I(15));
 
         /*
-         * Wait for a timeout event during upsampled AFSK byte time period wa.
-         * If all is good go back and load more data to FIFO.
+         * Wait for a timeout event during up-sampled AFSK byte time period.
+         * Time delay allows for ~11 bytes of transmit data from the FIFO.
+         * If no timeout event go back and load more data to FIFO.
          */
         eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_AFSK_TX_TIMEOUT,
                                    chTimeUS2I(833 * 8 * SAMPLES_PER_BAUD));
@@ -1267,11 +1220,7 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
       }
     } else {
       /* Transmit start failed. */
-#ifdef PKT_IS_TEST_PROJECT
-          dbgPrintf(DBG_ERROR, "SI   > Transmit start failed\r\n");
-#else
-          TRACE_ERROR("SI   > Transmit start failed");
-#endif
+        TRACE_ERROR("SI   > Transmit start failed");
     }
     chVTReset(&send_timer);
 
@@ -1314,20 +1263,39 @@ void Si446x_sendAFSK(packet_t pp,
     tx_chan = chan;
     tx_pwr = pwr;
 
+    thread_t *afsk_feeder_thd = NULL;
+
+#if USE_DYNAMIC_AFSK_TX == TRUE
+    afsk_feeder_thd = chThdCreateFromHeap(NULL,
+                THD_WORKING_AREA_SIZE(SI_AFSK_FIFO_FEEDER_WA_SIZE),
+                "446x_afsk_tx",
+                NORMALPRIO - 10,
+                si_fifo_feeder_afsk,
+                pp);
+#else
     // Start/re-start FIFO feeder
-    feeder_thd = chThdCreateStatic(si_fifo_feeder_wa,
-                                   sizeof(si_fifo_feeder_wa),
-                                   HIGHPRIO,
+    afsk_feeder_thd = chThdCreateStatic(si_afsk_fifo_feeder_wa,
+                                   sizeof(si_afsk_fifo_feeder_wa),
+                                   NORMALPRIO - 10,
                                    si_fifo_feeder_afsk,
                                    pp);
-
-    msg_t send_msg = chThdWait(feeder_thd);
-    if(send_msg == MSG_TIMEOUT) {
-#ifdef PKT_IS_TEST_PROJECT
-          dbgPrintf(DBG_ERROR, "SI   > Transmit AFSK timeout\r\n");
-#else
-          TRACE_ERROR("SI   > Transmit AFSK timeout");
 #endif
+
+    if(afsk_feeder_thd == NULL) {
+      /* Release packet object. */
+      ax25_delete(pp);
+      /* Unlock radio. */
+      Si446x_unlockRadio(RADIO_TX);
+      TRACE_ERROR("SI   > Unable to create AFSK transmit thread");
+      return;
+    }
+    /* Wait for transmit thread to terminate. */
+    msg_t send_msg = chThdWait(afsk_feeder_thd);
+    if(send_msg == MSG_TIMEOUT) {
+      TRACE_ERROR("SI   > Transmit AFSK timeout");
+    }
+    if(send_msg == MSG_RESET) {
+      TRACE_ERROR("SI   > Transmit AFSK buffer overrun");
     }
     /* Unlock radio. */
     Si446x_unlockRadio(RADIO_TX);
@@ -1406,19 +1374,15 @@ void Si446x_send2FSK(packet_t pp,
     tx_pwr = pwr;
 
     // Start/re-start FIFO feeder
-    feeder_thd = chThdCreateStatic(si_fifo_feeder_wa,
-                                   sizeof(si_fifo_feeder_wa),
+    fsk_feeder_thd = chThdCreateStatic(si_fsk_fifo_feeder_wa,
+                                   sizeof(si_fsk_fifo_feeder_wa),
                                    HIGHPRIO,
                                    si_fifo_feeder_fsk,
                                    pp);
 
-    msg_t send_msg = chThdWait(feeder_thd);
+    msg_t send_msg = chThdWait(fsk_feeder_thd);
     if(send_msg == MSG_TIMEOUT) {
-#ifdef PKT_IS_TEST_PROJECT
-          dbgPrintf(DBG_ERROR, "SI   > Transmit 2FSK timeout\r\n");
-#else
-          TRACE_ERROR("SI   > Transmit 2FSK timeout");
-#endif
+      TRACE_ERROR("SI   > Transmit 2FSK timeout");
     }
     /* Unlock radio. */
     Si446x_unlockRadio(RADIO_TX);
@@ -1440,18 +1404,10 @@ int16_t Si446x_getLastTemperature(void) {
       Si446x_lockRadio(RADIO_RX);
       // Temperature readout
       lastTemp = Si446x_getTemperature();
-#ifdef PKT_IS_TEST_PROJECT
-      dbgPrintf(DBG_INFO, "SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
-#else
       TRACE_INFO("SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
-#endif
       Si446x_unlockRadio(RADIO_RX);
     } else {
-#ifdef PKT_IS_TEST_PROJECT
-      dbgPrintf(DBG_INFO, "SI   > Transmitter temperature not available\r\n");
-#else
       TRACE_INFO("SI   > Transmitter temperature not available");
-#endif
       return 0;
     }
   }

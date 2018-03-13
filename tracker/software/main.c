@@ -38,9 +38,13 @@ int main(void) {
     /* Start serial channels. */
     pktSerialStart();
 
+    event_listener_t pkt_el;
+
     /* Create packet radio service. */
-    if(!pktServiceCreate()) {
+    if(!pktServiceCreate(&RPKTD1)) {
       TRACE_ERROR("PKT  > Unable to create packet services");
+    } else {
+      chEvtRegister(pktGetEventSource(&RPKTD1), &pkt_el, 1);
     }
 
 	#if ACTIVATE_USB
@@ -69,16 +73,28 @@ int main(void) {
 		#if ACTIVATE_USB
 		if(SDU1.config->usbp->state == USB_ACTIVE) {
 			if(shelltp == NULL) {
-				shelltp = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(1024), "shell", NORMALPRIO + 1, shellThread, (void*)&shell_cfg);
+				shelltp = chThdCreateFromHeap(NULL,
+				                              THD_WORKING_AREA_SIZE(1024),
+				                              "shell", NORMALPRIO + 1,
+				                              shellThread,
+				                              (void*)&shell_cfg);
 			}
-			chEvtWaitAny(EVENT_MASK(0));
+			eventmask_t evt = chEvtWaitAnyTimeout(EVENT_MASK(0) /*| EVENT_MASK(1)*/, TIME_S2I(1));
 			if(chThdTerminatedX(shelltp)) {
 				chThdRelease(shelltp);
 				shelltp = NULL;
+				continue;
+			}
+			if(evt & EVENT_MASK(1)) {
+			  eventflags_t flags = chEvtGetAndClearFlags(&pkt_el);
+			  if(flags & EVT_ICU_SLEEP_TIMEOUT) {
+			    TRACE_INFO("PKT  > PWM ICU has gone to sleep");
+			  }
 			}
 		}
 		#endif
-		chThdSleep(TIME_S2I(1));
+        if(shelltp == NULL)
+          chThdSleep(TIME_S2I(1));
 	}
 }
 
