@@ -93,6 +93,7 @@
 #define EVT_RADIO_CCA_SPIKE     EVENT_MASK(EVT_PRIORITY_BASE + 28)
 //#define EVT_SERIAL_PKT_OUT_END  EVENT_MASK(EVT_PRIORITY_BASE + 29)
 #define EVT_ICU_OUT_OF_RANGE    EVENT_MASK(EVT_PRIORITY_BASE + 30)
+//#define EVT_TBA    EVENT_MASK(EVT_PRIORITY_BASE + 31)
 
 /* Initiator thread events (from decoder to initiator). */
 #define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 0)

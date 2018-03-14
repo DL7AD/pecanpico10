@@ -194,6 +194,7 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
   AFSKDemodDriver *myDemod = myICU->link;
   packet_svc_t *myHandler = myDemod->packet_handler;
   chDbgAssert(myDemod != NULL, "no demod linked");
+
   chVTResetI(&myICU->pwm_timer);
 
   /*
@@ -213,7 +214,7 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
 #else
     byte_packed_pwm_t pack = {{0, reason}};
 #endif
-    msg_t qs = pktWritePWMQueue(myQueue, pack);
+    msg_t qs = pktWritePWMQueueI(myQueue, pack);
     if(qs != MSG_OK) {
       pktWriteOverflowLED(PAL_HIGH);
       myDemod->active_radio_object->status |= EVT_PWM_QUEUE_FULL;
@@ -370,7 +371,7 @@ void pktICUInactivityTimeout(ICUDriver *myICU) {
  *
  * @api
  */
-void pktStopAllICUTimersS(ICUDriver *myICU) {
+void pktStopAllICUTimersI(ICUDriver *myICU) {
   chVTResetI(&myICU->icu_timer);
   chVTResetI(&myICU->cca_timer);
   chVTResetI(&myICU->pwm_timer);
@@ -637,7 +638,7 @@ msg_t pktQueuePWMDataI(ICUDriver *myICU) {
 
   byte_packed_pwm_t pack;
   pktConvertICUtoPWM(myICU, &pack);
-  return pktWritePWMQueue(myQueue, pack);
+  return pktWritePWMQueueI(myQueue, pack);
 }
 
 /** @} */

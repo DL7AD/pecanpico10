@@ -93,6 +93,31 @@ int main(void) {
               if(flags & EVT_PWM_FIFO_EMPTY) {
                 TRACE_WARN("PKT  > PWM FIFO exhausted");
               }
+              if(flags & EVT_AX25_NO_BUFFER) {
+                TRACE_WARN("PKT  > AX25 FIFO exhausted");
+              }
+              if(flags & EVT_ICU_SLEEP_TIMEOUT) {
+                TRACE_INFO("PKT  > PWM ICU has entered sleep");
+              }
+              if(flags & EVT_AX25_BUFFER_FULL) {
+                TRACE_WARN("PKT  > AX25 receive buffer full");
+              }
+              if(flags & EVT_DECODER_ERROR) {
+                TRACE_ERROR("PKT  > Decoder error");
+              }
+              if(flags & EVT_PWM_UNKNOWN_INBAND) {
+                TRACE_ERROR("PKT  > Unknown PWM inband flag");
+              }
+              if(flags & EVT_ICU_OVERFLOW) {
+                TRACE_WARN("PKT  > PWM ICU overflow");
+              }
+              if(flags & EVT_PWM_STREAM_TIMEOUT) {
+                TRACE_WARN("PKT  > PWM steam timeout");
+              }
+              if(flags & EVT_PWM_NO_DATA) {
+                TRACE_WARN("PKT  > PWM data not started from radio");
+              }
+
 			}
 		}
 		#endif

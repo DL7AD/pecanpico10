@@ -192,7 +192,7 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
  *                      unless the data is an EOT flag.
  * @api
  */
-static inline msg_t pktWritePWMQueue(input_queue_t *queue,
+static inline msg_t pktWritePWMQueueI(input_queue_t *queue,
                                      byte_packed_pwm_t pack) {
   size_t qsz = sizeof(pack.bytes);
   /* Check for required space. */
@@ -241,7 +241,7 @@ extern "C" {
   void pktRadioICUPeriod(ICUDriver *myICU);
   void PktRadioICUOverflow(ICUDriver *myICU);
   void pktRadioCCAInput(ICUDriver *myICU);
-  void pktStopAllICUTimersS(ICUDriver *myICU);
+  void pktStopAllICUTimersI(ICUDriver *myICU);
   void pktSleepICUI(ICUDriver *myICU);
   msg_t pktQueuePWMDataI(ICUDriver *myICU);
   void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt,

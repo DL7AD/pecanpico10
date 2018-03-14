@@ -200,16 +200,14 @@ void pktDisablePWM(AFSKDemodDriver *myDriver) {
   icuStopCaptureI(myDriver->icudriver);
 
   /* Stop any timeouts in ICU handling. */
-  pktStopAllICUTimersS(myDriver->icudriver);
+  pktStopAllICUTimersI(myDriver->icudriver);
 
   /* Disable CCA port event. */
   palDisableLineEventI(LINE_CCA);
 
   myDriver->icustate = PKT_PWM_STOP;
 
-  /*
-   * FIXME: This reschedule is required to avoid a "priority order violation".
-   */
+  /* Reschedule is required to avoid a "priority order violation". */
   chSchRescheduleS();
   chSysUnlock();
 }
@@ -748,20 +746,19 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         objects_fifo_t *pkt_buffer_pool = chFactoryGetObjectsFIFO(pkt_fifo);
         chDbgAssert(pkt_buffer_pool != NULL, "no packet fifo list");
 
-        chSysLock();
-        /* TODO: Does this really need to be locked? */
         /* Get a buffer and have it initialized ready for use. */
-        pkt_data_object_t *myPktBuffer = pktTakeDataBufferS(myHandler,
-                                                            pkt_buffer_pool);
+        /* TODO: Calculate timeout based on free space in PWM queue. */
+        pkt_data_object_t *myPktBuffer = pktTakeDataBuffer(myHandler,
+                                                            pkt_buffer_pool,
+                                                            TIME_MS2I(100));
 
         if(myPktBuffer == NULL) {
-          chSysUnlock();
           pktAddEventFlags(myHandler, EVT_AX25_NO_BUFFER);
           myDriver->active_demod_object->status |= EVT_AX25_NO_BUFFER;
           myDriver->decoder_state = DECODER_ERROR;
           break;
         }
-        chSysUnlock();
+
         /*
          * Fill it with a pattern for debug.
          * TODO: Make this a diagnostic conditional.
@@ -896,18 +893,18 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /*
          * Return PWM FIFO to pool if there is one active.
          */
-        chSysLock();
+
         radio_cca_fifo_t *myFIFO = myDriver->active_demod_object;
         if(myFIFO != NULL) {
 
           /* Wait for queue object to be released by PWM. */
-          (void)chBSemWaitS(&myFIFO->sem);
+          (void)chBSemWait(&myFIFO->sem);
 
           myDriver->active_demod_object = NULL;
-          chFifoReturnObjectI(myDriver->pwm_fifo_pool, myFIFO);
+          chFifoReturnObject(myDriver->pwm_fifo_pool, myFIFO);
 
         }
-        chSysUnlock();
+
         /* Reset the correlation decoder and its filters. */
         pktResetAFSKDecoder(myDriver);
 

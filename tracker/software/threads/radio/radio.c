@@ -23,15 +23,15 @@ static void processPacket(uint8_t *buf, uint32_t len) {
 		if(pp->num_addr > 0) {
 	      aprs_decode_packet(pp);
 		} else {
-	      TRACE_DEBUG("RX   > No addresses in packet - dropped");
+	      TRACE_INFO("RX   > No addresses in packet - dropped");
 		}
 		ax25_delete(pp);
 	} else {
-		TRACE_DEBUG("RX    > Error in packet - dropped");
+		TRACE_INFO("RX    > Error in packet - dropped");
 	}
 	return;
   }
-  TRACE_DEBUG("RX    > Packet dropped due to data length < 2");
+  TRACE_INFO("RX    > Packet dropped due to data length < 2");
 }
 
 void mapCallback(pkt_data_object_t *pkt_buff) {
@@ -83,7 +83,7 @@ void start_rx_thread(uint32_t freq, uint16_t step,
                            mapCallback);
     if(smsg != MSG_OK) {
       pktCloseRadioService(PKT_RADIO_1);
-      TRACE_DEBUG("RX   > Open of radio service failed");
+      TRACE_DEBUG("RX   > Start of radio packet reception failed");
     }
 }
 
@@ -133,14 +133,15 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
          * Packet services also has WIP in handler <> radio mapping, etc.
          */
 
-		extern packet_svc_t RPKTD1;
-		packet_svc_t *handler = &RPKTD1;
-
-		if(handler->state == PACKET_IDLE) {
+		packet_state_t state = pktGetServiceState(PKT_RADIO_1);
+		if(state == PACKET_IDLE || state == PACKET_INVALID) {
           TRACE_ERROR("RAD  > Packet services are not open for transmit");
           ax25_delete(pp);
 		  return false;
 		}
+
+		/* The service object. */
+        packet_svc_t *handler = pktGetServiceObject(PKT_RADIO_1);
 
 		/* Update  the saved radio data with this new request. */
         radio_task_object_t rt = handler->radio_tx_config;

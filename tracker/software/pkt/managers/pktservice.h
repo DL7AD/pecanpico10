@@ -36,7 +36,8 @@ typedef enum packetHandlerStates {
   PACKET_OPEN,
   PACKET_RUN,
   PACKET_STOP,
-  PACKET_CLOSE
+  PACKET_CLOSE,
+  PACKET_INVALID
 } packet_state_t;
 
 /* HDLC frame states. */
@@ -176,6 +177,9 @@ typedef struct packetHandlerData {
 
 #include "pktradio.h"
 
+
+extern packet_svc_t RPKTD1;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -297,24 +301,28 @@ extern "C" {
  *
  * @api
  */
-#define pktUnregisterEventListener(ip, listener) {                            \
+#define pktUnregisterEventListener(ip, listener) {                           \
   chEvtUnregister(ip, listener);                                             \
 }
 
 /**
  * @brief   Fetches a buffer from the packet buffer free pool.
- * @details This function is called from locked thread level to an AX25 buffer.
+ * @details This function is called from thread level to obtain a buffer
+ *          to write AX25 data into.
  *
+ * @param[in]   handler     pointer to a @p packet service object
  * @param[in]   fifo        pointer to a @p objects FIFO
+ * @paream[in]  timeout     Allowable wait for a free buffer
  *
- * @return      pointer to packet buffer.
- * @retval      NULL if no buffer available.
+ * @return      pointer to packet buffer object.
+ * @retval      NULL if no buffer object available.
  *
- * @sclass
+ * @api
  */
-static inline pkt_data_object_t *pktTakeDataBufferS(packet_svc_t *handler,
-                                                    objects_fifo_t *fifo) {
-  pkt_data_object_t *pkt_buffer = chFifoTakeObjectI(fifo);
+static inline pkt_data_object_t *pktTakeDataBuffer(packet_svc_t *handler,
+                                                    objects_fifo_t *fifo,
+                                                    systime_t timeout) {
+  pkt_data_object_t *pkt_buffer = chFifoTakeObjectTimeout(fifo, timeout);
   if(pkt_buffer != NULL) {
 
     /*
@@ -323,39 +331,18 @@ static inline pkt_data_object_t *pktTakeDataBufferS(packet_svc_t *handler,
      */
     handler->active_packet_object = pkt_buffer;
 
-    /* Initialize the buffer fields. */
+    /* Initialize the object fields. */
     pkt_buffer->handler = handler;
     pkt_buffer->status = EVT_STATUS_CLEAR;
     pkt_buffer->packet_size = 0;
     pkt_buffer->buffer_size = PKT_RX_BUFFER_SIZE;
     pkt_buffer->cb_func = handler->usr_callback;
 
-    /* Save the pointer to the packet factory for use when releasing buffer. */
+    /* Save the pointer to the packet factory for use when releasing object. */
     pkt_buffer->pkt_factory = handler->the_packet_fifo;
   }
   return pkt_buffer;
 }
-
-/**
- * @brief   Fetches a buffer from the packet buffer free pool.
- * @details This function is called from thread level to obtain a buffer
- *          to write AX25 data into.
- *
- * @param[in]   fifo        pointer to a @p objects FIFO
- *
- * @return      pointer to buffer object.
- * @retval      NULL if no buffer object available.
- *
- * @api
- */
-static inline pkt_data_object_t *pktTakeDataBuffer(packet_svc_t *handler,
-                                                   objects_fifo_t *fifo) {
-  chSysLock();
-  pkt_data_object_t *pkt_buffer = pktTakeDataBufferS(handler, fifo);
-  chSysUnlock();
-  return pkt_buffer;
-}
-
 
 /**
  * @brief   Returns a buffer to the packet buffer free pool.
@@ -365,7 +352,7 @@ static inline pkt_data_object_t *pktTakeDataBuffer(packet_svc_t *handler,
  * @post    Or...
  * @post    The factory object is released.
  * @post    If the factory reference count reaches zero it will be destroyed.
- * @post    i.e. when the decoder is closed and the last outstanding buffer is released.
+ * @post    i.e. when the decoder is closed with no further outstanding buffers.
  *
  * @param[in]   object      pointer to a @p buffer object.
  *
@@ -381,20 +368,18 @@ static inline void pktReleaseDataBuffer(pkt_data_object_t *object) {
 
 
   /* Is this a callback release? */
-  /* TODO: Might be better if this is handled independent of this function? */
   if(object->cb_func != NULL) {
     /*
      * For callback mode send the packet buffer to the FIFO queue.
      * It will be released in the collector thread.
      * The callback thread memory will be recovered.
-     * The semaphore will be signalled.
+     * The semaphore will be signaled.
      */
     chSysLock();
     chFifoSendObjectI(pkt_fifo, object);
     chThdExitS(MSG_OK);
     /* We don't get to here. */
   }
-
 
   /*
    * Free the object.
@@ -466,6 +451,50 @@ static inline bool pktIsBufferValidAX25Frame(pkt_data_object_t *object) {
   uint16_t frame_size = object->packet_size;
   return ((object->status & EVT_AFSK_DECODE_DONE)
     && (frame_size >= PKT_MIN_FRAME));
+}
+
+/**
+ * @brief   Gets current state of a packet service..
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @return                  The service state.
+ * @retval PACKET_INVALID   If the radio ID is invalid.
+ *
+ * @api
+ */
+static inline packet_state_t pktGetServiceState(radio_unit_t radio) {
+  /*
+   * TODO: implement mapping from radio config to packet handler object.
+   */
+  packet_svc_t *handler = NULL;
+  if(radio == PKT_RADIO_1) {
+    handler = &RPKTD1;
+  }
+  else
+    return PACKET_INVALID;
+  return handler->state;
+}
+
+/**
+ * @brief   Gets service object associated with radio.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @return        pointer to the service object.
+ * @retval NULL   If the radio ID is invalid.
+ *
+ * @api
+ */
+static inline packet_svc_t *pktGetServiceObject(radio_unit_t radio) {
+  /*
+   * TODO: implement mapping from radio config to packet handler object.
+   */
+  packet_svc_t *handler = NULL;
+  if(radio == PKT_RADIO_1) {
+    handler = &RPKTD1;
+  }
+  return handler;
 }
 
 #endif /* PKT_CHANNELS_PKTSERVICE_H_ */
