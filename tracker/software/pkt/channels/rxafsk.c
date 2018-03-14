@@ -20,6 +20,8 @@
 /* Driver exported variables.                                                */
 /*===========================================================================*/
 
+/* TODO: Remove or recalculate Matlab/Octave filter coefficients. */
+
 #if MAG_FILTER_GEN_COEFF == TRUE
 
 float32_t mag_filter_coeff_f32[MAG_FILTER_NUM_TAPS];
@@ -217,7 +219,7 @@ void pktDisablePWM(AFSKDemodDriver *myDriver) {
  *
  * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
  *
- * @return  status indicating if symbol decoding should take place.
+ * @return  status  indicating if symbol decoding should take place.
  * @retval  true    decoding should run before getting next PWM entry.
  * @retval  false   continue immediately with next PWM data entry.
  *
@@ -424,7 +426,7 @@ bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver) {
     } /* End case AFSK_DSP_QCORR_DECODE. */
 
     case AFSK_DSP_FCORR_DECODE: {
-      /* TODO: Tone analysis is done per sample in FCORR. */
+      /* Tone analysis is done per sample in FCORR. */
       break;
     } /* End case AFSK_DSP_FCORR_DECODE. */
 
@@ -818,7 +820,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             } /* End case 0. */
 
             case PWM_TERM_ICU_OVERFLOW:
-            case PWM_TERM_NO_RESOURCE:
+            case PWM_TERM_NO_QUEUE:
             case PWM_TERM_QUEUE_FULL: {
               /* Buffer overrun flag from PWM.
                * PWM side has set the global event for this.

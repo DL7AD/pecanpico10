@@ -38,7 +38,7 @@
 #define PWM_TERM_CCA_CLOSE      0
 #define PWM_TERM_QUEUE_FULL     1
 #define PWM_TERM_ICU_OVERFLOW   2
-#define PWM_TERM_NO_RESOURCE    3
+#define PWM_TERM_NO_QUEUE       3
 #define PWM_TERM_DECODE_ENDED   4
 #define PWM_TERM_DECODE_STOP    5
 
@@ -102,9 +102,9 @@ typedef union {
 
 /* Union of packed PWM data buffer and byte array representation. */
 typedef union {
-  byte_packed_pwm_t         pwm_buffer[PWM_BUFFER_SLOTS];
+  byte_packed_pwm_t         pwm_buffer[PWM_DATA_SLOTS];
   packed_pwm_data_t         pwm_bytes[sizeof(byte_packed_pwm_t)
-                                 * PWM_BUFFER_SLOTS];
+                                 * PWM_DATA_SLOTS];
 } radio_pwm_buffer_t;
 
 /* PWM FIFO object with embedded queue shared between ICU and decoder. */

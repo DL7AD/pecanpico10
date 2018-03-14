@@ -12,10 +12,8 @@
 #include "debug.h"
 #endif
 #include "pktconf.h"
+#ifndef PKT_IS_TEST_PROJECT
 #include "radio.h"
-
-#ifdef PKT_IS_TEST_PROJECT
-void ax25_delete(packet_t pp);
 #endif
 
 // Access locking
@@ -940,7 +938,7 @@ static bool Si4464_restoreRX(void) {
                     " RSSI %d, %s",
                     op_freq/1000000, (op_freq % 1000000)/1000,
                     rx_chan,
-                    rx_rssi, getModulation(rx_mod)
+                    rx_rssi, rx_mod
           );
 
         /* Resume decoding. */

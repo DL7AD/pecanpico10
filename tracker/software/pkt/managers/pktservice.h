@@ -51,11 +51,7 @@ typedef enum HDLCFrameStates {
 
 #ifdef PKT_IS_TEST_PROJECT
 /* Modulation type. */
-typedef enum {
-  MOD_NONE,
-  MOD_AFSK,
-  MOD_2FSK
-} mod_t;
+#include "pktconf.h"
 
 #endif
 

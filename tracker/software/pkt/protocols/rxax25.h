@@ -161,14 +161,12 @@ struct packet_s {
                 /* For U frames:    set to 0 - not applicable */
                 /* For I & S frames:    8 or 128 if known.  0 if unknown. */
 
-    unsigned char frame_data[PKT_MAX_PACKET_LEN + 1];
+    unsigned char frame_data[PKT_MAX_RX_PACKET_LEN + 1];
                 /* Raw frame contents, without the CRC. */
 
 
     int magic2;     /* Will get stomped on if above overflows. */
 };
-
-
 
 
 typedef struct packet_s *packet_t;

@@ -74,7 +74,7 @@ typedef uint8_t radio_squelch_t;
 typedef struct radioTask radio_task_object_t;
 typedef struct packetHandlerData packet_svc_t;
 #ifdef PKT_IS_TEST_PROJECT
-typedef void * packet_t;
+//typedef void * packet_t;
 #endif
 
 /**

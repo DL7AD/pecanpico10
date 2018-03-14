@@ -86,7 +86,7 @@
 
 /* Definitions for ICU FIFO implemented using chfactory. */
 #define NUMBER_PWM_FIFOS            4U
-#define PWM_BUFFER_SLOTS            6000
+#define PWM_DATA_SLOTS              6000
 
 /* Number of frame output buffers. */
 #define NUMBER_PKT_FIFOS            2U

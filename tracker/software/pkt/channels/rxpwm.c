@@ -259,7 +259,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
      * Shouldn't happen unless CCA has not triggered an EXTI trailing edge.
      * For now just flag that an error condition happened.
      */
-    pktClosePWMChannelI(myICU, EVT_RADIO_CCA_FIFO_ERR, PWM_TERM_NO_RESOURCE);
+    pktClosePWMChannelI(myICU, EVT_RADIO_CCA_FIFO_ERR, PWM_TERM_NO_QUEUE);
     return;
   }
   /* Normal CCA handling. */

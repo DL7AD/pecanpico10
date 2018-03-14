@@ -15,7 +15,9 @@
  */
 
 #include "pktconf.h"
+#ifndef PKT_IS_TEST_PROJECT
 #include "radio.h"
+#endif
 #include "si446x.h"
 
 /**
