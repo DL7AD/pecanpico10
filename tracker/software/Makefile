@@ -130,11 +130,11 @@ CSRC = $(STARTUPSRC) \
        threads/radio/radio.c \
        protocols/ssdv/ssdv.c \
        protocols/ssdv/rs8.c \
-       protocols/aprs2/ax25_pad.c \
-       protocols/aprs2/dedupe.c \
-       protocols/aprs2/fcs_calc.c \
-       protocols/aprs2/aprs.c \
-       protocols/aprs2/digipeater.c \
+       pkt/protocols/aprs2/ax25_pad.c \
+       pkt/protocols/aprs2/dedupe.c \
+       pkt/protocols/aprs2/fcs_calc.c \
+       protocols/packet/aprs.c \
+       pkt/protocols/aprs2/digipeater.c \
        drivers/wrapper/pi2c.c \
        drivers/wrapper/ei2c.c \
        drivers/wrapper/padc.c \
@@ -264,9 +264,9 @@ UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4 -DSHELL_CMD_TEST_ENABLED=1
 UADEFS =
 
 # List all user directories here
-UINCDIR = threads/ drivers/ drivers/wrapper/ protocols/aprs2 \
-          protocols/ssdv protocols/morse math/ drivers/flash/ \
-          fatfs/src/ threads/radio/ \
+UINCDIR = threads/ drivers/ drivers/wrapper/ pkt/protocols/aprs2 \
+          protocols/ssdv math/ drivers/flash/ \
+          protocols/packet fatfs/src/ threads/radio/ \
           pkt pkt/channels pkt/managers pkt/devices pkt/protocols \
           pkt/diagnostics pkt/filters pkt/decoders pkt/sys CMSIS/include \
           regex/

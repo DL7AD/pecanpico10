@@ -1,8 +1,19 @@
 /*
- * pkttypes.h
+    Aerospace Decoder - Copyright (C) 2018 Bob Anderson (VK2GJ)
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*/
+
+/**
+ * @file    pkttypes.h
+ * @brief   Types definitions.
+ * @details Include this file in each source code module.
  *
- *  Created on: 15 Mar 2018
- *      Author: Bob
+ * @addtogroup pktconfig
+ * @details Decoder type definitions.
+ * @{
  */
 
 #ifndef PKT_PKTTYPES_H_

@@ -73,9 +73,6 @@ typedef uint8_t radio_squelch_t;
  */
 typedef struct radioTask radio_task_object_t;
 typedef struct packetHandlerData packet_svc_t;
-#ifdef PKT_IS_TEST_PROJECT
-//typedef void * packet_t;
-#endif
 
 /**
  * @brief           Radio task notification callback type.
@@ -96,7 +93,7 @@ typedef void (*radio_task_cb_t)(packet_svc_t *handler);
   radio_task_cb_t       callback;
 } radio_request_t;*/
 
-
+#include "ax25_pad.h"
 /**
  * @brief       Radio task object.
  * @details     object submitted by FIFO to manager for radio task requests.
