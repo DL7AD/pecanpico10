@@ -157,7 +157,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         break;
 
       case MOD_NONE:
-        ax25_delete(pp);
+        pktReleaseSendObject(pp);
         break;
       } /* End switch on task_object->type. */
       break;

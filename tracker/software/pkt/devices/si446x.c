@@ -40,11 +40,14 @@ static THD_WORKING_AREA(si_afsk_fifo_feeder_wa, SI_AFSK_FIFO_FEEDER_WA_SIZE);
 static THD_WORKING_AREA(si_fsk_fifo_feeder_wa, SI_FSK_FIFO_FEEDER_WA_SIZE);
 #endif
 
-/* Transmitter global variables. */
+/*
+ * Transmitter global variables.
+ * Saved when setting band. */
 static uint32_t tx_frequency;
 static uint16_t tx_step;
-static uint16_t tx_chan;
-static uint8_t tx_pwr;
+
+/*static uint16_t tx_chan;
+static uint8_t tx_pwr;*/
 //static uint8_t tx_mod;
 
 // Si446x variables
@@ -214,7 +217,7 @@ static void Si446x_init(void) {
      */
     Si446x_setProperty8(Si446x_PREAMBLE_TX_LENGTH, 0x00);
     /* TODO: Use PREAMBLE_CONFIG_NSTD, etc. to send flags?
-     * Unfortunately this requires a preamble pattern of 88 bits.
+     * To do this with AFSK up-sampling requires a preamble pattern of 88 bits.
      * The 446x only has up to 32 pattern bits.
      * Why 88 bits? Due to the oversampling used to create AFSK at 13.2ksps.
      * Each HDLC bit takes 11 TX bit times.
@@ -938,8 +941,7 @@ static bool Si4464_restoreRX(void) {
                     " RSSI %d, %s",
                     op_freq/1000000, (op_freq % 1000000)/1000,
                     rx_chan,
-                    rx_rssi, rx_mod
-          );
+                    rx_rssi, getModulation(rx_mod));
 
         /* Resume decoding. */
         pktResumeDecoder(PKT_RADIO_1);
@@ -1126,8 +1128,8 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
                                                    layer0, sizeof(layer0),
                                                    PREAMBLE_FLAGS_A);
     if(layer0_blen == 0) {
-      // Free packet object memory
-      ax25_delete(pp);
+      /* Nothing encoded. Release packet send object. */
+      pktReleaseSendObject(pp);
 
       /* Exit thread. */
       chThdExit(MSG_RESET);
@@ -1185,10 +1187,8 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
         localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
     Si446x_writeFIFO(localBuffer, c);
 
-    /* Request start of transmission.
-     * TODO: Don't use fixed RSSI.
-     */
-    if(Si446x_transmit(tx_chan, tx_pwr, all, 0x4F, TIME_S2I(10))) {
+    /* Request start of transmission. */
+    if(Si446x_transmit(pp->radio_chan, pp->radio_pwr, all, pp->cca_rssi, TIME_S2I(10))) {
       /* Feed the FIFO while data remains to be sent. */
       while((all - c) > 0) {
         /* Get TX FIFO free count. */
@@ -1227,13 +1227,13 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
      * Else don't wait.
      */
     while(Si446x_getState() == Si446x_STATE_TX && exit_msg == MSG_OK) {
-      /* Sleep for an AFSK upsampled byte time. */
+      /* Sleep for an AFSK up-sampled byte time. */
       chThdSleep(chTimeUS2I(833 * 8 * SAMPLES_PER_BAUD));
       continue;
     }
 
     // Free packet object memory
-    ax25_delete(pp);
+    pktReleaseSendObject(pp);
 
     /* Exit thread. */
     chThdExit(exit_msg);
@@ -1253,13 +1253,12 @@ void Si446x_sendAFSK(packet_t pp,
     /* Set parameters for AFSK transmission. */
     Si446x_setModemAFSK_TX();
 
-    // Set pointers for feeder
-    /*
-     * TODO: The frame object should contain radio parameters as well.
-     */
+    /* Set transmit parameters. */
+    pp->radio_chan = chan;
+    pp->radio_pwr = pwr;
 
-    tx_chan = chan;
-    tx_pwr = pwr;
+    /* TODO: Don't use fixed RSSI. */
+    pp->cca_rssi = 0x4F;
 
     thread_t *afsk_feeder_thd = NULL;
 
@@ -1281,7 +1280,7 @@ void Si446x_sendAFSK(packet_t pp,
 
     if(afsk_feeder_thd == NULL) {
       /* Release packet object. */
-      ax25_delete(pp);
+      pktReleaseSendObject(pp);
       /* Unlock radio. */
       Si446x_unlockRadio(RADIO_TX);
       TRACE_ERROR("SI   > Unable to create AFSK transmit thread");
@@ -1352,7 +1351,7 @@ THD_FUNCTION(si_fifo_feeder_fsk, arg)
     }
 
     // Delete packet
-    ax25_delete(pp);
+    pktReleaseSendObject(pp);
     chThdExit(MSG_OK);
 }
 
@@ -1368,8 +1367,11 @@ void Si446x_send2FSK(packet_t pp,
     Si446x_setModem2FSK(speed);
 
     // Set pointers for feeder
-    tx_chan = chan;
-    tx_pwr = pwr;
+    pp->radio_chan = chan;
+    pp->radio_pwr = pwr;
+
+    /* TODO: Don't use fixed RSSI. */
+    pp->cca_rssi = 0x4F;
 
     // Start/re-start FIFO feeder
     fsk_feeder_thd = chThdCreateStatic(si_fsk_fifo_feeder_wa,

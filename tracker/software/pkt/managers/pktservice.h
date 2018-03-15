@@ -49,11 +49,6 @@ typedef enum HDLCFrameStates {
   FRAME_RESET
 } frame_state_t;
 
-#ifdef PKT_IS_TEST_PROJECT
-/* Modulation type. */
-#include "pktconf.h"
-
-#endif
 
 /* Link level encoding type. */
 typedef mod_t encoding_type_t;

@@ -140,6 +140,7 @@
 /* Aerospace decoder subsystem includes.                                     */
 /*===========================================================================*/
 
+#include "pkttypes.h"
 #include "portab.h"
 #include "rxax25.h"
 #include "pktservice.h"
@@ -355,9 +356,21 @@ static inline msg_t pktSendRadioCommand(packet_svc_t *handler,
 #endif
 }
 
-#ifdef PKT_IS_TEST_PROJECT
-void ax25_delete(packet_t pp);
+/**
+ * @brief   Release a send packet object memory.
+ * @post    The object memory is released.
+ *
+ * @param[in]   pp     pointer to a @p packet send object
+ *
+ * @api
+ */
+static inline void pktReleaseSendObject(packet_t pp) {
+#if USE_SPI_ATTACHED_RADIO == TRUE
+  ax25_delete(pp);
+#else
+  (void)pp;
 #endif
+}
 
 #endif /* _PKTCONF_H_ */
 

@@ -237,5 +237,9 @@ static inline bool Si446x_isFrequencyInBand(uint32_t base_freq,
   return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
 }
 
+static inline void Si446x_releaseSendObject(packet_t pp) {
+  ax25_delete(pp);
+}
+
 #endif /* __si446x__H__ */
 

@@ -30,23 +30,26 @@
 #define AX25_REPEATER_7   8
 #define AX25_REPEATER_8   9
 
-#define AX25_MAX_ADDR_LEN 12	/* In theory, you would expect the maximum length */
-				/* to be 6 letters, dash, 2 digits, and nul for a */
-				/* total of 10.  However, object labels can be 10 */
-				/* characters so throw in a couple extra bytes */
-				/* to be safe. */
+/* In theory, you would expect the maximum length */
+/* to be 6 letters, dash, 2 digits, and nul for a */
+/* total of 10.  However, object labels can be 10 */
+/* characters so throw in a couple extra bytes */
+/* to be safe. */
+#define AX25_MAX_ADDR_LEN 12
 
-#define AX25_MIN_INFO_LEN 0	/* Previously 1 when considering only APRS. */
+/* Previously 1 when considering only APRS. */
+#define AX25_MIN_INFO_LEN 0
 				
-#define AX25_MAX_INFO_LEN 2048	/* Maximum size for APRS. */
-				/* AX.25 starts out with 256 as the default max */
-				/* length but the end stations can negotiate */
-				/* something different. */
-				/* version 0.8:  Change from 256 to 2028 to */
-				/* handle the larger paclen for Linux AX25. */
+/* Maximum size for APRS. */
+/* AX.25 starts out with 256 as the default max */
+/* length but the end stations can negotiate */
+/* something different. */
+/* version 0.8:  Change from 256 to 2028 to */
+/* handle the larger paclen for Linux AX25. */
 
-				/* These don't include the 2 bytes for the */
-				/* HDLC frame FCS. */
+/* These don't include the 2 bytes for the */
+/* HDLC frame FCS. */
+#define AX25_MAX_INFO_LEN 2048
 
 /* 
  * Previously, for APRS only.
@@ -61,95 +64,99 @@
 
 #define AX25_MAX_PACKET_LEN ( AX25_MAX_ADDRS * 7 + 2 + 3 + AX25_MAX_INFO_LEN)
 
+#define AX25_UI_FRAME 3		/* Control field value. */
+
+#define AX25_PID_NO_LAYER_3 0xF0		/* protocol ID used for APRS */
+#define AX25_PID_SEGMENTATION_FRAGMENT 0x08
+#define AX25_PID_ESCAPE_CHARACTER 0xFF
+
+/* TODO: Create a chFactory FIFO to manage these objects. */
+struct packet_s {
+
+    /* for error checking. */
+	int magic1;
+
+    /* unique sequence number for debugging. */
+	int seq;
+
+    /* Time stamp in format returned by dtime_now(). */
+    /* When to release from the SATgate mode delay queue. */
+	double release_time;
+
+#define MAGIC 0x41583235
+
+	struct packet_s *nextp;	/* Pointer to next in queue. */
+
+    /* Number of addresses in frame. */
+    /* Range of AX25_MIN_ADDRS .. AX25_MAX_ADDRS for AX.25. */
+    /* It will be 0 if it doesn't look like AX.25. */
+    /* -1 is used temporarily at allocation to mean */
+    /* not determined yet. */
+
+    /*
+     * The 7th octet of each address contains:
+         *
+     * Bits:   H  R  R  SSID  0
+     *
+     *   H      for digipeaters set to 0 intially.
+     *      Changed to 1 when position has been used.
+     *
+     *      for source & destination it is called
+     *      command/response.  Normally both 1 for APRS.
+     *      They should be opposites for connected mode.
+     *
+     *   R  R   Reserved.  Normally set to 1 1.
+     *
+     *   SSID   Substation ID.  Range of 0 - 15.
+     *
+     *   0      Usually 0 but 1 for last address.
+     */
+	int num_addr;
+
+#define SSID_H_MASK	    0x80
+#define SSID_H_SHIFT	7
+
+#define SSID_RR_MASK	0x60
+#define SSID_RR_SHIFT	5
+
+#define SSID_SSID_MASK	0x1E
+#define SSID_SSID_SHIFT	1
+
+#define SSID_LAST_MASK	0x01
+	/*
+	 * Pass the radio channel, power and CCA RSSI in with the transmit packet.
+	 * This enables multiple send requests to be queued with their own data.
+	 */
+	uint8_t     radio_chan;
+	uint8_t     radio_pwr;
+	uint8_t     cca_rssi;
+
+    /* Frame length without CRC. */
+	int         frame_len;
+
+    /* I & S frames have sequence numbers of either 3 bits (modulo 8) */
+    /* or 7 bits (modulo 128).  This is conveyed by either 1 or 2 */
+    /* control bytes.  Unfortunately, we can't determine this by looking */
+    /* at an isolated frame.  We need to know about the context.  If we */
+    /* are part of the conversation, we would know.  But if we are */
+    /* just listening to others, this would be more difficult to determine. */
+
+    /* For U frames:    set to 0 - not applicable */
+    /* For I & S frames:    8 or 128 if known.  0 if unknown. */
+	int         modulo;
+
+    /* Raw frame contents, without the CRC. */
+	unsigned char frame_data[AX25_MAX_PACKET_LEN+1];
+
+    /* Will get stomped on if above overflows. */
+	int magic2;
+};
 
 /*
  * packet_t is a pointer to a packet object.
  *
  * The actual implementation is not visible outside ax25_pad.c.
  */
-
-#define AX25_UI_FRAME 3		/* Control field value. */
-
-#define AX25_PID_NO_LAYER_3 0xf0		/* protocol ID used for APRS */
-#define AX25_PID_SEGMENTATION_FRAGMENT 0x08
-#define AX25_PID_ESCAPE_CHARACTER 0xff
-
-/* TODO: Create a chFactory FIFO to manage these objects. */
-struct packet_s {
-
-	int magic1;		/* for error checking. */
-
-	int seq;		/* unique sequence number for debugging. */
-
-	double release_time;	/* Time stamp in format returned by dtime_now(). */
-				/* When to release from the SATgate mode delay queue. */
-
-#define MAGIC 0x41583235
-
-	struct packet_s *nextp;	/* Pointer to next in queue. */
-
-	int num_addr;		/* Number of addresses in frame. */
-				/* Range of AX25_MIN_ADDRS .. AX25_MAX_ADDRS for AX.25. */	
-				/* It will be 0 if it doesn't look like AX.25. */
-				/* -1 is used temporarily at allocation to mean */
-				/* not determined yet. */
-
-
-
-				/* 
- 				 * The 7th octet of each address contains:
-			         *
-				 * Bits:   H  R  R  SSID  0
-				 *
-				 *   H 		for digipeaters set to 0 intially.
-				 *		Changed to 1 when position has been used.
- 				 *
-				 *		for source & destination it is called
-				 *		command/response.  Normally both 1 for APRS.
-				 *		They should be opposites for connected mode.
-				 *
-				 *   R	R	Reserved.  Normally set to 1 1.
-				 *
-				 *   SSID	Substation ID.  Range of 0 - 15.
-				 *
-				 *   0		Usually 0 but 1 for last address.
-				 */
-
-
-#define SSID_H_MASK	0x80
-#define SSID_H_SHIFT	7
-
-#define SSID_RR_MASK	0x60
-#define SSID_RR_SHIFT	5
-
-#define SSID_SSID_MASK	0x1e
-#define SSID_SSID_SHIFT	1
-
-#define SSID_LAST_MASK	0x01
-
-
-	int frame_len;		/* Frame length without CRC. */
-
-	int modulo;		/* I & S frames have sequence numbers of either 3 bits (modulo 8) */
-				/* or 7 bits (modulo 128).  This is conveyed by either 1 or 2 */
-				/* control bytes.  Unfortunately, we can't determine this by looking */
-				/* at an isolated frame.  We need to know about the context.  If we */
-				/* are part of the conversation, we would know.  But if we are */
-				/* just listening to others, this would be more difficult to determine. */
-
-				/* For U frames:   	set to 0 - not applicable */
-				/* For I & S frames:	8 or 128 if known.  0 if unknown. */
-
-	unsigned char frame_data[AX25_MAX_PACKET_LEN+1];
-				/* Raw frame contents, without the CRC. */
-				
-
-	int magic2;		/* Will get stomped on if above overflows. */
-};
-
-
-
-
 typedef struct packet_s *packet_t;
 
 typedef enum cmdres_e { cr_00 = 2, cr_cmd = 1, cr_res = 0, cr_11 = 3 } cmdres_t;
