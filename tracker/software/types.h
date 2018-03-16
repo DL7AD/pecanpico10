@@ -39,6 +39,7 @@ typedef enum { // Modulation type
 } mod_t;
 
 typedef enum {
+	RES_NONE,
 	RES_QQVGA,
 	RES_QVGA,
 	RES_VGA,

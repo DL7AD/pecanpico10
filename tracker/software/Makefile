@@ -149,14 +149,16 @@ CSRC = $(STARTUPSRC) \
        drivers/flash/helper.c \
        drivers/flash/ihex.c \
        fatfs/src/ff.c \
-       debug.c \
+       drivers/usb/debug.c \
        sleep.c \
        threads/threads.c \
        math/base91.c \
        math/geofence.c \
        config.c \
        watchdog.c \
-       usbcfg.c \
+       drivers/usb/usbcfg.c \
+       drivers/usb/commands.c \
+       drivers/usb/usb.c \
        pkt/sys/regex/crx.c \
        \
        portab.c \
@@ -265,7 +267,7 @@ UADEFS =
 
 # List all user directories here
 UINCDIR = threads/ drivers/ drivers/wrapper/ pkt/protocols/aprs2 \
-          protocols/ssdv math/ drivers/flash/ \
+          protocols/ssdv math/ drivers/flash/ drivers/usb/ \
           protocols/packet fatfs/src/ threads/radio/ \
           pkt pkt/channels pkt/managers pkt/devices pkt/protocols \
           pkt/diagnostics pkt/filters pkt/decoders pkt/sys CMSIS/include \

@@ -1,29 +1,26 @@
 #include "ch.h"
 #include "hal.h"
+#include "shell.h"
 #include "debug.h"
 #include <stdlib.h>
-#include "config.h"
 #include "image.h"
-#include "tracking.h"
-#include "pi2c.h"
-#include "ov5640.h"
-#include "geofence.h"
 #include "aprs.h"
 #include "radio.h"
+#include "commands.h"
 
-const SerialConfig uart_config =
-{
-    115200,     // baud rate
-    0,          // CR1 register
-    0,          // CR2 register
-    0           // CR3 register
+static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
+
+const ShellCommand commands[] = {
+	{"debug", usb_cmd_debugOnUSB},
+	{"picture", usb_cmd_printPicture},
+	{"log", usb_cmd_readLog},
+	{"config", usb_cmd_printConfig},
+	{"aprs_message", usb_cmd_send_aprs_message},
+	{NULL, NULL}
 };
 
-mutex_t trace_mtx; // Used internal to synchronize multiple chprintf in debug.h
 
-bool debug_on_usb = true;
-
-void debugOnUSB(BaseSequentialStream *chp, int argc, char *argv[])
+void usb_cmd_debugOnUSB(BaseSequentialStream *chp, int argc, char *argv[])
 {
 	if(argc < 1)
 	{
@@ -35,9 +32,7 @@ void debugOnUSB(BaseSequentialStream *chp, int argc, char *argv[])
 	debug_on_usb = atoi(argv[0]);
 }
 
-static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
-
-void printPicture(BaseSequentialStream *chp, int argc, char *argv[])
+void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 {
 	(void)argc;
 	(void)argv;
@@ -75,14 +70,7 @@ void printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 	}
 }
 
-void command2Camera(BaseSequentialStream *chp, int argc, char *argv[])
-{
-	(void)chp;
-	(void)argc;
-	I2C_write8_16bitreg(OV5640_I2C_ADR, atoi(argv[0]), atoi(argv[1]));
-}
-
-void readLog(BaseSequentialStream *chp, int argc, char *argv[])
+void usb_cmd_readLog(BaseSequentialStream *chp, int argc, char *argv[])
 {
 	(void)argc;
 	(void)argv;
@@ -106,7 +94,7 @@ void readLog(BaseSequentialStream *chp, int argc, char *argv[])
 	chprintf(chp, "TODO: Not implemented\r\n");
 }
 
-void printConfig(BaseSequentialStream *chp, int argc, char *argv[])
+void usb_cmd_printConfig(BaseSequentialStream *chp, int argc, char *argv[])
 {
 /*	if(argc < 1)
 	{
@@ -150,7 +138,7 @@ void printConfig(BaseSequentialStream *chp, int argc, char *argv[])
 	chprintf(chp, "TODO: Not implemented\r\n");
 }
 
-void send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[])
+void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[])
 {
 	if(argc < 2)
 	{

@@ -8,6 +8,7 @@
 #include "config.h"
 #include <string.h>
 #include "usbcfg.h"
+#include "usb.h"
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
@@ -29,7 +30,7 @@ extern bool debug_on_usb;
 }
 
 #define TRACE_BASE_USB(format, type, args...) { \
-	if(usb_initialized) { \
+	if(isUSBInitialized()) { \
 		if(TRACE_TIME) { \
 			chprintf((BaseSequentialStream*)&SDU1, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000); \
 		} \
@@ -79,13 +80,6 @@ extern bool debug_on_usb;
 		TRACE_TAB, i, (data)[i], (data)[i+1], (data)[i+2], (data)[i+3], (data)[i+4], (data)[i+5], (data)[i+6], (data)[i+7]); \
 	chMtxUnlock(&trace_mtx); \
 }
-
-void debugOnUSB(BaseSequentialStream *chp, int argc, char *argv[]);
-void printConfig(BaseSequentialStream *chp, int argc, char *argv[]);
-void printPicture(BaseSequentialStream *chp, int argc, char *argv[]);
-void readLog(BaseSequentialStream *chp, int argc, char *argv[]);
-void command2Camera(BaseSequentialStream *chp, int argc, char *argv[]);
-void send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]);
 
 #endif
 

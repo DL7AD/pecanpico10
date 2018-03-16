@@ -95,7 +95,7 @@ static const struct regval_list OV5640YUV_Sensor_Dvp_Init[] =
 		{ 0x3815, 0x31 },		
 		
 		{ 0x3034, 0x1a }, 
-		{ 0x3035, 0x11 }, //15fps
+		{ 0x3035, 0x01 }, //15fps
 		{ 0x3036, 0x46 }, 
 		{ 0x3037, 0x03 }, 
 		{ 0x3038, 0x00 }, 
@@ -693,6 +693,8 @@ static uint32_t dma_flags;
 
 static uint8_t* dma_buffer;
 
+static resolution_t last_res = RES_NONE;
+
 /**
   * Captures an image from the camera.
   * @buffer Buffer in which the image can be sampled
@@ -709,11 +711,13 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size, resolution_t res)
 	bool status;
 	uint32_t size_sampled;
 
-	// Set resolution
-	if(res == RES_MAX) {
-		OV5640_SetResolution(RES_UXGA); // FIXME: We actually have to choose the resolution which fits in the memory
-	} else {
-		OV5640_SetResolution(res);
+	// Set resolution (if not already done earlier)
+	if(res != last_res) {
+		if(res == RES_MAX) {
+			OV5640_SetResolution(RES_UXGA); // FIXME: We actually have to choose the resolution which fits in the memory
+		} else {
+			OV5640_SetResolution(res);
+		}
 	}
 
 	// Capture image until we get a good image (max 10 tries)
@@ -1205,6 +1209,9 @@ void OV5640_SetResolution(resolution_t res)
 				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2UXGA[i].reg, OV5640_QSXGA2UXGA[i].val);
 			break;
 
+		case RES_NONE: // No configuration is made
+			break;
+
 		default: // Default QVGA
 			for(uint32_t i=0; (OV5640_QSXGA2QVGA[i].reg != 0xffff) || (OV5640_QSXGA2QVGA[i].val != 0xff); i++)
 				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
@@ -1252,6 +1259,8 @@ void OV5640_deinit(void)
 
 	palSetLineMode(LINE_CAM_EN, PAL_MODE_INPUT);
 	palSetLineMode(LINE_CAM_RESET, PAL_MODE_INPUT);
+
+	last_res = RES_NONE;
 }
 
 bool OV5640_isAvailable(void)
