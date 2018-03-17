@@ -175,6 +175,7 @@ CSRC = $(STARTUPSRC) \
 	   pkt/devices/dbguart.c \
 	   pkt/sys/ihex_out.c \
 	   pkt/diagnostics/ax25_dump.c \
+	   pkt/protocols/txhdlc.c \
        \
        main.c \
 

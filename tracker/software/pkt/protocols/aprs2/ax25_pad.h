@@ -124,12 +124,13 @@ struct packet_s {
 
 #define SSID_LAST_MASK	0x01
 	/*
-	 * Pass the radio channel, power and CCA RSSI in with the transmit packet.
+	 * Pass the radio channel, power, CCA RSSI pre-amble count in with the transmit packet.
 	 * This enables multiple send requests to be queued with their own data.
 	 */
 	uint8_t     radio_chan;
 	uint8_t     radio_pwr;
 	uint8_t     cca_rssi;
+	uint16_t    preamble_size;
 
     /* Frame length without CRC. */
 	int         frame_len;

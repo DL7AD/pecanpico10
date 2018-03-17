@@ -153,6 +153,7 @@
 #include "rxafsk.h"
 #include "corr_q31.h"
 #include "rxhdlc.h"
+#include "txhdlc.H"
 #include "ihex_out.h"
 #include "ax25_dump.h"
 #include "si446x.h"
