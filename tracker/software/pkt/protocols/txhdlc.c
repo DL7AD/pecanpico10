@@ -33,93 +33,102 @@ void scramble(uint8_t *data, size_t size) {
 }
 
 
-/* TODO: Make this a macro. */
-static bool pktGetBitAsNRZI(bool bit, bool *prior) {
-    if((bit & 0x1) == 0)
-        *prior = !*prior;
-    return *prior;
+/*
+ * Write NRZI data to output buffer.
+ * Byte complete = true else false.
+ *
+ */
+static bool pktIteratorWriteNRZI(tx_iterator_t *iterator, uint8_t bit) {
+  /* If new byte clear it first. */
+  if(iterator->out_index % 8 == 0)
+    iterator->out_buff[iterator->out_index >> 3] = 0;
+
+  /* clean up bit. */
+  bit &= 0x1;
+  /* Keep track of HDLC for RLL detection. */
+  iterator->hdlc_data <<= 1;
+  iterator->hdlc_data |= bit;
+
+  /* Remember last NRZI state (keep history for debug purposes). */
+  iterator->nrzi_last <<= 1;
+  iterator->nrzi_last |= (bit == 0)
+      ? (((iterator->nrzi_last >> 1 ) ^ 0x1) & 0x1)
+      : 1;
+
+  /* Write NRZI bit to current byte. */
+  iterator->out_buff[iterator->out_index >> 3] |=
+      (iterator->nrzi_last & 0x1) << (iterator->out_index % 8);
+
+  /* If byte is full return true. */
+  return ((++iterator->out_index % 8) == 0);
 }
 
 /*
  * Create stream of bytes of encoded link level data.
- * The calling function may request chunk sizes from 1 up.
+ * The calling function may request chunk sizes from 1 byte up.
  * The function returns the number of bytes encoded.
- *
+ * When return < request there is no more to encode.
+ * When return is -1 then the output buffer is full.
  */
-uint32_t pktStreamDataForSend(tx_composer_t *composer,
-                              uint8_t *buf, size_t size) {
+int32_t pktIterateSendStream(tx_iterator_t *iterator, size_t qty) {
 
-  if(size == 0)
+  if(qty == 0)
     return 0;
-  size_t cnt = size;
+  size_t cnt = 0;
 
   /*
    * Output preamble bytes of specified quantity in requested chunk size.
    * RLL encoding is not used as these are HDLC flags.
    */
-  while(composer->pre_count > 0) {
-    uint8_t i = 0, f = HDLC_FLAG;
-    do {
-      /* Shift up prior bit. */
-      composer->hdlc_data <<= 1;
-      /* Get a data bit. */
-      composer->hdlc_data |= pktGetBitAsNRZI(f & 0x1,
-                                             &composer->prior_nrz);
-      f <<= 1;
-    } while(++i < 8);
-    *buf++ = composer->hdlc_data;
-    if(--cnt == 0)
-      return size;
-    composer->pre_count--;
-  }
+  while(iterator->pre_count > 0) {
+    /* TODO: Check for output buffer exhausted. */
+    uint8_t i;
+    for(i = 0; !pktIteratorWriteNRZI(iterator, (HDLC_FLAG >> i) & 0x1); i++);
+    iterator->pre_count--;
+    if(++cnt == qty)
+      return qty;
+  } /* End while. */
 
   /*
    * Output frame bytes in requested chunk size.
-   * CRC has been added to the data already.
+   * CRC and closing HDLC flag must be included in the frame data.
    */
-  while(composer->data_size > 0) {
-    uint8_t i = 0;
+  while(iterator->data_size > 0) {
     do {
-      /* Shift up prior bit (and shift in a zero). */
-      composer->hdlc_data <<= 1;
-      /* Check RLL encoding. */
-      if((composer->hdlc_data & HDLC_RLL_BIT) == HDLC_RLL_BIT) {
-        /* Include the inserted 0 bit in the stream count. */
-        i++;
-      } else {
-      /* Get a data bit. */
-        composer->hdlc_data |= pktGetBitAsNRZI(
-                composer->pp->frame_data[composer->bit_index >> 3] & 0x1,
-                &composer->prior_nrz);
+      /*
+       * RLL encoding is enabled for the packet data pay load.
+       * Except the last data byte which is the HDLC flag.
+       */
+
+
+      if(((iterator->hdlc_data & HDLC_RLL_SEQUENCE) == HDLC_RLL_SEQUENCE)
+         && (iterator->data_size > 1)) {
+        /* Insert RLL 0 to HDLC output stream. */
+        if(pktIteratorWriteNRZI(iterator, 0)) {
+          if(++cnt == qty)
+            return qty;
+        }
       }
+      /* Get data bit. */
+      uint8_t byte = iterator->data_buff[iterator->inp_index >> 3];
+      uint8_t bit = (byte >> (iterator->inp_index % 8)) & 0x1;
 
-      /* Count the added bit. */
-      composer->bit_index++;
-    } while(++i < 8);
+      /* Show bit is consumed and write it to steam. */
+      iterator->inp_index++;
+      if(pktIteratorWriteNRZI(iterator, bit)) {
+        if(++cnt == qty)
+        return qty;
+      }
+    } while((iterator->inp_index % 8) != 0);
+    /* Consumed an input byte. */
+    --iterator->data_size;
+  } /* End while. */
 
-    /* Save the HDLC byte. */
-    *buf++ = composer->hdlc_data;
-    if(--cnt == 0)
-      return size;
-    composer->data_size--;
-  }
+  /* TODO: Put CRC and closing flag insertion in here versus in main code. */
 
-  /*
-   * Output closing flag.
-   * RLL encoding is not used as this is an HDLC flag.
-   */
-  uint8_t i = 0, f = HDLC_FRAME_CLOSE;
-  do {
-    /* Shift up prior bit. */
-    composer->hdlc_data <<= 1;
-    /* Get a data bit. */
-    composer->hdlc_data |= pktGetBitAsNRZI(f & 0x1,
-                                           &composer->prior_nrz);
-    f <<= 1;
-  } while(++i < 8);
-  *buf++ = composer->hdlc_data;
-  composer->bit_index += i;
-    return --cnt;
+  /* Round up for partial byte. */
+
+  return (++cnt);
 }
 
 /** @} */

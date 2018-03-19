@@ -1254,19 +1254,37 @@ THD_FUNCTION(new_si_fifo_feeder_afsk, arg) {
 
     uint8_t layer0[AFSK_FEEDER_BUFFER_SIZE];
 
-    /* TODO: Insert CRC in radio.c transmit function? */
+    TRACE_INFO("SI   > Packet frame bytes %i", pp->frame_len);
+
+    /* TODO: Make this a prepare function.
+     * Create iterator object and complete TX frame.
+     * Insert CRC in radio.c transmit function?
+     */
     uint16_t crc = calc_crc16(pp->frame_data, 0, pp->frame_len);
     pp->frame_data[pp->frame_len++] = crc & 0xFF;
     pp->frame_data[pp->frame_len++] = crc >> 8;
+    pp->frame_data[pp->frame_len++] = HDLC_FLAG;
 
-    tx_composer_t output = {0};
-    output.pp = pp;
+    static tx_iterator_t output = {0};
+    memset(&output, 0, sizeof(output));
+    //output.pp = pp;
     /* TODO: get preamble count from TX packet. */
     output.pre_count = 30;
     output.scramble = false;
+    output.data_buff = pp->frame_data;
     output.data_size = pp->frame_len;
+    output.out_buff = layer0;
+    output.out_size = sizeof(layer0);
 
-    uint32_t data = pktStreamDataForSend(&output, layer0, AFSK_FEEDER_BUFFER_SIZE);
+    static int32_t data = 0;
+    data = pktIterateSendStream(&output, sizeof(layer0));
+
+    TRACE_INFO("SI   > Iterator data count %i", data);
+
+    if(data < 0) {
+      /* Buffer overrun. */
+      /* TODO: Implement handling. */
+    }
 
     /* Reset TX FIFO in case some remnant unsent data is left there. */
     const uint8_t reset_fifo[] = {0x15, 0x01};
@@ -1292,8 +1310,7 @@ THD_FUNCTION(new_si_fifo_feeder_afsk, arg) {
     uint16_t all = data * SAMPLES_PER_BAUD;
     uint16_t c = (all > free) ? free : all;
 
-
-    TRACE_INFO("SI   > AFSK up-sampled bytes to send %i", all);
+    TRACE_INFO("SI   > AFSK frame bytes to send %i, upsampled %i", data, all);
 
     /*
      * Start transmission timeout timer.
