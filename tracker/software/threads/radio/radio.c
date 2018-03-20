@@ -16,6 +16,13 @@ static void processPacket(uint8_t *buf, uint32_t len) {
 	packet_t pp = ax25_from_frame(buf, len);
 
 	if(pp != NULL) {
+	    uint8_t *c;
+	    uint32_t len = ax25_get_info(pp, &c);
+	    if(len == 0) {
+	        TRACE_INFO("RX   > Invalid packet structure - dropped");
+	        ax25_delete(pp);
+	        return;
+	    }
 		char serial_buf[512];
 		aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
 		TRACE_INFO("RX   > %s", serial_buf);
@@ -103,8 +110,8 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 	  /* TODO: Get current RX frequency (if valid) and use that. */
 	}
 
-	uint8_t *c;
-	uint32_t len = ax25_get_info(pp, &c);
+	//uint8_t *c;
+	uint32_t len = ax25_get_info(pp, /*&c*/NULL);
 
 	if(len) // Message length is not zero
 	{

@@ -42,6 +42,9 @@
 #define PWM_TERM_DECODE_ENDED   4
 #define PWM_TERM_DECODE_STOP    5
 
+/* ICU will be stopped if no activity for this number of seconds. */
+#define ICU_INACTIVITY_TIMEOUT  60
+
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/

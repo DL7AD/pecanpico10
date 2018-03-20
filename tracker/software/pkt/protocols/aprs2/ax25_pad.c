@@ -1597,7 +1597,7 @@ int ax25_get_info (packet_t this_p, unsigned char **paddr) {
 	int info_len;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -1616,15 +1616,16 @@ int ax25_get_info (packet_t this_p, unsigned char **paddr) {
 	  info_len = this_p->frame_len;
 	}
 
-	/* Add null character in case caller treats as printable string. */
-	
-	if(!info_len) {
-		TRACE_ERROR("No data in packet");
+    if(!info_len) {
+      TRACE_WARN("PKT  > No data in packet");
 	}
+
+    /* Add null character in case caller treats as printable string. */
 
 	info_ptr[info_len] = '\0';
 
-	*paddr = info_ptr;
+	if(paddr != NULL)
+	  *paddr = info_ptr;
 	return (info_len);
 
 } /* end ax25_get_info */

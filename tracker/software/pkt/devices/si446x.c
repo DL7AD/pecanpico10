@@ -1247,7 +1247,7 @@ THD_FUNCTION(new_si_fifo_feeder_afsk, arg) {
 #endif
 
     /* Initialize variables for AFSK encoder. */
-    ctone = 0;
+
     virtual_timer_t send_timer;
 
     chVTObjectInit(&send_timer);
@@ -1260,42 +1260,27 @@ THD_FUNCTION(new_si_fifo_feeder_afsk, arg) {
      * Create iterator object and complete TX frame.
      * Insert CRC in radio.c transmit function?
      */
-    uint16_t crc = calc_crc16(pp->frame_data, 0, pp->frame_len);
+/*    uint16_t crc = calc_crc16(pp->frame_data, 0, pp->frame_len);
     pp->frame_data[pp->frame_len++] = crc & 0xFF;
     pp->frame_data[pp->frame_len++] = crc >> 8;
-    pp->frame_data[pp->frame_len++] = HDLC_FLAG;
+    pp->frame_data[pp->frame_len++] = HDLC_FLAG;*/
 
-    static tx_iterator_t output = {0};
-    memset(&output, 0, sizeof(output));
-    //output.pp = pp;
-    /* TODO: get preamble count from TX packet. */
-    output.pre_count = 30;
-    output.scramble = false;
-    output.data_buff = pp->frame_data;
-    output.data_size = pp->frame_len;
-    output.out_buff = layer0;
-    output.out_size = sizeof(layer0);
+    static tx_iterator_t iterator;
+
+    pktStreamIteratorInit(&iterator, pp, false);
 
     static int32_t data = 0;
-    data = pktIterateSendStream(&output, sizeof(layer0));
+    data = pktStreamEncodingIterator(&iterator, layer0, sizeof(layer0));
 
-    TRACE_INFO("SI   > Iterator data count %i", data);
-
-    if(data < 0) {
-      /* Buffer overrun. */
-      /* TODO: Implement handling. */
-    }
+    TRACE_INFO("SI   > Iterator data count %i, RLL count %i,"
+        " out index %i, out bytes %i, out bits %i",
+               data, iterator.rll_count,
+               iterator.out_index, iterator.out_index >> 3,
+               iterator.out_index % 8);
 
     /* Reset TX FIFO in case some remnant unsent data is left there. */
     const uint8_t reset_fifo[] = {0x15, 0x01};
     Si446x_write(reset_fifo, 2);
-
-    /* Initialize variables for up sampler. */
-    phase_delta = PHASE_DELTA_1200;
-    phase = 0;
-    packet_pos = 0;
-    current_sample_in_baud = 0;
-    current_byte = 0;
 
     /* Maximum amount of FIFO data when using combined TX+RX (safe size). */
     uint8_t localBuffer[Si446x_FIFO_COMBINED_SIZE];
@@ -1303,12 +1288,20 @@ THD_FUNCTION(new_si_fifo_feeder_afsk, arg) {
     /* Get the FIFO buffer amount currently available. */
     uint8_t free = Si446x_getTXfreeFIFO();
 
+    /* Calculate chunk size for stream iterator. */
+
+    uint8_t stream_size = free / SAMPLES_PER_BAUD;
+
+    /* Allocate a stream output buffer. */
+    uint8_t stream_out[stream_size];
+
+    TRACE_INFO("SI   > AFSK stream buffer %i @ 0x%x", stream_size, stream_out);
     /*
      * Account for all modulation bits (round up to a byte boundary).
      * Calculate initial FIFO fill.
      */
     uint16_t all = data * SAMPLES_PER_BAUD;
-    uint16_t c = (all > free) ? free : all;
+    uint16_t c = 0; /*(all > free) ? free : all;*/
 
     TRACE_INFO("SI   > AFSK frame bytes to send %i, upsampled %i", data, all);
 
@@ -1321,46 +1314,59 @@ THD_FUNCTION(new_si_fifo_feeder_afsk, arg) {
 
     /* The exit message if all goes well. */
     msg_t exit_msg = MSG_OK;
+    bool tx_started = false;
 
-    /* Initial FIFO load. */
-    for(uint16_t i = 0;  i < c; i++)
-        localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
-    Si446x_writeFIFO(localBuffer, c);
+    /* Initialize variables for up sampler. */
+    phase_delta = PHASE_DELTA_1200;
+    phase = 0;
+    packet_pos = 0;
+    current_sample_in_baud = 0;
+    current_byte = 0;
 
-    /* Request start of transmission. */
-    if(Si446x_transmit(pp->radio_chan, pp->radio_pwr, all,
-                       pp->cca_rssi, TIME_S2I(10))) {
-      /* Feed the FIFO while data remains to be sent. */
-      while((all - c) > 0) {
-        /* Get TX FIFO free count. */
-        uint8_t more = Si446x_getTXfreeFIFO();
-        /* If there is more free than we need for send use remainder only. */
-        more = (more > (all - c)) ? (all - c) : more;
+    uint8_t lower = Si446x_FIFO_COMBINED_SIZE;
 
-        /* Load the FIFO. */
-        for(uint16_t i = 0; i < more; i++)
-            localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
-        Si446x_writeFIFO(localBuffer, more); // Write into FIFO
-        c += more;
+    /* Feed the FIFO while data remains to be sent. */
+    while((all - c) > 0) {
+      /* Get TX FIFO free count. */
+      uint8_t more = Si446x_getTXfreeFIFO();
 
-        /*
-         * Wait for a timeout event during up-sampled AFSK byte time period.
-         * Time delay allows for ~11 bytes of transmit data from the FIFO.
-         * If no timeout event go back and load more data to FIFO.
-         */
-        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_AFSK_TX_TIMEOUT,
-                                   chTimeUS2I(833 * 8 * SAMPLES_PER_BAUD));
-        if(evt) {
-          /* Force 446x out of TX state. */
-          Si446x_setReadyState();
-          exit_msg = MSG_TIMEOUT;
+      /* Update the FIFO low water mark. */
+      lower = (more < lower) ? more : lower;
+
+      /* If there is more free than we need for send use remainder only. */
+      more = (more > (all - c)) ? (all - c) : more;
+
+      /* Load the FIFO. */
+      for(uint16_t i = 0; i < more; i++)
+          localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
+      Si446x_writeFIFO(localBuffer, more); // Write into FIFO
+      c += more;
+
+      if(!tx_started) {
+        /* Request start of transmission. */
+        if(!Si446x_transmit(pp->radio_chan, pp->radio_pwr, all,
+                           pp->cca_rssi, TIME_S2I(10))) {
+          /* Transmit start failed. */
+          TRACE_ERROR("SI   > Transmit start failed");
+          exit_msg = MSG_RESET;
           break;
-        }
+        } /* Else. */
+            tx_started = true;
       }
-    } else {
-      /* Transmit start failed. */
-        TRACE_ERROR("SI   > Transmit start failed");
-    }
+      /*
+       * Wait for a timeout event during up-sampled AFSK byte time period.
+       * Time delay allows for ~11 bytes of transmit data from the FIFO.
+       * If no timeout event go back and load more data to FIFO.
+       */
+      eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_AFSK_TX_TIMEOUT,
+                                 chTimeUS2I(833 * 8 * SAMPLES_PER_BAUD));
+      if(evt) {
+        /* Force 446x out of TX state. */
+        Si446x_setReadyState();
+        exit_msg = MSG_TIMEOUT;
+        break;
+      }
+    } /* End while. */
     chVTReset(&send_timer);
 
     /*
@@ -1375,6 +1381,8 @@ THD_FUNCTION(new_si_fifo_feeder_afsk, arg) {
 
     // Free packet object memory
     pktReleaseSendObject(pp);
+
+    TRACE_INFO("SI   > TX FIFO low level %i", lower);
 
     /* Exit thread. */
     chThdExit(exit_msg);

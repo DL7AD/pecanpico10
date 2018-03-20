@@ -307,7 +307,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
    * After timeout shutdown ICU.
    * This reduces power consumption.
    */
-  chVTSetI(&myICU->icu_timer, TIME_S2I(10),
+  chVTSetI(&myICU->icu_timer, TIME_S2I(ICU_INACTIVITY_TIMEOUT),
            (vtfunc_t)pktICUInactivityTimeout, myICU);
 
   /*
