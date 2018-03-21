@@ -1,5 +1,5 @@
-#ifndef __TRACKING_H__
-#define __TRACKING_H__
+#ifndef __COLLECTOR_H__
+#define __COLLECTOR_H__
 
 #include "ch.h"
 #include "hal.h"
@@ -68,12 +68,12 @@ typedef struct {
 								// Bit 5: I2C_E BME280_E2
 								// Bit 6: UART EVA7M
 								// Bit 7: <reserved>
-} trackPoint_t;
+} dataPoint_t;
 
-void waitForNewTrackPoint(void);
-trackPoint_t* getLastTrackPoint(void);
+void waitForNewDataPoint(void);
+dataPoint_t* getLastDataPoint(void);
 
-void init_tracking_manager(bool useGPS);
+void init_data_collector(void);
 
 #endif
 

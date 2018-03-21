@@ -1,7 +1,7 @@
 #include "ch.h"
 #include "hal.h"
 
-#include "tracking.h"
+#include "collector.h"
 #include "debug.h"
 #include "config.h"
 #include "ublox.h"
@@ -16,28 +16,27 @@
 #include "si446x.h"
 #include "log.h"
 
-static trackPoint_t trackPoints[2];
-static trackPoint_t* lastTrackPoint;
+static dataPoint_t dataPoints[2];
+static dataPoint_t* lastDataPoint;
 static bool threadStarted = false;
-static bool tracking_useGPS = false;
 
 /**
-  * Returns most recent track point witch is complete.
+  * Returns most recent data point witch is complete.
   */
-trackPoint_t* getLastTrackPoint(void)
+dataPoint_t* getLastDataPoint(void)
 {
-	return lastTrackPoint;
+	return lastDataPoint;
 }
 
-void waitForNewTrackPoint(void)
+void waitForNewDataPoint(void)
 {
-	uint32_t old_id = getLastTrackPoint()->id;
-	while(old_id == getLastTrackPoint()->id)
+	uint32_t old_id = getLastDataPoint()->id;
+	while(old_id == getLastDataPoint()->id)
 		chThdSleep(TIME_S2I(1));
 }
 
 
-static void aquirePosition(trackPoint_t* tp, trackPoint_t* ltp, sysinterval_t timeout)
+static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp, sysinterval_t timeout)
 {
 	sysinterval_t start = chVTGetSystemTime();
 
@@ -46,9 +45,7 @@ static void aquirePosition(trackPoint_t* tp, trackPoint_t* ltp, sysinterval_t ti
 
 	// Switch on GPS if enough power is available and GPS is needed by any position thread
 	uint16_t batt = stm32_get_vbat();
-	if(!tracking_useGPS) { // No position thread running
-		tp->gps_lock = GPS_OFF;
-	} else if(batt < conf_sram.gps_on_vbat) {
+	if(batt < conf_sram.gps_on_vbat) {
 		tp->gps_lock = GPS_LOWBATT1;
 	} else {
 
@@ -129,7 +126,7 @@ static void aquirePosition(trackPoint_t* tp, trackPoint_t* ltp, sysinterval_t ti
 	}
 }
 
-static void measureVoltage(trackPoint_t* tp)
+static void measureVoltage(dataPoint_t* tp)
 {
 	tp->adc_vbat = stm32_get_vbat();
 	tp->adc_vsol = stm32_get_vsol();
@@ -139,7 +136,7 @@ static void measureVoltage(trackPoint_t* tp)
 
 static uint8_t bme280_error;
 
-static void getSensors(trackPoint_t* tp)
+static void getSensors(dataPoint_t* tp)
 {
 	// Measure BME280
 	bme280_error = 0;
@@ -196,7 +193,7 @@ static void getSensors(trackPoint_t* tp)
 	tp->light_intensity = OV5640_getLastLightIntensity() & 0xFFFF;
 }
 
-static void setSystemStatus(trackPoint_t* tp) {
+static void setSystemStatus(dataPoint_t* tp) {
 	// Set system errors
 	tp->sys_error = 0;
 
@@ -212,56 +209,56 @@ static void setSystemStatus(trackPoint_t* tp) {
 }
 
 /**
-  * Tracking Module (Thread)
+  * Data Collector (Thread)
   */
-THD_FUNCTION(trackingThread, arg) {
+THD_FUNCTION(collectorThread, arg) {
 	(void)arg;
 
 	uint32_t id = 0;
-	lastTrackPoint = &trackPoints[0];
+	lastDataPoint = &dataPoints[0];
 
 	// Read time from RTC
 	ptime_t time;
 	getTime(&time);
-	lastTrackPoint->gps_time = date2UnixTimestamp(&time);
+	lastDataPoint->gps_time = date2UnixTimestamp(&time);
 
-	// Get last tracking point from memory
-	TRACE_INFO("TRAC > Read last track point from flash memory");
-	trackPoint_t* lastLogPoint = getNewestLogEntry();
+	// Get last data point from memory
+	TRACE_INFO("TRAC > Read last data point from flash memory");
+	dataPoint_t* lastLogPoint = getNewestLogEntry();
 
-	if(lastLogPoint != NULL) { // If there has been stored a trackpoint, then get the last know GPS fix
-		trackPoints[0].reset     = lastLogPoint->reset+1;
-		trackPoints[1].reset     = lastLogPoint->reset+1;
-		lastTrackPoint->gps_lat  = lastLogPoint->gps_lat;
-		lastTrackPoint->gps_lon  = lastLogPoint->gps_lon;
-		lastTrackPoint->gps_alt  = lastLogPoint->gps_alt;
-		lastTrackPoint->gps_sats = lastLogPoint->gps_sats;
-		lastTrackPoint->gps_ttff = lastLogPoint->gps_ttff;
+	if(lastLogPoint != NULL) { // If there has been stored a data point, then get the last know GPS fix
+		dataPoints[0].reset     = lastLogPoint->reset+1;
+		dataPoints[1].reset     = lastLogPoint->reset+1;
+		lastDataPoint->gps_lat  = lastLogPoint->gps_lat;
+		lastDataPoint->gps_lon  = lastLogPoint->gps_lon;
+		lastDataPoint->gps_alt  = lastLogPoint->gps_alt;
+		lastDataPoint->gps_sats = lastLogPoint->gps_sats;
+		lastDataPoint->gps_ttff = lastLogPoint->gps_ttff;
 
 		TRACE_INFO(
-			"TRAC > Last track point (from memory)\r\n"
+			"TRAC > Last data point (from memory)\r\n"
 			"%s Reset %d ID %d\r\n"
 			"%s Latitude: %d.%07ddeg\r\n"
 			"%s Longitude: %d.%07ddeg\r\n"
 			"%s Altitude: %d Meter",
 			TRACE_TAB, lastLogPoint->reset, lastLogPoint->id,
-			TRACE_TAB, lastTrackPoint->gps_lat/10000000, (lastTrackPoint->gps_lat > 0 ? 1:-1)*lastTrackPoint->gps_lat%10000000,
-			TRACE_TAB, lastTrackPoint->gps_lon/10000000, (lastTrackPoint->gps_lon > 0 ? 1:-1)*lastTrackPoint->gps_lon%10000000,
-			TRACE_TAB, lastTrackPoint->gps_alt
+			TRACE_TAB, lastDataPoint->gps_lat/10000000, (lastDataPoint->gps_lat > 0 ? 1:-1)*lastDataPoint->gps_lat%10000000,
+			TRACE_TAB, lastDataPoint->gps_lon/10000000, (lastDataPoint->gps_lon > 0 ? 1:-1)*lastDataPoint->gps_lon%10000000,
+			TRACE_TAB, lastDataPoint->gps_alt
 		);
 	} else {
-		TRACE_INFO("TRAC > No track point found in flash memory");
+		TRACE_INFO("TRAC > No data point found in flash memory");
 	}
 
-	lastTrackPoint->gps_lock = GPS_LOG; // Mark trackPoint as LOG packet
+	lastDataPoint->gps_lock = GPS_LOG; // Mark dataPoint as LOG packet
 
 	// Measure telemetry
-	measureVoltage(lastTrackPoint);
-	getSensors(lastTrackPoint);
-	setSystemStatus(lastTrackPoint);
+	measureVoltage(lastDataPoint);
+	getSensors(lastDataPoint);
+	setSystemStatus(lastDataPoint);
 
-	// Write Trackpoint to Flash memory
-	writeLogTrackPoint(lastTrackPoint);
+	// Write data point to Flash memory
+	writeLogDataPoint(lastDataPoint);
 
 	// Wait for position threads to start
 	chThdSleep(TIME_MS2I(500));
@@ -269,25 +266,25 @@ THD_FUNCTION(trackingThread, arg) {
 	sysinterval_t cycle_time = chVTGetSystemTime();
 	while(true)
 	{
-		TRACE_INFO("TRAC > Do module TRACKING MANAGER cycle");
+		TRACE_INFO("TRAC > Do module DATA COLLECTOR cycle");
 
-		trackPoint_t* tp  = &trackPoints[(id+1) % 2]; // Current track point (the one which is processed now)
-		trackPoint_t* ltp = &trackPoints[ id    % 2]; // Last track point
+		dataPoint_t* tp  = &dataPoints[(id+1) % 2]; // Current data point (the one which is processed now)
+		dataPoint_t* ltp = &dataPoints[ id    % 2]; // Last data point
 
 		// Determine cycle time
-		sysinterval_t track_cycle_time = TIME_S2I(600);
+		sysinterval_t data_cycle_time = TIME_S2I(600);
 		if(conf_sram.pos_pri.thread_conf.active && conf_sram.pos_sec.thread_conf.active) { // Both position threads are active
-			track_cycle_time = conf_sram.pos_pri.thread_conf.cycle < conf_sram.pos_sec.thread_conf.cycle ? conf_sram.pos_pri.thread_conf.cycle : conf_sram.pos_sec.thread_conf.cycle; // Choose the smallest cycle
+			data_cycle_time = conf_sram.pos_pri.thread_conf.cycle < conf_sram.pos_sec.thread_conf.cycle ? conf_sram.pos_pri.thread_conf.cycle : conf_sram.pos_sec.thread_conf.cycle; // Choose the smallest cycle
 		} else if(conf_sram.pos_pri.thread_conf.active) { // Only primary position thread is active
-			track_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
+			data_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
 		} else if(conf_sram.pos_sec.thread_conf.active) { // Only secondary position thread is active
-			track_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
+			data_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
 		} else { // There must be an error
-			TRACE_ERROR("TRAC > Tracking manager started but no position thread is active");
+			TRACE_ERROR("TRAC > Data collector started but no position thread is active");
 		}
 
 		// Get GPS position
-		aquirePosition(tp, ltp, track_cycle_time - TIME_S2I(3));
+		aquirePosition(tp, ltp, data_cycle_time - TIME_S2I(3));
 
 		tp->id = ++id; // Serial ID
 
@@ -298,7 +295,7 @@ THD_FUNCTION(trackingThread, arg) {
 
 		// Trace data
 		unixTimestamp2Date(&time, tp->gps_time);
-		TRACE_INFO(	"TRAC > New tracking point available (ID=%d)\r\n"
+		TRACE_INFO(	"TRAC > New data point available (ID=%d)\r\n"
 					"%s Time %04d-%02d-%02d %02d:%02d:%02d\r\n"
 					"%s Pos  %d.%05d %d.%05d Alt %dm\r\n"
 					"%s Sats %d TTFF %dsec\r\n"
@@ -312,33 +309,30 @@ THD_FUNCTION(trackingThread, arg) {
 					TRACE_TAB, tp->sen_i1_press/10, tp->sen_i1_press%10, tp->sen_i1_temp/100, tp->sen_i1_temp%100, tp->sen_i1_hum/10, tp->sen_i1_hum%10
 		);
 
-		// Write Trackpoint to Flash memory
-		writeLogTrackPoint(tp);
+		// Write data point to Flash memory
+		writeLogDataPoint(tp);
 
-		// Switch last track point
-		lastTrackPoint = tp;
+		// Switch last data point
+		lastDataPoint = tp;
 
 		// Wait until cycle
-		cycle_time = chThdSleepUntilWindowed(cycle_time, cycle_time + track_cycle_time);
+		cycle_time = chThdSleepUntilWindowed(cycle_time, cycle_time + data_cycle_time);
 	}
 }
 
-void init_tracking_manager(bool useGPS)
+void init_data_collector(void)
 {
-	if(useGPS)
-		tracking_useGPS = true;
-
 	if(!threadStarted)
 	{
 		threadStarted = true;
 
-		TRACE_INFO("TRAC > Startup tracking thread");
-		thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(2*1024), "TRA", NORMALPRIO+1, trackingThread, NULL);
+		TRACE_INFO("TRAC > Startup data collector thread");
+		thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(2*1024), "TRA", NORMALPRIO+1, collectorThread, NULL);
 		if(!th) {
 			// Print startup error, do not start watchdog for this thread
 			TRACE_ERROR("TRAC > Could not startup thread (not enough memory available)");
 		} else {
-			chThdSleep(TIME_MS2I(300)); // Wait a little bit until tracking manager has initialized first dataset
+			chThdSleep(TIME_MS2I(300)); // Wait a little bit until data collector has initialized first dataset
 		}
 	}
 }

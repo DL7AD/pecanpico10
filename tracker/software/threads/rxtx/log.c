@@ -16,7 +16,7 @@
 #include "log.h"
 
 
-#define LOG_POINTS_IN_SECTOR	(0x20000 / sizeof(trackPoint_t))
+#define LOG_POINTS_IN_SECTOR	(0x20000 / sizeof(dataPoint_t))
 #define LOG_POS_IN_SECTOR(id)	((id) % LOG_POINTS_IN_SECTOR)
 #define LOG_SECTOR_ID(id)		((id) / LOG_POINTS_IN_SECTOR)
 #define LOG_RSTandID(tp)		(((uint64_t)(tp)->reset << 32) & (tp)->id)
@@ -24,11 +24,11 @@
 
 static uint16_t log_id = 0;
 
-static trackPoint_t* getLogBuffer(uint16_t id)
+static dataPoint_t* getLogBuffer(uint16_t id)
 {
-	uint32_t addr = LOG_FLASH_ADDR + LOG_SECTOR_ID(id) * 0x20000 + LOG_POS_IN_SECTOR(id) * sizeof(trackPoint_t);
-	if(addr >= LOG_FLASH_ADDR && addr <= LOG_FLASH_ADDR+LOG_FLASH_SIZE-sizeof(trackPoint_t))
-		return (trackPoint_t*)addr;
+	uint32_t addr = LOG_FLASH_ADDR + LOG_SECTOR_ID(id) * 0x20000 + LOG_POS_IN_SECTOR(id) * sizeof(dataPoint_t);
+	if(addr >= LOG_FLASH_ADDR && addr <= LOG_FLASH_ADDR+LOG_FLASH_SIZE-sizeof(dataPoint_t))
+		return (dataPoint_t*)addr;
 	else
 		return NULL; // Outside of memory address allocation
 }
@@ -37,9 +37,9 @@ static trackPoint_t* getLogBuffer(uint16_t id)
   * Returns next free log entry address in memory. Returns 0 if all cells are
   * filled with data
   */
-static trackPoint_t* getNextFreeLogAddress(void)
+static dataPoint_t* getNextFreeLogAddress(void)
 {
-	trackPoint_t* tp;
+	dataPoint_t* tp;
 	for(uint32_t i=0; (tp = getLogBuffer(i)) != NULL; i++)
 		if(LOG_IS_EMPTY(tp))
 			return tp;
@@ -47,11 +47,11 @@ static trackPoint_t* getNextFreeLogAddress(void)
 	return NULL;
 }
 
-trackPoint_t* getNewestLogEntry(void)
+dataPoint_t* getNewestLogEntry(void)
 {
-	trackPoint_t* last_tp = NULL;
+	dataPoint_t* last_tp = NULL;
 	uint64_t last_id = 0x0;
-	trackPoint_t* tp;
+	dataPoint_t* tp;
 	for(uint32_t i=0; (tp = getLogBuffer(i)) != NULL; i++) {
 		if(!LOG_IS_EMPTY(tp) && last_id <= LOG_RSTandID(tp)) {
 			last_id = LOG_RSTandID(tp);
@@ -61,11 +61,11 @@ trackPoint_t* getNewestLogEntry(void)
 	return last_tp;
 }
 
-trackPoint_t* getOldestLogEntry(void)
+dataPoint_t* getOldestLogEntry(void)
 {
-	trackPoint_t* first_tp = NULL;
+	dataPoint_t* first_tp = NULL;
 	uint64_t first_id = 0xFFFFFFFFFFFFFFFF;
-	trackPoint_t* tp;
+	dataPoint_t* tp;
 	for(uint32_t i=0; (tp = getLogBuffer(i)) != NULL; i++) {
 		if(!LOG_IS_EMPTY(tp) && first_id >= LOG_RSTandID(tp)) {
 			first_id = LOG_RSTandID(tp);
@@ -90,10 +90,10 @@ static void eraseOldestLogData(void)
 	}
 }
 
-void writeLogTrackPoint(trackPoint_t* tp)
+void writeLogDataPoint(dataPoint_t* tp)
 {
 	// Get address to write on
-	trackPoint_t* address = getNextFreeLogAddress();
+	dataPoint_t* address = getNextFreeLogAddress();
 	if(address == NULL) // Memory completly used, erase oldest data
 	{
 		eraseOldestLogData();
@@ -108,21 +108,21 @@ void writeLogTrackPoint(trackPoint_t* tp)
 	// Write data into flash
 	TRACE_INFO("LOG  > Flash write (ADDR=%08x)", address);
 	flashSectorBegin(flashSectorAt((uint32_t)address));
-	flashWrite((uint32_t)address, (char*)tp, sizeof(trackPoint_t));
+	flashWrite((uint32_t)address, (char*)tp, sizeof(dataPoint_t));
 	flashSectorEnd(flashSectorAt((uint32_t)address));
 
 	// Verify
-	if(flashCompare((uint32_t)address, (char*)tp, sizeof(trackPoint_t))) {
+	if(flashCompare((uint32_t)address, (char*)tp, sizeof(dataPoint_t))) {
 		TRACE_INFO("LOG  > Flash write OK");
 	} else {
 		TRACE_ERROR("LOG  > Flash write failed");
 	}
 }
 
-static trackPoint_t* getNextLogTrackPoint(uint8_t density)
+static dataPoint_t* getNextLogDataPoint(uint8_t density)
 {
 	// Determine sector
-	trackPoint_t *tp;
+	dataPoint_t *tp;
 	uint32_t i = 0;
 	do {
 		if((tp = getLogBuffer(log_id))) {
@@ -131,7 +131,7 @@ static trackPoint_t* getNextLogTrackPoint(uint8_t density)
 			log_id = 0;
 			tp = getLogBuffer(0);
 		}
-	} while(LOG_IS_EMPTY(tp) && i++ < LOG_FLASH_SIZE / sizeof(trackPoint_t));
+	} while(LOG_IS_EMPTY(tp) && i++ < LOG_FLASH_SIZE / sizeof(dataPoint_t));
 
 	return LOG_IS_EMPTY(tp) ? NULL : tp;
 }
@@ -151,12 +151,12 @@ THD_FUNCTION(logThread, arg)
 		if(!p_sleep(&conf->thread_conf.sleep_conf))
 		{
 			// Get log from memory
-			trackPoint_t *log = getNextLogTrackPoint(conf->density);
+			dataPoint_t *log = getNextLogDataPoint(conf->density);
 
 			if(log) {
 				// Encode Base91
-				uint8_t pkt_base91[BASE91LEN(sizeof(trackPoint_t))];
-				base91_encode((uint8_t*)log, pkt_base91, sizeof(trackPoint_t));
+				uint8_t pkt_base91[BASE91LEN(sizeof(dataPoint_t))];
+				base91_encode((uint8_t*)log, pkt_base91, sizeof(dataPoint_t));
 
 				// Encode and transmit log packet
 				packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'L', pkt_base91); // Encode packet

@@ -201,10 +201,10 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
  * - Number of satellites being used
  * - Number of cycles where GPS has been lost (if applicable in cycle)
  */
-packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t symbol, trackPoint_t *trackPoint)
+packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t symbol, dataPoint_t *dataPoint)
 {
 	// Latitude
-	uint32_t y = 380926 * (90 - trackPoint->gps_lat/10000000.0);
+	uint32_t y = 380926 * (90 - dataPoint->gps_lat/10000000.0);
 	uint32_t y3  = y   / 753571;
 	uint32_t y3r = y   % 753571;
 	uint32_t y2  = y3r / 8281;
@@ -213,7 +213,7 @@ packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t s
 	uint32_t y1r = y2r % 91;
 
 	// Longitude
-	uint32_t x = 190463 * (180 + trackPoint->gps_lon/10000000.0);
+	uint32_t x = 190463 * (180 + dataPoint->gps_lon/10000000.0);
 	uint32_t x3  = x   / 753571;
 	uint32_t x3r = x   % 753571;
 	uint32_t x2  = x3r / 8281;
@@ -222,11 +222,11 @@ packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t s
 	uint32_t x1r = x2r % 91;
 
 	// Altitude
-	uint32_t a = logf(METER_TO_FEET(trackPoint->gps_alt)) / logf(1.002f);
+	uint32_t a = logf(METER_TO_FEET(dataPoint->gps_alt)) / logf(1.002f);
 	uint32_t a1  = a / 91;
 	uint32_t a1r = a % 91;
 
-	uint8_t gpsFix = trackPoint->gps_lock == GPS_LOCKED1 || trackPoint->gps_lock == GPS_LOCKED2 ? GSP_FIX_CURRENT : GSP_FIX_OLD;
+	uint8_t gpsFix = dataPoint->gps_lock == GPS_LOCKED1 || dataPoint->gps_lock == GPS_LOCKED2 ? GSP_FIX_CURRENT : GSP_FIX_OLD;
 	uint8_t src = NMEA_SRC_GGA;
 	uint8_t origin = ORIGIN_PICO;
 
@@ -248,23 +248,23 @@ packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t s
 	xmit[len+12] = ((gpsFix << 5) | (src << 3) | origin) + 33;
 
 	// Comments
-	uint32_t len2 = base91_encode((uint8_t*)trackPoint, (uint8_t*)&xmit[len+13], sizeof(trackPoint_t));
+	uint32_t len2 = base91_encode((uint8_t*)dataPoint, (uint8_t*)&xmit[len+13], sizeof(dataPoint_t));
 
 	xmit[len+len2+13] = '|';
 
 	// Sequence ID
-	uint32_t t = trackPoint->id & 0x1FFF;
+	uint32_t t = dataPoint->id & 0x1FFF;
 	xmit[len+len2+14] = t/91 + 33;
 	xmit[len+len2+15] = t%91 + 33;
 
 	// Telemetry parameter
 	for(uint8_t i=0; i<5; i++) {
 		switch(i) {
-			case 0: t = trackPoint->adc_vbat;				break;
-			case 1: t = trackPoint->adc_vsol;				break;
-			case 2: t = trackPoint->pac_pbat+4096;			break;
-			case 3: t = trackPoint->sen_i1_temp/10 + 1000;	break;
-			case 4: t = trackPoint->sen_i1_press/125 - 40;	break;
+			case 0: t = dataPoint->adc_vbat;				break;
+			case 1: t = dataPoint->adc_vsol;				break;
+			case 2: t = dataPoint->pac_pbat+4096;			break;
+			case 3: t = dataPoint->sen_i1_temp/10 + 1000;	break;
+			case 4: t = dataPoint->sen_i1_press/125 - 40;	break;
 		}
 
 		xmit[len+len2+16+i*2]   = t/91 + 33;
@@ -388,8 +388,8 @@ static bool aprs_decode_message(packet_t pp)
 		} else if(!strcmp(command, "?aprsp")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: Position query");
-			trackPoint_t* trackPoint = getLastTrackPoint();
-			packet_t pp = aprs_encode_position(conf_sram.rx.call, conf_sram.rx.path, conf_sram.rx.symbol, trackPoint);
+			dataPoint_t* dataPoint = getLastDataPoint();
+			packet_t pp = aprs_encode_position(conf_sram.rx.call, conf_sram.rx.path, conf_sram.rx.symbol, dataPoint);
             transmitOnRadio(pp,
                             conf_sram.rx.radio_conf.freq,
                             conf_sram.rx.radio_conf.step,

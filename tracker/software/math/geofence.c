@@ -5,7 +5,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "geofence.h"
-#include "tracking.h"
+#include "collector.h"
 
 static const coord_t america[] = {
 	// Latitude  Longitude (in deg*10000000)
@@ -653,7 +653,7 @@ static bool isPointInBrazil(int32_t lat, int32_t lon) {
   * been received.
   */
 uint32_t getAPRSRegionFrequency(void) {
-	trackPoint_t *point = getLastTrackPoint();
+	dataPoint_t *point = getLastDataPoint();
 
 	// Position unknown
 	if(point == NULL || (point->gps_lat == 0 && point->gps_lon == 0))

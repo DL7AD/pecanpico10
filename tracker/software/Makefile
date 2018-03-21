@@ -123,11 +123,11 @@ CSRC = $(STARTUPSRC) \
        $(CHIBIOS)/os/hal/lib/streams/memstreams.c \
        $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
        $(CHIBIOS)/os/various/fatfs_bindings/fatfs_diskio.c \
-       threads/tracking.c \
-       threads/position.c \
-       threads/image.c \
-       threads/log.c \
-       threads/radio/radio.c \
+       threads/collector.c \
+       threads/rxtx/position.c \
+       threads/rxtx/image.c \
+       threads/rxtx/log.c \
+       threads/rxtx/radio.c \
        protocols/ssdv/ssdv.c \
        protocols/ssdv/rs8.c \
        pkt/protocols/aprs2/ax25_pad.c \
@@ -270,7 +270,7 @@ UADEFS =
 # List all user directories here
 UINCDIR = threads/ drivers/ drivers/wrapper/ pkt/protocols/aprs2 \
           protocols/ssdv math/ drivers/flash/ drivers/usb/ \
-          protocols/packet fatfs/src/ threads/radio/ \
+          protocols/packet fatfs/src/ threads/rxtx/ \
           pkt pkt/channels pkt/managers pkt/devices pkt/protocols \
           pkt/diagnostics pkt/filters pkt/decoders pkt/sys CMSIS/include \
           pkt/sys/regex/

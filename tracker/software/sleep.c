@@ -2,7 +2,7 @@
 #include "hal.h"
 #include "sleep.h"
 #include "padc.h"
-#include "tracking.h"
+#include "collector.h"
 #include "debug.h"
 #include "padc.h"
 #include "pac1720.h"
@@ -41,8 +41,8 @@ sysinterval_t waitForTrigger(sysinterval_t prev, sysinterval_t timeout)
 {
 	/*switch(config->type)
 	{
-		case TRIG_NEW_POINT: // Wait for new tracking point
-			waitForNewTrackPoint();
+		case TRIG_NEW_POINT: // Wait for new data point
+			waitForNewDataPoint();
 			return chVTGetSystemTimeX();
 		
 		case TRIG_TIMEOUT: // Wait for specified timeout
@@ -60,13 +60,13 @@ sysinterval_t waitForTrigger(sysinterval_t prev, sysinterval_t timeout)
 	return chThdSleepUntilWindowed(prev, prev + timeout);
 }
 
-void trigger_new_tracking_point(void)
+void trigger_new_data_point(void)
 {
-	uint32_t oldID = getLastTrackPoint()->id;
-	trackPoint_t *newtp;
+	uint32_t oldID = getLastDataPoint()->id;
+	dataPoint_t *newtp;
 	do { // Wait for new serial ID to be deployed
 		chThdSleep(TIME_MS2I(100));
-		newtp = getLastTrackPoint();
+		newtp = getLastDataPoint();
 	} while(newtp->id == oldID);
 }
 

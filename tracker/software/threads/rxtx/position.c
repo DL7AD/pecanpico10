@@ -19,8 +19,8 @@ THD_FUNCTION(posThread, arg)
 	// Wait
 	if(conf->thread_conf.init_delay) chThdSleep(conf->thread_conf.init_delay);
 
-	// Start tracking manager (if not running yet)
-	init_tracking_manager(true);
+	// Start data collector (if not running yet)
+	init_data_collector();
 
 	// Start position thread
 	TRACE_INFO("POS  > Startup position thread");
@@ -33,15 +33,15 @@ THD_FUNCTION(posThread, arg)
 	{
 		TRACE_INFO("POS  > Do module POSITION cycle");
 
-		TRACE_INFO("POS  > Get last track point");
-		trackPoint_t* trackPoint = getLastTrackPoint();
+		TRACE_INFO("POS  > Get last data point");
+		dataPoint_t* dataPoint = getLastDataPoint();
 
 		if(!p_sleep(&conf->thread_conf.sleep_conf))
 		{
 			TRACE_INFO("POS  > Transmit position");
 
 			// Encode/Transmit position packet
-			packet_t packet = aprs_encode_position(conf->call, conf->path, conf->symbol, trackPoint);
+			packet_t packet = aprs_encode_position(conf->call, conf->path, conf->symbol, dataPoint);
 			transmitOnRadio(packet,
                             conf->radio_conf.freq,
                             conf->radio_conf.step,
