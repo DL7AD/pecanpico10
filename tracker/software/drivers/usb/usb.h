@@ -7,7 +7,7 @@
 #define isUSBactive() (SDU1.config->usbp->state == USB_ACTIVE)
 
 void startUSB(void);
-void startShell(void);
+void manageShell(void);
 bool isUSBInitialized(void);
 
 #endif

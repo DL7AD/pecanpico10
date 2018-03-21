@@ -41,12 +41,11 @@ int main(void) {
 	start_user_threads();		// Startup optional modules (eg. POSITION, LOG, ...)
 
 	while(true) {
-		#if ACTIVATE_USB
+        #if ACTIVATE_USB
 		if(isUSBactive()) {
-			startShell();
-
-			eventmask_t evt = chEvtWaitAnyTimeout(EVENT_MASK(0) | EVENT_MASK(1), TIME_S2I(1));
-			if(evt & EVENT_MASK(1)) {
+			manageShell();
+			eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(1));
+			if(evt) {
 			  eventflags_t flags = chEvtGetAndClearFlags(&pkt_el);
 			  if(flags & EVT_PWM_QUEUE_FULL) {
 			    TRACE_WARN("PKT  > PWM queue full");
@@ -78,10 +77,11 @@ int main(void) {
               if(flags & EVT_PWM_NO_DATA) {
                 TRACE_WARN("PKT  > PWM data not started from radio");
               }
-
 			}
+			continue;
 		}
-		#endif
+        #endif /* ACTIVATE_USB */
+		/* Wait in a loop if nothing to do. */
         chThdSleep(TIME_S2I(1));
 	}
 }

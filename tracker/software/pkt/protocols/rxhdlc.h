@@ -12,21 +12,24 @@
 /* HDLC bit pattern definitions. */
 #define HDLC_CODE_MASK      0xFFU
 #define HDLC_FLAG           0x7EU
+#define HDLC_RESET          0x7FU
+#define HDLC_IDLE           0xFFU
 #define HDLC_ZERO           0x00U
+
+/* Frame bounding. */
 #define HDLC_FRAME_MASK_A   0x00FFFFFFU
 #define HDLC_FRAME_OPEN_A   0x7E7E7E7EU
 #define HDLC_FRAME_MASK_B   0x00FFFFFFU
 #define HDLC_FRAME_OPEN_B   0x0000007EU
-
 #define HDLC_FRAME_CLOSE    HDLC_FLAG
-#define HDLC_RESET          0x7FU
-#define HDLC_RLL_MASK       0x3FU
 
+/* R$LL encoding. */
+#define HDLC_RLL_MASK       0x3FU
 #define HDLC_RLL_BIT        0x3EU
 
-  /*===========================================================================*/
-  /* External declarations.                                                    */
-  /*===========================================================================*/
+/*===========================================================================*/
+/* External declarations.                                                    */
+/*===========================================================================*/
 
   #ifdef __cplusplus
   extern "C" {

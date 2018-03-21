@@ -7,6 +7,8 @@
 static thread_t *shelltp;
 static bool usb_initialized;
 
+event_listener_t shell_el;
+
 static const ShellConfig shell_cfg = {
 	(BaseSequentialStream*)&SDU1,
 	commands
@@ -28,24 +30,26 @@ void startUSB(void) {
 
 	// Initialize shell
 	shelltp = NULL;
-	event_listener_t shell_el;
 	shellInit();
-	chEvtRegister(&shell_terminated, &shell_el, 0);
 
 	usb_initialized = true;
 }
 
-void startShell(void) {
+void manageShell(void) {
 	if(shelltp == NULL) {
 		shelltp = chThdCreateFromHeap(NULL,
 		                              THD_WORKING_AREA_SIZE(1024),
 		                              "shell", NORMALPRIO + 1,
 		                              shellThread,
 		                              (void*)&shell_cfg);
+
+	    chEvtRegister(&shell_terminated, &shell_el, 0);
 	}
+    chEvtWaitAnyTimeout(EVENT_MASK(0), TIME_S2I(1));
 	if(chThdTerminatedX(shelltp)) {
 		chThdRelease(shelltp);
 		shelltp = NULL;
+	    chEvtUnregister(&shell_terminated, &shell_el);
 	}
 }
 

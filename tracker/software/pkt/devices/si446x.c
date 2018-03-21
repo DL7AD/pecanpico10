@@ -1239,6 +1239,9 @@ THD_FUNCTION(si_fifo_feeder_afsk, arg) {
     chThdExit(exit_msg);
 }
 
+/*
+ *
+ */
 THD_FUNCTION(new_si_fifo_feeder_afsk, arg) {
     packet_t pp = arg;
 
@@ -1260,10 +1263,6 @@ THD_FUNCTION(new_si_fifo_feeder_afsk, arg) {
      * Create iterator object and complete TX frame.
      * Insert CRC in radio.c transmit function?
      */
-/*    uint16_t crc = calc_crc16(pp->frame_data, 0, pp->frame_len);
-    pp->frame_data[pp->frame_len++] = crc & 0xFF;
-    pp->frame_data[pp->frame_len++] = crc >> 8;
-    pp->frame_data[pp->frame_len++] = HDLC_FLAG;*/
 
     static tx_iterator_t iterator;
 
@@ -1277,6 +1276,33 @@ THD_FUNCTION(new_si_fifo_feeder_afsk, arg) {
                data, iterator.rll_count,
                iterator.out_index, iterator.out_index >> 3,
                iterator.out_index % 8);
+
+#ifdef TX_ITERATOR_VERIFICATION
+    uint8_t layer1[AFSK_FEEDER_BUFFER_SIZE];
+    memset(layer1, 0, sizeof(layer1));
+    ctone = 0;
+    uint32_t layer1_blen = Si446x_encodeDataToAFSK(pp->frame_data,
+                                                   pp->frame_len,
+                                                   layer1, sizeof(layer1),
+                                                   49);
+
+    TRACE_INFO("SI   > Encoder out count %i, bytes %i, out bits %i",
+               (layer1_blen + 7) >> 3, layer1_blen >> 3, layer1_blen % 8);
+
+    bool diff = false;
+    uint16_t end = (layer1_blen + 7) >> 3;
+    uint16_t i;
+    for (i = 0; i < end; i++) {
+     if (layer0[i] != layer1[i]) {
+       diff = true;
+       break;
+     }
+    }
+
+    if(diff) {
+      TRACE_ERROR("SI   > Encoding results differ at index %i, layer0 0x%x, layer1 0x%x", i, layer0[i], layer1[i]);
+    }
+#endif
 
     /* Reset TX FIFO in case some remnant unsent data is left there. */
     const uint8_t reset_fifo[] = {0x15, 0x01};
@@ -1413,7 +1439,7 @@ void Si446x_sendAFSK(packet_t pp,
 
 #if USE_DYNAMIC_AFSK_TX == TRUE
     afsk_feeder_thd = chThdCreateFromHeap(NULL,
-                THD_WORKING_AREA_SIZE(SI_AFSK_FIFO_FEEDER_WA_SIZE),
+                THD_WORKING_AREA_SIZE(SI_AFSK_FIFO_FEEDER_WA_SIZE * 2),
                 "446x_afsk_tx",
                 NORMALPRIO - 10,
                 si_fifo_feeder_afsk,

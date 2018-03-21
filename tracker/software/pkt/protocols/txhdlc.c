@@ -8,30 +8,6 @@
 
 #include "pktconf.h"
 
-uint32_t lfsr;
-uint8_t scramble_bit(uint8_t _in) {
-    uint8_t x = (_in ^ (lfsr >> 16) ^ (lfsr >> 11)) & 1;
-    lfsr = (lfsr << 1) | (x & 1);
-    return x;
-}
-
-/**
-  * Scrambling for 2GFSK
-  */
-void scramble(uint8_t *data, size_t size) {
-
-    // Scramble
-    lfsr = 0;
-    for(uint32_t i = 0; i < size; i++) {
-        uint8_t bit = scramble_bit((data[i >> 3] >> (i & 0x7)) & 0x1);
-        if(bit) {
-            AX25_WRITE_BIT(data, i);
-        } else {
-            AX25_CLEAR_BIT(data, i);
-        }
-    }
-}
-
 /*
  * Initialize the iterator object.
  * TODO: Preamble count to come from config.
@@ -39,7 +15,8 @@ void scramble(uint8_t *data, size_t size) {
 void pktStreamIteratorInit(tx_iterator_t *iterator,
                            packet_t pp, bool scramble) {
   memset(iterator, 0, sizeof(tx_iterator_t));
-  iterator->flag_count = 50;
+  iterator->hdlc_code = HDLC_FLAG;
+  iterator->hdlc_count = 50;
   iterator->scramble = scramble;
   iterator->data_buff = pp->frame_data;
   iterator->data_size = pp->frame_len;
@@ -81,7 +58,7 @@ static bool pktIteratorWriteStream(tx_iterator_t *iterator, uint8_t bit) {
   iterator->out_buff[iterator->out_index >> 3] |=
       (iterator->nrzi_hist & 0x1) << (iterator->out_index % 8);
 
-  /* If byte is full and required quantity, reached return true. */
+  /* If byte was completed and required quantity reached, return true. */
   if((++iterator->out_index % 8) == 0)
     return (++iterator->out_count == iterator->qty);
   else
@@ -91,14 +68,14 @@ static bool pktIteratorWriteStream(tx_iterator_t *iterator, uint8_t bit) {
 /*
  *
  */
-static bool pktEncodeFrameFlag(tx_iterator_t *iterator) {
+static bool pktEncodeFrameHDLC(tx_iterator_t *iterator) {
   do {
     if(pktIteratorWriteStream(iterator,
-           ((HDLC_FLAG >> iterator->flag_bit++) & 0x1)
+           ((iterator->hdlc_code >> iterator->hdlc_bit++) & 0x1)
            << (iterator->out_index % 8)))
         return true;
-  } while(iterator->flag_bit < 8);
-  iterator->flag_bit = 0;
+  } while(iterator->hdlc_bit < 8);
+  iterator->hdlc_bit = 0;
   return false;
 }
 
@@ -135,13 +112,23 @@ static bool pktEncodeFrameData(tx_iterator_t *iterator) {
   return false;
 }
 
-/*
- * Create stream of bytes of encoded link level data.
- * The calling function may request chunk sizes from 1 byte up.
- * The function returns the number of bytes encoded.
+/**
+ * @brief   Encode frame stream for transmission.
+ * @pre     The iterator has to be initialized before use.
+ * @post    When the stream is complete the iterator may be re-used.
+ * @notes   The iterator allows a frame to be encoded in chunks.
+ * @notes   The calling function may request chunk sizes from 1 byte up.
  *
- * It is the calling functions responsibility to allocate the sized buffer.
- * The iterator will write stream bytes up to the buffer size specified.
+ * @param[in]   iterator   pointer to an @p iterator object.
+ * @param[in]   stream     pointer to buffer to write stream data.
+ * @param[in]   qty        the requested number of stream bytes.
+ *
+ * @return  number of bytes encoded.
+ * @retval  zero indicates the iterator is not initialized or is finished.
+ * @retval  requested size is returned while encoding continues.
+ * @retval  less than requested size is returned when encoding is ending.
+ *
+ * @api
  */
 uint16_t pktStreamEncodingIterator(tx_iterator_t *iterator,
                                    uint8_t *stream, size_t qty) {
@@ -167,13 +154,10 @@ uint16_t pktStreamEncodingIterator(tx_iterator_t *iterator,
        * Output preamble bytes of specified quantity in requested chunk size.
        * RLL encoding is not used as these are HDLC flags.
        */
-      while(iterator->flag_count > 0) {
-        if(pktEncodeFrameFlag(iterator))
+      while(iterator->hdlc_count-- > 0) {
+        if(pktEncodeFrameHDLC(iterator))
           /* True means the requested count has been reached. */
           return iterator->qty;
-        /* False means a byte has been consumed from flags. */
-        --iterator->flag_count;
-        continue;
       } /* End while. */
       iterator->state = ITERATE_FRAME;
       break;
@@ -183,14 +167,11 @@ uint16_t pktStreamEncodingIterator(tx_iterator_t *iterator,
       /*
        * Output frame data bytes in requested chunk size.
        */
-      while(iterator->data_size > 0) {
+      while(iterator->data_size-- > 0) {
         /* Consume bytes until count reached. */
         if(pktEncodeFrameData(iterator))
           /* True means the requested count has been reached. */
           return iterator->qty;
-        /* False means a byte has been consumed from input. */
-        --iterator->data_size;
-        continue;
       }
       /* All frame data input consumed. */
       iterator->state = ITERATE_CRC;
@@ -204,41 +185,53 @@ uint16_t pktStreamEncodingIterator(tx_iterator_t *iterator,
       /*
        * Output frame CRC bytes in requested chunk size.
        */
-      while(iterator->data_size > 0) {
+      while(iterator->data_size-- > 0) {
         /* Consume bytes until count reached. */
         if(pktEncodeFrameData(iterator))
           /* True means the requested count has been reached. */
           return iterator->qty;
-        /* False means a byte has been consumed from input. */
-        --iterator->data_size;
-        continue;
       }
       /* Frame CRC consumed. */
       iterator->state = ITERATE_CLOSE;
-      iterator->flag_count = 1;
-      iterator->flag_bit = 0;
+      iterator->hdlc_count = 10;
+      iterator->hdlc_code = HDLC_FLAG;
+      iterator->hdlc_bit = 0;
       break;
-      }
+      } /* End case ITERATE_CRC. */
 
     case ITERATE_CLOSE: {
       /*
-       * Output closing flag.
-       * RLL encoding is not used as this is an HDLC flag.
+       * Output closing flags.
+       * RLL encoding is not used as these are HDLC flags.
        */
-      while(iterator->flag_count > 0) {
-        if(pktEncodeFrameFlag(iterator))
+      while(iterator->hdlc_count-- > 0) {
+        if(pktEncodeFrameHDLC(iterator))
           /* True means the requested count has been reached. */
           return iterator->qty;
-        /* False means a byte has been consumed from flags. */
-        --iterator->flag_count;
-        continue;
+      } /* End while. */
+      iterator->state = ITERATE_TAIL;
+      /* Tail length. */
+      iterator->hdlc_count = 10;
+      iterator->hdlc_code = HDLC_ZERO;
+      } /* End case ITERATE_CLOSE. */
+
+    case ITERATE_TAIL: {
+      /*
+       * Output tail.
+       * RLL encoding is not used as these are idle flags.
+       * This keeps the data tail clean for the receiver.
+       */
+      while(iterator->hdlc_count-- > 0) {
+        if(pktEncodeFrameHDLC(iterator))
+          /* True means the requested count has been reached. */
+          return iterator->qty;
       } /* End while. */
       iterator->state = ITERATE_FINAL;
       /* Round up to include any partial bits in next byte. */
       if(iterator->out_index % 8 != 0)
         ++iterator->out_count;
       return (iterator->out_count);
-      }
+      } /* End case ITERATE_TAIL. */
     } /* End switch on state. */
   } /* End while. */
 } /* End function. */

@@ -488,6 +488,22 @@ static inline packet_svc_t *pktGetServiceObject(radio_unit_t radio) {
   return handler;
 }
 
+/**
+ * @brief   Tests if transmit is available for the radio.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @return        Availability.
+ * @retval true   If transmit is available.
+ * @retval false  If transmit is not available.
+ *
+ * @api
+ */
+static inline bool pktIsTransmitOpen(radio_unit_t radio) {
+  packet_state_t state = pktGetServiceState(radio);
+  return !(state == PACKET_IDLE || state == PACKET_INVALID);
+}
+
 #endif /* PKT_CHANNELS_PKTSERVICE_H_ */
 
 /** @} */

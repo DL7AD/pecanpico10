@@ -134,14 +134,8 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 		aprs_debug_getPacket(pp, buf, sizeof(buf));
 		TRACE_INFO("TX   > %s", buf);
 
-        /*
-         * TODO: The following is an interim setup.
-         * The management of TX is only partially integrated.
-         * Packet services also has WIP in handler <> radio mapping, etc.
-         */
-
-		packet_state_t state = pktGetServiceState(PKT_RADIO_1);
-		if(state == PACKET_IDLE || state == PACKET_INVALID) {
+		/* Check if packet services available for transmit. */
+		if(!pktIsTransmitOpen(PKT_RADIO_1)) {
           TRACE_ERROR("RAD  > Packet services are not open for transmit");
           ax25_delete(pp);
 		  return false;
