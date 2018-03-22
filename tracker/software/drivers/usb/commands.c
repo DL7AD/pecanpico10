@@ -12,7 +12,7 @@
 static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
 
 const ShellCommand commands[] = {
-	{"debug", usb_cmd_debugOnUSB},
+	{"set_trace_level", usb_cmd_set_trace_level},
 	{"picture", usb_cmd_printPicture},
 	{"print_log", usb_cmd_printLog},
 	{"config", usb_cmd_printConfig},
@@ -21,16 +21,21 @@ const ShellCommand commands[] = {
 };
 
 
-void usb_cmd_debugOnUSB(BaseSequentialStream *chp, int argc, char *argv[])
+void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
 {
 	if(argc < 1)
 	{
 		chprintf(chp, "Argument missing!\r\n");
-		chprintf(chp, "Argument 1: 1 for switch on, 0 for switch off\r\n");
+		chprintf(chp, "Argument 1: Level\r\n");
+		chprintf(chp, "Level 0: None\r\n");
+		chprintf(chp, "Level 1: Errors\r\n");
+		chprintf(chp, "Level 2: Errors + Warnings\r\n");
+		chprintf(chp, "Level 3: Errors + Warnings + Info\r\n");
+		chprintf(chp, "Level 4: Errors + Warnings + Info + Debug\r\n");
 		return;
 	}
 
-	debug_on_usb = atoi(argv[0]);
+	usb_trace_level = atoi(argv[0]);
 }
 
 void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
@@ -50,7 +55,7 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 			// Look for APP0 instead of SOI because SOI is lost sometimes, but we can add SOI easily later on
 			if(!start_detected && usb_buffer[i] == 0xFF && usb_buffer[i+1] == 0xE0) {
 				start_detected = true;
-				TRACE_USB("DATA > image/jpeg,%d", size_sampled-i+2); // Flag the data on serial output
+				TRACE_INFO("DATA > image/jpeg,%d", size_sampled-i+2); // Flag the data on serial output
 				streamPut(chp, 0xFF);
 				streamPut(chp, 0xD8);
 			}
@@ -59,14 +64,14 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 		}
 		if(!start_detected)
 		{
-			TRACE_USB("DATA > image/jpeg,0");
-			TRACE_USB("DATA > text/trace,no SOI flag found");
+			TRACE_INFO("DATA > image/jpeg,0");
+			TRACE_INFO("DATA > text/trace,no SOI flag found");
 		}
 
 	} else { // Camera error
 
-		TRACE_USB("DATA > image,jpeg,0");
-		TRACE_USB("DATA > error,no camera found");
+		TRACE_INFO("DATA > image,jpeg,0");
+		TRACE_INFO("DATA > error,no camera found");
 
 	}
 }

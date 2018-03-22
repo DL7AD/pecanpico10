@@ -4,7 +4,7 @@
 #include "ch.h"
 #include "hal.h"
 
-void usb_cmd_debugOnUSB(BaseSequentialStream *chp, int argc, char *argv[]);
+void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[]);
 void usb_cmd_printConfig(BaseSequentialStream *chp, int argc, char *argv[]);
 void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[]);
 void usb_cmd_printLog(BaseSequentialStream *chp, int argc, char *argv[]);

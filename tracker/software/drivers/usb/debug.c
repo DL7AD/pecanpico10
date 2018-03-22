@@ -3,5 +3,5 @@
 
 mutex_t trace_mtx; // Used internal to synchronize multiple chprintf in debug.h
 
-bool debug_on_usb = true;
+uint8_t usb_trace_level = 2; // Level: Errors + Warnings
 

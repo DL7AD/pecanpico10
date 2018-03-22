@@ -14,7 +14,7 @@
 
 extern mutex_t trace_mtx;
 extern const SerialConfig uart_config;
-extern bool debug_on_usb;
+extern uint8_t usb_trace_level;
 
 // Initializer for serial debug and LEDs
 #define DEBUG_INIT() { \
@@ -22,14 +22,6 @@ extern bool debug_on_usb;
 }
 
 #define TRACE_BASE(format, type, args...) { \
-	chMtxLock(&trace_mtx); \
-	if(debug_on_usb) { \
-		TRACE_BASE_USB(format, type, ##args); \
-	} \
-	chMtxUnlock(&trace_mtx); \
-}
-
-#define TRACE_BASE_USB(format, type, args...) { \
 	if(isUSBInitialized()) { \
 		if(TRACE_TIME) { \
 			chprintf((BaseSequentialStream*)&SDU1, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000); \
@@ -45,11 +37,10 @@ extern bool debug_on_usb;
 	} \
 }
 
-#define TRACE_DEBUG(format, args...) TRACE_BASE(format, "DEBUG", ##args)
-#define TRACE_INFO(format, args...)  TRACE_BASE(format, "     ", ##args)
-#define TRACE_WARN(format, args...)  TRACE_BASE(format, "WARN ", ##args)
-#define TRACE_ERROR(format, args...) TRACE_BASE(format, "ERROR", ##args)
-#define TRACE_USB(format, args...)   TRACE_BASE_USB(format, "USB  ", ##args) /* only traced on USB */
+#define TRACE_DEBUG(format, args...) if(usb_trace_level > 3) { TRACE_BASE(format, "DEBUG", ##args) }
+#define TRACE_INFO(format, args...)  if(usb_trace_level > 2) { TRACE_BASE(format, "     ", ##args) }
+#define TRACE_WARN(format, args...)  if(usb_trace_level > 1) { TRACE_BASE(format, "WARN ", ##args) }
+#define TRACE_ERROR(format, args...) if(usb_trace_level > 0) { TRACE_BASE(format, "ERROR", ##args) }
 
 #if TRACE_TIME && TRACE_FILE
 #define TRACE_TAB "                                             "
