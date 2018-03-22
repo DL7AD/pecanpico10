@@ -10,11 +10,10 @@
 #include "pac1720.h"
 #include "ov5640.h"
 #include "radio.h"
-#include "flash.h"
 #include "watchdog.h"
 #include "pi2c.h"
 #include "si446x.h"
-#include "log.h"
+#include "pflash.h"
 
 static dataPoint_t dataPoints[2];
 static dataPoint_t* lastDataPoint;
@@ -46,7 +45,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp, sysinterval_t time
 	// Switch on GPS if enough power is available and GPS is needed by any position thread
 	uint16_t batt = stm32_get_vbat();
 	if(batt < conf_sram.gps_on_vbat) {
-		tp->gps_lock = GPS_LOWBATT1;
+		tp->gps_state = GPS_LOWBATT1;
 	} else {
 
 		// Switch on GPS
@@ -62,31 +61,31 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp, sysinterval_t time
 			if(batt < conf_sram.gps_off_vbat) { // GPS was switched on but prematurely switched off because the battery is low on power, switch off GPS
 
 				GPS_Deinit();
-				TRACE_WARN("TRAC > GPS sampling finished GPS LOW BATT");
-				tp->gps_lock = GPS_LOWBATT2;
+				TRACE_WARN("COLL > GPS sampling finished GPS LOW BATT");
+				tp->gps_state = GPS_LOWBATT2;
 
 			} else if(!isGPSLocked(&gpsFix)) { // GPS was switched on but it failed to get a lock, keep GPS switched on
 
-				TRACE_WARN("TRAC > GPS sampling finished GPS LOSS");
-				tp->gps_lock = GPS_LOSS;
+				TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
+				tp->gps_state = GPS_LOSS;
 
 			} else { // GPS locked successfully, switch off GPS (unless cycle is less than 60 seconds)
 
 				// Switch off GPS (if cycle time is more than 60 seconds)
 				if(timeout < TIME_S2I(60)) {
-					TRACE_INFO("TRAC > Keep GPS switched on because cycle < 60sec");
-					tp->gps_lock = GPS_LOCKED2;
+					TRACE_INFO("COLL > Keep GPS switched on because cycle < 60sec");
+					tp->gps_state = GPS_LOCKED2;
 				} else if(conf_sram.gps_onper_vbat != 0 && batt >= conf_sram.gps_onper_vbat) {
-					TRACE_INFO("TRAC > Keep GPS switched on because VBAT >= %dmV", conf_sram.gps_onper_vbat);
-					tp->gps_lock = GPS_LOCKED2;
+					TRACE_INFO("COLL > Keep GPS switched on because VBAT >= %dmV", conf_sram.gps_onper_vbat);
+					tp->gps_state = GPS_LOCKED2;
 				} else {
-					TRACE_INFO("TRAC > Switch off GPS");
+					TRACE_INFO("COLL > Switch off GPS");
 					GPS_Deinit();
-					tp->gps_lock = GPS_LOCKED1;
+					tp->gps_state = GPS_LOCKED1;
 				}
 
 				// Debug
-				TRACE_INFO("TRAC > GPS sampling finished GPS LOCK");
+				TRACE_INFO("COLL > GPS sampling finished GPS LOCK");
 
 				// Calibrate RTC
 				setTime(&gpsFix.time);
@@ -106,14 +105,14 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp, sysinterval_t time
 		} else { // GPS communication error
 
 			GPS_Deinit();
-			tp->gps_lock = GPS_ERROR;
+			tp->gps_state = GPS_ERROR;
 
 		}
 	}
 
 	tp->gps_ttff = TIME_I2S(chVTGetSystemTime() - start); // Time to first fix
 
-	if(tp->gps_lock != GPS_LOCKED1 && tp->gps_lock != GPS_LOCKED2) { // We have no valid GPS fix
+	if(tp->gps_state != GPS_LOCKED1 && tp->gps_state != GPS_LOCKED2) { // We have no valid GPS fix
 		// Take time from internal RTC
 		ptime_t time;
 		getTime(&time);
@@ -149,7 +148,7 @@ static void getSensors(dataPoint_t* tp)
 		tp->sen_i1_hum = BME280_getHumidity(&handle);
 		tp->sen_i1_temp = BME280_getTemperature(&handle);
 	} else { // No internal BME280 found
-		TRACE_ERROR("TRAC > Internal BME280 I1 not found");
+		TRACE_ERROR("COLL > Internal BME280 I1 not found");
 		tp->sen_i1_press = 0;
 		tp->sen_i1_hum = 0;
 		tp->sen_i1_temp = 0;
@@ -164,7 +163,7 @@ static void getSensors(dataPoint_t* tp)
 		tp->sen_e1_hum = BME280_getHumidity(&handle);
 		tp->sen_e1_temp = BME280_getTemperature(&handle);
 	} else { // No internal BME280 found
-		TRACE_ERROR("TRAC > External BME280 E1 not found");
+		TRACE_ERROR("COLL > External BME280 E1 not found");
 		tp->sen_e1_press = 0;
 		tp->sen_e1_hum = 0;
 		tp->sen_e1_temp = 0;
@@ -178,7 +177,7 @@ static void getSensors(dataPoint_t* tp)
 		tp->sen_e2_hum = BME280_getHumidity(&handle);
 		tp->sen_e2_temp = BME280_getTemperature(&handle);
 	} else { // No internal BME280 found
-		TRACE_ERROR("TRAC > External BME280 E2 not found");
+		TRACE_ERROR("COLL > External BME280 E2 not found");
 		tp->sen_e2_press = 0;
 		tp->sen_e2_hum = 0;
 		tp->sen_e2_temp = 0;
@@ -197,12 +196,12 @@ static void setSystemStatus(dataPoint_t* tp) {
 	// Set system errors
 	tp->sys_error = 0;
 
-	tp->sys_error |= (I2C_hasError()     & 0x1)  << 0;
-	tp->sys_error |= (tp->gps_lock == GPS_ERROR) << 2;
-	tp->sys_error |= (pac1720_hasError() & 0x3)  << 3;
-	tp->sys_error |= (OV5640_hasError()  & 0x7)  << 5;
+	tp->sys_error |= (I2C_hasError()     & 0x1)   << 0;
+	tp->sys_error |= (tp->gps_state == GPS_ERROR) << 2;
+	tp->sys_error |= (pac1720_hasError() & 0x3)   << 3;
+	tp->sys_error |= (OV5640_hasError()  & 0x7)   << 5;
 
-	tp->sys_error |= (bme280_error & 0x7)        << 8;
+	tp->sys_error |= (bme280_error & 0x7)         << 8;
 
 	// Set system time
 	tp->sys_time = TIME_I2S(chVTGetSystemTime());
@@ -223,8 +222,8 @@ THD_FUNCTION(collectorThread, arg) {
 	lastDataPoint->gps_time = date2UnixTimestamp(&time);
 
 	// Get last data point from memory
-	TRACE_INFO("TRAC > Read last data point from flash memory");
-	dataPoint_t* lastLogPoint = getNewestLogEntry();
+	TRACE_INFO("COLL > Read last data point from flash memory");
+	dataPoint_t* lastLogPoint = flash_getNewestLogEntry();
 
 	if(lastLogPoint != NULL) { // If there has been stored a data point, then get the last know GPS fix
 		dataPoints[0].reset     = lastLogPoint->reset+1;
@@ -236,7 +235,7 @@ THD_FUNCTION(collectorThread, arg) {
 		lastDataPoint->gps_ttff = lastLogPoint->gps_ttff;
 
 		TRACE_INFO(
-			"TRAC > Last data point (from memory)\r\n"
+			"COLL > Last data point (from memory)\r\n"
 			"%s Reset %d ID %d\r\n"
 			"%s Latitude: %d.%07ddeg\r\n"
 			"%s Longitude: %d.%07ddeg\r\n"
@@ -247,10 +246,10 @@ THD_FUNCTION(collectorThread, arg) {
 			TRACE_TAB, lastDataPoint->gps_alt
 		);
 	} else {
-		TRACE_INFO("TRAC > No data point found in flash memory");
+		TRACE_INFO("COLL > No data point found in flash memory");
 	}
 
-	lastDataPoint->gps_lock = GPS_LOG; // Mark dataPoint as LOG packet
+	lastDataPoint->gps_state = GPS_LOG; // Mark dataPoint as LOG packet
 
 	// Measure telemetry
 	measureVoltage(lastDataPoint);
@@ -258,7 +257,7 @@ THD_FUNCTION(collectorThread, arg) {
 	setSystemStatus(lastDataPoint);
 
 	// Write data point to Flash memory
-	writeLogDataPoint(lastDataPoint);
+	flash_writeLogDataPoint(lastDataPoint);
 
 	// Wait for position threads to start
 	chThdSleep(TIME_MS2I(500));
@@ -266,7 +265,7 @@ THD_FUNCTION(collectorThread, arg) {
 	sysinterval_t cycle_time = chVTGetSystemTime();
 	while(true)
 	{
-		TRACE_INFO("TRAC > Do module DATA COLLECTOR cycle");
+		TRACE_INFO("COLL > Do module DATA COLLECTOR cycle");
 
 		dataPoint_t* tp  = &dataPoints[(id+1) % 2]; // Current data point (the one which is processed now)
 		dataPoint_t* ltp = &dataPoints[ id    % 2]; // Last data point
@@ -280,7 +279,7 @@ THD_FUNCTION(collectorThread, arg) {
 		} else if(conf_sram.pos_sec.thread_conf.active) { // Only secondary position thread is active
 			data_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
 		} else { // There must be an error
-			TRACE_ERROR("TRAC > Data collector started but no position thread is active");
+			TRACE_ERROR("COLL > Data collector started but no position thread is active");
 		}
 
 		// Get GPS position
@@ -295,7 +294,7 @@ THD_FUNCTION(collectorThread, arg) {
 
 		// Trace data
 		unixTimestamp2Date(&time, tp->gps_time);
-		TRACE_INFO(	"TRAC > New data point available (ID=%d)\r\n"
+		TRACE_INFO(	"COLL > New data point available (ID=%d)\r\n"
 					"%s Time %04d-%02d-%02d %02d:%02d:%02d\r\n"
 					"%s Pos  %d.%05d %d.%05d Alt %dm\r\n"
 					"%s Sats %d TTFF %dsec\r\n"
@@ -310,7 +309,7 @@ THD_FUNCTION(collectorThread, arg) {
 		);
 
 		// Write data point to Flash memory
-		writeLogDataPoint(tp);
+		flash_writeLogDataPoint(tp);
 
 		// Switch last data point
 		lastDataPoint = tp;
@@ -326,11 +325,11 @@ void init_data_collector(void)
 	{
 		threadStarted = true;
 
-		TRACE_INFO("TRAC > Startup data collector thread");
+		TRACE_INFO("COLL > Startup data collector thread");
 		thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(2*1024), "TRA", NORMALPRIO+1, collectorThread, NULL);
 		if(!th) {
 			// Print startup error, do not start watchdog for this thread
-			TRACE_ERROR("TRAC > Could not startup thread (not enough memory available)");
+			TRACE_ERROR("COLL > Could not startup thread (not enough memory available)");
 		} else {
 			chThdSleep(TIME_MS2I(300)); // Wait a little bit until data collector has initialized first dataset
 		}

@@ -226,7 +226,7 @@ packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t s
 	uint32_t a1  = a / 91;
 	uint32_t a1r = a % 91;
 
-	uint8_t gpsFix = dataPoint->gps_lock == GPS_LOCKED1 || dataPoint->gps_lock == GPS_LOCKED2 ? GSP_FIX_CURRENT : GSP_FIX_OLD;
+	uint8_t gpsFix = dataPoint->gps_state == GPS_LOCKED1 || dataPoint->gps_state == GPS_LOCKED2 ? GSP_FIX_CURRENT : GSP_FIX_OLD;
 	uint8_t src = NMEA_SRC_GGA;
 	uint8_t origin = ORIGIN_PICO;
 

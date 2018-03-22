@@ -14,7 +14,7 @@ typedef enum {
 	GPS_LOG,		// The tracker has been just switched on and the position has been taken from the log
 	GPS_OFF,		// There is no active position thread so the GPS was never switched on (in oder to save power)
 	GPS_ERROR		// The GPS has a communication error
-} gpsLock_t;
+} gpsState_t;
 
 typedef struct {
 	// Voltage and current measurement
@@ -28,7 +28,7 @@ typedef struct {
 	uint16_t light_intensity;
 
 	// GPS
-	gpsLock_t gps_lock;		// 0: locked, 1: GPS loss, 2: low power (switched off), 3: taken from log, 4: GPS switch off permanently
+	gpsState_t gps_state;	// GPS state
 	uint8_t gps_sats;		// Satellites used for solution
 	uint8_t gps_ttff;		// Time to first fix in seconds
 	uint8_t gps_pdop;		// Position DOP in 0.05 per unit (unitless)

@@ -7,13 +7,14 @@
 #include "aprs.h"
 #include "radio.h"
 #include "commands.h"
+#include "pflash.h"
 
 static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
 
 const ShellCommand commands[] = {
 	{"debug", usb_cmd_debugOnUSB},
 	{"picture", usb_cmd_printPicture},
-	{"log", usb_cmd_readLog},
+	{"print_log", usb_cmd_printLog},
 	{"config", usb_cmd_printConfig},
 	{"aprs_message", usb_cmd_send_aprs_message},
 	{NULL, NULL}
@@ -70,28 +71,50 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 	}
 }
 
-void usb_cmd_readLog(BaseSequentialStream *chp, int argc, char *argv[])
+void usb_cmd_printLog(BaseSequentialStream *chp, int argc, char *argv[])
 {
 	(void)argc;
 	(void)argv;
 
-	/*chprintf(chp, "addr,id,time,lat,lon,alt,sats,ttff,vbat,vsol,vsub,pbat,rbat,press,temp,hum,idimg\r\n");
+	chprintf(chp,
+		"reset,id,sys_time,gps_state,gps_time,gps_pdop,"
+		"lat,lon,"
+		"alt,sats,ttff,"
+		"adc_vbat,adc_vsol,"
+		"pac_vbat,pac_vsol,pac_pbat,pac_psol"
+		"press_i1,temp_i1,hum_i1,"
+		"press_e1,temp_e1,hum_e1,"
+		"press_e2,temp_e2,hum_e2,"
+		"temp_stm32,temp_si446x,"
+		"light,sys_error\r\n");
 
-	trackPoint_t *tp;
-	for(uint16_t i=0; (tp = getLogBuffer(i)) != NULL; i++)
-		if(tp->id != 0xFFFFFFFF)
+	dataPoint_t *dp;
+	for(uint16_t i=0; (dp = flash_getLogBuffer(i)) != NULL; i++)
+		if(dp->id != 0xFFFFFFFF)
 		{
 			chprintf(	chp,
-						"%08x,%d,%d,%d.%05d,%d.%05d,%d,%d,%d,%d.%03d,%d.%03d,%d,%d.%01d,%2d.%02d,%2d.%01d\r\n",
-						tp, tp->id, tp->gps_time,
-						tp->gps_lat/10000000, (tp->gps_lat > 0 ? 1:-1)*(tp->gps_lat/100)%100000, tp->gps_lon/10000000, (tp->gps_lon > 0 ? 1:-1)*(tp->gps_lon/100)%100000, tp->gps_alt,
-						tp->gps_sats, tp->gps_ttff,
-						tp->adc_vbat/1000, (tp->adc_vbat%1000), tp->adc_vsol/1000, (tp->adc_vsol%1000), tp->pac_pbat,
-						tp->sen_i1_press/10, tp->sen_i1_press%10, tp->sen_i1_temp/100, tp->sen_i1_temp%100, tp->sen_i1_hum/10, tp->sen_i1_hum%10
+						"%d,%d,%d,%d,%d,%d,"
+						"%d.%05d,%d.%05d,"
+						"%d,%d,%d,"
+						"%d.%03d,%d.%03d,"
+						"%d.%03d,%d.%03d,%d,%d,"
+						"%d.%01d,%02d.%02d,%02d.%01d,"
+						"%d.%01d,%02d.%02d,%02d.%01d,"
+						"%d.%01d,%02d.%02d,%02d.%01d,"
+						"%02d.%02d,%02d.%02d,"
+						"%d,%08x\r\n",
+						dp->reset, dp->id, dp->sys_time, dp->gps_state, dp->gps_time, dp->gps_pdop,
+						dp->gps_lat/10000000, (dp->gps_lat > 0 ? 1:-1)*(dp->gps_lat/100)%100000, dp->gps_lon/10000000, (dp->gps_lon > 0 ? 1:-1)*(dp->gps_lon/100)%100000,
+						dp->gps_alt, dp->gps_sats, dp->gps_ttff,
+						dp->adc_vbat/1000, (dp->adc_vbat%1000), dp->adc_vsol/1000, (dp->adc_vsol%1000),
+						dp->adc_vbat/1000, (dp->adc_vbat%1000), dp->adc_vsol/1000, (dp->adc_vsol%1000), dp->pac_pbat, dp->pac_psol,
+						dp->sen_i1_press/10, dp->sen_i1_press%10, dp->sen_i1_temp/100, dp->sen_i1_temp%100, dp->sen_i1_hum/10, dp->sen_i1_hum%10,
+						dp->sen_e1_press/10, dp->sen_e1_press%10, dp->sen_e1_temp/100, dp->sen_e1_temp%100, dp->sen_e1_hum/10, dp->sen_e1_hum%10,
+						dp->sen_e2_press/10, dp->sen_e2_press%10, dp->sen_e2_temp/100, dp->sen_e2_temp%100, dp->sen_e2_hum/10, dp->sen_e2_hum%10,
+						dp->stm32_temp/100, dp->stm32_temp%100, dp->si446x_temp/100, dp->si446x_temp%100,
+						dp->light_intensity, dp->sys_error
 			);
-		}*/
-
-	chprintf(chp, "TODO: Not implemented\r\n");
+		}
 }
 
 void usb_cmd_printConfig(BaseSequentialStream *chp, int argc, char *argv[])

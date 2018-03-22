@@ -139,6 +139,7 @@ CSRC = $(STARTUPSRC) \
        drivers/wrapper/ei2c.c \
        drivers/wrapper/padc.c \
        drivers/wrapper/ptime.c \
+       drivers/wrapper/pflash.c \
        drivers/ublox.c \
        pkt/devices/si446x.c \
        drivers/bme280.c \

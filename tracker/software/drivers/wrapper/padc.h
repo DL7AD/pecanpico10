@@ -1,5 +1,5 @@
-#ifndef __ADC_H__
-#define __ADC_H__
+#ifndef __PADC_H__
+#define __PADC_H__
 
 #include "ch.h"
 #include "hal.h"
