@@ -16,7 +16,7 @@
 #include "watchdog.h"
 #include "flash.h"
 #include "sd.h"
-#include "tracking.h"
+#include "collector.h"
 #include "image.h"
 
 const uint8_t noCameraFound[4071] = {
@@ -583,7 +583,7 @@ THD_FUNCTION(imgThread, arg)
 				if(initSD())
 				{
 					char filename[32];
-					chsnprintf(filename, sizeof(filename), "r%02xi%04x.jpg", getLastTrackPoint()->reset % 0xFF, (gimage_id-1) % 0xFFFF);
+					chsnprintf(filename, sizeof(filename), "r%02xi%04x.jpg", getLastDataPoint()->reset % 0xFF, (gimage_id-1) % 0xFFFF);
 
 					// Find SOI
 					uint32_t soi;
