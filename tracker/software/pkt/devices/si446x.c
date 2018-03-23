@@ -1456,7 +1456,7 @@ void Si446x_sendAFSK(packet_t pp,
 #endif
                 "446x_afsk_tx",
                 NORMALPRIO - 10,
-                new_si_fifo_feeder_afsk,
+                si_fifo_feeder_afsk,
                 pp);
 #else
     // Start/re-start FIFO feeder
