@@ -27,11 +27,13 @@ typedef enum {
   ITERATE_CRC,
   ITERATE_CLOSE,
   ITERATE_TAIL,
-  ITERATE_FINAL
+  ITERATE_FINAL,
+  ITERATE_END
 } txit_state_t;
 
 typedef struct {
   txit_state_t  state;
+  bool          no_write;
   uint16_t      qty;
   uint16_t      out_count;
   int16_t       hdlc_count;
@@ -58,7 +60,7 @@ typedef struct {
 extern "C" {
 #endif
   uint16_t pktStreamEncodingIterator(tx_iterator_t *iterator,
-                                     uint8_t *stream, size_t qty);
+                                     uint8_t *stream, uint16_t qty);
   void pktStreamIteratorInit(tx_iterator_t *iterator,
                              packet_t pp, bool scramble);
 #ifdef __cplusplus

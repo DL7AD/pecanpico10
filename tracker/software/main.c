@@ -23,13 +23,11 @@ int main(void) {
     /* Start serial channels. */
     pktSerialStart();
 
-    event_listener_t pkt_el;
-
     /* Create packet radio service. */
     if(!pktServiceCreate(PKT_RADIO_1)) {
       TRACE_ERROR("PKT  > Unable to create packet services");
     } else {
-      chEvtRegister(pktGetEventSource(&RPKTD1), &pkt_el, 1);
+      pktEnableEventTrace();
     }
 
 	#if ACTIVATE_USB
@@ -44,40 +42,7 @@ int main(void) {
         #if ACTIVATE_USB
 		if(isUSBactive()) {
 			manageShell();
-			eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(1));
-			if(evt) {
-			  eventflags_t flags = chEvtGetAndClearFlags(&pkt_el);
-			  if(flags & EVT_PWM_QUEUE_FULL) {
-			    TRACE_WARN("PKT  > PWM queue full");
-			  }
-              if(flags & EVT_PWM_FIFO_EMPTY) {
-                TRACE_WARN("PKT  > PWM FIFO exhausted");
-              }
-              if(flags & EVT_AX25_NO_BUFFER) {
-                TRACE_WARN("PKT  > AX25 FIFO exhausted");
-              }
-              if(flags & EVT_ICU_SLEEP_TIMEOUT) {
-                TRACE_INFO("PKT  > PWM ICU has entered sleep");
-              }
-              if(flags & EVT_AX25_BUFFER_FULL) {
-                TRACE_WARN("PKT  > AX25 receive buffer full");
-              }
-              if(flags & EVT_DECODER_ERROR) {
-                TRACE_ERROR("PKT  > Decoder error");
-              }
-              if(flags & EVT_PWM_UNKNOWN_INBAND) {
-                TRACE_ERROR("PKT  > Unknown PWM inband flag");
-              }
-              if(flags & EVT_ICU_OVERFLOW) {
-                TRACE_WARN("PKT  > PWM ICU overflow");
-              }
-              if(flags & EVT_PWM_STREAM_TIMEOUT) {
-                TRACE_WARN("PKT  > PWM steam timeout");
-              }
-              if(flags & EVT_PWM_NO_DATA) {
-                TRACE_WARN("PKT  > PWM data not started from radio");
-              }
-			}
+			pktTraceEvents();
 			continue;
 		}
         #endif /* ACTIVATE_USB */

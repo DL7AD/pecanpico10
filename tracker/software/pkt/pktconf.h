@@ -157,8 +157,11 @@
 #include "ihex_out.h"
 #include "ax25_dump.h"
 #include "si446x.h"
+#include "pktevt.h"
 
-
+#ifndef PKT_IS_TEST_PROJECT
+#include "debug.h"
+#endif
 extern packet_svc_t RPKTD1;
 
 /*===========================================================================*/
