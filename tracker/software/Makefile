@@ -264,7 +264,7 @@ CPPWARN = -Wall -Wextra -Wundef
 
 # List all user C define here, like -D_DEBUG=1
 UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4 -DSHELL_CMD_TEST_ENABLED=1 \
-		-DSHELL_CMD_EXIT_ENABLED=1
+		-DSHELL_CMD_EXIT_ENABLED=1 -DUSB_TRACE_LEVEL=4
 
 # Define ASM defines here
 UADEFS =

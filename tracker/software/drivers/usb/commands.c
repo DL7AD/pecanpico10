@@ -13,6 +13,7 @@ static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image bu
 
 const ShellCommand commands[] = {
 	{"set_trace_level", usb_cmd_set_trace_level},
+    {"trace", usb_cmd_set_trace_level}, /* Short form alias. */
 	{"picture", usb_cmd_printPicture},
 	{"print_log", usb_cmd_printLog},
 	{"config", usb_cmd_printConfig},
@@ -25,8 +26,7 @@ void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
 {
 	if(argc < 1)
 	{
-		chprintf(chp, "Argument missing!\r\n");
-		chprintf(chp, "Argument 1: Level\r\n");
+		chprintf(chp, "Current trace level: %i\r\n", usb_trace_level);
 		chprintf(chp, "Level 0: None\r\n");
 		chprintf(chp, "Level 1: Errors\r\n");
 		chprintf(chp, "Level 2: Errors + Warnings\r\n");
