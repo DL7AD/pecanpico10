@@ -56,17 +56,17 @@ const conf_t conf_flash_default = {
 	// Primary image transmission thread
 	.img_pri = {
 		.thread_conf = {
-			.active			= false,
+			.active			= true,
 			.cycle			= CYCLE_CONTINUOUSLY,
 			.init_delay		= TIME_S2I(5),
 			.packet_spacing	= TIME_S2I(30)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
-            .freq           = 144000000,
+            .freq           = 144800000,
             .step           = 12500,
-            .chan           = 94,
-			.mod			= MOD_AFSK,
+            .chan           = 0,
+			.mod			= MOD_2FSK,
 			.preamble		= 200,
 			.redundantTx	= true
 		},

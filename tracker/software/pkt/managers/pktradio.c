@@ -150,6 +150,8 @@ THD_FUNCTION(pktRadioManager, arg) {
 
       switch(task_object->type) {
       case MOD_2FSK:
+        Si446x_lockRadio(RADIO_TX);
+        Si446x_setBandParameters(freq, step, RADIO_TX);
         Si446x_send2FSK(pp, chan, pwr, speed);
         break;
 

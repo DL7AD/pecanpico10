@@ -8,10 +8,11 @@
 //#include "hal.h"
 
 //#include "si446x.h"
+#include "pktconf.h"
 #ifndef PKT_IS_TEST_PROJECT
 #include "debug.h"
 #endif
-#include "pktconf.h"
+
 #ifndef PKT_IS_TEST_PROJECT
 #include "radio.h"
 #endif
@@ -28,17 +29,9 @@ static binary_semaphore_t radio_sem;
 static bool radio_sem_init = false;
 #endif
 
-//static bool nextTransmissionWaiting;    // Flag that informs the feeder thread to keep the radio switched on
-
 // Feeder thread variables
-static thread_t* fsk_feeder_thd = NULL;
-static thread_t *last_feeder_thd = NULL;
-//static thread_t* afsk_feeder_thd = NULL;
 #if USE_DYNAMIC_AFSK_TX != TRUE
 static THD_WORKING_AREA(si_afsk_fifo_feeder_wa, SI_AFSK_FIFO_FEEDER_WA_SIZE);
-#endif
-#if USE_DYNAMIC_FSK_TX != TRUE
-static THD_WORKING_AREA(si_fsk_fifo_feeder_wa, SI_FSK_FIFO_FEEDER_WA_SIZE);
 #endif
 
 /*
@@ -1451,6 +1444,15 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
 
     tx_iterator_t iterator;
 
+    /*
+     * Set NRZI encoding format.
+     * Iterator object.
+     * Packet reference.
+     * Preamble length (HDLC flags)
+     * Postamble length (HDLC flags)
+     * Tail length (HDLC zeros)
+     * Scramble off/on
+     */
     pktStreamIteratorInit(&iterator, pp, 30, 10, 10, false);
 
     uint16_t all = pktStreamEncodingIterator(&iterator, NULL, 0);
@@ -1593,19 +1595,6 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
 
     /* Exit thread. */
     chThdExit(exit_msg);
-}
-
-/*
- *
- */
-
-static msg_t __attribute__((unused)) Si446x_waitLastSendThread(radio_unit_t radio) {
-  (void)radio;
-  if(last_feeder_thd == NULL) {
-    return MSG_RESET;
-  }
-  msg_t msg = chThdWait(last_feeder_thd);
-  return msg;
 }
 
 /*
@@ -1760,7 +1749,7 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
 
   tx_iterator_t iterator;
 
-  pktStreamIteratorInit(&iterator, pp, 30, 10, 10, false);
+  pktStreamIteratorInit(&iterator, pp, 30, 10, 10, true);
 
   /* Compute size of NRZI stream. */
   uint16_t all = pktStreamEncodingIterator(&iterator, NULL, 0);
@@ -1873,38 +1862,60 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
   chThdExit(exit_msg);
 }
 
+/*
+ *
+ */
 void Si446x_send2FSK(packet_t pp,
                      uint8_t chan,
                      uint8_t pwr,
                      uint32_t speed) {
 
-    Si446x_lockRadio(RADIO_TX);
 
-    // Initialize radio
-    if(!radioInitialized)
-        //Si446x_init();
-    Si446x_setModem2FSK(speed);
+  // Initialize radio
+  if(!radioInitialized)
+      Si446x_init();
 
-    // Set pointers for feeder
-    pp->radio_chan = chan;
-    pp->radio_pwr = pwr;
+  /* Set 446x back to READY. */
+  Si446x_setReadyState();
 
-    /* TODO: Don't use fixed RSSI. */
-    pp->cca_rssi = 0x4F;
+  /* Set parameters for AFSK transmission. */
+  Si446x_setModem2FSK(speed);
 
-    // Start/re-start FIFO feeder
-    fsk_feeder_thd = chThdCreateStatic(si_fsk_fifo_feeder_wa,
-                                   sizeof(si_fsk_fifo_feeder_wa),
-                                   HIGHPRIO,
-                                   min_si_fifo_feeder_fsk,
-                                   pp);
+  /* Set transmit parameters. */
+  pp->radio_chan = chan;
+  pp->radio_pwr = pwr;
 
-    msg_t send_msg = chThdWait(fsk_feeder_thd);
-    if(send_msg == MSG_TIMEOUT) {
-      TRACE_ERROR("SI   > Transmit 2FSK timeout");
-    }
+  /* TODO: Don't use fixed RSSI. */
+  pp->cca_rssi = 0x4F;
+
+  thread_t *fsk_feeder_thd = NULL;
+
+  fsk_feeder_thd = chThdCreateFromHeap(NULL,
+              THD_WORKING_AREA_SIZE(SI_FSK_FIFO_FEEDER_WA_SIZE),
+              "446x_fsk_tx",
+              NORMALPRIO - 10,
+              min_si_fifo_feeder_fsk,
+              pp);
+
+  if(fsk_feeder_thd == NULL) {
+    /* Release packet object. */
+    pktReleaseSendObject(pp);
     /* Unlock radio. */
     Si446x_unlockRadio(RADIO_TX);
+    TRACE_ERROR("SI   > Unable to create FSK transmit thread");
+    return;
+  }
+  /* Wait for transmit thread to terminate. */
+  msg_t send_msg = chThdWait(fsk_feeder_thd);
+  if(send_msg == MSG_TIMEOUT) {
+    TRACE_ERROR("SI   > Transmit FSK timeout");
+  }
+  if(send_msg == MSG_RESET) {
+    TRACE_ERROR("SI   > Transmit FSK failed to start");
+  }
+  /* Unlock radio. */
+  Si446x_unlockRadio(RADIO_TX);
+
 }
 
 /* ========================================================================== Misc ========================================================================== */
