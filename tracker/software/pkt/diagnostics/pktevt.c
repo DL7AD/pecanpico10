@@ -56,7 +56,7 @@ eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(1));
       TRACE_WARN("PKT  > PWM ICU overflow");
     }
     if(flags & EVT_PWM_STREAM_TIMEOUT) {
-      TRACE_WARN("PKT  > PWM steam timeout");
+      TRACE_WARN("PKT  > PWM stream timeout");
     }
     if(flags & EVT_PWM_NO_DATA) {
       TRACE_WARN("PKT  > PWM data not started from radio");
