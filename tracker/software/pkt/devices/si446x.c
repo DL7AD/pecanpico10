@@ -32,6 +32,7 @@ static bool radio_sem_init = false;
 
 // Feeder thread variables
 static thread_t* fsk_feeder_thd = NULL;
+static thread_t *last_feeder_thd = NULL;
 //static thread_t* afsk_feeder_thd = NULL;
 #if USE_DYNAMIC_AFSK_TX != TRUE
 static THD_WORKING_AREA(si_afsk_fifo_feeder_wa, SI_AFSK_FIFO_FEEDER_WA_SIZE);
@@ -329,12 +330,6 @@ if(!radioInitialized)
     };
     Si446x_write(gpio_pin_cfg_command, 8);
     chThdSleep(TIME_MS2I(25));
-
-
-
-
-
-
 
     #if !RADIO_TCXO_EN
     Si446x_setProperty8(Si446x_GLOBAL_XO_TUNE, 0x00);
@@ -1096,7 +1091,7 @@ static uint8_t Si446x_getUpsampledAFSKbits(uint8_t* buf/*, uint32_t blen*/)
     return b;
 }
 
-static void Si446x_upsampleNRZIstream(uint8_t current_byte,
+static void __attribute__((unused)) Si446x_upsampleNRZIstream(uint8_t current_byte,
                                                uint8_t *buf,
                                                uint8_t upsample_rate) {
   uint8_t b = 0, i = 0, usr;
@@ -1600,6 +1595,22 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
     chThdExit(exit_msg);
 }
 
+/*
+ *
+ */
+
+static msg_t __attribute__((unused)) Si446x_waitLastSendThread(radio_unit_t radio) {
+  (void)radio;
+  if(last_feeder_thd == NULL) {
+    return MSG_RESET;
+  }
+  msg_t msg = chThdWait(last_feeder_thd);
+  return msg;
+}
+
+/*
+ *
+ */
 void Si446x_sendAFSK(packet_t pp,
                      uint8_t chan,
                      uint8_t pwr) {
@@ -1624,12 +1635,22 @@ void Si446x_sendAFSK(packet_t pp,
     thread_t *afsk_feeder_thd = NULL;
 
 #if USE_DYNAMIC_AFSK_TX == TRUE
+#if USE_MIN_AFSK_TX == TRUE
     afsk_feeder_thd = chThdCreateFromHeap(NULL,
                 THD_WORKING_AREA_SIZE(SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE),
                 "446x_afsk_tx",
                 NORMALPRIO - 10,
                 min_si_fifo_feeder_afsk,
                 pp);
+#else
+
+    afsk_feeder_thd = chThdCreateFromHeap(NULL,
+                THD_WORKING_AREA_SIZE(SI_AFSK_FIFO_FEEDER_WA_SIZE),
+                "446x_afsk_tx",
+                NORMALPRIO - 10,
+                si_fifo_feeder_afsk,
+                pp);
+#endif
 #else
     // Start/re-start FIFO feeder
     afsk_feeder_thd = chThdCreateStatic(si_afsk_fifo_feeder_wa,
@@ -1845,6 +1866,9 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
 
   TRACE_INFO("SI   > TX FIFO lowest free level %i", lower);
 
+  /* After carrier drops leave a pause. */
+  chThdSleep(TIME_MS2I(300));
+
   /* Exit thread. */
   chThdExit(exit_msg);
 }
@@ -1853,6 +1877,7 @@ void Si446x_send2FSK(packet_t pp,
                      uint8_t chan,
                      uint8_t pwr,
                      uint32_t speed) {
+
     Si446x_lockRadio(RADIO_TX);
 
     // Initialize radio

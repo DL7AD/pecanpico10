@@ -191,6 +191,7 @@
 
 #define AFSK_FEEDER_BUFFER_SIZE                 3072
 #define USE_DYNAMIC_AFSK_TX                     TRUE
+#define USE_MIN_AFSK_TX                         TRUE
 #define SI_AFSK_FIFO_FEEDER_WA_SIZE             (AFSK_FEEDER_BUFFER_SIZE + 1024)
 #define SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE         1024
 

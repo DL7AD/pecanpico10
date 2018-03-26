@@ -3,6 +3,7 @@
 #include "usbcfg.h"
 #include "shell.h"
 #include "commands.h"
+#include "pktconf.h"
 
 static thread_t *shelltp;
 static bool usb_initialized;
@@ -43,9 +44,9 @@ void manageShell(void) {
 		                              shellThread,
 		                              (void*)&shell_cfg);
 
-	    chEvtRegister(&shell_terminated, &shell_el, 0);
+	    chEvtRegister(&shell_terminated, &shell_el, USB_SHELL_EVT);
 	}
-    chEvtWaitAnyTimeout(EVENT_MASK(0), TIME_S2I(1));
+    chEvtWaitAnyTimeout(EVENT_MASK(USB_SHELL_EVT), TIME_S2I(1));
 	if(chThdTerminatedX(shelltp)) {
 		chThdRelease(shelltp);
 		shelltp = NULL;

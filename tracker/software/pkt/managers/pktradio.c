@@ -61,7 +61,10 @@ THD_FUNCTION(pktRadioManager, arg) {
     case PKT_RADIO_RX_OPEN: {
       /* Create the packet management services. */
       pktBufferManagerCreate(handler);
-      pktCallbackManagerCreate(handler);
+      if(pktCallbackManagerCreate(handler) == NULL)
+        /* Failed to create callback manager. */
+        break;
+      /* Switch on modulation type. */
       switch(task_object->type) {
         case MOD_AFSK: {
           /* Create the AFSK decoder (includes PWM, filters, etc.). */

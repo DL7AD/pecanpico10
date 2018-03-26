@@ -109,8 +109,11 @@
 #define DEC_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 3)
 #define DEC_SUSPEND_EXIT        EVENT_MASK(EVT_PRIORITY_BASE + 4)
 
-/* Reserved system thread events (in user threads). */
-#define USR_COMMAND_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 0)
+/* Reserved system thread events (in user threads called from main). */
+#define USB_SHELL_EVT           EVENT_MASK(EVT_PRIORITY_BASE + 0)
+#define USR_COMMAND_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 15)
+#define EVT_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 16)
+#define EVT_PKT_OUT_END         EVENT_MASK(EVT_PRIORITY_BASE + 17)
 
 #define EVT_STATUS_CLEAR        EVT_NONE
 

@@ -14,8 +14,7 @@
 /*===========================================================================*/
 
 /* Main thread events. */
-#define EVT_DIAG_OUT_END        EVENT_MASK(0)
-#define EVT_PKT_OUT_END         EVENT_MASK(1)
+
 
 #define PKT_RX_BUFFER_SIZE      PKT_MAX_RX_PACKET_LEN
 
@@ -196,7 +195,7 @@ extern "C" {
   void pktCallbackManagerOpen(packet_svc_t *handler);
   void pktCompletion(void *arg);
   dyn_objects_fifo_t *pktBufferManagerCreate(packet_svc_t *handler);
-  void pktCallbackManagerCreate(packet_svc_t *handler);
+  thread_t *pktCallbackManagerCreate(packet_svc_t *handler);
   void pktBufferManagerRelease(packet_svc_t *handler);
   void pktCallbackManagerRelease(packet_svc_t *handler);
 #ifdef __cplusplus

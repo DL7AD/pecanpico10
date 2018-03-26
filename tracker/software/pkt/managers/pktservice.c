@@ -721,7 +721,7 @@ dyn_objects_fifo_t *pktBufferManagerCreate(packet_svc_t *handler) {
 }
 
 
-void pktCallbackManagerCreate(packet_svc_t *handler) {
+thread_t *pktCallbackManagerCreate(packet_svc_t *handler) {
   radio_unit_t rid = handler->radio_rx_config.radio_id;
 
   /* Create the callback termination thread name. */
@@ -743,6 +743,7 @@ void pktCallbackManagerCreate(packet_svc_t *handler) {
 
   chDbgAssert(cbh != NULL, "failed to create callback terminator thread");
   handler->cb_terminator = cbh;
+  return cbh;
 }
 
 void pktBufferManagerRelease(packet_svc_t *handler) {
@@ -759,6 +760,10 @@ void pktCallbackManagerRelease(packet_svc_t *handler) {
 
   /* Wait for it to terminate and release. */
   chThdWait(handler->cb_terminator);
+}
+
+void pktScheduleThreadRelease(thread_t *thread) {
+  (void)thread;
 }
 
 /** @} */
