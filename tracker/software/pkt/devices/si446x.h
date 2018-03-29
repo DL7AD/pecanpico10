@@ -181,7 +181,7 @@
 #define Si446x_FREQ_CONTROL_W_SIZE              0x4006
 #define Si446x_FREQ_CONTROL_VCOCNT_RX_ADJ       0x4007
 
-#define RADIO_TASK_QUEUE_MAX                      3
+#define RADIO_TASK_QUEUE_MAX                    10
 
 #define PKT_SI446X_APRS_CHANNEL                 94
 #define PKT_SI446X_SQUELCH_LEVEL                0x4F
@@ -196,7 +196,7 @@
 #define SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE         1024
 
 #define USE_DYNAMIC_FSK_TX                      FALSE
-#define SI_FSK_FIFO_FEEDER_WA_SIZE              4096
+#define SI_FSK_FIFO_FEEDER_WA_SIZE              1024
 
 typedef enum radioMode {
   RADIO_RX,
@@ -207,15 +207,15 @@ typedef enum radioMode {
 // Public methods
 
 int16_t Si446x_getLastTemperature(void);
+void Si446x_shutdown(radio_unit_t radio);
+void Si446x_sendAFSK(packet_t pp);
+void Si446x_send2FSK(packet_t pp);
 
-void Si446x_sendAFSK(packet_t pp, uint8_t chan, uint8_t pwr);
-void Si446x_send2FSK(packet_t pp, uint8_t chan,
-                     uint8_t pwr, uint32_t speed);
-
-void Si446x_receiveStop(void);
-void Si446x_startPacketReception(uint32_t freq, uint16_t step,
-                                 uint8_t ch, uint8_t sq, void* cb);
+void Si446x_disableReceive(void);
+/*void Si446x_startPacketReception(uint32_t freq, uint16_t step,
+                                 uint8_t ch, uint8_t sq, void* cb);*/
 void Si446x_stopDecoder(void);
+bool Si4464_resumeReceive(radio_unit_t radio);
 bool Si446x_receiveNoLock(uint8_t chan, uint8_t rssi, mod_t mod);
 void Si446x_lockRadio(radio_mode_t mode);
 void Si446x_unlockRadio(radio_mode_t mode);

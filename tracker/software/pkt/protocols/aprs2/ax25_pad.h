@@ -70,6 +70,8 @@
 #define AX25_PID_SEGMENTATION_FRAGMENT 0x08
 #define AX25_PID_ESCAPE_CHARACTER 0xFF
 
+#include "pkttypes.h"
+
 /* TODO: Create a chFactory FIFO to manage these objects. */
 struct packet_s {
 
@@ -123,14 +125,18 @@ struct packet_s {
 #define SSID_SSID_SHIFT	1
 
 #define SSID_LAST_MASK	0x01
+
 	/*
-	 * Pass the radio channel, power, CCA RSSI pre-amble count in with the transmit packet.
+	 * Pass the radio parameters and radio ID.
 	 * This enables multiple send requests to be queued with their own data.
 	 */
-	uint8_t     radio_chan;
-	uint8_t     radio_pwr;
-	uint8_t     cca_rssi;
-	uint16_t    preamble_size;
+	radio_unit_t    radio;
+	radio_freq_t    base_frequency;
+	channel_hz_t    radio_step;
+	radio_ch_t      radio_chan;
+	radio_pwr_t     radio_pwr;
+	radio_squelch_t cca_rssi;
+	uint16_t        preamble_size;
 
     /* Frame length without CRC. */
 	int         frame_len;

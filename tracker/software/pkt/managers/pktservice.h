@@ -77,15 +77,28 @@ typedef struct packetHandlerData {
    */
   packet_state_t            state;
 
+  radio_unit_t              radio;
+
   /**
    * @brief Radio receiver operating parameters.
    */
   radio_task_object_t       radio_rx_config;
 
+  bool                      rx_active;
+
   /**
    * @brief Radio transmitter operating parameters.
    */
   radio_task_object_t       radio_tx_config;
+
+  /**
+   * @brief Radio locked access semaphore.
+   */
+  binary_semaphore_t        radio_sem;
+  /**
+   * @brief Counter for active transmit threads.
+   */
+  uint8_t                   tx_count;
 
   /**
    * @brief Pointer to link level protocol data.
@@ -175,11 +188,10 @@ extern "C" {
 #endif
   bool pktServiceCreate(radio_unit_t radio);
   bool pktServiceRelease(radio_unit_t radio);
-  msg_t pktOpenRadioService(radio_unit_t radio,
+  msg_t pktOpenRadioReceive(radio_unit_t radio,
                                      encoding_type_t encoding,
                                      radio_freq_t frequency,
-                                     channel_hz_t ch_step,
-                                     packet_svc_t **handler);
+                                     channel_hz_t ch_step);
   msg_t pktStartDataReception(radio_unit_t radio,
                               radio_ch_t channel,
                               radio_squelch_t sq,
@@ -187,15 +199,15 @@ extern "C" {
   void pktStartDecoder(radio_unit_t radio);
   msg_t pktStopDataReception(radio_unit_t radio);
   void pktStopDecoder(radio_unit_t radio);
-  msg_t pktCloseRadioService(radio_unit_t radio);
+  msg_t pktCloseRadioReceive(radio_unit_t radio);
   bool  pktStoreBufferData(pkt_data_object_t *buffer, ax25char_t data);
   eventflags_t  pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer);
   thread_t *pktCreateBufferCallback(pkt_data_object_t *pkt_buffer);
   void pktCallback(void *arg);
-  void pktCallbackManagerOpen(packet_svc_t *handler);
+  void pktCallbackManagerOpen(radio_unit_t radio);
   void pktCompletion(void *arg);
-  dyn_objects_fifo_t *pktBufferManagerCreate(packet_svc_t *handler);
-  thread_t *pktCallbackManagerCreate(packet_svc_t *handler);
+  dyn_objects_fifo_t *pktBufferManagerCreate(radio_unit_t radio);
+  thread_t *pktCallbackManagerCreate(radio_unit_t radio);
   void pktBufferManagerRelease(packet_svc_t *handler);
   void pktCallbackManagerRelease(packet_svc_t *handler);
 #ifdef __cplusplus
@@ -443,6 +455,28 @@ static inline bool pktIsBufferValidAX25Frame(pkt_data_object_t *object) {
     && (frame_size >= PKT_MIN_FRAME));
 }
 
+
+/**
+ * @brief   Gets service object associated with radio.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @return        pointer to the service object.
+ * @retval NULL   If the radio ID is invalid.
+ *
+ * @api
+ */
+inline packet_svc_t *pktGetServiceObject(radio_unit_t radio) {
+  /*
+   * TODO: implement mapping from radio config to packet handler object.
+   */
+  packet_svc_t *handler = NULL;
+  if(radio == PKT_RADIO_1) {
+    handler = &RPKTD1;
+  }
+  return handler;
+}
+
 /**
  * @brief   Gets current state of a packet service..
  *
@@ -457,35 +491,13 @@ static inline packet_state_t pktGetServiceState(radio_unit_t radio) {
   /*
    * TODO: implement mapping from radio config to packet handler object.
    */
-  packet_svc_t *handler = NULL;
-  if(radio == PKT_RADIO_1) {
-    handler = &RPKTD1;
-  }
-  else
-    return PACKET_INVALID;
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
+
   return handler->state;
 }
 
-/**
- * @brief   Gets service object associated with radio.
- *
- * @param[in] radio    radio unit ID.
- *
- * @return        pointer to the service object.
- * @retval NULL   If the radio ID is invalid.
- *
- * @api
- */
-static inline packet_svc_t *pktGetServiceObject(radio_unit_t radio) {
-  /*
-   * TODO: implement mapping from radio config to packet handler object.
-   */
-  packet_svc_t *handler = NULL;
-  if(radio == PKT_RADIO_1) {
-    handler = &RPKTD1;
-  }
-  return handler;
-}
 
 /**
  * @brief   Tests if transmit is available for the radio.
@@ -502,6 +514,7 @@ static inline bool pktIsTransmitOpen(radio_unit_t radio) {
   packet_state_t state = pktGetServiceState(radio);
   return !(state == PACKET_IDLE || state == PACKET_INVALID);
 }
+
 
 #endif /* PKT_CHANNELS_PKTSERVICE_H_ */
 

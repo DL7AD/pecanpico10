@@ -35,6 +35,8 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
+#include "pkttypes.h"
+
 /**
  * @brief   Radio manager control commands.
  * @details Radio task requests execute these commands.
@@ -44,29 +46,9 @@ typedef enum radioCommand {
   PKT_RADIO_RX_START,
   PKT_RADIO_RX_STOP,
   PKT_RADIO_TX_SEND,
-  PKT_RADIO_RX_CLOSE
+  PKT_RADIO_RX_CLOSE,
+  PKT_RADIO_TX_THREAD
 } radio_command_t;
-
-/**
- * @brief   Definition of radio unit ID.
- * @details Defines the radio unit used in configuring and enabling a radio.
- *
- */
-typedef enum radioUnit {
-  PKT_RADIO_1
-} radio_unit_t;
-
-/* Radio frequency in Hz. */
-typedef uint32_t radio_freq_t;
-
-/* Channel step in Hz. */
-typedef uint16_t channel_hz_t;
-
-/* Channel selector for radio frequency. */
-typedef uint8_t radio_ch_t;
-
-/* Radio squelch setting. */
-typedef uint8_t radio_squelch_t;
 
 /**
  * Forward declare structure types.
@@ -79,36 +61,25 @@ typedef struct packetHandlerData packet_svc_t;
  *
  * @param[in] rcob  pointer to a @p radio task object
  */
-typedef void (*radio_task_cb_t)(packet_svc_t *handler);
-
-/**
- * @brief   Radio request object.
- */
-/*typedef struct radioRequest {
-  radio_unit_t          radio;
-  radio_command_t       command;
-  encoding_type_t       type;
-  radio_freq_t          base_frequency;
-  radio_ch_t            channel;
-  radio_task_cb_t       callback;
-} radio_request_t;*/
+typedef void (*radio_task_cb_t)(radio_task_object_t *task_object);
 
 #include "ax25_pad.h"
 /**
  * @brief       Radio task object.
- * @details     object submitted by FIFO to manager for radio task requests.
+ * @details     queue object submitted via FIFO or radio task requests.
  */
 struct radioTask {
   /* For safety keep clear - where pool stores its free link. */
   struct pool_header        link;
-  radio_unit_t              radio_id;
+  //radio_unit_t              radio_id;
   radio_command_t           command;
-  encoding_type_t           type;
+  mod_t                     type;
   radio_freq_t              base_frequency;
   channel_hz_t              step_hz;
   radio_ch_t                channel;
   radio_squelch_t           squelch;
   radio_task_cb_t           callback;
+  thread_t                  *thread;
   packet_svc_t              *handler;
   packet_t                  packet_out;
   uint8_t                   tx_power;
@@ -122,15 +93,24 @@ struct radioTask {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  thread_t *pktRadioManagerCreate(packet_svc_t *handler);
-  void pktRadioManagerRelease(packet_svc_t *handler);
+  thread_t *pktRadioManagerCreate(radio_unit_t radio);
+  void pktRadioManagerRelease(radio_unit_t radio);
   void pktRadioManager(void *arg);
-  msg_t pktGetRadioTaskObject(packet_svc_t *handler,
+  msg_t pktGetRadioTaskObject(radio_unit_t radio,
                               sysinterval_t timeout,
                               radio_task_object_t **rt);
-  void pktSubmitRadioTask(packet_svc_t *handler,
+  void pktSubmitRadioTask(radio_unit_t radio,
                           radio_task_object_t *object,
                           radio_task_cb_t cb);
+  void pktScheduleThreadRelease(radio_unit_t radio,
+                                thread_t *thread);
+  msg_t pktAcquireRadio(radio_unit_t radio);
+  void pktReleaseRadio(radio_unit_t radio);
+  radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
+                                            channel_hz_t step,
+                                            radio_ch_t chan);
+  bool pktLLDresumeReceive(radio_unit_t radio);
+  bool pktLLDsendPacket(packet_t pp, mod_t type);
 #ifdef __cplusplus
 }
 #endif
@@ -142,20 +122,20 @@ extern "C" {
 /**
  * @brief   Alias for convenience of pktStopDecoder.
  *
- * @param[in] ip        pointer to a @p packet handler object
+ * @param[in] radio radio unit ID
  *
  * @api
  */
-#define pktPauseDecoder(handler) pktStopDecoder(handler)
+#define pktPauseDecoder(radio) pktStopDecoder(radio)
 
 /**
  * @brief   Alias for convenience of pktStartDecoder.
  *
- * @param[in] ip        pointer to a @p packet handler object
+ * @param[in] radio radio unit ID
  *
  * @api
  */
-#define pktResumeDecoder(handler) pktStartDecoder(handler)
+#define pktResumeDecoder(radio) pktStartDecoder(radio)
 
 #endif /* PKT_MANAGERS_PKTRADIO_H_ */
 

@@ -360,9 +360,13 @@ static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
 
 	while(true)
 	{
-		// Proccess redundant transmission from last cycle
+		// Process redundant transmission from last cycle
 		if(strlen((char*)pkt_base91) && conf->radio_conf.redundantTx) {
 			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
+            if(packet == NULL) {
+              TRACE_ERROR("SSDV > No free packet objects");
+              break;
+            }
             transmitOnRadio(packet,
                             conf->radio_conf.freq,
                             conf->radio_conf.step,
@@ -401,6 +405,10 @@ static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
 		base91_encode(&pkt[6], pkt_base91, 174);
 
 		packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
+        if(packet == NULL) {
+          TRACE_ERROR("SSDV > No free packet objects");
+          break;
+        }
         transmitOnRadio(packet,
                         conf->radio_conf.freq,
                         conf->radio_conf.step,

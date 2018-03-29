@@ -521,7 +521,7 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
   myDriver->packet_handler = pktHandler;
 
   /* The radio associated with this AFSK driver. */
-  radio_unit_t rid = myDriver->packet_handler->radio_rx_config.radio_id;
+  radio_unit_t rid = myDriver->packet_handler->radio;
 
   /* Create a PWM FIFO name for this radio. */
   chsnprintf(myDriver->pwm_fifo_name, sizeof(myDriver->pwm_fifo_name),
@@ -546,7 +546,7 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
   myDriver->active_demod_object = NULL;
 
   /* Attach and initialize the ICU PWM system. */
-  myDriver->icudriver = pktAttachICU(pktHandler->radio_rx_config.radio_id);
+  myDriver->icudriver = pktAttachICU(pktHandler->radio);
 
   /* Set the link from ICU driver to AFSK demod driver. */
   myDriver->icudriver->link = myDriver;

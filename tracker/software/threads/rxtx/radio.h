@@ -19,16 +19,15 @@
 #define APRS_FREQ_ARGENTINA			144930000
 #define APRS_FREQ_BRAZIL			145575000
 
-void start_rx_thread(uint32_t freq, uint16_t step,
-                     radio_ch_t chan, uint8_t rssi);
-bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
-                     uint8_t pwr, mod_t mod);
+void start_rx_thread(radio_unit_t radio, radio_freq_t freq, channel_hz_t step,
+                     radio_ch_t chan, radio_squelch_t rssi);
+bool transmitOnRadio(packet_t pp, radio_freq_t freq, channel_hz_t step,
+                     radio_ch_t chan, radio_pwr_t pwr, mod_t mod);
 
 inline const char *getModulation(uint8_t key) {
     const char *val[] = {"NONE", "AFSK", "2FSK"};
     return val[key];
 };
-
 
 #endif /* __RADIO_H__ */
 

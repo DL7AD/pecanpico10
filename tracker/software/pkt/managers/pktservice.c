@@ -36,6 +36,8 @@
 /**
  * @brief   Initializes packet handlers and starts the radio manager.
  * @note    The option to manage multiple radios is not yet implemented.
+ * @note    Once initialized the transmit service is available.
+ * @note    To activate receive requires an open to be made.
  *
  * @param[in]   radio unit ID.
  *
@@ -50,10 +52,8 @@ bool pktServiceCreate(radio_unit_t radio) {
   /*
    * TODO: This should lookup radio and assign handler (RPKTDx).
    */
-  packet_svc_t *handler = NULL;
-  if(radio == PKT_RADIO_1)
-    handler = &RPKTD1;
-  else
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  if(handler == NULL)
     return false;
 
   if(handler->state != PACKET_IDLE)
@@ -67,14 +67,18 @@ bool pktServiceCreate(radio_unit_t radio) {
   memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
 
   /* Set parameters. */
-  handler->radio_rx_config.radio_id = PKT_RADIO_1;
-  handler->radio_tx_config.radio_id = PKT_RADIO_1;
+  //handler->radio_rx_config.radio_id = radio;
+  handler->rx_active = false;
+  handler->radio = radio;
 
   /* Set service semaphore to idle state. */
   chBSemObjectInit(&handler->close_sem, false);
 
+  /* Set radio semaphore to free state. */
+  chBSemObjectInit(&handler->radio_sem, false);
+
   /* Send request to create radio manager. */
-  if (pktRadioManagerCreate(handler) == NULL)
+  if (pktRadioManagerCreate(radio) == NULL)
     return false;
   handler->state = PACKET_READY;
   return true;
@@ -83,7 +87,7 @@ bool pktServiceCreate(radio_unit_t radio) {
 /**
  * @brief   Releases packet service.
  * @note    The option to manage multiple radios is not yet implemented.
- * @post    The packet handler is at ready after resources are released.
+ * @post    The packet service is no longer available for transmit or receive.
  *
  * @param[in] radio unit ID
  *
@@ -96,52 +100,45 @@ bool pktServiceCreate(radio_unit_t radio) {
 bool pktServiceRelease(radio_unit_t radio) {
 
   /*
-   * TODO: This should lookup radio and assign handler (RPKTDx).
+   * Lookup radio and assign handler (RPKTDx).
    */
-  packet_svc_t *handler = NULL;
-  if(radio == PKT_RADIO_1)
-    handler = &RPKTD1;
-  else
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  if(handler == NULL)
     return false;
 
   if(handler->state != PACKET_READY)
     return false;
-  pktRadioManagerRelease(handler);
+  pktRadioManagerRelease(radio);
   handler->state = PACKET_IDLE;
   return true;
 }
 
 /**
- * @brief   Opens a packet service.
- * @post    A reference to the packet handler is returned.
+ * @brief   Opens a packet receive service.
  * @post    The packet service is initialized and ready to be started.
  *
  * @param[in] radio     radio unit identifier.
  * @param[in] encoding  radio link level encoding.
  * @param[in] frequency operating frequency (in Hz).
  * @param[in] ch_step   frequency step per channel (in Hz).
- * @param[in] ph        variable to receive the reference to the packet handler.
  *
- * @return              the reference to the packet handler object.
+ * @return              status of operation.
  * @retval MSG_OK       if the open request was processed.
  * @retval MSG_TIMEOUT  if the open request timed out waiting for resources.
  * @retval MSG_RESET    if state is invalid or bad parameter is submitted.
  *
  * @api
  */
-msg_t pktOpenRadioService(radio_unit_t radio,
+msg_t pktOpenRadioReceive(radio_unit_t radio,
                            encoding_type_t encoding,
                            radio_freq_t frequency,
-                           channel_hz_t ch_step,
-                           packet_svc_t **ph) {
+                           channel_hz_t ch_step) {
 
   /*
    * TODO: implement mapping from radio config to packet handler object.
    */
-  packet_svc_t *handler = NULL;
-  if(radio == PKT_RADIO_1)
-    handler = &RPKTD1;
-  else
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  if(handler == NULL)
     return MSG_RESET;
 
   chDbgCheck(handler->state == PACKET_READY);
@@ -171,7 +168,7 @@ msg_t pktOpenRadioService(radio_unit_t radio,
   /*
    * Open (init) the radio (via submit radio task).
    */
-  msg_t msg = pktSendRadioCommand(handler, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt);
 
   if(msg != MSG_OK)
     return msg;
@@ -179,8 +176,6 @@ msg_t pktOpenRadioService(radio_unit_t radio,
   handler->state = PACKET_OPEN;
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
 
-  /* Set the pointer. */
-  *ph = handler;
   return MSG_OK;
 }
 
@@ -207,10 +202,8 @@ msg_t pktStartDataReception(radio_unit_t radio,
                             radio_squelch_t sq,
                             pkt_buffer_cb_t cb) {
 
-  packet_svc_t *handler = NULL;
-  if(radio == PKT_RADIO_1)
-    handler = &RPKTD1;
-  else
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  if(handler == NULL)
     return MSG_RESET;
 
   if(!(handler->state == PACKET_OPEN || handler->state == PACKET_STOP))
@@ -225,7 +218,7 @@ msg_t pktStartDataReception(radio_unit_t radio,
 
   rt.command = PKT_RADIO_RX_START;
 
-  msg_t msg = pktSendRadioCommand(handler, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt);
   if(msg != MSG_OK)
     return MSG_TIMEOUT;
 
@@ -245,11 +238,9 @@ msg_t pktStartDataReception(radio_unit_t radio,
  */
 void pktStartDecoder(radio_unit_t radio) {
 
-  packet_svc_t *handler = NULL;
-  if(radio == PKT_RADIO_1)
-    handler = &RPKTD1;
-  else
-    chDbgAssert(false, "invalid radio ID");
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
 
   event_listener_t el;
   event_source_t *esp;
@@ -306,10 +297,10 @@ void pktStartDecoder(radio_unit_t radio) {
  */
 msg_t pktStopDataReception(radio_unit_t radio) {
 
-  packet_svc_t *handler = NULL;
-  if(radio == PKT_RADIO_1)
-    handler = &RPKTD1;
-  else
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  if(handler == NULL)
     return MSG_RESET;
 
   if(handler->state != PACKET_RUN)
@@ -321,7 +312,7 @@ msg_t pktStopDataReception(radio_unit_t radio) {
 
   rt.command = PKT_RADIO_RX_STOP;
 
-  msg_t msg = pktSendRadioCommand(handler, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt);
   if(msg != MSG_OK)
     return msg;
 
@@ -341,10 +332,9 @@ msg_t pktStopDataReception(radio_unit_t radio) {
  */
 void pktStopDecoder(radio_unit_t radio) {
 
-  packet_svc_t *handler = NULL;
-  if(radio == PKT_RADIO_1)
-    handler = &RPKTD1;
-  else
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  if(handler == NULL)
     chDbgAssert(false, "invalid radio ID");
 
   event_listener_t el;
@@ -383,7 +373,7 @@ void pktStopDecoder(radio_unit_t radio) {
 }
 
 /**
- * @brief   Closes a packet service.
+ * @brief   Closes a packet receive service.
  * @pre     The packet service must have been stopped.
  * @post    The packet service is closed and returned to ready state.
  * @post    Memory used by the decoder thread is released.
@@ -397,12 +387,10 @@ void pktStopDecoder(radio_unit_t radio) {
  *
  * @api
  */
-msg_t pktCloseRadioService(radio_unit_t radio) {
+msg_t pktCloseRadioReceive(radio_unit_t radio) {
 
-  packet_svc_t *handler = NULL;
-  if(radio == PKT_RADIO_1)
-    handler = &RPKTD1;
-  else
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  if(handler == NULL)
     return MSG_RESET;
 
   if(!(handler->state == PACKET_STOP || handler->state == PACKET_CLOSE))
@@ -417,7 +405,7 @@ msg_t pktCloseRadioService(radio_unit_t radio) {
   rt.command = PKT_RADIO_RX_CLOSE;
 
   /* Submit command. A timeout can occur waiting for a command queue object. */
-  msg_t msg = pktSendRadioCommand(handler, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt);
   if(msg != MSG_OK)
     return msg;
 
@@ -540,6 +528,7 @@ thread_t *pktCreateBufferCallback(pkt_data_object_t *pkt_buffer) {
   chDbgAssert(pkt_buffer != NULL, "invalid packet buffer");
 
   /* Create a callback thread name which is the address of the buffer. */
+  /* TODO: Create a more meaningful but still unique thread name. */
   chsnprintf(pkt_buffer->cb_thd_name, sizeof(pkt_buffer->cb_thd_name),
              "%x", pkt_buffer);
 
@@ -609,16 +598,19 @@ THD_FUNCTION(pktCallback, arg) {
  * @post    Packet object is released (for this instance).
  * @post    If the FIFO is now unused it will be released.
  *
- * @param[in] arg pointer to a @p packet service object.
+ * @param[in] arg radio unit ID.
  *
  * @return  status (MSG_OK) on exit.
  *
  * @notapi
  */
+
+/* TODO: Deprecate and use radio manager thread for callback release. */
 THD_FUNCTION(pktCompletion, arg) {
   packet_svc_t *handler = arg;
 #define PKT_COMPLETION_THREAD_TIMER 100 /* 100 mS. */
-  chDbgAssert(arg != NULL, "invalid handler reference");
+
+  chDbgAssert(handler != NULL, "invalid handler reference");
 
   dyn_objects_fifo_t *pkt_factory = handler->the_packet_fifo;
   objects_fifo_t *pkt_queue = chFactoryGetObjectsFIFO(pkt_factory);
@@ -664,13 +656,15 @@ THD_FUNCTION(pktCompletion, arg) {
   chThdExit(MSG_OK);
 }
 
-void pktCallbackManagerOpen(packet_svc_t *handler) {
+void pktCallbackManagerOpen(radio_unit_t radio) {
 
-  radio_unit_t rid = handler->radio_rx_config.radio_id;
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the callback handler thread name. */
   chsnprintf(handler->cbend_name, sizeof(handler->cbend_name),
-             "%s%02i", PKT_CALLBACK_TERMINATOR_PREFIX, rid);
+             "%s%02i", PKT_CALLBACK_TERMINATOR_PREFIX, radio);
 
   /* Start the callback thread terminator. */
   thread_t *cbh = chThdCreateFromHeap(NULL,
@@ -684,13 +678,18 @@ void pktCallbackManagerOpen(packet_svc_t *handler) {
   handler->cb_terminator = cbh;
 }
 
-dyn_objects_fifo_t *pktBufferManagerCreate(packet_svc_t *handler) {
-  /* The radio associated with this AFSK driver. */
-  radio_unit_t rid = handler->radio_rx_config.radio_id;
+/*
+ *
+ */
+dyn_objects_fifo_t *pktBufferManagerCreate(radio_unit_t radio) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the packet buffer name for this radio. */
   chsnprintf(handler->pbuff_name, sizeof(handler->pbuff_name),
-             "%s%02i", PKT_FRAME_QUEUE_PREFIX, rid);
+             "%s%02i", PKT_FRAME_QUEUE_PREFIX, radio);
 
   /* Check if the packet buffer factory is still in existence.
    * If so we get a pointer to it.
@@ -721,12 +720,15 @@ dyn_objects_fifo_t *pktBufferManagerCreate(packet_svc_t *handler) {
 }
 
 
-thread_t *pktCallbackManagerCreate(packet_svc_t *handler) {
-  radio_unit_t rid = handler->radio_rx_config.radio_id;
+thread_t *pktCallbackManagerCreate(radio_unit_t radio) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the callback termination thread name. */
   chsnprintf(handler->cbend_name, sizeof(handler->cbend_name),
-             "%s%02i", PKT_CALLBACK_TERMINATOR_PREFIX, rid);
+             "%s%02i", PKT_CALLBACK_TERMINATOR_PREFIX, radio);
 
   /*
    * Initialize the outstanding callback count.
@@ -762,8 +764,8 @@ void pktCallbackManagerRelease(packet_svc_t *handler) {
   chThdWait(handler->cb_terminator);
 }
 
-void pktScheduleThreadRelease(thread_t *thread) {
+/*void pktScheduleThreadRelease(thread_t *thread) {
   (void)thread;
-}
+}*/
 
 /** @} */

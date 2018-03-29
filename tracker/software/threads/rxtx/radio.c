@@ -58,7 +58,7 @@ if(pktIsBufferValidAX25Frame(pkt_buff)) {
   }
 }
 
-void start_rx_thread(uint32_t freq, uint16_t step,
+void start_rx_thread(radio_unit_t radio, uint32_t freq, uint16_t step,
                      radio_ch_t chan, uint8_t rssi) {
 
 	if(freq == FREQ_APRS_DYNAMIC) {
@@ -68,15 +68,11 @@ void start_rx_thread(uint32_t freq, uint16_t step,
 		step = 0;
 	}
 
-	// Start decoder
-	extern packet_svc_t *packetHandler;
-
     /* Open packet radio service. */
-    msg_t omsg = pktOpenRadioService(PKT_RADIO_1,
+    msg_t omsg = pktOpenRadioReceive(radio,
                          MOD_AFSK,
                          freq,
-                         step,
-                         &packetHandler);
+                         step);
 
     if(omsg != MSG_OK) {
       TRACE_DEBUG("RX   > Open of radio service failed");
@@ -84,12 +80,12 @@ void start_rx_thread(uint32_t freq, uint16_t step,
     }
 
     /* Start the decoder. */
-    msg_t smsg = pktStartDataReception(PKT_RADIO_1,
+    msg_t smsg = pktStartDataReception(radio,
                            chan,
                            rssi,
                            mapCallback);
     if(smsg != MSG_OK) {
-      pktCloseRadioService(PKT_RADIO_1);
+      pktCloseRadioReceive(radio);
       TRACE_DEBUG("RX   > Start of radio packet reception failed");
     }
 }
@@ -97,9 +93,12 @@ void start_rx_thread(uint32_t freq, uint16_t step,
 /*
  *
  */
-bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
-                     uint8_t pwr, mod_t mod)
-{
+bool transmitOnRadio(packet_t pp, radio_freq_t freq,
+                     channel_hz_t step, radio_ch_t chan,
+                     radio_pwr_t pwr, mod_t mod) {
+  /* TODO: This should have the radio ID. For now just fix it. */
+  radio_unit_t radio = PKT_RADIO_1;
+
 	if(freq == FREQ_APRS_DYNAMIC) {
 		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
 		step = 0;
@@ -123,26 +122,27 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
         return false;
       }
 
-      uint32_t op_freq = Si446x_computeOperatingFrequency(freq, step, chan);
+	  radio_freq_t op_freq = pktComputeOperatingFrequency(freq, step, chan);
 		TRACE_INFO(	"RAD  > Transmit packet on %d.%03d MHz (ch %d),"
 		            " Pwr %d, %s, %d byte",
 					op_freq/1000000, (op_freq%1000000)/1000,
 					chan, pwr, getModulation(mod), len
 		);
 
+		/* TODO: Check size of buf. */
 		char buf[1024];
 		aprs_debug_getPacket(pp, buf, sizeof(buf));
 		TRACE_INFO("TX   > %s", buf);
 
 		/* Check if packet services available for transmit. */
-		if(!pktIsTransmitOpen(PKT_RADIO_1)) {
+		if(!pktIsTransmitOpen(radio)) {
           TRACE_ERROR("RAD  > Packet services are not open for transmit");
           ax25_delete(pp);
 		  return false;
 		}
 
 		/* The service object. */
-        packet_svc_t *handler = pktGetServiceObject(PKT_RADIO_1);
+        packet_svc_t *handler = pktGetServiceObject(radio);
 
 		/* Update  the saved radio data with this new request. */
         radio_task_object_t rt = handler->radio_tx_config;
@@ -161,20 +161,12 @@ bool transmitOnRadio(packet_t pp, uint32_t freq, uint16_t step, uint8_t chan,
 		/* Save the current data. */
 		//handler->radio_tx_config = rt;
 
-        msg_t msg = pktSendRadioCommand(handler, &rt);
+        msg_t msg = pktSendRadioCommand(radio, &rt);
         if(msg != MSG_OK) {
+          TRACE_ERROR("RAD  > Failed to post radio task");
           ax25_delete(pp);
           return false;
         }
-/*		switch(mod)
-		{
-			case MOD_2FSK:
-				Si446x_send2FSK(pp, freq, step, chan, pwr, 9600);
-				break;
-			case MOD_AFSK:
-				Si446x_sendAFSK(pp, freq, step, chan, pwr);
-				break;
-		}*/
 
 	} else {
 

@@ -19,11 +19,14 @@
 #include "radio.h"
 #endif
 #include "si446x.h"
+#include "debug.h"
 
 /**
  * @brief   Process radio task requests.
  * @notes   Task objects posted to the queue are processed per radio.
- * @notes   The queue is blocked while the radio driver executes.
+ * @notes   The queue is blocked while the radio driver functions execute.
+ * @notes   Receive tasks start the receive/decode system which are threads.
+ * @notes   Transmit tasks should be handled in threads (and are in 446x).
  *
  * @param[in] arg pointer to a @p radio task queue for this thread.
  *
@@ -32,10 +35,16 @@
  * @notapi
  */
 THD_FUNCTION(pktRadioManager, arg) {
-#define PKT_RADIO_TASK_MANAGER_POLL_RATE    100
-  dyn_objects_fifo_t *the_radio_fifo = arg;
+#define PKT_RADIO_TASK_MANAGER_IDLE_RATE    100
+#define PKT_RADIO_TASK_MANAGER_TX_RATE      10
+
+  packet_svc_t *handler = arg;
+
+  dyn_objects_fifo_t *the_radio_fifo =   handler->the_radio_fifo;
 
   chDbgCheck(arg != NULL);
+
+  sysinterval_t poll_rate = PKT_RADIO_TASK_MANAGER_IDLE_RATE;
 
   //bool rx_active = false;
 
@@ -43,26 +52,35 @@ THD_FUNCTION(pktRadioManager, arg) {
 
   chDbgAssert(radio_queue != NULL, "no queue in radio manager FIFO");
 
-  while(!chThdShouldTerminateX()) {
+  /* Run until terminate request and no outstanding TX tasks. */
+  while(!(chThdShouldTerminateX() && handler->tx_count == 0)) {
     /* Check for task requests. */
     radio_task_object_t *task_object;
     msg_t fifo_msg = chFifoReceiveObjectTimeout(radio_queue,
                          (void *)&task_object,
-                         TIME_MS2I(PKT_RADIO_TASK_MANAGER_POLL_RATE));
+                         TIME_MS2I(poll_rate));
     if(fifo_msg == MSG_TIMEOUT)
       continue;
 
-    /* Something to do. Handler pointer is in fifo_msg for RX tasks. */
+    /* Something to do. */
 
-    packet_svc_t *handler = task_object->handler;
+    /* Change the poll rate if there are back to back TX tasks. */
+    poll_rate = (handler->tx_count > 1) ?
+          PKT_RADIO_TASK_MANAGER_IDLE_RATE
+        : PKT_RADIO_TASK_MANAGER_TX_RATE;
 
+    radio_unit_t radio = handler->radio;
     /* Process command. */
     switch(task_object->command) {
     case PKT_RADIO_RX_OPEN: {
-      /* Create the packet management services. */
-      pktBufferManagerCreate(handler);
-      if(pktCallbackManagerCreate(handler) == NULL)
-        /* Failed to create callback manager. */
+
+       /* Create the packet management services. */
+      if(pktBufferManagerCreate(radio) == NULL)
+        /* TODO: Set an event on fail. */
+        break;
+      /* Create callback manager. */
+      if(pktCallbackManagerCreate(radio) == NULL)
+        /* TODO: Set an event on fail. */
         break;
       /* Switch on modulation type. */
       switch(task_object->type) {
@@ -95,21 +113,22 @@ THD_FUNCTION(pktRadioManager, arg) {
       switch(task_object->type) {
       case MOD_AFSK: {
         Si446x_lockRadio(RADIO_RX);
+
         Si446x_setBandParameters(task_object->base_frequency,
                                 task_object->step_hz,
                                 RADIO_RX);
-        pktStartDecoder(PKT_RADIO_1);
 
         radio_ch_t chan = task_object->channel;
         radio_squelch_t sq = task_object->squelch;
 
         Si446x_receiveNoLock(chan, sq, MOD_AFSK);
 
+        pktStartDecoder(handler->radio);
+        handler->rx_active = true;
         /* Allow transmit requests. */
         Si446x_unlockRadio(RADIO_RX);
-        //rx_active = true;
         break;
-        } /* End case PKT_RADIO_RX. */
+        } /* End case MOD_AFSK. */
 
       case MOD_NONE:
       case MOD_2FSK: {
@@ -122,8 +141,8 @@ THD_FUNCTION(pktRadioManager, arg) {
     case PKT_RADIO_RX_STOP: {
       switch(task_object->type) {
             case MOD_AFSK: {
-              pktStopDecoder(PKT_RADIO_1);
-              //rx_active = false;
+              pktStopDecoder(handler->radio);
+              handler->rx_active = false;
               break;
               } /* End case. */
 
@@ -137,34 +156,27 @@ THD_FUNCTION(pktRadioManager, arg) {
 
     case PKT_RADIO_TX_SEND: {
       /*
-       * TODO: The 446x driver currently pauses decoding itself.
-       * Consider moving it to here?
+       * TODO: Currently the decoder is not paused.
+       * Is it necessary since the RX is not outputting data during TX?
        */
+
+      /* TODO: Move all setting of pp params to radio.c */
       packet_t pp = task_object->packet_out;
-      radio_freq_t freq = task_object->base_frequency;
-      channel_hz_t step = task_object->step_hz;
-      radio_ch_t chan = task_object->channel;
-      uint8_t pwr = task_object->tx_power;
-      uint32_t speed = task_object->tx_speed;
+      pp->base_frequency = task_object->base_frequency;
+      pp->radio_step = task_object->step_hz;
+      pp->radio_chan = task_object->channel;
+      pp->radio_pwr = task_object->tx_power;
 
+      /* TODO: Don't use fixed RSSI. */
+      pp->cca_rssi = 0x4F;
 
-      switch(task_object->type) {
-      case MOD_2FSK:
-        Si446x_lockRadio(RADIO_TX);
-        Si446x_setBandParameters(freq, step, RADIO_TX);
-        Si446x_send2FSK(pp, chan, pwr, speed);
+      if(pktLLDsendPacket(pp, task_object->type)) {
+        handler->tx_count++;
+        /* Success. */
         break;
-
-      case MOD_AFSK:
-        Si446x_lockRadio(RADIO_TX);
-        Si446x_setBandParameters(freq, step, RADIO_TX);
-        Si446x_sendAFSK(pp, chan, pwr);
-        break;
-
-      case MOD_NONE:
-        pktReleaseSendObject(pp);
-        break;
-      } /* End switch on task_object->type. */
+      }
+      /* Send failed so release send packet object. */
+      pktReleaseSendObject(pp);
       break;
     } /* End case PKT_RADIO_TX. */
 
@@ -174,7 +186,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       thread_t *decoder = NULL;
       switch(task_object->type) {
       case MOD_AFSK: {
-        Si446x_receiveStop();
+        Si446x_disableReceive();
         esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
         decoder = ((AFSKDemodDriver *)(handler->link_controller))->decoder_thd;
@@ -217,26 +229,61 @@ THD_FUNCTION(pktRadioManager, arg) {
       chBSemSignal(&handler->close_sem);
       break;
       } /*end case close. */
+
+    case PKT_RADIO_TX_THREAD: {
+      msg_t send_msg = chThdWait(task_object->thread);
+
+      bool rxok = true;
+      /* If no transmissions pending then enable RX or shutdown. */
+      if(--handler->tx_count == 0) {
+        if(handler->rx_active) {
+          rxok = pktLLDresumeReceive(radio);
+        }
+        else {
+          Si446x_shutdown(radio);
+        }
+      }
+      /* Unlock radio. */
+      pktReleaseRadio(radio);
+
+      if(send_msg != MSG_OK) {
+        if(send_msg == MSG_TIMEOUT) {
+          TRACE_ERROR("SI   > Transmit timeout");
+        }
+        if(send_msg == MSG_RESET) {
+          TRACE_ERROR("SI   > Transmit failed to start");
+        }
+      }
+      if(!rxok) {
+        TRACE_ERROR("SI   > Receive failed to start after transmit");
+      }
+      break;
+    } /* End case PKT_RADIO_TX_THREAD */
+
     } /* End switch on command. */
     /* Perform radio task callback if specified. */
     if(task_object->callback != NULL)
       /* Perform the callback. */
-      task_object->callback(handler);
+      task_object->callback(task_object);
     /* Return radio task object to free list. */
     chFifoReturnObject(radio_queue, (radio_task_object_t *)task_object);
-  } /* End while should terminate). */
+  } /* End while should terminate(). */
   chThdExit(MSG_OK);
 }
 
 
-thread_t *pktRadioManagerCreate(packet_svc_t *handler) {
+thread_t *pktRadioManagerCreate(radio_unit_t radio) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* The radio associated with this packet handler. */
-  radio_unit_t rid = handler->radio_rx_config.radio_id;
+  //radio_unit_t rid = handler->radio_rx_config.radio_id;
 
   /* Create the radio manager name. */
   chsnprintf(handler->rtask_name, sizeof(handler->rtask_name),
-             "%s%02i", PKT_RADIO_TASK_QUEUE_PREFIX, rid);
+             "%s%02i", PKT_RADIO_TASK_QUEUE_PREFIX, radio);
 
   dyn_objects_fifo_t *the_radio_fifo =
       chFactoryCreateObjectsFIFO(handler->rtask_name,
@@ -259,7 +306,7 @@ thread_t *pktRadioManagerCreate(packet_svc_t *handler) {
               handler->rtask_name,
               NORMALPRIO - 10,
               pktRadioManager,
-              the_radio_fifo);
+              handler);
 
   chDbgAssert(handler->radio_manager != NULL,
               "unable to create radio task thread");
@@ -274,7 +321,8 @@ thread_t *pktRadioManagerCreate(packet_svc_t *handler) {
 /**
  * TODO: This needs review. Is it robust enough?
  */
-void pktRadioManagerRelease(packet_svc_t *handler) {
+void pktRadioManagerRelease(radio_unit_t radio) {
+  packet_svc_t *handler = pktGetServiceObject(radio);
   chThdTerminate(handler->radio_manager);
   chThdWait(handler->radio_manager);
   chFactoryReleaseObjectsFIFO(handler->the_radio_fifo);
@@ -284,7 +332,7 @@ void pktRadioManagerRelease(packet_svc_t *handler) {
  * @brief   Get a radio command task object.
  * @post    A task object is returned ready for filling and submission.
  *
- * @param[in]   handler pointer to packet handler object.
+ * @param[in]   radio   radio unit ID.
  * @param[in]   timeout maximum time to wait for a task to be submitted.
  * @param[in]   rt      pointer to a task object pointer.
  *
@@ -294,9 +342,14 @@ void pktRadioManagerRelease(packet_svc_t *handler) {
  *
  * @api
  */
-msg_t pktGetRadioTaskObject(packet_svc_t *handler,
+msg_t pktGetRadioTaskObject(radio_unit_t radio,
                             sysinterval_t timeout,
                             radio_task_object_t **rt) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
+
   dyn_objects_fifo_t *task_fifo =
       chFactoryFindObjectsFIFO(handler->rtask_name);
   chDbgAssert(task_fifo != NULL, "unable to find radio task fifo");
@@ -313,6 +366,7 @@ msg_t pktGetRadioTaskObject(packet_svc_t *handler,
     return MSG_TIMEOUT;
   }
   (*rt)->handler = handler;
+  //(*rt)->radio_id = radio;
   return MSG_OK;
 }
 
@@ -320,15 +374,18 @@ msg_t pktGetRadioTaskObject(packet_svc_t *handler,
  * @brief   Submit a radio command to the task manager.
  * @post    A task object is created and submitted to the radio manager.
  *
- * @param[in]   handler pointer to packet handler object.
+ * @param[in]   radio   radio unit ID.
  * @param[in]   object  radio task object to be submitted.
  * @param[in]   cb      function to call with result (can be NULL).
  *
  * @api
  */
-void pktSubmitRadioTask(packet_svc_t *handler,
+void pktSubmitRadioTask(radio_unit_t radio,
                          radio_task_object_t *object,
                          radio_task_cb_t cb) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  chDbgAssert(handler != NULL, "invalid radio ID");
 
   dyn_objects_fifo_t *task_fifo =
       chFactoryFindObjectsFIFO(handler->rtask_name);
@@ -344,7 +401,7 @@ void pktSubmitRadioTask(packet_svc_t *handler,
    */
   object->handler = handler;
   object->callback = cb;
-  // etc.
+
   /*
    * Submit the task to the queue.
    * The task thread will process the request.
@@ -355,6 +412,119 @@ void pktSubmitRadioTask(packet_svc_t *handler,
 
   /* Release reference to the FIFO acquired earlier by find. */
   chFactoryReleaseObjectsFIFO(task_fifo);
+}
+
+
+/**
+ * @brief   Called by transmit threads to schedule release after completing.
+ * @post    A thread release task is posted to the radio manager queue.
+ *
+ * @param[in]   radio   radio unit ID.
+ * @param[in]   thread  thread reference.
+ *
+ * @api
+ */
+void pktScheduleThreadRelease(radio_unit_t radio,
+                              thread_t *thread) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
+
+  radio_task_object_t *rto;
+
+  /* Block waiting for a task manager object. */
+  pktGetRadioTaskObject(radio, TIME_INFINITE, &rto);
+
+  /* The handler and radio ID are set in returned object. */
+  rto->command = PKT_RADIO_TX_THREAD;
+  rto->thread = thread;
+  pktSubmitRadioTask(radio, rto, NULL);
+}
+
+/**
+ * @brief   Acquire exclusive access to radio.
+ * @notes   returns when radio unit acquired.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @return              A message specifying the result.
+ * @retval MSG_OK       if the radio has been successfully acquired.
+ * @retval MSG_RESET    if the radio can not be used due to a system abort.
+ *
+ * @api
+ */
+msg_t pktAcquireRadio(radio_unit_t radio) {
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  return chBSemWait(&handler->radio_sem);
+}
+
+/**
+ * @brief   Release exclusive access to radio.
+ * @notes   returns when radio unit is released.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @api
+ */
+void pktReleaseRadio(radio_unit_t radio) {
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  chBSemSignal(&handler->radio_sem);
+}
+
+/**
+ * @brief   Compute an operating frequency.
+ *
+ * @param[in] base_freq    Radio base frequency.
+ * @param[in] step         Radio channel step frequency.
+ * @param[in] chan         Radio channel nu,ber.
+ *
+ * @api
+ */
+radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
+                                          channel_hz_t step,
+                                          radio_ch_t chan) {
+  return base_freq + (step * chan);
+}
+
+/**
+ * @brief   Enable receive on a radio.
+ * @notes   This is the API interface to the radio LLD.
+ * @notes   Currently just map directly to 446x driver.
+ *
+ * @param[in] radio radio unit ID.
+ *
+ * @notapi
+ */
+bool pktLLDsendPacket(packet_t pp, mod_t type) {
+  switch(type) {
+  case MOD_2FSK:
+    Si446x_send2FSK(pp);
+    break;
+
+  case MOD_AFSK:
+    Si446x_sendAFSK(pp);
+    break;
+
+  case MOD_NONE:
+    return false;
+  } /* End switch on task_object->type. */
+  return true;
+}
+
+/**
+ * @brief   Send a packet via radio.
+ * @notes   This is the API interface to the radio LLD.
+ * @notes   Currently just map directly to 446x driver.
+ *
+ * @param[in] radio radio unit ID.
+ * @param[in] step         Radio channel step frequency.
+ * @param[in] chan         Radio channel number.
+ *
+ * @notapi
+ */
+bool pktLLDresumeReceive(radio_unit_t radio) {
+  return Si4464_resumeReceive(radio);
 }
 
 /** @} */

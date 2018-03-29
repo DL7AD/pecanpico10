@@ -12,6 +12,7 @@
 #include "padc.h"
 #include "si446x.h"
 #include <string.h>
+#include "pktradio.h"
 
 static uint32_t lightIntensity;
 static uint8_t error;
@@ -938,14 +939,16 @@ void vsync_cb(void *arg) {
  */
 void OV5640_lockResourcesForCapture(void) {
   I2C_Lock(); // Lock I2C because it uses the same DMA
-  Si446x_lockRadioByCamera(); // Lock the radio because it uses the DMA too
+  //Si446x_lockRadio(RADIO_TX); // Lock the radio because it uses the DMA too
+  pktAcquireRadio(PKT_RADIO_1);
 }
 
 /*
  * Unlock competing drivers.
  */
 void OV5640_unlockResourcesForCapture(void) {
-  Si446x_unlockRadioByCamera();
+  //Si446x_unlockRadio(RADIO_TX);
+  pktReleaseRadio(PKT_RADIO_1);
   I2C_Unlock();
 }
 

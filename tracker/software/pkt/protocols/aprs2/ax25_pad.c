@@ -384,7 +384,9 @@ packet_t ax25_from_text (char *monitor, int strict)
 	char info_part[AX25_MAX_INFO_LEN+1];
 	int info_len;
 
-	packet_t this_p = ax25_new ();
+	packet_t this_p = ax25_new();
+    if(this_p == NULL)
+      return NULL;
 
 #if AX25MEMDEBUG	
 	if (ax25memdebug) {
@@ -621,7 +623,9 @@ packet_t ax25_from_frame (unsigned char *fbuf, int flen)
 	  return (NULL);
 	}
 
-	this_p = ax25_new ();
+	this_p = ax25_new();
+	if(this_p == NULL)
+	  return NULL;
 
 #if AX25MEMDEBUG	
 	if (ax25memdebug) {

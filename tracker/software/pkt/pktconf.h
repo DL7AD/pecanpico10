@@ -95,13 +95,8 @@
 #define EVT_ICU_OUT_OF_RANGE    EVENT_MASK(EVT_PRIORITY_BASE + 30)
 //#define EVT_TBA    EVENT_MASK(EVT_PRIORITY_BASE + 31)
 
-/* Initiator thread events (from decoder to initiator). */
-#define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 0)
-#define DEC_START_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 1)
-#define DEC_STOP_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 2)
-#define DEC_CLOSE_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 2)
 
-/* Decoder thread events (from initiator to decoder). */
+/* Decoder thread events (sent from initiator to decoder). */
 
 #define DEC_COMMAND_START       EVENT_MASK(EVT_PRIORITY_BASE + 0)
 #define DEC_COMMAND_STOP        EVENT_MASK(EVT_PRIORITY_BASE + 1)
@@ -109,11 +104,19 @@
 #define DEC_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 3)
 #define DEC_SUSPEND_EXIT        EVENT_MASK(EVT_PRIORITY_BASE + 4)
 
-/* Reserved system thread events (in user threads called from main). */
+/* Reserved system thread events (in user threads level). */
 #define USB_SHELL_EVT           EVENT_MASK(EVT_PRIORITY_BASE + 0)
-#define USR_COMMAND_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 15)
-#define EVT_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 16)
-#define EVT_PKT_OUT_END         EVENT_MASK(EVT_PRIORITY_BASE + 17)
+
+/* Response thread events (from decoder to initiator). */
+#define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 15)
+#define DEC_START_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 16)
+#define DEC_STOP_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 17)
+#define DEC_CLOSE_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 18)
+#define USR_COMMAND_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 19)
+
+/* Diagnostic events. */
+#define EVT_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 20)
+#define EVT_PKT_OUT_END         EVENT_MASK(EVT_PRIORITY_BASE + 21)
 
 #define EVT_STATUS_CLEAR        EVT_NONE
 
@@ -341,20 +344,20 @@ static inline void pktWritePWMMirror(uint8_t state) {
  * @brief   Sends a command request to a radio.
  * @post    The command object posted to the radio manager queue.
  *
- * @param[in]   handler     pointer to a @p packet handler object
- * @param[in]   task        pointer to a task object.
+ * @param[in]   radio    radio unit ID.
+ * @param[in]   task     pointer to a task object.
  *
  * @api
  */
-static inline msg_t pktSendRadioCommand(packet_svc_t *handler,
+static inline msg_t pktSendRadioCommand(radio_unit_t radio,
                                         radio_task_object_t *task) {
 #if USE_SPI_ATTACHED_RADIO == TRUE
   radio_task_object_t *rt = NULL;
-  msg_t msg = pktGetRadioTaskObject(handler, TIME_MS2I(3000), &rt);
+  msg_t msg = pktGetRadioTaskObject(radio, TIME_MS2I(3000), &rt);
   if(msg != MSG_OK)
     return MSG_TIMEOUT;
   *rt = *task;
-  pktSubmitRadioTask(handler, rt, NULL);
+  pktSubmitRadioTask(radio, rt, NULL);
   return msg;
 #else
   (void)task;
