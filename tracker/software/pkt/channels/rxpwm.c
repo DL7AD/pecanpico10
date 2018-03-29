@@ -300,7 +300,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
    * Send the FIFO entry to the decoder thread.
    */
   chFifoSendObjectI(myDemod->pwm_fifo_pool, myFIFO);
-  myFIFO->status |= EVT_PWM_FIFO_SENT;
+/*  myFIFO->status |= EVT_PWM_FIFO_SENT;*/
 
   /*
    * Start the ICU activity timer.

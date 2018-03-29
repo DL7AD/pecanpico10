@@ -325,7 +325,7 @@ static void transmit_image_packet(const uint8_t *image, uint32_t image_len, thd_
 		if(i == packet_id) {
 			// Sync byte, CRC and FEC of SSDV not transmitted (because its not neccessary inside an APRS packet)
 			base91_encode(&pkt[6], pkt_base91, 174);
-
+		    /* TODO: Check for failure to get packet (NULL). */
 			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
             transmitOnRadio(packet,
                             conf->radio_conf.freq,

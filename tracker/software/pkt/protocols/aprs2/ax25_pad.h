@@ -137,6 +137,9 @@ struct packet_s {
 	radio_pwr_t     radio_pwr;
 	radio_squelch_t cca_rssi;
 	uint16_t        preamble_size;
+	uint8_t         tx_seq;
+	/* TODO: Set size of name with definition. */
+	char            tx_thd_name[16];
 
     /* Frame length without CRC. */
 	int         frame_len;
@@ -152,8 +155,8 @@ struct packet_s {
     /* For I & S frames:    8 or 128 if known.  0 if unknown. */
 	int         modulo;
 
-    /* Raw frame contents, without the CRC. */
-	unsigned char frame_data[AX25_MAX_PACKET_LEN+1];
+    /* Raw frame contents, without the CRC plus one byte if \0 appended. */
+	unsigned char frame_data[AX25_MAX_PACKET_LEN + 1];
 
     /* Will get stomped on if above overflows. */
 	int magic2;

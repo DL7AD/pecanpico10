@@ -45,8 +45,8 @@
 #define LINE_SPI_MISO               PAL_LINE(GPIOB, 4U)
 #define LINE_SPI_MOSI               PAL_LINE(GPIOB, 5U)
 
-#define Si446x_MIN_FREQ				144000000				/* Minimum allowed frequency in Hz */
-#define Si446x_MAX_FREQ				148000000				/* Maximum allowed frequency in Hz */
+#define Si446x_MIN_2M_FREQ	    	144000000				/* Minimum allowed frequency in Hz */
+#define Si446x_MAX_2M_FREQ			148000000				/* Maximum allowed frequency in Hz */
 #define Si446x_CLK					STM32_HSECLK			/* Oscillator frequency in Hz */
 #define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
@@ -121,8 +121,8 @@ extern "C" {
   void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
   int dbgPrintf(uint8_t level, const char *format, ...);
   void pktWrite(uint8_t *buf, uint32_t len);
-  void pktConfigureRadioGPIO(void);
-  void pktDeconfigureRadioGPIO(void);
+  void pktConfigureRadioGPIO(radio_unit_t radio);
+  void pktDeconfigureRadioGPIO(radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif

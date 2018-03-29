@@ -84,6 +84,7 @@ struct radioTask {
   packet_t                  packet_out;
   uint8_t                   tx_power;
   uint32_t                  tx_speed;
+  uint8_t                   seq_num;
 };
 
 /*===========================================================================*/

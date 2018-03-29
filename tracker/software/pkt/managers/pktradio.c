@@ -75,22 +75,27 @@ THD_FUNCTION(pktRadioManager, arg) {
     case PKT_RADIO_RX_OPEN: {
 
        /* Create the packet management services. */
-      if(pktBufferManagerCreate(radio) == NULL)
-        /* TODO: Set an event on fail. */
+      if(pktBufferManagerCreate(radio) == NULL) {
+        pktAddEventFlags(handler, (EVT_PKT_BUFFER_MGR_FAIL));
         break;
+      }
       /* Create callback manager. */
-      if(pktCallbackManagerCreate(radio) == NULL)
-        /* TODO: Set an event on fail. */
+      if(pktCallbackManagerCreate(radio) == NULL) {
+        pktAddEventFlags(handler, (EVT_PKT_CBK_MGR_FAIL));
+        pktBufferManagerRelease(handler);
         break;
+      }
       /* Switch on modulation type. */
       switch(task_object->type) {
         case MOD_AFSK: {
           /* Create the AFSK decoder (includes PWM, filters, etc.). */
           AFSKDemodDriver *driver = pktCreateAFSKDecoder(handler);
           handler->link_controller = driver;
-          chDbgCheck(driver != NULL);
-          /* TODO: Implement thread events or callback for results. */
+          /* If AFSK start failed send event but leave managers running. */
           if(driver == NULL) {
+            pktAddEventFlags(handler, (EVT_AFSK_START_FAIL));
+/*            pktBufferManagerRelease(handler);
+            pktCallbackManagerRelease(handler);*/
             break;
           }
           break;
@@ -104,29 +109,34 @@ THD_FUNCTION(pktRadioManager, arg) {
       } /* End switch on modulation type. */
 
       /* Initialise the radio. */
-      Si446x_conditional_init();
+      Si446x_conditional_init(radio);
       break;
     } /* End case PKT_RADIO_OPEN. */
 
 
     case PKT_RADIO_RX_START: {
+      /* The function switches on mod type so no need for switch here. */
       switch(task_object->type) {
       case MOD_AFSK: {
-        Si446x_lockRadio(RADIO_RX);
+        pktAcquireRadio(radio);
 
-        Si446x_setBandParameters(task_object->base_frequency,
-                                task_object->step_hz,
-                                RADIO_RX);
+        /* TODO: Move these 446x calls into abstracted LLD. */
+        Si446x_setBandParameters(radio,
+                                 task_object->base_frequency,
+                                 task_object->step_hz);
 
-        radio_ch_t chan = task_object->channel;
-        radio_squelch_t sq = task_object->squelch;
+        Si446x_receiveNoLock(radio,
+                             task_object->base_frequency,
+                             task_object->step_hz,
+                             task_object->channel,
+                             task_object->squelch,
+                             MOD_AFSK);
+        /* TODO: If decoder is not running error out. */
 
-        Si446x_receiveNoLock(chan, sq, MOD_AFSK);
-
-        pktStartDecoder(handler->radio);
+        pktStartDecoder(radio);
         handler->rx_active = true;
         /* Allow transmit requests. */
-        Si446x_unlockRadio(RADIO_RX);
+        pktReleaseRadio(radio);
         break;
         } /* End case MOD_AFSK. */
 
@@ -167,6 +177,8 @@ THD_FUNCTION(pktRadioManager, arg) {
       pp->radio_chan = task_object->channel;
       pp->radio_pwr = task_object->tx_power;
 
+      /* Give each send a sequence number. */
+      pp->tx_seq = ++handler->radio_tx_config.seq_num;
       /* TODO: Don't use fixed RSSI. */
       pp->cca_rssi = 0x4F;
 
@@ -186,7 +198,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       thread_t *decoder = NULL;
       switch(task_object->type) {
       case MOD_AFSK: {
-        Si446x_disableReceive();
+        Si446x_disableReceive(radio);
         esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
         decoder = ((AFSKDemodDriver *)(handler->link_controller))->decoder_thd;
@@ -477,7 +489,7 @@ void pktReleaseRadio(radio_unit_t radio) {
  *
  * @param[in] base_freq    Radio base frequency.
  * @param[in] step         Radio channel step frequency.
- * @param[in] chan         Radio channel nu,ber.
+ * @param[in] chan         Radio channel number.
  *
  * @api
  */
@@ -491,6 +503,7 @@ radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
  * @brief   Enable receive on a radio.
  * @notes   This is the API interface to the radio LLD.
  * @notes   Currently just map directly to 446x driver.
+ * @notes   In future would implement a lookup and VMT to access radio methods.
  *
  * @param[in] radio radio unit ID.
  *
@@ -513,18 +526,30 @@ bool pktLLDsendPacket(packet_t pp, mod_t type) {
 }
 
 /**
- * @brief   Send a packet via radio.
+ * @brief   Resume reception paused by transmit task.
  * @notes   This is the API interface to the radio LLD.
  * @notes   Currently just map directly to 446x driver.
+ * @notes   In future would implement a lookup and VMT to access radio methods.
  *
  * @param[in] radio radio unit ID.
- * @param[in] step         Radio channel step frequency.
- * @param[in] chan         Radio channel number.
+ *
+ * @return  status of the operation
+ * @retval  true    operation succeeded.
+ * retval   false   operation failed.
  *
  * @notapi
  */
 bool pktLLDresumeReceive(radio_unit_t radio) {
-  return Si4464_resumeReceive(radio);
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
+
+  radio_freq_t freq = handler->radio_rx_config.base_frequency;
+  channel_hz_t step = handler->radio_rx_config.step_hz;
+  radio_ch_t chan = handler->radio_rx_config.channel;
+  radio_squelch_t rssi = handler->radio_rx_config.squelch;
+  mod_t mod = handler->radio_rx_config.type;
+  return Si4464_resumeReceive(radio, freq, step, chan, rssi, mod);
 }
 
 /** @} */

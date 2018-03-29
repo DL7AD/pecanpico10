@@ -50,7 +50,7 @@
 bool pktServiceCreate(radio_unit_t radio) {
 
   /*
-   * TODO: This should lookup radio and assign handler (RPKTDx).
+   * Get service object maps radio IDs to service objects
    */
   packet_svc_t *handler = pktGetServiceObject(radio);
   if(handler == NULL)
@@ -66,9 +66,9 @@ bool pktServiceCreate(radio_unit_t radio) {
   memset(&handler->radio_rx_config, 0, sizeof(radio_task_object_t));
   memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
 
-  /* Set parameters. */
-  //handler->radio_rx_config.radio_id = radio;
+  /* Set flags and radio ID. */
   handler->rx_active = false;
+  handler->radio_init = false;
   handler->radio = radio;
 
   /* Set service semaphore to idle state. */
@@ -93,7 +93,7 @@ bool pktServiceCreate(radio_unit_t radio) {
  *
  *@return   result of operation.
  *@retval   true    service was released.
- *@retval   false   service state is incorrect.
+ *@retval   false   service state is incorrect or invalid radio ID.
  *
  * @api
  */

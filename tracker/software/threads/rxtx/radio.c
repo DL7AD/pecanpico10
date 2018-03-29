@@ -58,11 +58,11 @@ if(pktIsBufferValidAX25Frame(pkt_buff)) {
   }
 }
 
-void start_rx_thread(radio_unit_t radio, uint32_t freq, uint16_t step,
+void start_rx_thread(radio_unit_t radio, uint32_t base_freq, uint16_t step,
                      radio_ch_t chan, uint8_t rssi) {
 
-	if(freq == FREQ_APRS_DYNAMIC) {
-		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
+	if(base_freq == FREQ_APRS_DYNAMIC) {
+		base_freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
 		/* If using geofence ignore channel and step for now. */
 		chan = 0;
 		step = 0;
@@ -71,7 +71,7 @@ void start_rx_thread(radio_unit_t radio, uint32_t freq, uint16_t step,
     /* Open packet radio service. */
     msg_t omsg = pktOpenRadioReceive(radio,
                          MOD_AFSK,
-                         freq,
+                         base_freq,
                          step);
 
     if(omsg != MSG_OK) {
@@ -93,19 +93,23 @@ void start_rx_thread(radio_unit_t radio, uint32_t freq, uint16_t step,
 /*
  *
  */
-bool transmitOnRadio(packet_t pp, radio_freq_t freq,
+bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
                      channel_hz_t step, radio_ch_t chan,
                      radio_pwr_t pwr, mod_t mod) {
-  /* TODO: This should have the radio ID. For now just fix it. */
+  /* TODO: This should select a radio by frequency. For now just use 1. */
   radio_unit_t radio = PKT_RADIO_1;
 
-	if(freq == FREQ_APRS_DYNAMIC) {
-		freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
+  if(pktIsTransmitOpen(radio)) {
+    TRACE_WARN( "RAD  > Transmit is not open on radio");
+    return false;
+  }
+	if(base_freq == FREQ_APRS_DYNAMIC) {
+		base_freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
 		step = 0;
 		chan = 0;
 	}
 
-	if(freq == FREQ_APRS_RECEIVE) {
+	if(base_freq == FREQ_APRS_RECEIVE) {
 	  /* TODO: Get current RX frequency (if valid) and use that. */
 	}
 
@@ -115,14 +119,14 @@ bool transmitOnRadio(packet_t pp, radio_freq_t freq,
 	if(len) // Message length is not zero
 	{
 	  /* Check frequency. */
-	  if(!Si446x_isFrequencyInBand(freq, step, chan)) {
+	  if(!Si446x_isFrequencyInBand(radio, base_freq, step, chan)) {
 
         TRACE_ERROR("RAD  > Transmit base frequency of %d.%03d MHz is invalid",
-                      freq/1000000, (freq%1000000)/1000);
+                      base_freq/1000000, (base_freq%1000000)/1000);
         return false;
       }
 
-	  radio_freq_t op_freq = pktComputeOperatingFrequency(freq, step, chan);
+	  radio_freq_t op_freq = pktComputeOperatingFrequency(base_freq, step, chan);
 		TRACE_INFO(	"RAD  > Transmit packet on %d.%03d MHz (ch %d),"
 		            " Pwr %d, %s, %d byte",
 					op_freq/1000000, (op_freq%1000000)/1000,
@@ -150,7 +154,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t freq,
         rt.handler = handler;
 		rt.command = PKT_RADIO_TX_SEND;
 		rt.type = mod;
-		rt.base_frequency = freq;
+		rt.base_frequency = base_freq;
 		rt.step_hz = step;
 		rt.channel = chan;
 		rt.tx_power = pwr;
@@ -171,7 +175,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t freq,
 	} else {
 
 		TRACE_ERROR("RAD  > It is nonsense to transmit 0 bits, %d.%03d MHz, Pwr dBm, %s, %d byte",
-					freq/1000000, (freq%1000000)/1000, pwr,
+					base_freq/1000000, (base_freq%1000000)/1000, pwr,
 					getModulation(mod), len);
 	    ax25_delete(pp);
 	}

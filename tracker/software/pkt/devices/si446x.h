@@ -189,10 +189,6 @@
 #define Si446x_FIFO_SEPARATE_SIZE                64
 #define Si446x_FIFO_COMBINED_SIZE               129
 
-#define AFSK_FEEDER_BUFFER_SIZE                 3072
-#define USE_DYNAMIC_AFSK_TX                     TRUE
-#define USE_MIN_AFSK_TX                         TRUE
-#define SI_AFSK_FIFO_FEEDER_WA_SIZE             (AFSK_FEEDER_BUFFER_SIZE + 1024)
 #define SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE         1024
 
 #define USE_DYNAMIC_FSK_TX                      FALSE
@@ -206,36 +202,50 @@ typedef enum radioMode {
 
 // Public methods
 
-int16_t Si446x_getLastTemperature(void);
+int16_t Si446x_getLastTemperature(radio_unit_t radio);
 void Si446x_shutdown(radio_unit_t radio);
 void Si446x_sendAFSK(packet_t pp);
 void Si446x_send2FSK(packet_t pp);
 
-void Si446x_disableReceive(void);
-/*void Si446x_startPacketReception(uint32_t freq, uint16_t step,
-                                 uint8_t ch, uint8_t sq, void* cb);*/
+void Si446x_disableReceive(radio_unit_t radio);
 void Si446x_stopDecoder(void);
-bool Si4464_resumeReceive(radio_unit_t radio);
-bool Si446x_receiveNoLock(uint8_t chan, uint8_t rssi, mod_t mod);
+bool Si4464_resumeReceive(radio_unit_t radio,
+                          radio_freq_t rx_frequency,
+                          channel_hz_t rx_step,
+                          radio_ch_t rx_chan,
+                          radio_squelch_t rx_rssi,
+                          mod_t rx_mod);
+bool Si446x_receiveNoLock(radio_unit_t radio,
+                          radio_freq_t rx_frequency,
+                          channel_hz_t rx_step,
+                          radio_ch_t chan,
+                          radio_squelch_t rssi,
+                          mod_t mod);
 void Si446x_lockRadio(radio_mode_t mode);
 void Si446x_unlockRadio(radio_mode_t mode);
 void Si446x_lockRadioByCamera(void);
 void Si446x_unlockRadioByCamera(void);
-void Si446x_conditional_init(void);
-bool Si446x_setBandParameters(uint32_t freq,
-                                   uint16_t step,
-                                   radio_mode_t mode);
+void Si446x_conditional_init(radio_unit_t radio);
+bool Si446x_setBandParameters(radio_unit_t radio,
+                              radio_freq_t freq,
+                              channel_hz_t step);
 
-/* Inline. */
-static inline uint32_t Si446x_computeOperatingFrequency(uint32_t base_freq,
-                                          uint16_t step,
-                                          uint8_t chan) {
-  return base_freq + (step * chan);
-}
+/* TODO: Forward need for declaration. */
+radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
+                                          channel_hz_t step,
+                                          radio_ch_t chan);
 
-static inline bool Si446x_isFrequencyInBand(uint32_t base_freq,
-                                            uint16_t step, uint8_t chan) {
-  uint32_t freq = Si446x_computeOperatingFrequency(base_freq, step, chan);
+static inline bool Si446x_isFrequencyInBand(radio_unit_t radio,
+                                            radio_freq_t base_freq,
+                                            channel_hz_t step,
+                                            radio_ch_t chan) {
+  (void)radio;
+
+  radio_freq_t freq = pktComputeOperatingFrequency(base_freq,
+                                            step,
+                                            chan);
+
+  /* TODO: Lookup frequency band table for radio. */
   return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
 }
 

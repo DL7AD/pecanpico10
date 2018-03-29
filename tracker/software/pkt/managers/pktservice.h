@@ -79,6 +79,8 @@ typedef struct packetHandlerData {
 
   radio_unit_t              radio;
 
+  bool                      radio_init;
+
   /**
    * @brief Radio receiver operating parameters.
    */

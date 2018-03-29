@@ -14,6 +14,7 @@
 #include "pi2c.h"
 #include "si446x.h"
 #include "pflash.h"
+#include "pkttypes.h"
 
 static dataPoint_t dataPoints[2];
 static dataPoint_t* lastDataPoint;
@@ -186,7 +187,7 @@ static void getSensors(dataPoint_t* tp)
 #endif
 	// Measure various temperature sensors
 	tp->stm32_temp = stm32_get_temp();
-	tp->si446x_temp = Si446x_getLastTemperature();
+	tp->si446x_temp = Si446x_getLastTemperature(PKT_RADIO_1);
 
 	// Measure light intensity from OV5640
 	tp->light_intensity = OV5640_getLastLightIntensity() & 0xFFFF;

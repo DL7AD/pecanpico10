@@ -178,6 +178,7 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
 	chprintf(chp, "Destination: %s\r\n", argv[0]);
 	chprintf(chp, "Message: %s\r\n", argv[1]);
 
+	/* TODO: Check for failure to get packet (NULL). */
 	packet_t packet = aprs_encode_message(conf_sram.rx.call,
 	                                      conf_sram.rx.path,
 	                                      argv[0], argv[1], false);

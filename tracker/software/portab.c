@@ -114,7 +114,9 @@ void pktWrite(uint8_t *buf, uint32_t len) {
   chnWrite((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, buf, len);
 }
 
-void pktConfigureRadioGPIO() {
+void pktConfigureRadioGPIO(radio_unit_t radio) {
+  /* TODO: Implement hardware mapping. */
+  (void)radio;
   // Configure Radio pins
   palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);     // SCK
   palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);    // MISO
@@ -134,8 +136,9 @@ void pktConfigureRadioGPIO() {
   chThdSleep(TIME_MS2I(10));      // Wait for transceiver to power up
 }
 
-void pktDeconfigureRadioGPIO() {
-
+void pktDeconfigureRadioGPIO(radio_unit_t radio) {
+  /* TODO: Implement hardware mapping. */
+  (void)radio;
   palSetLineMode(LINE_SPI_SCK, PAL_MODE_INPUT_PULLDOWN);      // SCK
   palSetLineMode(LINE_SPI_MISO, PAL_MODE_INPUT_PULLDOWN);     // MISO
   palSetLineMode(LINE_SPI_MOSI, PAL_MODE_INPUT_PULLDOWN);     // MOSI
