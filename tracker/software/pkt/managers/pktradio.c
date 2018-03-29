@@ -36,17 +36,15 @@
  */
 THD_FUNCTION(pktRadioManager, arg) {
 #define PKT_RADIO_TASK_MANAGER_IDLE_RATE    100
-#define PKT_RADIO_TASK_MANAGER_TX_RATE      10
+#define PKT_RADIO_TASK_MANAGER_TX_RATE      25
 
   packet_svc_t *handler = arg;
 
-  dyn_objects_fifo_t *the_radio_fifo =   handler->the_radio_fifo;
+  dyn_objects_fifo_t *the_radio_fifo = handler->the_radio_fifo;
 
   chDbgCheck(arg != NULL);
 
   sysinterval_t poll_rate = PKT_RADIO_TASK_MANAGER_IDLE_RATE;
-
-  //bool rx_active = false;
 
   objects_fifo_t *radio_queue = chFactoryGetObjectsFIFO(the_radio_fifo);
 
@@ -243,6 +241,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       } /*end case close. */
 
     case PKT_RADIO_TX_THREAD: {
+      /* Get thread exit code a free memory. */
       msg_t send_msg = chThdWait(task_object->thread);
 
       bool rxok = true;
@@ -267,7 +266,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         }
       }
       if(!rxok) {
-        TRACE_ERROR("SI   > Receive failed to start after transmit");
+        TRACE_ERROR("SI   > Receive failed to resume after transmit");
       }
       break;
     } /* End case PKT_RADIO_TX_THREAD */

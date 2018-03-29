@@ -99,8 +99,9 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
   /* TODO: This should select a radio by frequency. For now just use 1. */
   radio_unit_t radio = PKT_RADIO_1;
 
-  if(pktIsTransmitOpen(radio)) {
+  if(!pktIsTransmitOpen(radio)) {
     TRACE_WARN( "RAD  > Transmit is not open on radio");
+    ax25_delete(pp);
     return false;
   }
 	if(base_freq == FREQ_APRS_DYNAMIC) {

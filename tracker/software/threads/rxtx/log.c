@@ -55,10 +55,12 @@ THD_FUNCTION(logThread, arg)
 				// Encode Base91
 				uint8_t pkt_base91[BASE91LEN(sizeof(dataPoint_t))];
 				base91_encode((uint8_t*)log, pkt_base91, sizeof(dataPoint_t));
-			    /* TODO: Check for failure to get packet (NULL). */
 				// Encode and transmit log packet
 				packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'L', pkt_base91); // Encode packet
-
+	            if(packet == NULL) {
+	              TRACE_WARN("LOG  > No free packet objects");
+	              break;
+	            }
 				// Transmit packet
 				transmitOnRadio(packet,
 				                conf->radio_conf.freq,

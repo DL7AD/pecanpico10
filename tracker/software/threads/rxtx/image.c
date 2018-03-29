@@ -327,6 +327,10 @@ static void transmit_image_packet(const uint8_t *image, uint32_t image_len, thd_
 			base91_encode(&pkt[6], pkt_base91, 174);
 		    /* TODO: Check for failure to get packet (NULL). */
 			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
+            if(packet == NULL) {
+              TRACE_WARN("SSDV > No free packet objects");
+              break;
+            }
             transmitOnRadio(packet,
                             conf->radio_conf.freq,
                             conf->radio_conf.step,
@@ -364,7 +368,7 @@ static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
 		if(strlen((char*)pkt_base91) && conf->radio_conf.redundantTx) {
 			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
             if(packet == NULL) {
-              TRACE_ERROR("SSDV > No free packet objects");
+              TRACE_WARN("SSDV > No free packet objects");
               break;
             }
             transmitOnRadio(packet,
@@ -406,7 +410,7 @@ static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
 
 		packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
         if(packet == NULL) {
-          TRACE_ERROR("SSDV > No free packet objects");
+          TRACE_WARN("SSDV > No free packet objects");
           break;
         }
         transmitOnRadio(packet,

@@ -114,6 +114,86 @@ bool pktServiceRelease(radio_unit_t radio) {
 }
 
 /**
+ * @brief   Initializes packet handlers and starts the radio manager.
+ * @note    The option to manage multiple radios is not yet implemented.
+ * @note    Once initialized the transmit service is available.
+ * @note    To activate receive requires an open to be made.
+ *
+ * @param[in]   radio unit ID.
+ *
+ *@return   result of operation.
+ *@retval   true    service was created.
+ *@retval   false   service creation failed or state was not idle.
+ *
+ * @api
+ */
+bool pktServiceHibernate(radio_unit_t radio) {
+
+  /*
+   * Get service object maps radio IDs to service objects
+   */
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  if(handler == NULL)
+    return false;
+
+  if(handler->state != PACKET_IDLE)
+    return false;
+  /*
+   * Initialize the packet common event object.
+   */
+  chEvtObjectInit(pktGetEventSource(handler));
+
+  memset(&handler->radio_rx_config, 0, sizeof(radio_task_object_t));
+  memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
+
+  /* Set flags and radio ID. */
+  handler->rx_active = false;
+  handler->radio_init = false;
+  handler->radio = radio;
+
+  /* Set service semaphore to idle state. */
+  chBSemObjectInit(&handler->close_sem, false);
+
+  /* Set radio semaphore to free state. */
+  chBSemObjectInit(&handler->radio_sem, false);
+
+  /* Send request to create radio manager. */
+  if (pktRadioManagerCreate(radio) == NULL)
+    return false;
+  handler->state = PACKET_READY;
+  return true;
+}
+
+/**
+ * @brief   Releases packet service.
+ * @note    The option to manage multiple radios is not yet implemented.
+ * @post    The packet service is no longer available for transmit or receive.
+ *
+ * @param[in] radio unit ID
+ *
+ *@return   result of operation.
+ *@retval   true    service was released.
+ *@retval   false   service state is incorrect or invalid radio ID.
+ *
+ * @api
+ */
+bool pktServiceWakeup(radio_unit_t radio) {
+
+  /*
+   * Lookup radio and assign handler (RPKTDx).
+   */
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  if(handler == NULL)
+    return false;
+
+  if(handler->state != PACKET_READY)
+    return false;
+  pktRadioManagerRelease(radio);
+  handler->state = PACKET_IDLE;
+  return true;
+}
+
+/**
  * @brief   Opens a packet receive service.
  * @post    The packet service is initialized and ready to be started.
  *

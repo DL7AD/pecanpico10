@@ -41,8 +41,11 @@ THD_FUNCTION(posThread, arg)
 			TRACE_INFO("POS  > Transmit position");
 
 			// Encode/Transmit position packet
-		    /* TODO: Check for failure to get packet (NULL). */
 			packet_t packet = aprs_encode_position(conf->call, conf->path, conf->symbol, dataPoint);
+            if(packet == NULL) {
+              TRACE_WARN("POS  > No free packet objects");
+              break;
+            }
 			transmitOnRadio(packet,
                             conf->radio_conf.freq,
                             conf->radio_conf.step,
@@ -52,8 +55,11 @@ THD_FUNCTION(posThread, arg)
 			chThdSleep(TIME_S2I(5));
 
 			// Encode/Transmit APRSD packet
-		    /* TODO: Check for failure to get packet (NULL). */
 			packet_t pp = aprs_encode_query_answer_aprsd(conf->call, conf->path, conf->call);
+            if(packet == NULL) {
+              TRACE_WARN("POS  > No free packet objects");
+              break;
+            }
 			transmitOnRadio(pp,
 			                conf->radio_conf.freq,
                             conf->radio_conf.step,
@@ -72,7 +78,10 @@ THD_FUNCTION(posThread, arg)
 				for(uint8_t type=0; type<4; type++)
 				{
 					packet = aprs_encode_telemetry_configuration(conf->call, conf->path, type);
-				    /* TODO: Check for failure to get packet (NULL). */
+		            if(packet == NULL) {
+		              TRACE_WARN("POS  > No free packet objects");
+		              break;
+		            }
 					transmitOnRadio(packet,
 		                            conf->radio_conf.freq,
 		                            conf->radio_conf.step,

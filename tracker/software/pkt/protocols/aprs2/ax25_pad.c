@@ -22,7 +22,7 @@
  *
  * Name:	ax25_pad
  *
- * Purpose:	Packet assembler and disasembler.
+ * Purpose:	Packet assembler and disassembler.
  *
  *		This was written when I was only concerned about APRS which
  *		uses only UI frames.  ax25_pad2.c, added years later, has
@@ -49,7 +49,7 @@
  *
  *
  *	APRS uses only UI frames.
- *	Each starts with 2-10 addressses (14-70 octets):
+ *	Each starts with 2-10 addresses (14-70 octets):
  *
  *	* Destination Address  (note: opposite order in printed format)
  *

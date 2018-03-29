@@ -16,8 +16,8 @@
 /*
  * Transmitter global variables.
  * Saved when setting band. */
-static uint32_t tx_frequency;
-static uint16_t tx_step;
+//static uint32_t tx_frequency;
+//static uint16_t tx_step;
 
 // Si446x variables
 static int16_t lastTemp = 0x7FFF;
@@ -574,8 +574,10 @@ static bool Si446x_transmit(radio_unit_t radio,
     }
 
     Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
-    /* Change band parameters for CCA RX temporarily. */
+    /* Set band parameters. */
     Si446x_setBandParameters(radio, freq, step);     // Set frequency
+
+    /* Listen on the TX frequency. */
     Si446x_setRXState(radio, chan);
 
     // Wait until nobody is transmitting (until timeout)
@@ -598,7 +600,7 @@ static bool Si446x_transmit(radio_unit_t radio,
     TRACE_INFO("SI   > Tune Si446x (TX)");
     Si446x_setReadyState(radio);
     /* Set band parameters back to normal TX. */
-    Si446x_setBandParameters(radio, tx_frequency, tx_step);     // Set frequency
+    //Si446x_setBandParameters(radio, freq, step);     // Set frequency
     Si446x_setPowerLevel(power);        // Set power level
     Si446x_setTXState(radio, chan, size);
 
@@ -607,7 +609,6 @@ static bool Si446x_transmit(radio_unit_t radio,
     while(Si446x_getState(radio) != Si446x_STATE_TX) {
         chThdSleep(TIME_US2I(500));
     }
-
     return true;
 }
 
@@ -944,8 +945,6 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
 
       TRACE_DEBUG("SI   > AFSK TX no NRZI data encoded");
 
-      radio_unit_t radio = pp->radio;
-
       // Free packet object memory
       pktReleaseSendObject(pp);
 
@@ -1055,18 +1054,13 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
 
 
 
-    TRACE_INFO("SI   > TX FIFO lowest free level %i", lower);
-
-    //radio_unit_t radio = pp->radio;
+    TRACE_INFO("SI   > AFSK TX FIFO lowest free level %i", lower);
 
     // Free packet object memory
     pktReleaseSendObject(pp);
 
     /* Schedule thread memory release. */
     pktScheduleThreadRelease(radio, chThdGetSelfX());
-
-    /* Unlock radio. */
-    //Si446x_unlockRadio(RADIO_TX);
 
     /* Exit thread. */
     chThdExit(exit_msg);
@@ -1117,13 +1111,9 @@ void Si446x_stopDecoder(void) {
 THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
   packet_t pp = arg;
 
-#if USE_DYNAMIC_FSK_TX != TRUE
-  chRegSetThreadName("446x_2fsk_tx");
-#endif
-
   radio_unit_t radio = pp->radio;
 
-  //Si446x_lockRadio(RADIO_TX);
+  /* TODO: Check result. */
   pktAcquireRadio(radio);
 
   // Initialize radio
@@ -1159,8 +1149,6 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
 
 
     TRACE_DEBUG("SI   > 2FSK TX no NRZI data encoded");
-
-    //radio_unit_t radio = pp->radio;
 
     // Free packet object memory
     pktReleaseSendObject(pp);
@@ -1243,7 +1231,7 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
     }
   } else {
     /* Transmit start failed. */
-      TRACE_ERROR("SI   > Transmit start failed");
+      TRACE_ERROR("SI   > 2FSK transmit start failed");
   }
   chVTReset(&send_timer);
 
@@ -1257,7 +1245,7 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
     continue;
   }
 
-  TRACE_INFO("SI   > TX FIFO lowest free level %i", lower);
+  TRACE_INFO("SI   > 2FSK TX FIFO lowest free level %i", lower);
 
   // Free packet object memory
   pktReleaseSendObject(pp);
@@ -1276,9 +1264,13 @@ void Si446x_send2FSK(packet_t pp) {
 
   thread_t *fsk_feeder_thd = NULL;
 
+  /* Create a send thread name which includes the sequence number. */
+  chsnprintf(pp->tx_thd_name, sizeof(pp->tx_thd_name),
+             "446x_2fsk_tx_%03i", pp->tx_seq);
+
   fsk_feeder_thd = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(SI_FSK_FIFO_FEEDER_WA_SIZE),
-              "446x_fsk_tx",
+              pp->tx_thd_name,
               NORMALPRIO - 10,
               min_si_fifo_feeder_fsk,
               pp);

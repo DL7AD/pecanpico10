@@ -11,7 +11,7 @@ const conf_t conf_flash_default = {
 	// Primary position transmission thread
 	.pos_pri = {
 		.thread_conf = {
-			.active			= true,
+			.active			= false,
 			.cycle			= TIME_S2I(300),
 			.init_delay		= TIME_S2I(5)
 		},
@@ -59,7 +59,7 @@ const conf_t conf_flash_default = {
 			.active			= true,
 			.cycle			= CYCLE_CONTINUOUSLY,
 			.init_delay		= TIME_S2I(5),
-			.packet_spacing	= TIME_S2I(/*3*/0)
+			.packet_spacing	= TIME_S2I(30)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,

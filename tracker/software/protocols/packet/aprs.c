@@ -389,8 +389,11 @@ static bool aprs_decode_message(packet_t pp)
 
 			TRACE_INFO("RX   > Message: Position query");
 			dataPoint_t* dataPoint = getLastDataPoint();
-			/* FIXME: Calls getting packet_t need to check for NULL result. */
 			packet_t pp = aprs_encode_position(conf_sram.rx.call, conf_sram.rx.path, conf_sram.rx.symbol, dataPoint);
+            if(pp == NULL) {
+              TRACE_WARN("RX   > No free packet objects");
+              return false;
+            }
             transmitOnRadio(pp,
                             conf_sram.rx.radio_conf.freq,
                             conf_sram.rx.radio_conf.step,
@@ -401,8 +404,11 @@ static bool aprs_decode_message(packet_t pp)
 		} else if(!strcmp(command, "?aprsd")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: Directs query");
-            /* FIXME: Calls getting packet_t need to check for NULL result. */
 			packet_t pp = aprs_encode_query_answer_aprsd(conf_sram.rx.call, conf_sram.rx.path, src);
+            if(pp == NULL) {
+              TRACE_WARN("RX   > No free packet objects");
+              return false;
+            }
             transmitOnRadio(pp,
                             conf_sram.rx.radio_conf.freq,
                             conf_sram.rx.radio_conf.step,
@@ -415,8 +421,11 @@ static bool aprs_decode_message(packet_t pp)
 			TRACE_INFO("RX   > Message: System Reset");
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
-            /* FIXME: Calls getting packet_t need to check for NULL result. */
 			packet_t pp = aprs_encode_message(conf_sram.rx.call, conf_sram.rx.path, src, buf, true);
+            if(pp == NULL) {
+              TRACE_WARN("RX   > No free packet objects");
+              return false;
+            }
             transmitOnRadio(pp,
                             conf_sram.rx.radio_conf.freq,
                             conf_sram.rx.radio_conf.step,
@@ -500,6 +509,10 @@ static bool aprs_decode_message(packet_t pp)
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
             /* FIXME: Calls getting packet_t need to check for NULL result. */
 			packet_t pp = aprs_encode_message(conf_sram.rx.call, conf_sram.rx.path, src, buf, true);
+            if(pp == NULL) {
+              TRACE_WARN("RX   > No free packet objects");
+              return false;
+            }
             transmitOnRadio(pp,
                             conf_sram.rx.radio_conf.freq,
                             conf_sram.rx.radio_conf.step,
