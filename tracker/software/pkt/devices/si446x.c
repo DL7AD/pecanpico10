@@ -599,8 +599,6 @@ static bool Si446x_transmit(radio_unit_t radio,
     // Transmit
     TRACE_INFO("SI   > Tune Si446x (TX)");
     Si446x_setReadyState(radio);
-    /* Set band parameters back to normal TX. */
-    //Si446x_setBandParameters(radio, freq, step);     // Set frequency
     Si446x_setPowerLevel(power);        // Set power level
     Si446x_setTXState(radio, chan, size);
 
@@ -727,119 +725,14 @@ void Si446x_pauseReceive(radio_unit_t radio) {
 
 /* ==================================================================== AFSK Transmitter ==================================================================== */
 
-#define PLAYBACK_RATE       13200
-#define BAUD_RATE           1200                                    /* APRS AFSK baudrate */
-#define SAMPLES_PER_BAUD    (PLAYBACK_RATE / BAUD_RATE)             /* Samples per baud (13200Hz / 1200baud = 11samp/baud) */
-#define PHASE_DELTA_1200    (((2 * 1200) << 16) / PLAYBACK_RATE)    /* Delta-phase per sample for 1200Hz tone */
-#define PHASE_DELTA_2200    (((2 * 2200) << 16) / PLAYBACK_RATE)    /* Delta-phase per sample for 2200Hz tone */
 
-static uint32_t phase_delta;            // 1200/2200 for standard AX.25
+/*static uint32_t phase_delta;            // 1200/2200 for standard AX.25
 static uint32_t phase;                  // Fixed point 9.7 (2PI = TABLE_SIZE)
 static uint32_t packet_pos;             // Next bit to be sent out
 static uint32_t current_sample_in_baud; // 1 bit = SAMPLES_PER_BAUD samples
-static uint8_t current_byte;
-//static uint8_t ctone = 0;
+static uint8_t current_byte;*/
 
-/*static bool Si446x_getBitAsNRZI(bool bit) {
-    if((bit & 0x1) == 0)
-        ctone = !ctone;
-    return ctone;
-}*/
-
-/*
- * Create a bit stream of AFSK (NRZI & HDLC) encoded packet data.
- */
-/*static uint32_t Si446x_encodeDataToAFSK(uint8_t *inbuf, uint32_t inlen,
-                     uint8_t* buf, uint32_t buf_len, uint8_t pre_len) {
-    memset(buf, 0, buf_len); // Clear buffer
-    uint32_t blen = 0;
-
-    // Preamble (HDLC flags)
-    for(uint8_t i = 0; i < pre_len; i++) {
-        for(uint8_t j = 0; j < 8; j++) {
-
-            if(blen >> 3 >= buf_len) { // Buffer overflow
-
-                TRACE_ERROR("SI   > Preamble too long");
-
-
-                return 0;
-            }
-
-            buf[blen >> 3] |= Si446x_getBitAsNRZI((0x7E >> j) & 0x1) << (blen % 8);
-            blen++;
-        }
-    }
-
-    // Insert CRC to buffer
-    uint16_t crc = calc_crc16(inbuf, 0, inlen);
-    inbuf[inlen++] = crc & 0xFF;
-    inbuf[inlen++] = crc >> 8;
-
-    uint32_t pos = 0;
-    uint8_t bitstuff_cntr = 0;
-
-    while(pos < inlen*8)
-    {
-        if(blen >> 3 >= buf_len) { // Buffer overflow
-
-          TRACE_ERROR("SI   > Packet too long");
-
-            return 0;
-        }
-
-        bool bit;
-        if(bitstuff_cntr < 5) { // Normal bit
-
-            bit = (inbuf[pos >> 3] >> (pos%8)) & 0x1;
-            if(bit == 1) {
-                bitstuff_cntr++;
-            } else {
-                bitstuff_cntr = 0;
-            }
-            pos++;
-
-        } else { // Fill stuffing bit
-
-            bit = 0;
-            bitstuff_cntr = 0;
-
-        }
-
-        // NRZ-I encode bit
-        bool nrzi = Si446x_getBitAsNRZI(bit);
-
-        buf[blen >> 3] |= nrzi << (blen % 8);
-        blen++;
-    }
-
-    // Final flag
-    for(uint8_t i=0; i<10; i++)
-        for(uint8_t j=0; j<8; j++) {
-
-            if(blen >> 3 >= buf_len) { // Buffer overflow
-
-
-                TRACE_ERROR("SI   > Packet too long");
-
-                return 0;
-            }
-
-            buf[blen >> 3] |= Si446x_getBitAsNRZI((0x7E >> j) & 0x1) << (blen % 8);
-            blen++;
-        }
-
-    return blen;
-}*/
-
-static uint8_t Si446x_getUpsampledAFSKbits(uint8_t* buf/*, uint32_t blen*/)
-{
-  /* This function may be called with different bit stream sources.
-   * These will have their own blen so checking is not valid.
-   */
-    //if(packet_pos == blen)
-      /* Packet transmission finished already so just return a zero. */
-      //return 0;
+/*static uint8_t __attribute__((unused)) Si446x_getUpsampledAFSKbits(uint8_t* buf) {
 
     uint8_t b = 0;
     for(uint8_t i = 0; i < 8; i++)
@@ -854,7 +747,7 @@ static uint8_t Si446x_getUpsampledAFSKbits(uint8_t* buf/*, uint32_t blen*/)
 
         // Toggle tone (1200 <> 2200)
         phase_delta = (current_byte & 1) ? PHASE_DELTA_1200 : PHASE_DELTA_2200;
-        /* Add delta-phase (bit count within SAMPLES_PER_BAUD). */
+
         phase += phase_delta;
         b |= ((phase >> 16) & 1) << i;  // Set modulation bit
 
@@ -866,9 +759,43 @@ static uint8_t Si446x_getUpsampledAFSKbits(uint8_t* buf/*, uint32_t blen*/)
         }
     }
     return b;
+}*/
+
+/*
+ *
+ */
+static uint8_t Si446x_getUpsampledNRZIbits(up_iterator_t *upsampler,
+                                           uint8_t *buf) {
+  uint8_t b = 0;
+  for(uint8_t i = 0; i < 8; i++) {
+    if(upsampler->current_sample_in_baud == 0) {
+      if((upsampler->packet_pos & 7) == 0) { // Load up next byte
+        upsampler->current_byte = buf[upsampler->packet_pos >> 3];
+      } else { // Load up next bit
+        upsampler->current_byte >>= 1;
+      }
+    }
+
+    // Toggle tone (1200 <> 2200)
+    upsampler->phase_delta = (upsampler->current_byte & 1) ? PHASE_DELTA_1200 : PHASE_DELTA_2200;
+    /* Add delta-phase (position within SAMPLES_PER_BAUD). */
+    upsampler->phase += upsampler->phase_delta;
+    b |= ((upsampler->phase >> 16) & 1) << i;  // Set modulation bit
+
+    //upsampler->current_sample_in_baud++;
+
+    if(++upsampler->current_sample_in_baud == SAMPLES_PER_BAUD) {    // Old bit consumed, load next bit
+      upsampler->current_sample_in_baud = 0;
+      upsampler->packet_pos++;
+    }
+  }
+  return b;
 }
 
-static void __attribute__((unused)) Si446x_upsampleNRZIstream(uint8_t current_byte,
+/*
+ *
+ */
+/*static void __attribute__((unused)) Si446x_upsampleNRZIstream(uint8_t current_byte,
                                                uint8_t *buf,
                                                uint8_t upsample_rate) {
   uint8_t b = 0, i = 0, usr;
@@ -876,7 +803,7 @@ static void __attribute__((unused)) Si446x_upsampleNRZIstream(uint8_t current_by
     do {
       // Toggle tone (1200 <> 2200)
       phase_delta = (current_byte & 1) ? PHASE_DELTA_1200 : PHASE_DELTA_2200;
-      /* Add delta-phase (bit count within SAMPLES_PER_BAUD). */
+
       phase += phase_delta;
       b |= ((phase >> 16) & 1) << i;  // Set modulation bit
       current_byte >>= (usr / upsample_rate) * 8;
@@ -884,13 +811,13 @@ static void __attribute__((unused)) Si446x_upsampleNRZIstream(uint8_t current_by
     i = 0;
     buf[usr] = b;
   }
-}
+}*/
 
-#define SI446X_EVT_AFSK_TX_TIMEOUT      EVENT_MASK(0)
+#define SI446X_EVT_TX_TIMEOUT      EVENT_MASK(0)
 
 static void Si446x_transmitTimeoutI(thread_t *tp) {
   /* The tell the thread to terminate. */
-  chEvtSignal(tp, SI446X_EVT_AFSK_TX_TIMEOUT);
+  chEvtSignal(tp, SI446X_EVT_TX_TIMEOUT);
 }
 
 /*
@@ -942,8 +869,7 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
     if(all == 0) {
       /* Nothing encoded. Release packet send object. */
 
-
-      TRACE_DEBUG("SI   > AFSK TX no NRZI data encoded");
+      TRACE_ERROR("SI   > AFSK TX no NRZI data encoded");
 
       // Free packet object memory
       pktReleaseSendObject(pp);
@@ -964,12 +890,15 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
     const uint8_t reset_fifo[] = {0x15, 0x01};
     Si446x_write(reset_fifo, 2);
 
+    up_iterator_t upsampler = {0};
+    upsampler.phase_delta = PHASE_DELTA_1200;
+
     /* Initialize variables for up sampler. */
-    phase_delta = PHASE_DELTA_1200;
+/*    phase_delta = PHASE_DELTA_1200;
     phase = 0;
     packet_pos = 0;
     current_sample_in_baud = 0;
-    current_byte = 0;
+    current_byte = 0;*/
 
     /* Maximum amount of FIFO data when using combined TX+RX (safe size). */
     uint8_t localBuffer[Si446x_FIFO_COMBINED_SIZE];
@@ -992,7 +921,8 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
 
     /* Initial FIFO load. */
     for(uint16_t i = 0;  i < c; i++)
-        localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
+        //localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
+      localBuffer[i] = Si446x_getUpsampledNRZIbits(&upsampler, layer0);
     Si446x_writeFIFO(localBuffer, c);
 
     uint8_t lower = 0;
@@ -1018,7 +948,8 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
 
         /* Load the FIFO. */
         for(uint16_t i = 0; i < more; i++)
-            localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
+            //localBuffer[i] = Si446x_getUpsampledAFSKbits(layer0);
+          localBuffer[i] = Si446x_getUpsampledNRZIbits(&upsampler, layer0);
         Si446x_writeFIFO(localBuffer, more); // Write into FIFO
         c += more;
 
@@ -1027,7 +958,7 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
          * Time delay allows ~SAMPLES_PER_BAUD bytes to be consumed from FIFO.
          * If no timeout event go back and load more data to FIFO.
          */
-        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_AFSK_TX_TIMEOUT,
+        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
                                    chTimeUS2I(833 * 8));
         if(evt) {
           /* Force 446x out of TX state. */
@@ -1052,9 +983,10 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
       continue;
     }
 
-
-
-    TRACE_INFO("SI   > AFSK TX FIFO lowest free level %i", lower);
+    if(lower > (free / 2)) {
+      /* Warn when level drops below 50% of FIFO size. */
+      TRACE_DEBUG("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
+    }
 
     // Free packet object memory
     pktReleaseSendObject(pp);
@@ -1147,8 +1079,7 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
   if(all == 0) {
     /* Nothing encoded. Release packet send object. */
 
-
-    TRACE_DEBUG("SI   > 2FSK TX no NRZI data encoded");
+    TRACE_ERROR("SI   > 2FSK TX no NRZI data encoded");
 
     // Free packet object memory
     pktReleaseSendObject(pp);
@@ -1220,7 +1151,7 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
        * Time delay allows ~10 bytes to be consumed from FIFO.
        * If no timeout event go back and load more data to FIFO.
        */
-      eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_AFSK_TX_TIMEOUT,
+      eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
                                  chTimeUS2I(104 * 8 * 10));
       if(evt) {
         /* Force 446x out of TX state. */
@@ -1245,7 +1176,10 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
     continue;
   }
 
-  TRACE_INFO("SI   > 2FSK TX FIFO lowest free level %i", lower);
+  if(lower > (free / 2)) {
+    /* Warn when level drops below 50% of FIFO size. */
+    TRACE_DEBUG("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
+  }
 
   // Free packet object memory
   pktReleaseSendObject(pp);

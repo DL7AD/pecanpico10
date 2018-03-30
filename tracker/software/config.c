@@ -24,7 +24,7 @@ const conf_t conf_flash_default = {
 			.preamble		= 200
 		},
 
-		.call				= "VK2GJ-15",
+		.call				= "VK2GJ-12",
 		.path				= "WIDE2-1",
 		.symbol				= SYM_DIGIPEATER,
 
@@ -63,9 +63,9 @@ const conf_t conf_flash_default = {
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
-            .freq           = 144800000,
+            .freq           = 144000000,
             .step           = 12500,
-            .chan           = 0,
+            .chan           = 64,
 			.mod			= MOD_2FSK,
 			.preamble		= 200,
 			.redundantTx	= true
@@ -135,7 +135,7 @@ const conf_t conf_flash_default = {
 			.preamble		= 200
 		},
 
-		.call				= "VK2GJ-15",
+		.call				= "VK2GJ-4",
 		.path				= "WIDE2-1",
 		.symbol				= SYM_DIGIPEATER
 	},

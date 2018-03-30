@@ -43,29 +43,29 @@ THD_FUNCTION(posThread, arg)
 			// Encode/Transmit position packet
 			packet_t packet = aprs_encode_position(conf->call, conf->path, conf->symbol, dataPoint);
             if(packet == NULL) {
-              TRACE_WARN("POS  > No free packet objects");
-              break;
+              TRACE_WARN("POS  > No free packet objects for position transmission");
+            } else {
+              transmitOnRadio(packet,
+                              conf->radio_conf.freq,
+                              conf->radio_conf.step,
+                              conf->radio_conf.chan,
+                              conf->radio_conf.pwr,
+                              conf->radio_conf.mod);
             }
-			transmitOnRadio(packet,
-                            conf->radio_conf.freq,
-                            conf->radio_conf.step,
-                            conf->radio_conf.chan,
-                            conf->radio_conf.pwr,
-                            conf->radio_conf.mod);
 			chThdSleep(TIME_S2I(5));
 
 			// Encode/Transmit APRSD packet
 			packet_t pp = aprs_encode_query_answer_aprsd(conf->call, conf->path, conf->call);
             if(packet == NULL) {
-              TRACE_WARN("POS  > No free packet objects");
-              break;
+              TRACE_WARN("POS  > No free packet objects for APRSD transmission");
+            } else {
+              transmitOnRadio(pp,
+                              conf->radio_conf.freq,
+                              conf->radio_conf.step,
+                              conf->radio_conf.chan,
+                              conf->radio_conf.pwr,
+                              conf->radio_conf.mod);
             }
-			transmitOnRadio(pp,
-			                conf->radio_conf.freq,
-                            conf->radio_conf.step,
-                            conf->radio_conf.chan,
-                            conf->radio_conf.pwr,
-                            conf->radio_conf.mod);
 
 			// Telemetry encoding parameter transmission
 			if(conf->tel_enc_cycle != 0 && last_conf_transmission + conf->tel_enc_cycle < chVTGetSystemTime())
@@ -79,16 +79,16 @@ THD_FUNCTION(posThread, arg)
 				{
 					packet = aprs_encode_telemetry_configuration(conf->call, conf->path, type);
 		            if(packet == NULL) {
-		              TRACE_WARN("POS  > No free packet objects");
-		              break;
+		              TRACE_WARN("POS  > No free packet objects for telemetry transmission");
+		            } else {
+                      transmitOnRadio(packet,
+                                      conf->radio_conf.freq,
+                                      conf->radio_conf.step,
+                                      conf->radio_conf.chan,
+                                      conf->radio_conf.pwr,
+                                      conf->radio_conf.mod);
+                      chThdSleep(TIME_S2I(5));
 		            }
-					transmitOnRadio(packet,
-		                            conf->radio_conf.freq,
-		                            conf->radio_conf.step,
-		                            conf->radio_conf.chan,
-		                            conf->radio_conf.pwr,
-		                            conf->radio_conf.mod);
-					chThdSleep(TIME_S2I(5));
 				}
 
 				last_conf_transmission += conf->tel_enc_cycle;

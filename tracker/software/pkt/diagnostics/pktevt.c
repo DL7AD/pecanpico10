@@ -50,16 +50,25 @@ eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(1));
       TRACE_ERROR("PKT  > Decoder error");
     }
     if(flags & EVT_PWM_UNKNOWN_INBAND) {
-      TRACE_ERROR("PKT  > Unknown PWM inband flag");
+      TRACE_ERROR("PKT  > Unknown PWM in-band flag");
     }
     if(flags & EVT_ICU_OVERFLOW) {
-      TRACE_WARN("PKT  > PWM ICU overflow");
+      TRACE_DEBUG("PKT  > PWM ICU overflow");
     }
     if(flags & EVT_PWM_STREAM_TIMEOUT) {
       TRACE_WARN("PKT  > PWM stream timeout");
     }
     if(flags & EVT_PWM_NO_DATA) {
       TRACE_WARN("PKT  > PWM data not started from radio");
+    }
+    if(flags & EVT_AFSK_START_FAIL) {
+      TRACE_ERROR("PKT  > AFSK decoder failed to start");
+    }
+    if(flags & EVT_PKT_BUFFER_MGR_FAIL) {
+      TRACE_ERROR("PKT  > Unable to start packet RX buffer");
+    }
+    if(flags & EVT_PKT_CBK_MGR_FAIL) {
+      TRACE_ERROR("PKT  > Unable to start packet RX callback manager");
     }
   }
 }

@@ -285,7 +285,7 @@ ssdv_packet_t packetRepeats[16];
 bool reject_pri;
 bool reject_sec;
 
-static void transmit_image_packet(const uint8_t *image, uint32_t image_len, thd_img_conf_t* conf, uint8_t image_id, uint16_t packet_id)
+static bool transmit_image_packet(const uint8_t *image, uint32_t image_len, thd_img_conf_t* conf, uint8_t image_id, uint16_t packet_id)
 {
 	ssdv_t ssdv;
 	uint8_t pkt[SSDV_PKT_SIZE];
@@ -311,34 +311,35 @@ static void transmit_image_packet(const uint8_t *image, uint32_t image_len, thd_
 			if(r <= 0)
 			{
 				TRACE_ERROR("SSDV > Premature end of file");
-				break;
+				return false;
 			}
 			ssdv_enc_feed(&ssdv, b, r);
 		}
 
 		if(c == SSDV_EOI) {
-			break;
+			return true;
 		} else if(c != SSDV_OK) {
-			return;
+			return false;
 		}
 
 		if(i == packet_id) {
-			// Sync byte, CRC and FEC of SSDV not transmitted (because its not neccessary inside an APRS packet)
+			// Sync byte, CRC and FEC of SSDV not transmitted (because its not necessary inside an APRS packet)
 			base91_encode(&pkt[6], pkt_base91, 174);
-		    /* TODO: Check for failure to get packet (NULL). */
 			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
             if(packet == NULL) {
-              TRACE_WARN("SSDV > No free packet objects");
-              break;
+              TRACE_WARN("IMG  > No free packet objects for transmission");
+              return false;
             }
-            transmitOnRadio(packet,
+            if(!transmitOnRadio(packet,
                             conf->radio_conf.freq,
                             conf->radio_conf.step,
                             conf->radio_conf.chan,
                             conf->radio_conf.pwr,
-                            conf->radio_conf.mod);
+                            conf->radio_conf.mod)) {
 
-			return;
+              TRACE_ERROR("IMG  > Unable to send image packet TX on radio");
+              return false;
+            }
 		}
 
 		chThdSleep(TIME_MS2I(10)); // Leave other threads some time
@@ -347,7 +348,11 @@ static void transmit_image_packet(const uint8_t *image, uint32_t image_len, thd_
 	}
 }
 
-static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd_img_conf_t* conf, uint8_t image_id)
+/*
+ * Transmit image packets.
+ * Return true if success or false on fail.
+ */
+static bool transmit_image_packets(const uint8_t *image, uint32_t image_len, thd_img_conf_t* conf, uint8_t image_id)
 {
 	ssdv_t ssdv;
 	uint8_t pkt[SSDV_PKT_SIZE];
@@ -368,15 +373,19 @@ static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
 		if(strlen((char*)pkt_base91) && conf->radio_conf.redundantTx) {
 			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
             if(packet == NULL) {
-              TRACE_WARN("SSDV > No free packet objects");
-              break;
+              TRACE_WARN("IMG  > No free packet objects for redundant TX");
+              return false;
             }
-            transmitOnRadio(packet,
+            if(!transmitOnRadio(packet,
                             conf->radio_conf.freq,
                             conf->radio_conf.step,
                             conf->radio_conf.chan,
                             conf->radio_conf.pwr,
-                            conf->radio_conf.mod);
+                            conf->radio_conf.mod)) {
+              TRACE_ERROR("IMG  > Unable to send redundant TX on radio");
+              return false;
+            }
+            chThdSleep(TIME_MS2I(10)); // Leave other threads some time
 		}
 
 		// Encode packet
@@ -385,13 +394,13 @@ static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
 		while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME)
 		{
 			b = &image[bi];
-			uint8_t r = bi < image_len-128 ? 128 : image_len - bi;
+			int16_t r = bi < image_len-128 ? 128 : image_len - bi;
 			bi += r;
 
 			if(r <= 0)
 			{
 				TRACE_ERROR("SSDV > Premature end of file");
-				break;
+				return false;
 			}
 			ssdv_enc_feed(&ssdv, b, r);
 		}
@@ -399,34 +408,39 @@ static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
 		if(c == SSDV_EOI)
 		{
 			TRACE_INFO("SSDV > ssdv_enc_get_packet said EOI");
-			break;
+			return true;
 		} else if(c != SSDV_OK) {
 			TRACE_ERROR("SSDV > ssdv_enc_get_packet failed: %i", c);
-			return;
+			return false;
 		}
 
-		// Sync byte, CRC and FEC of SSDV not transmitted (because its not neccessary inside an APRS packet)
+		// Sync byte, CRC and FEC of SSDV not transmitted (because its not necessary inside an APRS packet)
 		base91_encode(&pkt[6], pkt_base91, 174);
 
 		packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
         if(packet == NULL) {
-          TRACE_WARN("SSDV > No free packet objects");
-          break;
+          TRACE_WARN("IMG  > No free packet objects for normal TX");
+          return false;
         }
-        transmitOnRadio(packet,
+        if(!transmitOnRadio(packet,
                         conf->radio_conf.freq,
                         conf->radio_conf.step,
                         conf->radio_conf.chan,
                         conf->radio_conf.pwr,
-                        conf->radio_conf.mod);
-
+                        conf->radio_conf.mod)) {
+          TRACE_ERROR("IMG  > Unable to send normal TX on radio");
+          return false;
+        }
 		chThdSleep(TIME_MS2I(10)); // Leave other threads some time
 
 		// Repeat packets
 		for(uint8_t i=0; i<16; i++) {
 			if(packetRepeats[i].n_done && image_id == packetRepeats[i].image_id) {
-				transmit_image_packet(image, image_len, conf, image_id, packetRepeats[i].packet_id);
-				packetRepeats[i].n_done = false; // Set done
+				if(!transmit_image_packet(image, image_len, conf, image_id, packetRepeats[i].packet_id)) {
+		          TRACE_ERROR("IMG  > Failed on re-send of image %i", image_id);
+				} else {
+				  packetRepeats[i].n_done = false; // Set done
+				}
 			}
 			chThdSleep(TIME_MS2I(100)); // Leave other threads some time
 		}
@@ -438,11 +452,11 @@ static void transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
 		// Handle image rejection flag
 		if(conf == &conf_sram.img_pri && reject_pri) { // Image rejected
 			reject_pri = false;
-			return;
+			return true;
 		}
 		if(conf == &conf_sram.img_sec && reject_sec) { // Image rejected
 			reject_sec = false;
-			return;
+			return true;
 		}
 
 		i++;
@@ -599,21 +613,25 @@ THD_FUNCTION(imgThread, arg)
 
 					// Find SOI
 					uint32_t soi;
-					for(soi=0; soi<conf->buf_size; soi++)
+					for(soi=0; soi<conf->buf_size; soi++) {
 						if(buffer[soi] == 0xFF && buffer[soi+1] == 0xD8)
 							break;
+					}
 					TRACE_DEBUG("IMG  > SOI at byte %d");
-
 					writeBufferToFile(filename, &buffer[soi], size_sampled-soi);
 				}
 
 				// Encode and transmit picture
 				TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", gimage_id-1);
-				transmit_image_packets(buffer, size_sampled, conf, (uint8_t)(gimage_id-1));
+				if(!transmit_image_packets(buffer, size_sampled, conf, (uint8_t)(gimage_id-1))) {
+                  TRACE_ERROR("IMG  > Failure in image packet transmit");
+				}
 
 			} else { // No camera found
 				TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d", gimage_id-1);
-				transmit_image_packets(noCameraFound, sizeof(noCameraFound), conf, (uint8_t)(gimage_id-1));
+				if(!transmit_image_packets(noCameraFound, sizeof(noCameraFound), conf, (uint8_t)(gimage_id-1))) {
+                  TRACE_ERROR("IMG  > Failure in image packet transmit");
+				}
 			}
 		}
 
@@ -621,6 +639,9 @@ THD_FUNCTION(imgThread, arg)
 	}
 }
 
+/*
+ *
+ */
 void start_image_thread(thd_img_conf_t *conf)
 {
 	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE((conf->thread_conf.packet_spacing ? 70:70) * 1024 + conf->buf_size), "IMG", NORMALPRIO, imgThread, conf);

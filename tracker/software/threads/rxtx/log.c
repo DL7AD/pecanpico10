@@ -58,16 +58,16 @@ THD_FUNCTION(logThread, arg)
 				// Encode and transmit log packet
 				packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'L', pkt_base91); // Encode packet
 	            if(packet == NULL) {
-	              TRACE_WARN("LOG  > No free packet objects");
-	              break;
-	            }
+	              TRACE_WARN("LOG  > No free packet objects for log transmission");
+	            } else {
 				// Transmit packet
-				transmitOnRadio(packet,
-				                conf->radio_conf.freq,
-	                            conf->radio_conf.step,
-	                            conf->radio_conf.chan,
-	                            conf->radio_conf.pwr,
-	                            conf->radio_conf.mod);
+                  transmitOnRadio(packet,
+                                  conf->radio_conf.freq,
+                                  conf->radio_conf.step,
+                                  conf->radio_conf.chan,
+                                  conf->radio_conf.pwr,
+                                  conf->radio_conf.mod);
+	            }
 			} else {
 				TRACE_INFO("LOG  > No log point in memory");
 			}

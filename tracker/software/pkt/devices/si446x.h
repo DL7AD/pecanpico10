@@ -1,9 +1,9 @@
 #ifndef __si446x__H__
 #define __si446x__H__
 
-//#include "ch.h"
-//#include "hal.h"
-//#include "types.h"
+/*===========================================================================*/
+/* Module constants.                                                         */
+/*===========================================================================*/
 
 #define Si446x_LOCK_BY_SEMAPHORE    TRUE
 
@@ -192,11 +192,30 @@
 #define SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE         1024
 #define SI_FSK_FIFO_FEEDER_WA_SIZE              1024
 
+/* AFSK NRZI up-sampler definitions. */
+#define PLAYBACK_RATE       13200
+#define BAUD_RATE           1200                                    /* APRS AFSK baudrate */
+#define SAMPLES_PER_BAUD    (PLAYBACK_RATE / BAUD_RATE)             /* Samples per baud (13200Hz / 1200baud = 11samp/baud) */
+#define PHASE_DELTA_1200    (((2 * 1200) << 16) / PLAYBACK_RATE)    /* Delta-phase per sample for 1200Hz tone */
+#define PHASE_DELTA_2200    (((2 * 2200) << 16) / PLAYBACK_RATE)    /* Delta-phase per sample for 2200Hz tone */
+
+/*===========================================================================*/
+/* Module data structures and types.                                         */
+/*===========================================================================*/
+
 typedef enum radioMode {
   RADIO_RX,
   RADIO_TX,
   RADIO_CCA
 } radio_mode_t;
+
+typedef struct {
+  uint32_t phase_delta;            // 1200/2200 for standard AX.25
+  uint32_t phase;                  // Fixed point 9.7 (2PI = TABLE_SIZE)
+  uint32_t packet_pos;             // Next bit to be sent out
+  uint32_t current_sample_in_baud; // 1 bit = SAMPLES_PER_BAUD samples
+  uint8_t current_byte;
+} up_iterator_t;
 
 // Public methods
 
