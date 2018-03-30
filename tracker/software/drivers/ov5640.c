@@ -938,8 +938,7 @@ void vsync_cb(void *arg) {
  * Other drivers using resources that can cause DMA competition are locked.
  */
 void OV5640_lockResourcesForCapture(void) {
-  I2C_Lock(); // Lock I2C because it uses the same DMA
-  //Si446x_lockRadio(RADIO_TX); // Lock the radio because it uses the DMA too
+  I2C_Lock();
   pktAcquireRadio(PKT_RADIO_1);
 }
 
@@ -947,9 +946,9 @@ void OV5640_lockResourcesForCapture(void) {
  * Unlock competing drivers.
  */
 void OV5640_unlockResourcesForCapture(void) {
-  //Si446x_unlockRadio(RADIO_TX);
-  pktReleaseRadio(PKT_RADIO_1);
   I2C_Unlock();
+  pktReleaseRadio(PKT_RADIO_1);
+
 }
 
 bool OV5640_Capture(uint8_t* buffer, uint32_t size)
