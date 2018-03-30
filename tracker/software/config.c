@@ -58,8 +58,8 @@ const conf_t conf_flash_default = {
 		.thread_conf = {
 			.active			= true,
 			.cycle			= CYCLE_CONTINUOUSLY,
-			.init_delay		= TIME_S2I(5),
-			.packet_spacing	= TIME_S2I(30)
+			.init_delay		= TIME_S2I(20),
+			.packet_spacing	= TIME_S2I(0)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -68,7 +68,7 @@ const conf_t conf_flash_default = {
             .chan           = 64,
 			.mod			= MOD_2FSK,
 			.preamble		= 200,
-			.redundantTx	= true
+			.redundantTx	= false
 		},
 
 		.call				= "VK2GJ-15",

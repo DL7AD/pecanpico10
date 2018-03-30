@@ -624,13 +624,17 @@ THD_FUNCTION(imgThread, arg)
 				// Encode and transmit picture
 				TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", gimage_id-1);
 				if(!transmit_image_packets(buffer, size_sampled, conf, (uint8_t)(gimage_id-1))) {
-                  TRACE_ERROR("IMG  > Failure in image packet transmit");
+                  TRACE_WARN("IMG  > Unable to TX queue snapshot image %i - discarded", gimage_id-1);
+                  /* Allow time for queue to be processed. */
+                  chThdSleep(TIME_S2I(10));
 				}
 
 			} else { // No camera found
 				TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d", gimage_id-1);
 				if(!transmit_image_packets(noCameraFound, sizeof(noCameraFound), conf, (uint8_t)(gimage_id-1))) {
-                  TRACE_ERROR("IMG  > Failure in image packet transmit");
+                  TRACE_WARN("IMG  > Unable to TX queue fixed image %i - discarded", gimage_id-1);
+                  /* Allow time for queue to be processed. */
+                  chThdSleep(TIME_S2I(10));
 				}
 			}
 		}

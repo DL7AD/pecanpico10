@@ -26,10 +26,8 @@
 
 #define PKT_RADIO_TASK_QUEUE_PREFIX     "radx_"
 
-#define BAND_START_2M                   144000000
-#define AU_APRS_2M_FREQUENCY            145175000
-
-#define PKT_RADIO_CHANNEL_STEPPING_NONE  0
+/* The number of radio task object the FIFO has. */
+#define RADIO_TASK_QUEUE_MAX                    10
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */

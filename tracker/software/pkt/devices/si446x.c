@@ -13,22 +13,9 @@
 #include "radio.h"
 #endif
 
-/*
- * Transmitter global variables.
- * Saved when setting band. */
-//static uint32_t tx_frequency;
-//static uint16_t tx_step;
-
 // Si446x variables
 static int16_t lastTemp = 0x7FFF;
-//static bool radioInitialized;
 
-// Receiver thread variables
-/*static uint32_t rx_frequency;
-static uint16_t rx_step;
-static uint8_t rx_chan;
-static uint8_t rx_rssi;
-static mod_t rx_mod;*/
 
 /* =================================================================== SPI communication ==================================================================== */
 
@@ -70,7 +57,7 @@ static void Si446x_write(const uint8_t* txData, uint32_t len) {
  */
 static void Si446x_read(const uint8_t* txData, uint32_t txlen, uint8_t* rxData, uint32_t rxlen) {
     // Transmit data by SPI
-  /* TODO: Add radio unit ID and get SPI accordingly. */
+  /* TODO: Add radio unit ID and get SPI configuration accordingly. */
     uint8_t null_spi[txlen];
 
     /* Acquire bus and then start SPI. */
@@ -1220,14 +1207,17 @@ void Si446x_send2FSK(packet_t pp) {
 
 /* ========================================================================== Misc ========================================================================== */
 
-static int16_t Si446x_getTemperature(void) {
+static int16_t Si446x_getTemperature(radio_unit_t radio) {
+  /* TODO: Add hardware selection. */
+  (void)radio;
   const uint8_t txData[2] = {0x14, 0x10};
   uint8_t rxData[8];
   Si446x_read(txData, 2, rxData, 8);
   uint16_t adc = rxData[7] | ((rxData[6] & 0x7) << 8);
-  return (89900*adc)/4096 - 29300;
+  return (89900 * adc) / 4096 - 29300;
 }
 
+/* TODO: Abstract this by radio ID. */
 int16_t Si446x_getLastTemperature(radio_unit_t radio) {
   if(lastTemp == 0x7FFF) { // Temperature was never measured => measure it now
     packet_svc_t *handler = pktGetServiceObject(radio);
@@ -1237,7 +1227,7 @@ int16_t Si446x_getLastTemperature(radio_unit_t radio) {
     if(handler->radio_init) {
       pktAcquireRadio(radio);
       // Temperature readout
-      lastTemp = Si446x_getTemperature();
+      lastTemp = Si446x_getTemperature(radio);
       TRACE_INFO("SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
       pktReleaseRadio(radio);
     } else {

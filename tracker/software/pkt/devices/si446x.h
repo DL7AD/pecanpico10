@@ -181,8 +181,6 @@
 #define Si446x_FREQ_CONTROL_W_SIZE              0x4006
 #define Si446x_FREQ_CONTROL_VCOCNT_RX_ADJ       0x4007
 
-#define RADIO_TASK_QUEUE_MAX                    10
-
 #define PKT_SI446X_APRS_CHANNEL                 94
 #define PKT_SI446X_SQUELCH_LEVEL                0x4F
 
