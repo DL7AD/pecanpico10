@@ -214,9 +214,6 @@ msg_t pktOpenRadioReceive(radio_unit_t radio,
                            radio_freq_t frequency,
                            channel_hz_t ch_step) {
 
-  /*
-   * TODO: implement mapping from radio config to packet handler object.
-   */
   packet_svc_t *handler = pktGetServiceObject(radio);
   if(handler == NULL)
     return MSG_RESET;

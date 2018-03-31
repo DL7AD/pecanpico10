@@ -35,8 +35,14 @@
  * @notapi
  */
 THD_FUNCTION(pktRadioManager, arg) {
-#define PKT_RADIO_TASK_MANAGER_IDLE_RATE    100
-#define PKT_RADIO_TASK_MANAGER_TX_RATE      25
+  /* When no task in queue use this rate. */
+#define PKT_RADIO_TASK_MANAGER_IDLE_RATE_MS     100
+
+  /* When a TX task is submitted to radio switch to this rate. */
+#define PKT_RADIO_TASK_MANAGER_TX_RATE_MS       10
+
+/* Continue at TX rate for this number of cycles. */
+#define PKT_RADIO_TASK_MANAGER_TX_HYSTERESIS    100
 
   packet_svc_t *handler = arg;
 
@@ -44,7 +50,8 @@ THD_FUNCTION(pktRadioManager, arg) {
 
   chDbgCheck(arg != NULL);
 
-  sysinterval_t poll_rate = PKT_RADIO_TASK_MANAGER_IDLE_RATE;
+  sysinterval_t poll_rate = PKT_RADIO_TASK_MANAGER_IDLE_RATE_MS;
+  uint8_t poll_hysteresis = 0;
 
   objects_fifo_t *radio_queue = chFactoryGetObjectsFIFO(the_radio_fifo);
 
@@ -57,15 +64,14 @@ THD_FUNCTION(pktRadioManager, arg) {
     msg_t fifo_msg = chFifoReceiveObjectTimeout(radio_queue,
                          (void *)&task_object,
                          TIME_MS2I(poll_rate));
-    if(fifo_msg == MSG_TIMEOUT)
+    if(fifo_msg == MSG_TIMEOUT) {
+      if(poll_hysteresis == 0)
+        poll_rate = PKT_RADIO_TASK_MANAGER_IDLE_RATE_MS;
+      else
+        --poll_hysteresis;
       continue;
-
+    }
     /* Something to do. */
-
-    /* Change the poll rate if there are back to back TX tasks. */
-    poll_rate = (handler->tx_count > 1) ?
-          PKT_RADIO_TASK_MANAGER_IDLE_RATE
-        : PKT_RADIO_TASK_MANAGER_TX_RATE;
 
     radio_unit_t radio = handler->radio;
     /* Process command. */
@@ -182,6 +188,8 @@ THD_FUNCTION(pktRadioManager, arg) {
 
       if(pktLLDsendPacket(pp, task_object->type)) {
         handler->tx_count++;
+        poll_hysteresis = PKT_RADIO_TASK_MANAGER_TX_HYSTERESIS;
+        poll_rate = PKT_RADIO_TASK_MANAGER_TX_RATE_MS;
         /* Success. */
         break;
       }
@@ -236,6 +244,11 @@ THD_FUNCTION(pktRadioManager, arg) {
       /* Release packet services. */
       pktBufferManagerRelease(handler);
       pktCallbackManagerRelease(handler);
+
+      /*
+       * Signal close complete for this session.
+       * A new open queued on a sempahore will be readied.
+       */
       chBSemSignal(&handler->close_sem);
       break;
       } /*end case close. */
@@ -249,8 +262,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       if(--handler->tx_count == 0) {
         if(handler->rx_active) {
           rxok = pktLLDresumeReceive(radio);
-        }
-        else {
+        } else {
           Si446x_shutdown(radio);
         }
       }
