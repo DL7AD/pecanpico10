@@ -560,27 +560,30 @@ static bool Si446x_transmit(radio_unit_t radio,
       chThdSleep(TIME_MS2I(1));
     }
 
-    Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
-    /* Set band parameters. */
-    Si446x_setBandParameters(radio, freq, step);     // Set frequency
+    /* Check for blind send request. */
+    if(rssi != 0) {
+      Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
+      /* Set band parameters. */
+      Si446x_setBandParameters(radio, freq, step);     // Set frequency
 
-    /* Listen on the TX frequency. */
-    Si446x_setRXState(radio, chan);
+      /* Listen on the TX frequency. */
+      Si446x_setRXState(radio, chan);
 
-    // Wait until nobody is transmitting (until timeout)
+      // Wait until nobody is transmitting (until timeout)
 
-    if(Si446x_getState(radio) != Si446x_STATE_RX
-        || Si446x_getLatchedCCA(radio, 50)) {
+      if(Si446x_getState(radio) != Si446x_STATE_RX
+          || Si446x_getLatchedCCA(radio, 50)) {
 
-        TRACE_INFO( "SI   > Wait for clear channel on %d.%03d MHz",
-                    op_freq/1000000, (op_freq%1000000)/1000);
+          TRACE_INFO( "SI   > Wait for clear channel on %d.%03d MHz",
+                      op_freq/1000000, (op_freq%1000000)/1000);
 
-        /* FIXME: Fix timeout. Using 5KHz systick lowest resolution is 200uS. */
-        sysinterval_t t0 = chVTGetSystemTime();
-        while((Si446x_getState(radio) != Si446x_STATE_RX
-            || Si446x_getLatchedCCA(radio, 50))
-            && chVTGetSystemTime() - t0 < sql_timeout)
-            chThdSleep(TIME_US2I(100));
+          /* FIXME: Fix timeout. Using 5KHz systick lowest resolution is 200uS. */
+          sysinterval_t t0 = chVTGetSystemTime();
+          while((Si446x_getState(radio) != Si446x_STATE_RX
+              || Si446x_getLatchedCCA(radio, 50))
+              && chVTGetSystemTime() - t0 < sql_timeout)
+              chThdSleep(TIME_US2I(100));
+      }
     }
 
     // Transmit
@@ -592,7 +595,7 @@ static bool Si446x_transmit(radio_unit_t radio,
     // Wait until transceiver enters transmission state
     /* TODO: Make a function to handle timeout on fail to reach state. */
     while(Si446x_getState(radio) != Si446x_STATE_TX) {
-        chThdSleep(TIME_US2I(500));
+        chThdSleep(TIME_MS2I(1));
     }
     return true;
 }
@@ -818,7 +821,7 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
 
     radio_unit_t radio = pp->radio;
 
-    pktAcquireRadio(radio);
+    pktAcquireRadio(radio, TIME_INFINITE);
 
     /* Initialize radio. */
     Si446x_conditional_init(radio);
@@ -851,7 +854,7 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
 
     uint16_t all = pktStreamEncodingIterator(&iterator, NULL, 0);
 
-    TRACE_INFO("SI   > AFSK packet stream bytes %i", all);
+    //TRACE_INFO("SI   > AFSK packet stream bytes %i", all);
 
     if(all == 0) {
       /* Nothing encoded. Release packet send object. */
@@ -869,7 +872,7 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
     }
     /* Allocate buffer and perform NRZI encoding. */
     uint8_t layer0[all];
-    memset(layer0, 0, sizeof(layer0));
+    //memset(layer0, 0, sizeof(layer0));
     pktStreamEncodingIterator(&iterator, layer0, all);
 
     all *= SAMPLES_PER_BAUD;
@@ -972,7 +975,7 @@ THD_FUNCTION(min_si_fifo_feeder_afsk, arg) {
 
     if(lower > (free / 2)) {
       /* Warn when level drops below 50% of FIFO size. */
-      TRACE_DEBUG("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
+      TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
     }
 
     // Free packet object memory
@@ -1033,7 +1036,7 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
   radio_unit_t radio = pp->radio;
 
   /* TODO: Check result. */
-  pktAcquireRadio(radio);
+  pktAcquireRadio(radio, TIME_INFINITE);
 
   // Initialize radio
   Si446x_conditional_init(radio);
@@ -1061,7 +1064,7 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
   /* Compute size of NRZI stream. */
   uint16_t all = pktStreamEncodingIterator(&iterator, NULL, 0);
 
-  TRACE_INFO("SI   > 2FSK packet stream bytes %i", all);
+  //TRACE_INFO("SI   > 2FSK packet stream bytes %i", all);
 
   if(all == 0) {
     /* Nothing encoded. Release packet send object. */
@@ -1079,7 +1082,7 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
   }
   /* Allocate buffer and perform NRZI encoding. */
   uint8_t layer0[all];
-  memset(layer0, 0, sizeof(layer0));
+  //memset(layer0, 0, sizeof(layer0));
   pktStreamEncodingIterator(&iterator, layer0, all);
 
   /* Reset TX FIFO in case some remnant unsent data is left there. */
@@ -1165,7 +1168,7 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
 
   if(lower > (free / 2)) {
     /* Warn when level drops below 50% of FIFO size. */
-    TRACE_DEBUG("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
+    TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
   }
 
   // Free packet object memory
@@ -1225,7 +1228,7 @@ int16_t Si446x_getLastTemperature(radio_unit_t radio) {
     chDbgAssert(handler != NULL, "invalid radio ID");
 
     if(handler->radio_init) {
-      pktAcquireRadio(radio);
+      pktAcquireRadio(radio, TIME_INFINITE);
       // Temperature readout
       lastTemp = Si446x_getTemperature(radio);
       TRACE_INFO("SI   > Transmitter temperature %d degC\r\n", lastTemp/100);

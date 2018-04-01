@@ -902,9 +902,12 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /* Wait for queue object to be released by PWM. */
           (void)chBSemWait(&myFIFO->sem);
 
+#if USE_HEAP_PWM_BUFFER == TRUE
+          /* Release the buffer memory back to the heap. */
+          chHeapFree(myFIFO->packed_buffer);
+#endif
           myDriver->active_demod_object = NULL;
           chFifoReturnObject(myDriver->pwm_fifo_pool, myFIFO);
-
         }
 
         /* Reset the correlation decoder and its filters. */

@@ -90,7 +90,7 @@
  *
  * @note    Only used in buffers.
  */
-typedef uint8_t ax25char_t;
+
 typedef int16_t ax25size_t;
 
 #endif /* PKT_PROTOCOLS_RXAX25_H_ */

@@ -289,11 +289,35 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
    */
   chBSemObjectInit(&myFIFO->sem, true);
 
+#if USE_HEAP_PWM_BUFFER == TRUE
+  /*
+   * FIXME: Have to add buffer allocation thread and post request via MBX.
+   * Then defer ICU PWM queue fill until buffer assigned by thread.
+   * The thread will assign a buffer and post the queue object to the decoder.
+   */
+  radio_pwm_buffer_t *pwm_buffer = chHeapAlloc(NULL, sizeof(radio_pwm_buffer_t));
+  if(pwm_buffer == NULL) {
+    /* Failed to get PWM buffer. */
+    chFifoReturnObjectI(myDemod->pwm_fifo_pool, myFIFO);
+
+    /* Post an event and disable ICU. */
+    pktAddEventFlagsI(myHandler, EVT_PWM_BUFFER_FAIL);
+    icuDisableNotificationsI(myICU);
+    return;
+  }
+  /* Each FIFO entry has an embedded input queue. */
+  (void)iqObjectInit(&myFIFO->radio_pwm_queue,
+                     (*pwm_buffer).pwm_bytes,
+                     sizeof(radio_pwm_buffer_t),
+                     NULL , NULL);
+  myFIFO->packed_buffer = pwm_buffer;
+#else
   /* Each FIFO entry has an embedded input queue with data buffer. */
   (void)iqObjectInit(&myFIFO->radio_pwm_queue,
                      myFIFO->packed_buffer.pwm_bytes,
                      sizeof(radio_pwm_buffer_t),
                      NULL , NULL);
+#endif
 
   /*
    * Set the status of this FIFO.
@@ -486,7 +510,7 @@ void pktRadioCCAInput(ICUDriver *myICU) {
          *
          * De-glitch for 8 AFSK bit times.
          */
-        chVTSetI(&myICU->cca_timer, TIME_MS2I(7),
+        chVTSetI(&myICU->cca_timer, TIME_US2I(833 * 8),
                  (vtfunc_t)pktRadioCCATrailTimer, myICU);
       }
       /* Idle state. */

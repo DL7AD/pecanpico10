@@ -939,7 +939,7 @@ void vsync_cb(void *arg) {
  */
 void OV5640_lockResourcesForCapture(void) {
   I2C_Lock();
-  pktAcquireRadio(PKT_RADIO_1);
+  pktAcquireRadio(PKT_RADIO_1, TIME_INFINITE);
 }
 
 /*

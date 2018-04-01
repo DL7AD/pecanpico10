@@ -18,8 +18,10 @@
 
 #define PKT_RX_BUFFER_SIZE      PKT_MAX_RX_PACKET_LEN
 
-#define PKT_FRAME_QUEUE_PREFIX  "pktx_"
-#define PKT_CALLBACK_TERMINATOR_PREFIX "cbtx_"
+#define PKT_FRAME_QUEUE_PREFIX          "pktr_"
+#define PKT_CALLBACK_TERMINATOR_PREFIX  "cbtr_"
+#define PKT_SEND_BUFFER_NAME            "pbtx"
+#define PKT_SEND_BUFFER_SEM_NAME        "pstx"
 
 #define PKT_CALLBACK_WA_SIZE    4096
 #define PKT_TERMINATOR_WA_SIZE  1024
@@ -77,15 +79,29 @@ typedef struct packetHandlerData {
    */
   packet_state_t            state;
 
+  /**
+   * @brief Radio being managed.
+   */
   radio_unit_t              radio;
 
+  /**
+   * @brief Radio initialization flag.
+   */
   bool                      radio_init;
+
+  /**
+   * @brief Radio locked access semaphore.
+   */
+  binary_semaphore_t        radio_sem;
 
   /**
    * @brief Radio receiver operating parameters.
    */
   radio_task_object_t       radio_rx_config;
 
+  /**
+   * @brief Radio is running a continuous receive.
+   */
   bool                      rx_active;
 
   /**
@@ -93,10 +109,6 @@ typedef struct packetHandlerData {
    */
   radio_task_object_t       radio_tx_config;
 
-  /**
-   * @brief Radio locked access semaphore.
-   */
-  binary_semaphore_t        radio_sem;
   /**
    * @brief Counter for active transmit threads.
    */
@@ -106,11 +118,6 @@ typedef struct packetHandlerData {
    * @brief Pointer to link level protocol data.
    */
   void                      *link_controller;
-
-  /**
-   * @brief Link level protocol type.
-   */
-  //encoding_type_t           link_type;
 
   /**
    * @brief names for the factory FIFOs.
@@ -132,9 +139,21 @@ typedef struct packetHandlerData {
   dyn_objects_fifo_t        *the_radio_fifo;
 
   /**
-   * @brief AX25 packet guarded FIFO.
+   * @brief AX25 packet guarded FIFO for receive.
    */
   dyn_objects_fifo_t        *the_packet_fifo;
+
+  /**
+   * @brief AX25 packet guarded FIFO for send.
+   * TODO: Deprecate.
+   */
+  dyn_objects_fifo_t        *tx_packet_fifo;
+
+
+  /**
+   * @brief AX25 send buffer throttling semaphore.
+   */
+  dyn_semaphore_t           *tx_packet_sem;
 
   /**
    * @brief Packet buffer cb_func.
@@ -151,12 +170,12 @@ typedef struct packetHandlerData {
    * @brief Counter for active callback threads.
    * TODO: type should be of a generic counter?
    */
-  uint8_t                  cb_count;
+  uint8_t                   cb_count;
 
   /**
    * @brief Event source object.
    */
-  binary_semaphore_t       close_sem;
+  binary_semaphore_t        close_sem;
 
   /**
    * @brief Event source object.
@@ -208,10 +227,16 @@ extern "C" {
   void pktCallback(void *arg);
   void pktCallbackManagerOpen(radio_unit_t radio);
   void pktCompletion(void *arg);
-  dyn_objects_fifo_t *pktBufferManagerCreate(radio_unit_t radio);
+  dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio);
   thread_t *pktCallbackManagerCreate(radio_unit_t radio);
-  void pktBufferManagerRelease(packet_svc_t *handler);
   void pktCallbackManagerRelease(packet_svc_t *handler);
+  void pktIncomingBufferPoolRelease(packet_svc_t *handler);
+  dyn_objects_fifo_t *pktOutgoingBufferPoolCreate(radio_unit_t radio);
+  void pktOutgoingBufferPoolRelease(radio_unit_t radio);
+  dyn_semaphore_t *pktOutgoingBufferSemaphoreCreate(radio_unit_t radio);
+  void pktOutgoingBufferSemaphoreRelease(radio_unit_t radio);
+  msg_t pktGetOutgoingBuffer(packet_t *pp, sysinterval_t timeout);
+  void pktReleaseOutgoingBuffer(packet_t pp);
 #ifdef __cplusplus
 }
 #endif
@@ -349,7 +374,7 @@ static inline pkt_data_object_t *pktTakeDataBuffer(packet_svc_t *handler,
 }
 
 /**
- * @brief   Returns a buffer to the packet buffer free pool.
+ * @brief   Returns a receive buffer to the packet buffer free pool.
  * @details This function is called from thread level to free a buffer.
  * @post    The buffer is released back to the free pool.
  * @post    The semaphore for used/free buffer counting is updated.

@@ -174,6 +174,8 @@
 #include "fcs_calc.h"
 #include "debug.h"
 #include "chprintf.h"
+#include "pkttypes.h"
+
 
 /*
  * Accumulate statistics.
@@ -213,11 +215,12 @@ int ax25memdebug_seq (packet_t this_p)
 #define CLEAR_LAST_ADDR_FLAG  this_p->frame_data[this_p->num_addr*7-1] &= ~ SSID_LAST_MASK
 #define SET_LAST_ADDR_FLAG  this_p->frame_data[this_p->num_addr*7-1] |= SSID_LAST_MASK
 
-
-static bool heapp_initialied = false;
+#if USE_NEW_PKT_TX_ALLOC != TRUE
+/* TODO: revise this to use the common heap. */
+static bool heapp_initialized = false;
 static memory_heap_t heapp;
 static uint8_t heapp_buf[16384];
-
+#endif
 
 /*------------------------------------------------------------------------------
  *
@@ -230,8 +233,7 @@ static uint8_t heapp_buf[16384];
  *
  *------------------------------------------------------------------------------*/
 
-packet_t ax25_new (void)
-{
+packet_t ax25_new (void) {
 	struct packet_s *this_p;
 
 
@@ -252,20 +254,23 @@ packet_t ax25_new (void)
 	if (new_count > delete_count + 256) {
 
 
-	  TRACE_ERROR("Report to WB2OSZ - Memory leak for packet objects.  new=%d, delete=%d", new_count, delete_count);
+	  //TRACE_ERROR("Report to WB2OSZ - Memory leak for packet objects.  new=%d, delete=%d", new_count, delete_count);
 #if AX25MEMDEBUG
 	  // Force on debug option to gather evidence.
 	  ax25memdebug_set();
 #endif
 	}
 
-
-	if(!heapp_initialied) {
+#if	USE_NEW_PKT_TX_ALLOC == TRUE
+    this_p = chHeapAlloc(NULL, sizeof (struct packet_s));
+#else
+	if(!heapp_initialized) {
 		chHeapObjectInit(&heapp, (void*)heapp_buf, sizeof(heapp_buf));
-		heapp_initialied = true;
+		heapp_initialized = true;
 	}
 
 	this_p = chHeapAlloc(&heapp, sizeof (struct packet_s));
+#endif
 
 	if (this_p == NULL) {
 	  TRACE_ERROR ("ERROR - can't allocate memory in ax25_new.");
@@ -384,7 +389,12 @@ packet_t ax25_from_text (char *monitor, int strict)
 	char info_part[AX25_MAX_INFO_LEN+1];
 	int info_len;
 
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+	packet_t this_p;
+	msg_t msg = pktGetOutgoingBuffer(&this_p, TIME_INFINITE);
+#else
 	packet_t this_p = ax25_new();
+#endif
     if(this_p == NULL)
       return NULL;
 
@@ -431,7 +441,11 @@ packet_t ax25_from_text (char *monitor, int strict)
 	pinfo = strchr (stuff, ':');
 
 	if (pinfo == NULL) {
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+	  pktReleaseOutgoingBuffer(this_p);
+#else
 	  ax25_delete (this_p);
+#endif
 	  return (NULL);
 	}
 
@@ -450,13 +464,21 @@ packet_t ax25_from_text (char *monitor, int strict)
 	pa = strtok_r (stuff, ">", &saveptr);
 	if (pa == NULL) {
 	  TRACE_ERROR ("Failed to create packet from text.  No source address");
-	  ax25_delete (this_p);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(this_p);
+#else
+      ax25_delete (this_p);
+#endif
 	  return (NULL);
 	}
 
 	if ( ! ax25_parse_addr (AX25_SOURCE, pa, strict, atemp, &ssid_temp, &heard_temp)) {
 	  TRACE_ERROR ("Failed to create packet from text.  Bad source address");
-	  ax25_delete (this_p);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(this_p);
+#else
+      ax25_delete (this_p);
+#endif
 	  return (NULL);
 	}
 
@@ -471,7 +493,11 @@ packet_t ax25_from_text (char *monitor, int strict)
 	pa = strtok_r (NULL, ",", &saveptr);
 	if (pa == NULL) {
 	  TRACE_ERROR ("Failed to create packet from text.  No destination address");
-	  ax25_delete (this_p);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(this_p);
+#else
+      ax25_delete (this_p);
+#endif
 	  return (NULL);
 	}
 
@@ -496,7 +522,11 @@ packet_t ax25_from_text (char *monitor, int strict)
 
 	  if ( ! ax25_parse_addr (k, pa, strict, atemp, &ssid_temp, &heard_temp)) {
 	    TRACE_ERROR ("Failed to create packet from text.  Bad digipeater address");
-	    ax25_delete (this_p);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(this_p);
+#else
+      ax25_delete (this_p);
+#endif
 	    return (NULL);
 	  }
 
@@ -623,7 +653,11 @@ packet_t ax25_from_frame (unsigned char *fbuf, int flen)
 	  return (NULL);
 	}
 
-	this_p = ax25_new();
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+    msg_t msg = pktGetOutgoingBuffer(&this_p, TIME_INFINITE);
+#else
+    this_p = ax25_new();
+#endif
 	if(this_p == NULL)
 	  return NULL;
 
@@ -672,7 +706,11 @@ packet_t ax25_dup (packet_t copy_from)
 	packet_t this_p;
 
 	
-	this_p = ax25_new ();
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+    msg_t msg = pktGetOutgoingBuffer(&this_p, TIME_INFINITE);
+#else
+    this_p = ax25_new();
+#endif
 	if(this_p == NULL)
 		return NULL;
 

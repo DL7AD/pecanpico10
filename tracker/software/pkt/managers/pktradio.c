@@ -36,13 +36,13 @@
  */
 THD_FUNCTION(pktRadioManager, arg) {
   /* When no task in queue use this rate. */
-#define PKT_RADIO_TASK_MANAGER_IDLE_RATE_MS     100
+#define PKT_RADIO_TASK_MANAGER_IDLE_RATE_MS     250
 
   /* When a TX task is submitted to radio switch to this rate. */
-#define PKT_RADIO_TASK_MANAGER_TX_RATE_MS       10
+#define PKT_RADIO_TASK_MANAGER_TX_RATE_MS       100
 
 /* Continue at TX rate for this number of cycles. */
-#define PKT_RADIO_TASK_MANAGER_TX_HYSTERESIS    100
+#define PKT_RADIO_TASK_MANAGER_TX_HYSTERESIS    10
 
   packet_svc_t *handler = arg;
 
@@ -79,14 +79,14 @@ THD_FUNCTION(pktRadioManager, arg) {
     case PKT_RADIO_RX_OPEN: {
 
        /* Create the packet management services. */
-      if(pktBufferManagerCreate(radio) == NULL) {
+      if(pktIncomingBufferPoolCreate(radio) == NULL) {
         pktAddEventFlags(handler, (EVT_PKT_BUFFER_MGR_FAIL));
         break;
       }
       /* Create callback manager. */
       if(pktCallbackManagerCreate(radio) == NULL) {
         pktAddEventFlags(handler, (EVT_PKT_CBK_MGR_FAIL));
-        pktBufferManagerRelease(handler);
+        pktIncomingBufferPoolRelease(handler);
         break;
       }
       /* Switch on modulation type. */
@@ -122,7 +122,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       /* The function switches on mod type so no need for switch here. */
       switch(task_object->type) {
       case MOD_AFSK: {
-        pktAcquireRadio(radio);
+        pktAcquireRadio(radio, TIME_INFINITE);
 
         /* TODO: Move these 446x calls into abstracted LLD. */
         Si446x_setBandParameters(radio,
@@ -180,11 +180,10 @@ THD_FUNCTION(pktRadioManager, arg) {
       pp->radio_step = task_object->step_hz;
       pp->radio_chan = task_object->channel;
       pp->radio_pwr = task_object->tx_power;
+      pp->cca_rssi = task_object->squelch;
 
       /* Give each send a sequence number. */
       pp->tx_seq = ++handler->radio_tx_config.seq_num;
-      /* TODO: Don't use fixed RSSI. */
-      pp->cca_rssi = 0x4F;
 
       if(pktLLDsendPacket(pp, task_object->type)) {
         handler->tx_count++;
@@ -242,7 +241,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       chThdWait(decoder);
 
       /* Release packet services. */
-      pktBufferManagerRelease(handler);
+      pktIncomingBufferPoolRelease(handler);
       pktCallbackManagerRelease(handler);
 
       /*
@@ -300,9 +299,6 @@ thread_t *pktRadioManagerCreate(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   chDbgAssert(handler != NULL, "invalid radio ID");
-
-  /* The radio associated with this packet handler. */
-  //radio_unit_t rid = handler->radio_rx_config.radio_id;
 
   /* Create the radio manager name. */
   chsnprintf(handler->rtask_name, sizeof(handler->rtask_name),
@@ -469,17 +465,19 @@ void pktScheduleThreadRelease(radio_unit_t radio,
  * @brief   Acquire exclusive access to radio.
  * @notes   returns when radio unit acquired.
  *
- * @param[in] radio    radio unit ID.
+ * @param[in] radio     radio unit ID.
+ * @param[in] timeout   time to wait for acquisition.
  *
  * @return              A message specifying the result.
  * @retval MSG_OK       if the radio has been successfully acquired.
+ * @retval MSG_TIMEOUT  if the radio could not be acquired within specified time.
  * @retval MSG_RESET    if the radio can not be used due to a system abort.
  *
  * @api
  */
-msg_t pktAcquireRadio(radio_unit_t radio) {
+msg_t pktAcquireRadio(radio_unit_t radio, sysinterval_t timeout) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  return chBSemWait(&handler->radio_sem);
+  return chBSemWaitTimeout(&handler->radio_sem, timeout);
 }
 
 /**

@@ -7,7 +7,7 @@
 #define FREQ_APRS_DYNAMIC	0
 #define FREQ_APRS_SCAN      1
 #define FREQ_APRS_RECEIVE   2
-#define FREQ_CNC_RECEIVE    3
+#define FREQ_CC_RECEIVE     3
 
 #define CYCLE_CONTINUOUSLY	0
 
@@ -52,13 +52,18 @@ typedef enum {
 typedef struct {
 	int8_t				pwr;
 	uint32_t			freq;	// 0: APRS region frequency (determined by geofencing), f>0 static frequency
-	uint16_t            step;
-	uint8_t             chan;
 	mod_t				mod;
-	uint16_t			preamble;
 	uint32_t			speed;
+	uint8_t             rssi;
 	bool                redundantTx;
-} radio_conf_t; // Radio / Modulation
+} radio_tx_conf_t; // Radio / Modulation
+
+typedef struct {
+    uint32_t            freq;   // 0: APRS region frequency (determined by geofencing), f>0 static frequency
+    mod_t               mod;
+    uint32_t            speed;
+    uint8_t             rssi;
+} radio_rx_conf_t; // Radio / Modulation
 
 typedef struct {
 	bool				active;
@@ -70,7 +75,7 @@ typedef struct {
 
 typedef struct {
 	thread_conf_t thread_conf;
-	radio_conf_t radio_conf;
+	radio_tx_conf_t radio_conf;
 
 	// Protocol
 	char call[AX25_MAX_ADDR_LEN];
@@ -82,7 +87,7 @@ typedef struct {
 
 typedef struct {
 	thread_conf_t thread_conf;
-	radio_conf_t radio_conf;
+	radio_tx_conf_t radio_conf;
 
 	// Protocol
 	char call[AX25_MAX_ADDR_LEN];
@@ -95,7 +100,7 @@ typedef struct {
 
 typedef struct {
 	thread_conf_t thread_conf;
-	radio_conf_t radio_conf;
+	radio_tx_conf_t radio_conf;
 
 	// Protocol
 	char call[AX25_MAX_ADDR_LEN];
@@ -105,14 +110,27 @@ typedef struct {
 } thd_log_conf_t;
 
 typedef struct {
-	radio_conf_t radio_conf;
+	radio_rx_conf_t radio_conf;
 	thread_conf_t thread_conf;
 
 	// Protocol
 	char call[AX25_MAX_ADDR_LEN];
-	char path[16];
-	uint16_t symbol;
+	//char path[16];
+	//uint16_t symbol;
+    //uint8_t         rssi;                   // Squelch for reception
 } thd_rx_conf_t;
+
+typedef struct {
+    radio_tx_conf_t radio_conf;
+    //thread_conf_t thread_conf;
+
+    // Protocol
+    char call[AX25_MAX_ADDR_LEN];
+    char path[16];
+    uint16_t symbol;
+    uint8_t         rssi;                   // Squelch for CCA check
+    bool            dig_active;             // Digipeater active flag
+} thd_tx_conf_t;
 
 typedef struct {
 	thd_pos_conf_t	pos_pri;				// Primary position thread configuration
@@ -123,10 +141,7 @@ typedef struct {
 
 	thd_log_conf_t	log;					// Log transmission configuration
 	thd_rx_conf_t	rx;						// Receiver configuration
-
-	uint8_t			rssi;					// Squelch for reception
-
-	bool			dig_active;				// Digipeater active flag
+	thd_tx_conf_t   tx;                     // Transmitter configuration
 
 	bool			keep_cam_switched_on;	// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time
 

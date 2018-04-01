@@ -63,10 +63,11 @@ THD_FUNCTION(logThread, arg)
 				// Transmit packet
                   transmitOnRadio(packet,
                                   conf->radio_conf.freq,
-                                  conf->radio_conf.step,
-                                  conf->radio_conf.chan,
+                                  0,
+                                  0,
                                   conf->radio_conf.pwr,
-                                  conf->radio_conf.mod);
+                                  conf_sram.tx.radio_conf.mod,
+                                  conf_sram.tx.radio_conf.rssi);
 	            }
 			} else {
 				TRACE_INFO("LOG  > No log point in memory");

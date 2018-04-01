@@ -47,10 +47,11 @@ THD_FUNCTION(posThread, arg)
             } else {
               transmitOnRadio(packet,
                               conf->radio_conf.freq,
-                              conf->radio_conf.step,
-                              conf->radio_conf.chan,
+                              0,
+                              0,
                               conf->radio_conf.pwr,
-                              conf->radio_conf.mod);
+                              conf_sram.tx.radio_conf.mod,
+                              conf_sram.tx.radio_conf.rssi);
             }
 			chThdSleep(TIME_S2I(5));
 
@@ -61,16 +62,17 @@ THD_FUNCTION(posThread, arg)
             } else {
               transmitOnRadio(pp,
                               conf->radio_conf.freq,
-                              conf->radio_conf.step,
-                              conf->radio_conf.chan,
+                              0,
+                              0,
                               conf->radio_conf.pwr,
-                              conf->radio_conf.mod);
+                              conf->radio_conf.mod,
+                              conf->radio_conf.rssi);
             }
 
 			// Telemetry encoding parameter transmission
 			if(conf->tel_enc_cycle != 0 && last_conf_transmission + conf->tel_enc_cycle < chVTGetSystemTime())
 			{
-				chThdSleep(TIME_S2I(5)); // Take a litte break between the packet transmissions
+				chThdSleep(TIME_S2I(5)); // Take a little break between the packet transmissions
 
 				TRACE_INFO("POS  > Transmit telemetry configuration");
 
@@ -83,10 +85,11 @@ THD_FUNCTION(posThread, arg)
 		            } else {
                       transmitOnRadio(packet,
                                       conf->radio_conf.freq,
-                                      conf->radio_conf.step,
-                                      conf->radio_conf.chan,
+                                      0,
+                                      0,
                                       conf->radio_conf.pwr,
-                                      conf->radio_conf.mod);
+                                      conf_sram.tx.radio_conf.mod,
+                                      conf_sram.tx.radio_conf.rssi);
                       chThdSleep(TIME_S2I(5));
 		            }
 				}

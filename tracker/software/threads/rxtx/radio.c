@@ -20,7 +20,11 @@ static void processPacket(uint8_t *buf, uint32_t len) {
 	    uint32_t len = ax25_get_info(pp, &c);
 	    if(len == 0) {
 	        TRACE_INFO("RX   > Invalid packet structure - dropped");
-	        ax25_delete(pp);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(pp);
+#else
+      ax25_delete (this_p);
+#endif
 	        return;
 	    }
 		char serial_buf[512];
@@ -32,7 +36,11 @@ static void processPacket(uint8_t *buf, uint32_t len) {
 		} else {
 	      TRACE_INFO("RX   > No addresses in packet - dropped");
 		}
-		ax25_delete(pp);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(pp);
+#else
+      ax25_delete (this_p);
+#endif
 	} else {
 		TRACE_INFO("RX    > Error in packet - dropped");
 	}
@@ -58,8 +66,9 @@ if(pktIsBufferValidAX25Frame(pkt_buff)) {
   }
 }
 
-void start_rx_thread(radio_unit_t radio, uint32_t base_freq, uint16_t step,
-                     radio_ch_t chan, uint8_t rssi) {
+void start_rx_thread(radio_unit_t radio, radio_freq_t base_freq,
+                     channel_hz_t step,
+                     radio_ch_t chan, radio_squelch_t rssi) {
 
 	if(base_freq == FREQ_APRS_DYNAMIC) {
 		base_freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
@@ -95,13 +104,17 @@ void start_rx_thread(radio_unit_t radio, uint32_t base_freq, uint16_t step,
  */
 bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
                      channel_hz_t step, radio_ch_t chan,
-                     radio_pwr_t pwr, mod_t mod) {
+                     radio_pwr_t pwr, mod_t mod, radio_squelch_t rssi) {
   /* TODO: This should select a radio by frequency. For now just use 1. */
   radio_unit_t radio = PKT_RADIO_1;
 
   if(!pktIsTransmitOpen(radio)) {
     TRACE_WARN( "RAD  > Transmit is not open on radio");
-    ax25_delete(pp);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(pp);
+#else
+      ax25_delete (this_p);
+#endif
     return false;
   }
 	if(base_freq == FREQ_APRS_DYNAMIC) {
@@ -142,7 +155,11 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 		/* Check if packet services available for transmit. */
 		if(!pktIsTransmitOpen(radio)) {
           TRACE_ERROR("RAD  > Packet services are not open for transmit");
-          ax25_delete(pp);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(pp);
+#else
+      ax25_delete (this_p);
+#endif
 		  return false;
 		}
 
@@ -160,6 +177,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 		rt.channel = chan;
 		rt.tx_power = pwr;
 		rt.tx_speed = (mod == MOD_2FSK ? 9600 : 1200);
+		rt.squelch = rssi;
 		rt.packet_out = pp;
 		rt.callback = NULL;
 
@@ -169,7 +187,11 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
         msg_t msg = pktSendRadioCommand(radio, &rt);
         if(msg != MSG_OK) {
           TRACE_ERROR("RAD  > Failed to post radio task");
-          ax25_delete(pp);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(pp);
+#else
+      ax25_delete (this_p);
+#endif
           return false;
         }
 
@@ -178,7 +200,11 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 		TRACE_ERROR("RAD  > It is nonsense to transmit 0 bits, %d.%03d MHz, Pwr dBm, %s, %d byte",
 					base_freq/1000000, (base_freq%1000000)/1000, pwr,
 					getModulation(mod), len);
-	    ax25_delete(pp);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(pp);
+#else
+      ax25_delete (this_p);
+#endif
 	}
 
 	return true;

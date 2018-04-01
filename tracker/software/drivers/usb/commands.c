@@ -168,7 +168,7 @@ void usb_cmd_printConfig(BaseSequentialStream *chp, int argc, char *argv[])
 
 void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[])
 {
-	if(argc < 2)
+/*	if(argc < 2)
 	{
 		chprintf(chp, "Argument missing!\r\n");
 		chprintf(chp, "Argument 1: Destination\r\n");
@@ -187,11 +187,15 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
     }
 	transmitOnRadio(packet,
 	                conf_sram.rx.radio_conf.freq,
-                    conf_sram.rx.radio_conf.step,
-                    conf_sram.rx.radio_conf.chan,
+                    conf_sram.rx.radio_conf.step0,
+                    conf_sram.rx.radio_conf.chan0,
                     conf_sram.rx.radio_conf.pwr,
                     conf_sram.rx.radio_conf.mod);
 
-	chprintf(chp, "Message sent!\r\n");
+	chprintf(chp, "Message sent!\r\n");*/
+
+  (void)argc;
+    (void)argv;
+    chprintf(chp, "TODO: Not implemented\r\n");
 }
 

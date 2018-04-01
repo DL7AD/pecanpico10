@@ -62,4 +62,6 @@ typedef uint8_t radio_squelch_t;
 
 typedef int8_t  radio_pwr_t;
 
+typedef uint8_t ax25char_t;
+
 #endif /* PKT_PKTTYPES_H_ */

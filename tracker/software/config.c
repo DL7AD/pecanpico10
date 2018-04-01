@@ -11,17 +11,15 @@ const conf_t conf_flash_default = {
 	// Primary position transmission thread
 	.pos_pri = {
 		.thread_conf = {
-			.active			= true,
+			.active			= false,
 			.cycle			= TIME_S2I(300),
 			.init_delay		= TIME_S2I(5)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
-			.freq			= 144000000,
-			.step           = 12500,
-			.chan           = 94,
+			.freq			= 144175000,
 			.mod			= MOD_AFSK,
-			.preamble		= 200
+            .rssi           = 0x4F,
 		},
 
 		.call				= "VK2GJ-12",
@@ -40,10 +38,8 @@ const conf_t conf_flash_default = {
 		.radio_conf = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
-			.step           = 0,
-			.chan           = 0,
 			.mod			= MOD_AFSK,
-			.preamble		= 200
+            .rssi           = 0x4F,
 		},
 
 		.call				= "DL7AD-14",
@@ -63,11 +59,9 @@ const conf_t conf_flash_default = {
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
-            .freq           = 144000000,
-            .step           = 12500,
-            .chan           = 64,
+            .freq           = 144800000,
 			.mod			= MOD_2FSK,
-			.preamble		= 200,
+			.rssi           = 0x4F,
 			.redundantTx	= false
 		},
 
@@ -88,10 +82,8 @@ const conf_t conf_flash_default = {
 		.radio_conf = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
-			.step           = 0,
-			.chan           = 0,
 			.mod			= MOD_AFSK,
-			.preamble		= 200
+            .rssi           = 0x4F,
 		},
 
 		.call				= "DL7AD-14",
@@ -112,10 +104,8 @@ const conf_t conf_flash_default = {
 		.radio_conf = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
-			.step           = 0,
-			.chan           = 0,
 			.mod			= MOD_AFSK,
-			.preamble		= 200
+            .rssi           = 0x4F,
 		},
 
 		.call				= "DL7AD-13",
@@ -127,25 +117,26 @@ const conf_t conf_flash_default = {
 			.active			= true
 		},
 		.radio_conf = {
-			.pwr			= 0x7F,
-			.freq			= 144000000,
-			.step           = 12500,
-			.chan           = 94,
+			.freq			= 145175000,
 			.mod			= MOD_AFSK,
-			.preamble		= 200
+		    .rssi           = 0x3F
 		},
-
-		.call				= "VK2GJ-4",
-		.path				= "WIDE2-1",
-		.symbol				= SYM_DIGIPEATER
+        .call               = "VK2GJ-4",
+	},
+	.tx = {
+	    .radio_conf = {
+	               .freq    = 145175000,
+	               .pwr     = 0x7F,
+	               .mod     = MOD_AFSK,
+	               .rssi    = 0x4F
+        },
+          .call             = "VK2GJ-4",
+          .path             = "WIDE2-1",
+          .symbol           = SYM_DIGIPEATER,
+          .dig_active       = true
 	},
 
-	.rssi					= 0x3F,
-
-	.dig_active				= true,
-
 	.keep_cam_switched_on	= false,
-
 	.gps_on_vbat			= 1000,
 	.gps_off_vbat			= 1000,
 	.gps_onper_vbat			= 1000,

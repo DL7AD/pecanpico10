@@ -49,7 +49,8 @@
 
 /* These don't include the 2 bytes for the */
 /* HDLC frame FCS. */
-#define AX25_MAX_INFO_LEN 2048
+//#define AX25_MAX_INFO_LEN 2048
+#define AX25_MAX_INFO_LEN 512
 
 /* 
  * Previously, for APRS only.
@@ -70,10 +71,12 @@
 #define AX25_PID_SEGMENTATION_FRAGMENT 0x08
 #define AX25_PID_ESCAPE_CHARACTER 0xFF
 
+#define USE_NEW_PKT_TX_ALLOC    TRUE
+
 #include "pkttypes.h"
 
 /* TODO: Create a chFactory FIFO to manage these objects. */
-struct packet_s {
+typedef struct packet_s {
 
     /* for error checking. */
 	int magic1;
@@ -160,7 +163,7 @@ struct packet_s {
 
     /* Will get stomped on if above overflows. */
 	int magic2;
-};
+} packet_tx_t;
 
 /*
  * packet_t is a pointer to a packet object.
@@ -354,6 +357,10 @@ extern packet_t ax25_from_frame (unsigned char *data, int len);
 extern packet_t ax25_dup (packet_t copy_from);
 
 extern void ax25_delete (packet_t pp);
+
+
+extern msg_t pktGetOutgoingBuffer(packet_t *pp, sysinterval_t timeout);
+extern void pktReleaseOutgoingBuffer(packet_t pp);
 
 #endif
 

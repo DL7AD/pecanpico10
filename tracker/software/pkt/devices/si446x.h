@@ -264,8 +264,14 @@ static inline bool Si446x_isFrequencyInBand(radio_unit_t radio,
   return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
 }
 
+extern void pktReleaseOutgoingBuffer(packet_t pp);
+
 static inline void Si446x_releaseSendObject(packet_t pp) {
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+  pktReleaseOutgoingBuffer(pp);
+#else
   ax25_delete(pp);
+#endif
 }
 
 #endif /* __si446x__H__ */

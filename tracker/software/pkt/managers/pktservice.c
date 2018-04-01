@@ -77,6 +77,21 @@ bool pktServiceCreate(radio_unit_t radio) {
   /* Set radio semaphore to free state. */
   chBSemObjectInit(&handler->radio_sem, false);
 
+  /*
+   * Create outgoing pool if it does not already exist.
+   * If it does exist the ref count is increased.
+   */
+/*  if(pktOutgoingBufferPoolCreate(radio) == NULL)
+    return false;*/
+
+  /*
+   * Create outgoing buffer sempahore if it does not already exist.
+   * If it does exist the ref count is increased.
+   * If we can't create it get false else true.
+   */
+  if(pktOutgoingBufferSemaphoreCreate(radio) == NULL)
+    return false;
+
   /* Send request to create radio manager. */
   if (pktRadioManagerCreate(radio) == NULL)
     return false;
@@ -108,6 +123,7 @@ bool pktServiceRelease(radio_unit_t radio) {
 
   if(handler->state != PACKET_READY)
     return false;
+  pktOutgoingBufferSemaphoreRelease(radio);
   pktRadioManagerRelease(radio);
   handler->state = PACKET_IDLE;
   return true;
@@ -682,7 +698,7 @@ THD_FUNCTION(pktCallback, arg) {
  * @notapi
  */
 
-/* TODO: Deprecate and use radio manager thread for callback release. */
+/* TODO: Deprecate and use radio manager thread for callback release? */
 THD_FUNCTION(pktCompletion, arg) {
   packet_svc_t *handler = arg;
 #define PKT_COMPLETION_THREAD_TIMER 100 /* 100 mS. */
@@ -733,6 +749,13 @@ THD_FUNCTION(pktCompletion, arg) {
   chThdExit(MSG_OK);
 }
 
+/**
+ * @brief   Create receive callback thread terminator.
+ *
+ * @param[in] arg radio unit ID.
+ *
+ * @notapi
+ */
 void pktCallbackManagerOpen(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
@@ -758,7 +781,7 @@ void pktCallbackManagerOpen(radio_unit_t radio) {
 /*
  *
  */
-dyn_objects_fifo_t *pktBufferManagerCreate(radio_unit_t radio) {
+dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -778,9 +801,9 @@ dyn_objects_fifo_t *pktBufferManagerCreate(radio_unit_t radio) {
     /* Create the dynamic objects FIFO for the packet data queue. */
     dyn_fifo = chFactoryCreateObjectsFIFO(handler->pbuff_name,
         sizeof(pkt_data_object_t),
-        NUMBER_PKT_FIFOS, sizeof(msg_t));
+        NUMBER_RX_PKT_BUFFERS, sizeof(msg_t));
 
-    chDbgAssert(dyn_fifo != NULL, "failed to create PKT objects FIFO");
+    chDbgAssert(dyn_fifo != NULL, "failed to create receive PKT objects FIFO");
 
     if(dyn_fifo == NULL) {
       /* TODO: Close decoder on fail. */
@@ -788,7 +811,7 @@ dyn_objects_fifo_t *pktBufferManagerCreate(radio_unit_t radio) {
     }
   }
 
-  /* Save the factory FIFO. */
+  /* Save the factory FIFO reference. */
   handler->the_packet_fifo = dyn_fifo;
 
   /* Initialize packet buffer pointer. */
@@ -796,7 +819,171 @@ dyn_objects_fifo_t *pktBufferManagerCreate(radio_unit_t radio) {
   return dyn_fifo;
 }
 
+/*
+ * Send shares a common pool of buffers.
+ */
+dyn_objects_fifo_t *pktOutgoingBufferPoolCreate(radio_unit_t radio) {
 
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
+
+  /* Check if the transmit packet buffer factory already exists.
+   * If so we get a pointer to it and just return that.
+   * Otherwise create the FIFO and return result.
+   */
+  dyn_objects_fifo_t *dyn_fifo =
+      chFactoryFindObjectsFIFO(PKT_SEND_BUFFER_NAME);
+
+  if(dyn_fifo == NULL) {
+    /* Create the dynamic objects FIFO for the packet data queue. */
+    dyn_fifo = chFactoryCreateObjectsFIFO(PKT_SEND_BUFFER_NAME,
+        sizeof(packet_tx_t),
+        NUMBER_TX_PKT_BUFFERS, sizeof(msg_t));
+
+    chDbgAssert(dyn_fifo != NULL, "failed to create send PKT objects FIFO");
+  }
+  /* Save the factory FIFO reference. */
+  handler->tx_packet_fifo = dyn_fifo;
+  return dyn_fifo;
+}
+
+/*
+ * Send shares a common pool of buffers.
+ */
+void pktOutgoingBufferPoolRelease(radio_unit_t radio) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
+  chDbgAssert(handler->tx_packet_fifo != NULL, "no outgoing FIFO assigned");
+  /* Release FIFO. If this is the last radio using it the FIFO is released. */
+  chFactoryReleaseObjectsFIFO(handler->tx_packet_fifo);
+  handler->tx_packet_fifo = NULL;
+}
+
+/*
+ * Send shares a common pool of buffers.
+ */
+dyn_semaphore_t *pktOutgoingBufferSemaphoreCreate(radio_unit_t radio) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
+
+  /* Check if the transmit packet buffer semaphore already exists.
+   * If so we get a pointer to it and just return that.
+   * Otherwise create the semaphore and return result.
+   */
+  dyn_semaphore_t *dyn_sem =
+      chFactoryFindSemaphore(PKT_SEND_BUFFER_SEM_NAME);
+
+  if(dyn_sem == NULL) {
+    /* Create the dynamic objects FIFO for the packet data queue. */
+    dyn_sem = chFactoryCreateSemaphore(PKT_SEND_BUFFER_SEM_NAME,
+                                        NUMBER_TX_PKT_BUFFERS);
+
+    chDbgAssert(dyn_sem != NULL, "failed to create send PKT semaphore");
+  } else {
+    /* Increase buffer number by adjusting semaphore.
+     * TODO: Once bumped up the count can't be decreased if a radio is closed. */
+/*    chSysLock();
+    chSemAddCounterI(chFactoryGetSemaphore(dyn_sem), NUMBER_TX_PKT_BUFFERS);
+    chSchRescheduleS();
+    chSysUnlock();*/
+  }
+  handler->tx_packet_sem = dyn_sem;
+  return dyn_sem;
+}
+
+/*
+ * Send shares a common pool of buffers.
+ * @retval MSG_RESET    if the semaphore has been reset using @p chSemReset().
+ * @retval MSG_TIMEOUT  if the semaphore has not been signaled or reset within
+ *                      the specified timeout.
+ */
+msg_t pktGetOutgoingBuffer(packet_t *pp, sysinterval_t timeout) {
+
+  /* Check if the transmit packet buffer semaphore already exists.
+   * If so we get a pointer to it and just return that.
+   * Otherwise create the semaphore and return result.
+   */
+  dyn_semaphore_t *dyn_sem =
+      chFactoryFindSemaphore(PKT_SEND_BUFFER_SEM_NAME);
+
+  chDbgAssert(dyn_sem != NULL, "no send PKT semaphore");
+
+  *pp = NULL;
+
+  if(dyn_sem == NULL)
+    return MSG_TIMEOUT;
+
+  /* Decrease ref count. */
+  chFactoryReleaseSemaphore(dyn_sem);
+
+  /* Wait in queue for permission to allocate a buffer. */
+  msg_t msg = chSemWaitTimeout(chFactoryGetSemaphore(dyn_sem), timeout);
+  if(msg != MSG_OK)
+    /* This can be MSG_TIMEOUT or MSG_RESET. */
+    return msg;
+
+  /* Allocate buffer.
+   * If this returns null then all heap is consumed.
+   */
+  *pp = ax25_new();
+  if(pp == NULL)
+   return MSG_TIMEOUT;
+  return MSG_OK;
+}
+
+/*
+ * Send shares a common pool of buffers.
+ * @retval MSG_RESET    if the semaphore has been reset using @p chSemReset().
+ * @retval MSG_TIMEOUT  if the semaphore has not been signaled or reset within
+ *                      the specified timeout.
+ */
+void pktReleaseOutgoingBuffer(packet_t pp) {
+
+  /* Check if the transmit packet buffer semaphore already exists.
+   * If so we get a pointer to it and just return that.
+   * Otherwise create the semaphore and return result.
+   */
+  dyn_semaphore_t *dyn_sem =
+      chFactoryFindSemaphore(PKT_SEND_BUFFER_SEM_NAME);
+
+  chDbgAssert(dyn_sem != NULL, "no send PKT semaphore");
+
+  /* Free buffer memory. */
+  ax25_delete(pp);
+
+  /* Relinquish the buffer creation permission. */
+  chSemSignal(chFactoryGetSemaphore(dyn_sem));
+
+  /* Decrease factory ref count. */
+  chFactoryReleaseSemaphore(dyn_sem);
+}
+
+/*
+ * Send shares a common pool of buffers.
+ */
+void pktOutgoingBufferSemaphoreRelease(radio_unit_t radio) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
+  chDbgAssert(handler->tx_packet_fifo != NULL, "no outgoing FIFO assigned");
+
+  /*
+   *  Release Semaphore.
+   *  If this is the last radio using the semaphore it is released.
+   */
+  chFactoryReleaseSemaphore(handler->tx_packet_sem);
+  handler->tx_packet_sem = NULL;
+}
+
+/*
+ *
+ */
 thread_t *pktCallbackManagerCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
@@ -825,9 +1012,9 @@ thread_t *pktCallbackManagerCreate(radio_unit_t radio) {
   return cbh;
 }
 
-void pktBufferManagerRelease(packet_svc_t *handler) {
+void pktIncomingBufferPoolRelease(packet_svc_t *handler) {
 
-  /* Release the dynamic objects FIFO for the packet data queue. */
+  /* Release the dynamic objects FIFO for the incoming packet data queue. */
   chFactoryReleaseObjectsFIFO(handler->the_packet_fifo);
   handler->the_packet_fifo = NULL;
 }

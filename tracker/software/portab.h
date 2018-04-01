@@ -83,13 +83,16 @@
 #define ICU_COUNT_FREQUENCY         6000000U
 
 #define USE_12_BIT_PWM              FALSE
+#define USE_HEAP_PWM_BUFFER         FALSE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
-#define NUMBER_PWM_FIFOS            4U
+#define NUMBER_PWM_FIFOS            2U
 #define PWM_DATA_SLOTS              6000
 
-/* Number of frame output buffers. */
-#define NUMBER_PKT_FIFOS            2U
+/* Number of frame receive buffers. */
+#define NUMBER_RX_PKT_BUFFERS        2U
+/* Number of frame send buffers. */
+#define NUMBER_TX_PKT_BUFFERS        3U
 
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */

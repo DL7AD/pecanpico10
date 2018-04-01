@@ -114,7 +114,13 @@ typedef union {
 typedef struct {
   /* For safety keep clear - where pool stores its free link. */
   struct pool_header        link;
+  /* TODO: The next becomes a pointer to a buffer obtained from the heap. */
+#if USE_HEAP_PWM_BUFFER == TRUE
+  radio_pwm_buffer_t        *packed_buffer;
+#else
+  /* Allocate a buffer in the queue object. */
   radio_pwm_buffer_t        packed_buffer;
+#endif
   input_queue_t             radio_pwm_queue;
   binary_semaphore_t        sem;
   volatile eventflags_t     status;
@@ -126,7 +132,7 @@ typedef struct {
 
 /**
  * @brief   Convert ICU data to PWM data and pack into minimized buffer.
- * @note    This function deals with ICU data up to 12 bits.
+ * @note    This function deals with ICU data packed into 12 bits or 16 bits.
  *
  * @param[in] icup      pointer to ICU driver.
  * @param[in] dest      pointer to the object for PWM data.

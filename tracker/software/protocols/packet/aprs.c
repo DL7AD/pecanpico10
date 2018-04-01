@@ -52,9 +52,9 @@ const conf_command_t command_list[] = {
 	{TYPE_TIME, "pos_pri.cycle",                 sizeof(conf_sram.pos_pri.thread_conf.cycle),                 &conf_sram.pos_pri.thread_conf.cycle                },
 	{TYPE_INT,  "pos_pri.pwr",                   sizeof(conf_sram.pos_pri.radio_conf.pwr),                    &conf_sram.pos_pri.radio_conf.pwr                   },
 	{TYPE_INT,  "pos_pri.freq",                  sizeof(conf_sram.pos_pri.radio_conf.freq),                   &conf_sram.pos_pri.radio_conf.freq                  },
-    {TYPE_INT,  "pos_pri.step",                  sizeof(conf_sram.pos_pri.radio_conf.step),                   &conf_sram.pos_pri.radio_conf.step                  },	{TYPE_INT,  "pos_pri.mod",                   sizeof(conf_sram.pos_pri.radio_conf.mod),                    &conf_sram.pos_pri.radio_conf.mod                   },
-    {TYPE_INT,  "pos_pri.chan",                  sizeof(conf_sram.pos_pri.radio_conf.chan),                   &conf_sram.pos_pri.radio_conf.chan                  },	{TYPE_INT,  "pos_pri.preamble",              sizeof(conf_sram.pos_pri.radio_conf.preamble),               &conf_sram.pos_pri.radio_conf.preamble              },
-	{TYPE_INT,  "pos_pri.speed",                 sizeof(conf_sram.pos_pri.radio_conf.speed),                  &conf_sram.pos_pri.radio_conf.speed                 },
+    {TYPE_INT,  "pos_pri.mod",                   sizeof(conf_sram.pos_pri.radio_conf.mod),                    &conf_sram.pos_pri.radio_conf.mod                   },
+    {TYPE_INT,  "pos_pri.rssi",                  sizeof(conf_sram.pos_pri.radio_conf.rssi),                   &conf_sram.pos_pri.radio_conf.rssi                  },
+    {TYPE_INT,  "pos_pri.speed",                 sizeof(conf_sram.pos_pri.radio_conf.speed),                  &conf_sram.pos_pri.radio_conf.speed                 },
 	{TYPE_INT,  "pos_pri.redundantTx",           sizeof(conf_sram.pos_pri.radio_conf.redundantTx),            &conf_sram.pos_pri.radio_conf.redundantTx           },
 	{TYPE_STR,  "pos_pri.call",                  sizeof(conf_sram.pos_pri.call),                              &conf_sram.pos_pri.call                             },
 	{TYPE_STR,  "pos_pri.path",                  sizeof(conf_sram.pos_pri.path),                              &conf_sram.pos_pri.path                             },
@@ -70,10 +70,8 @@ const conf_command_t command_list[] = {
 	{TYPE_TIME, "pos_sec.cycle",                 sizeof(conf_sram.pos_sec.thread_conf.cycle),                 &conf_sram.pos_sec.thread_conf.cycle                },
 	{TYPE_INT,  "pos_sec.pwr",                   sizeof(conf_sram.pos_sec.radio_conf.pwr),                    &conf_sram.pos_sec.radio_conf.pwr                   },
 	{TYPE_INT,  "pos_sec.freq",                  sizeof(conf_sram.pos_sec.radio_conf.freq),                   &conf_sram.pos_sec.radio_conf.freq                  },
-    {TYPE_INT,  "pos_sec.step",                  sizeof(conf_sram.pos_sec.radio_conf.step),                   &conf_sram.pos_sec.radio_conf.step                  },
-    {TYPE_INT,  "pos_sec.chan",                  sizeof(conf_sram.pos_sec.radio_conf.chan),                   &conf_sram.pos_sec.radio_conf.chan                  },
 	{TYPE_INT,  "pos_sec.mod",                   sizeof(conf_sram.pos_sec.radio_conf.mod),                    &conf_sram.pos_sec.radio_conf.mod                   },
-	{TYPE_INT,  "pos_sec.preamble",              sizeof(conf_sram.pos_sec.radio_conf.preamble),               &conf_sram.pos_sec.radio_conf.preamble              },
+    {TYPE_INT,  "pos_sec.rssi",                  sizeof(conf_sram.pos_sec.radio_conf.rssi),                   &conf_sram.pos_sec.radio_conf.rssi                  },
 	{TYPE_INT,  "pos_sec.speed",                 sizeof(conf_sram.pos_sec.radio_conf.speed),                  &conf_sram.pos_sec.radio_conf.speed                 },
 	{TYPE_INT,  "pos_sec.redundantTx",           sizeof(conf_sram.pos_sec.radio_conf.redundantTx),            &conf_sram.pos_sec.radio_conf.redundantTx           },
 	{TYPE_STR,  "pos_sec.call",                  sizeof(conf_sram.pos_sec.call),                              &conf_sram.pos_sec.call                             },
@@ -90,10 +88,8 @@ const conf_command_t command_list[] = {
 	{TYPE_TIME, "img_pri.cycle",                 sizeof(conf_sram.img_pri.thread_conf.cycle),                 &conf_sram.img_pri.thread_conf.cycle                },
 	{TYPE_INT,  "img_pri.pwr",                   sizeof(conf_sram.img_pri.radio_conf.pwr),                    &conf_sram.img_pri.radio_conf.pwr                   },
     {TYPE_INT,  "img_pri.freq",                  sizeof(conf_sram.img_pri.radio_conf.freq),                   &conf_sram.img_pri.radio_conf.freq                  },
-    {TYPE_INT,  "img_pri.step",                  sizeof(conf_sram.img_pri.radio_conf.step),                   &conf_sram.img_pri.radio_conf.step                  },
-    {TYPE_INT,  "img_pri.chan",                  sizeof(conf_sram.img_pri.radio_conf.chan),                   &conf_sram.img_pri.radio_conf.chan                  },
 	{TYPE_INT,  "img_pri.mod",                   sizeof(conf_sram.img_pri.radio_conf.mod),                    &conf_sram.img_pri.radio_conf.mod                   },
-	{TYPE_INT,  "img_pri.preamble",              sizeof(conf_sram.img_pri.radio_conf.preamble),               &conf_sram.img_pri.radio_conf.preamble              },
+    {TYPE_INT,  "img_pri.rssi",                  sizeof(conf_sram.img_pri.radio_conf.rssi),                   &conf_sram.img_pri.radio_conf.rssi                  },
 	{TYPE_INT,  "img_pri.speed",                 sizeof(conf_sram.img_pri.radio_conf.speed),                  &conf_sram.img_pri.radio_conf.speed                 },
 	{TYPE_INT,  "img_pri.redundantTx",           sizeof(conf_sram.img_pri.radio_conf.redundantTx),            &conf_sram.img_pri.radio_conf.redundantTx           },
 	{TYPE_STR,  "img_pri.call",                  sizeof(conf_sram.img_pri.call),                              &conf_sram.img_pri.call                             },
@@ -111,10 +107,8 @@ const conf_command_t command_list[] = {
 	{TYPE_TIME, "img_sec.cycle",                 sizeof(conf_sram.img_sec.thread_conf.cycle),                 &conf_sram.img_sec.thread_conf.cycle                },
 	{TYPE_INT,  "img_sec.pwr",                   sizeof(conf_sram.img_sec.radio_conf.pwr),                    &conf_sram.img_sec.radio_conf.pwr                   },
 	{TYPE_INT,  "img_sec.freq",                  sizeof(conf_sram.img_sec.radio_conf.freq),                   &conf_sram.img_sec.radio_conf.freq                  },
-    {TYPE_INT,  "img_sec.step",                  sizeof(conf_sram.img_sec.radio_conf.step),                   &conf_sram.img_sec.radio_conf.step                  },
-    {TYPE_INT,  "img_sec.chan",                  sizeof(conf_sram.img_sec.radio_conf.chan),                   &conf_sram.img_sec.radio_conf.chan                  },
 	{TYPE_INT,  "img_sec.mod",                   sizeof(conf_sram.img_sec.radio_conf.mod),                    &conf_sram.img_sec.radio_conf.mod                   },
-	{TYPE_INT,  "img_sec.preamble",              sizeof(conf_sram.img_sec.radio_conf.preamble),               &conf_sram.img_sec.radio_conf.preamble              },
+    {TYPE_INT,  "img_sec.rssi",                  sizeof(conf_sram.img_sec.radio_conf.rssi),                   &conf_sram.img_sec.radio_conf.rssi                  },
 	{TYPE_INT,  "img_sec.speed",                 sizeof(conf_sram.img_sec.radio_conf.speed),                  &conf_sram.img_sec.radio_conf.speed                 },
 	{TYPE_INT,  "img_sec.redundantTx",           sizeof(conf_sram.img_sec.radio_conf.redundantTx),            &conf_sram.img_sec.radio_conf.redundantTx           },
 	{TYPE_STR,  "img_sec.call",                  sizeof(conf_sram.img_sec.call),                              &conf_sram.img_sec.call                             },
@@ -132,10 +126,8 @@ const conf_command_t command_list[] = {
 	{TYPE_TIME, "log.cycle",                     sizeof(conf_sram.log.thread_conf.cycle),                     &conf_sram.log.thread_conf.cycle                    },
 	{TYPE_INT,  "log.pwr",                       sizeof(conf_sram.log.radio_conf.pwr),                        &conf_sram.log.radio_conf.pwr                       },
 	{TYPE_INT,  "log.freq",                      sizeof(conf_sram.log.radio_conf.freq),                       &conf_sram.log.radio_conf.freq                      },
-    {TYPE_INT,  "log.step",                      sizeof(conf_sram.log.radio_conf.step),                       &conf_sram.log.radio_conf.step                      },
-    {TYPE_INT,  "log.chan",                      sizeof(conf_sram.log.radio_conf.chan),                       &conf_sram.log.radio_conf.chan                      },
 	{TYPE_INT,  "log.mod",                       sizeof(conf_sram.log.radio_conf.mod),                        &conf_sram.log.radio_conf.mod                       },
-	{TYPE_INT,  "log.preamble",                  sizeof(conf_sram.log.radio_conf.preamble),                   &conf_sram.log.radio_conf.preamble                  },
+    {TYPE_INT,  "log.rssi",                      sizeof(conf_sram.log.radio_conf.rssi),                       &conf_sram.log.radio_conf.rssi                      },
 	{TYPE_INT,  "log.speed",                     sizeof(conf_sram.log.radio_conf.speed),                      &conf_sram.log.radio_conf.speed                     },
 	{TYPE_INT,  "log.redundantTx",               sizeof(conf_sram.log.radio_conf.redundantTx),                &conf_sram.log.radio_conf.redundantTx               },
 	{TYPE_STR,  "log.call",                      sizeof(conf_sram.log.call),                                  &conf_sram.log.call                                 },
@@ -149,20 +141,21 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "rx.sleep_conf.vbat_thres",      sizeof(conf_sram.rx.thread_conf.sleep_conf.vbat_thres),      &conf_sram.rx.thread_conf.sleep_conf.vbat_thres     },
 	{TYPE_INT,  "rx.sleep_conf.vsol_thres",      sizeof(conf_sram.rx.thread_conf.sleep_conf.vsol_thres),      &conf_sram.rx.thread_conf.sleep_conf.vsol_thres     },
 	{TYPE_TIME, "rx.cycle",                      sizeof(conf_sram.rx.thread_conf.cycle),                      &conf_sram.rx.thread_conf.cycle                     },
-	{TYPE_INT,  "rx.pwr",                        sizeof(conf_sram.rx.radio_conf.pwr),                         &conf_sram.rx.radio_conf.pwr                        },
-	{TYPE_INT,  "rx.freq",                       sizeof(conf_sram.rx.radio_conf.freq),                        &conf_sram.rx.radio_conf.freq                       },
-    {TYPE_INT,  "rx.step",                       sizeof(conf_sram.rx.radio_conf.step),                        &conf_sram.rx.radio_conf.step                       },
-    {TYPE_INT,  "rx.chan",                       sizeof(conf_sram.rx.radio_conf.chan),                        &conf_sram.rx.radio_conf.chan                       },
-	{TYPE_INT,  "rx.mod",                        sizeof(conf_sram.rx.radio_conf.mod),                         &conf_sram.rx.radio_conf.mod                        },
-	{TYPE_INT,  "rx.preamble",                   sizeof(conf_sram.rx.radio_conf.preamble),                    &conf_sram.rx.radio_conf.preamble                   },
-	{TYPE_INT,  "rx.speed",                      sizeof(conf_sram.rx.radio_conf.speed),                       &conf_sram.rx.radio_conf.speed                      },
-	{TYPE_INT,  "rx.redundantTx",                sizeof(conf_sram.rx.radio_conf.redundantTx),                 &conf_sram.rx.radio_conf.redundantTx                },
-	{TYPE_STR,  "rx.call",                       sizeof(conf_sram.rx.call),                                   &conf_sram.rx.call                                  },
-	{TYPE_STR,  "rx.path",                       sizeof(conf_sram.rx.path),                                   &conf_sram.rx.path                                  },
-	{TYPE_INT,  "rx.symbol",                     sizeof(conf_sram.rx.symbol),                                 &conf_sram.rx.symbol                                },
 
-	{TYPE_INT,  "rssi",                          sizeof(conf_sram.rssi),                                      &conf_sram.rssi                                     },
-	{TYPE_INT,  "dig_active",                    sizeof(conf_sram.dig_active),                                &conf_sram.dig_active                               },
+	{TYPE_INT,  "rx.freq",                       sizeof(conf_sram.rx.radio_conf.freq),                        &conf_sram.rx.radio_conf.freq                       },
+	{TYPE_INT,  "rx.mod",                        sizeof(conf_sram.rx.radio_conf.mod),                         &conf_sram.rx.radio_conf.mod                        },
+	{TYPE_INT,  "rx.speed",                      sizeof(conf_sram.tx.radio_conf.speed),                       &conf_sram.tx.radio_conf.speed                      },
+    {TYPE_INT,  "rx.active",                     sizeof(conf_sram.rx.thread_conf.active),                     &conf_sram.rx.thread_conf.active                    },
+    {TYPE_STR,  "rx.call",                       sizeof(conf_sram.rx.call),                                   &conf_sram.rx.call                                  },
+
+	{TYPE_INT,  "tx.freq",                       sizeof(conf_sram.tx.radio_conf.freq),                        &conf_sram.rx.radio_conf.freq                       },
+    {TYPE_INT,  "tx.pwr",                        sizeof(conf_sram.tx.radio_conf.pwr),                         &conf_sram.tx.radio_conf.pwr                        },
+    {TYPE_INT,  "tx.mod",                        sizeof(conf_sram.tx.radio_conf.mod),                         &conf_sram.tx.radio_conf.mod                        },
+	{TYPE_INT,  "tx.rssi",                       sizeof(conf_sram.tx.rssi),                                   &conf_sram.tx.rssi                                  },
+    {TYPE_STR,  "tx.call",                       sizeof(conf_sram.tx.call),                                   &conf_sram.tx.call                                  },
+    {TYPE_STR,  "tx.path",                       sizeof(conf_sram.tx.path),                                   &conf_sram.tx.path                                  },
+    {TYPE_INT,  "tx.symbol",                     sizeof(conf_sram.tx.symbol),                                 &conf_sram.tx.symbol                                },
+    {TYPE_INT,  "tx.dig_active",                 sizeof(conf_sram.tx.dig_active),                             &conf_sram.tx.dig_active                            },
 	{TYPE_INT,  "keep_cam_switched_on",          sizeof(conf_sram.keep_cam_switched_on),                      &conf_sram.keep_cam_switched_on                     },
 	{TYPE_INT,  "gps_on_vbat",                   sizeof(conf_sram.gps_on_vbat),                               &conf_sram.gps_on_vbat                              },
 	{TYPE_INT,  "gps_off_vbat",                  sizeof(conf_sram.gps_off_vbat),                              &conf_sram.gps_off_vbat                             },
@@ -389,49 +382,52 @@ static bool aprs_decode_message(packet_t pp)
 
 			TRACE_INFO("RX   > Message: Position query");
 			dataPoint_t* dataPoint = getLastDataPoint();
-			packet_t pp = aprs_encode_position(conf_sram.rx.call, conf_sram.rx.path, conf_sram.rx.symbol, dataPoint);
+			packet_t pp = aprs_encode_position(conf_sram.tx.call, conf_sram.tx.path, conf_sram.tx.symbol, dataPoint);
             if(pp == NULL) {
               TRACE_WARN("RX   > No free packet objects");
               return false;
             }
             transmitOnRadio(pp,
-                            conf_sram.rx.radio_conf.freq,
-                            conf_sram.rx.radio_conf.step,
-                            conf_sram.rx.radio_conf.chan,
-                            conf_sram.rx.radio_conf.pwr,
-                            conf_sram.rx.radio_conf.mod);
+                            conf_sram.tx.radio_conf.freq,
+                            0,
+                            0,
+                            conf_sram.tx.radio_conf.pwr,
+                            conf_sram.tx.radio_conf.mod,
+                            conf_sram.tx.radio_conf.rssi);
 
 		} else if(!strcmp(command, "?aprsd")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: Directs query");
-			packet_t pp = aprs_encode_query_answer_aprsd(conf_sram.rx.call, conf_sram.rx.path, src);
+			packet_t pp = aprs_encode_query_answer_aprsd(conf_sram.tx.call, conf_sram.tx.path, src);
             if(pp == NULL) {
               TRACE_WARN("RX   > No free packet objects");
               return false;
             }
             transmitOnRadio(pp,
-                            conf_sram.rx.radio_conf.freq,
-                            conf_sram.rx.radio_conf.step,
-                            conf_sram.rx.radio_conf.chan,
-                            conf_sram.rx.radio_conf.pwr,
-                            conf_sram.rx.radio_conf.mod);
+                            conf_sram.tx.radio_conf.freq,
+                            0,
+                            0,
+                            conf_sram.tx.radio_conf.pwr,
+                            conf_sram.tx.radio_conf.mod,
+                            conf_sram.tx.radio_conf.rssi);
 
 		} else if(!strcmp(command, "?reset")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: System Reset");
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
-			packet_t pp = aprs_encode_message(conf_sram.rx.call, conf_sram.rx.path, src, buf, true);
+			packet_t pp = aprs_encode_message(conf_sram.tx.call, conf_sram.tx.path, src, buf, true);
             if(pp == NULL) {
               TRACE_WARN("RX   > No free packet objects");
               return false;
             }
             transmitOnRadio(pp,
-                            conf_sram.rx.radio_conf.freq,
-                            conf_sram.rx.radio_conf.step,
-                            conf_sram.rx.radio_conf.chan,
-                            conf_sram.rx.radio_conf.pwr,
-                            conf_sram.rx.radio_conf.mod);
+                            conf_sram.tx.radio_conf.freq,
+                            0,
+                            0,
+                            conf_sram.tx.radio_conf.pwr,
+                            conf_sram.tx.radio_conf.mod,
+                            conf_sram.tx.radio_conf.rssi);
 			chThdSleep(TIME_S2I(5)); // Give some time to send the message
 
 			NVIC_SystemReset();
@@ -508,17 +504,18 @@ static bool aprs_decode_message(packet_t pp)
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
             /* FIXME: Calls getting packet_t need to check for NULL result. */
-			packet_t pp = aprs_encode_message(conf_sram.rx.call, conf_sram.rx.path, src, buf, true);
+			packet_t pp = aprs_encode_message(conf_sram.tx.call, conf_sram.tx.path, src, buf, true);
             if(pp == NULL) {
               TRACE_WARN("RX   > No free packet objects");
               return false;
             }
             transmitOnRadio(pp,
-                            conf_sram.rx.radio_conf.freq,
-                            conf_sram.rx.radio_conf.step,
-                            conf_sram.rx.radio_conf.chan,
-                            conf_sram.rx.radio_conf.pwr,
-                            conf_sram.rx.radio_conf.mod);
+                            conf_sram.tx.radio_conf.freq,
+                            0,
+                            0,
+                            conf_sram.tx.radio_conf.pwr,
+                            conf_sram.tx.radio_conf.mod,
+                            conf_sram.tx.radio_conf.rssi);
 		}
 
 		return false; // Mark that message dont has to be digipeated
@@ -535,16 +532,16 @@ static void aprs_digipeat(packet_t pp)
 	}
 
 	if(!dedupe_check(pp, 0)) { // Last identical packet older than 10 seconds
-        /* FIXME: Calls getting packet_t need to check for NULL result. */
-		packet_t result = digipeat_match(0, pp, conf_sram.rx.call, conf_sram.rx.call, alias_re, wide_re, 0, preempt, NULL);
+		packet_t result = digipeat_match(0, pp, conf_sram.rx.call, conf_sram.tx.call, alias_re, wide_re, 0, preempt, NULL);
 		if(result != NULL) { // Should be digipeated
 			dedupe_remember(result, 0);
 			transmitOnRadio(result,
-			                conf_sram.rx.radio_conf.freq,
-                            conf_sram.rx.radio_conf.step,
-                            conf_sram.rx.radio_conf.chan,
-                            conf_sram.rx.radio_conf.pwr,
-                            conf_sram.rx.radio_conf.mod);
+			                conf_sram.tx.radio_conf.freq,
+		                    0,
+		                    0,
+                            conf_sram.tx.radio_conf.pwr,
+                            conf_sram.tx.radio_conf.mod,
+                            conf_sram.tx.radio_conf.rssi);
 		}
 	}
 }
@@ -606,7 +603,7 @@ void aprs_decode_packet(packet_t pp)
 	if(pinfo[0] == ':') digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
 
 	// Digipeat packet
-	if(conf_sram.dig_active && digipeat) {
+	if(conf_sram.tx.dig_active && digipeat) {
 		aprs_digipeat(pp);
 	}
 }

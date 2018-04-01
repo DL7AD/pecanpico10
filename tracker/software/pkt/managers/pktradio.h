@@ -103,7 +103,7 @@ extern "C" {
                           radio_task_cb_t cb);
   void pktScheduleThreadRelease(radio_unit_t radio,
                                 thread_t *thread);
-  msg_t pktAcquireRadio(radio_unit_t radio);
+  msg_t pktAcquireRadio(radio_unit_t radio, sysinterval_t timeout);
   void pktReleaseRadio(radio_unit_t radio);
   radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
                                             channel_hz_t step,

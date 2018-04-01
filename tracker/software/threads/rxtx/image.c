@@ -331,11 +331,12 @@ static bool transmit_image_packet(const uint8_t *image, uint32_t image_len, thd_
               return false;
             }
             if(!transmitOnRadio(packet,
-                            conf->radio_conf.freq,
-                            conf->radio_conf.step,
-                            conf->radio_conf.chan,
-                            conf->radio_conf.pwr,
-                            conf->radio_conf.mod)) {
+                                conf->radio_conf.freq,
+                                0,
+                                0,
+                                conf->radio_conf.pwr,
+                                conf->radio_conf.mod,
+                                conf->radio_conf.rssi)) {
 
               TRACE_ERROR("IMG  > Unable to send image packet TX on radio");
               return false;
@@ -378,10 +379,11 @@ static bool transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
             }
             if(!transmitOnRadio(packet,
                             conf->radio_conf.freq,
-                            conf->radio_conf.step,
-                            conf->radio_conf.chan,
+                            0,
+                            0,
                             conf->radio_conf.pwr,
-                            conf->radio_conf.mod)) {
+                            conf->radio_conf.mod,
+                            conf->radio_conf.rssi)) {
               TRACE_ERROR("IMG  > Unable to send redundant TX on radio");
               return false;
             }
@@ -424,10 +426,11 @@ static bool transmit_image_packets(const uint8_t *image, uint32_t image_len, thd
         }
         if(!transmitOnRadio(packet,
                         conf->radio_conf.freq,
-                        conf->radio_conf.step,
-                        conf->radio_conf.chan,
+                        0,
+                        0,
                         conf->radio_conf.pwr,
-                        conf->radio_conf.mod)) {
+                        conf->radio_conf.mod,
+                        conf->radio_conf.rssi)) {
           TRACE_ERROR("IMG  > Unable to send normal TX on radio");
           return false;
         }

@@ -92,7 +92,7 @@
 
 #define EVT_RADIO_CCA_SPIKE     EVENT_MASK(EVT_PRIORITY_BASE + 28)
 #define EVT_PKT_BUFFER_MGR_FAIL EVENT_MASK(EVT_PRIORITY_BASE + 29)
-#define EVT_ICU_OUT_OF_RANGE    EVENT_MASK(EVT_PRIORITY_BASE + 30)
+#define EVT_PWM_BUFFER_FAIL     EVENT_MASK(EVT_PRIORITY_BASE + 30)
 #define EVT_PKT_CBK_MGR_FAIL    EVENT_MASK(EVT_PRIORITY_BASE + 31)
 
 
@@ -376,7 +376,11 @@ static inline msg_t pktSendRadioCommand(radio_unit_t radio,
  */
 static inline void pktReleaseSendObject(packet_t pp) {
 #if USE_SPI_ATTACHED_RADIO == TRUE
-  ax25_delete(pp);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(pp);
+#else
+      ax25_delete (this_p);
+#endif
 #else
   (void)pp;
 #endif
