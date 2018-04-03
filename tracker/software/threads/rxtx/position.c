@@ -56,7 +56,9 @@ THD_FUNCTION(posThread, arg)
 			chThdSleep(TIME_S2I(5));
 
 			// Encode/Transmit APRSD packet
-			packet_t pp = aprs_encode_query_answer_aprsd(conf->call, conf->path, conf->call);
+			packet_t pp = aprs_encode_query_answer_aprsd(conf_sram.aprs.tx.call,
+			                                             conf_sram.aprs.tx.path,
+			                                             conf->call);
             if(packet == NULL) {
               TRACE_WARN("POS  > No free packet objects for APRSD transmission");
             } else {
