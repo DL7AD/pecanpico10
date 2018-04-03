@@ -104,10 +104,9 @@ void pktDiagnosticOutput(packet_svc_t *packetHandler,
   /* Packet buffer. */
   ax25char_t *frame_buffer = myPktFIFO->buffer;
   uint16_t frame_size = myPktFIFO->packet_size;
-  eventmask_t the_events;
 
   if(pktIsBufferValidAX25Frame(myPktFIFO)) {
-      the_events = EVT_DIAG_OUT_END | EVT_PKT_OUT_END;
+
       uint16_t magicCRC = calc_crc16(frame_buffer, 0, frame_size);
 
       float32_t good = (float32_t)packetHandler->good_count
@@ -133,27 +132,12 @@ void pktDiagnosticOutput(packet_svc_t *packetHandler,
       /* Dump the frame contents out. */
       pktDumpAX25Frame(frame_buffer, frame_size, AX25_DUMP_RAW);
   } else { /* End if valid frame. */
-    the_events = EVT_DIAG_OUT_END;
     serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
                         "Invalid frame, status %x, bytes %u\r\n",
                         myPktFIFO->status, myPktFIFO->packet_size);
     dbgWrite(DBG_INFO, (uint8_t *)serial_buf, serial_out);
   }
 
-#if SUSPEND_HANDLING == RELEASE_ON_OUTPUT
-  /*
-  *  Wait for end of transmission on diagnostic channel.
-  */
-  eventmask_t evt = chEvtWaitAllTimeout(the_events, TIME_S2I(10));
-  if (!evt) {
-  serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
-             "FAIL: Timeout waiting for EOT from serial channels\r\n");
-  dbgWrite(DBG_INFO, (uint8_t *)serial_buf, serial_out);
-  }
-  chEvtSignal(the_decoder, DEC_SUSPEND_EXIT);
-#else
-  (void)the_events;
-#endif
   chBSemSignal(&callback_sem);
 }
 

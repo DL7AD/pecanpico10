@@ -234,7 +234,7 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
  * @brief   Opens the PWM stream from the ICU.
  * @post    The ICU notification (callback) is enabled.
  * @post    If an error occurs the PWM is not started and state is unchanged.
- * @post    If the queue is full the yellow LED is lit.
+ * @post    If the FIFO is empty the "no FIFO object" LED is lit.
  * @post    If no error occurs the timers associated with PWM are started.
  * @post    The seized FIFO is sent via the queue mailbox.
  * @post    The ICU state is set to active.
@@ -255,7 +255,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   //pktWriteOverflowLED(PAL_LOW);
 
   if(myDemod->active_radio_object != NULL) {
-    /* TODO: Work out correct handling.
+    /* TODO: Work out correct handling. We should not have an open channel.
      * Shouldn't happen unless CCA has not triggered an EXTI trailing edge.
      * For now just flag that an error condition happened.
      */
@@ -526,7 +526,7 @@ void pktRadioCCAInput(ICUDriver *myICU) {
       /* Else this is a leading edge of CCA for a new packet. */
       /* De-glitch for 16 AFSK bit times. */
       chVTSetI(&myICU->cca_timer,
-               TIME_MS2I(14),
+               TIME_US2I(833 * 16),
                (vtfunc_t)pktRadioCCALeadTimer, myICU);
       break;
     }

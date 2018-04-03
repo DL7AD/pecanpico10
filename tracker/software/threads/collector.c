@@ -327,7 +327,7 @@ void init_data_collector(void)
 		threadStarted = true;
 
 		TRACE_INFO("COLL > Startup data collector thread");
-		thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(2*1024), "TRA", NORMALPRIO+1, collectorThread, NULL);
+		thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(2*1024), "TRA", LOWPRIO, collectorThread, NULL);
 		if(!th) {
 			// Print startup error, do not start watchdog for this thread
 			TRACE_ERROR("COLL > Could not startup thread (not enough memory available)");

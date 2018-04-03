@@ -11,13 +11,13 @@ const conf_t conf_flash_default = {
 	// Primary position transmission thread
 	.pos_pri = {
 		.thread_conf = {
-			.active			= false,
+			.active			= true,
 			.cycle			= TIME_S2I(300),
 			.init_delay		= TIME_S2I(5)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
-			.freq			= 144175000,
+			.freq			= 145175000,
 			.mod			= MOD_AFSK,
             .rssi           = 0x4F,
 		},
@@ -53,9 +53,9 @@ const conf_t conf_flash_default = {
 	.img_pri = {
 		.thread_conf = {
 			.active			= true,
-			.cycle			= CYCLE_CONTINUOUSLY,
+			.cycle			= TIME_S2I(1800),
 			.init_delay		= TIME_S2I(20),
-			.packet_spacing	= TIME_S2I(0)
+			.packet_spacing	= TIME_S2I(1)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -112,30 +112,36 @@ const conf_t conf_flash_default = {
 		.path				= "WIDE1-1",
 		.density			= 10
 	},
-	.rx = {
-		.thread_conf = {
-			.active			= true
-		},
-		.radio_conf = {
-			.freq			= 145175000,
-			.mod			= MOD_AFSK,
-		    .rssi           = 0x3F
-		},
-        .call               = "VK2GJ-4",
-	},
-	.tx = {
-	    .radio_conf = {
-	               .freq    = 145175000,
-	               .pwr     = 0x7F,
-	               .mod     = MOD_AFSK,
-	               .rssi    = 0x4F
-        },
-          .call             = "VK2GJ-4",
-          .path             = "WIDE2-1",
-          .symbol           = SYM_DIGIPEATER,
-          .dig_active       = true
+
+	// APRS system control
+	.aprs = {
+      .thread_conf = {
+          .active       = true,
+          .init_delay   = TIME_S2I(20)
+      },
+      .rx = {
+          .radio_conf = {
+              .freq			= 145175000,
+              .mod			= MOD_AFSK,
+              .rssi         = 0x3F
+          },
+           .call            = "VK2GJ-4",
+      },
+      .tx = {
+          .radio_conf = {
+                   .freq    = FREQ_APRS_RECEIVE,
+                   .pwr     = 0x7F,
+                   .mod     = MOD_AFSK,
+                   .rssi    = 0x4F
+          },
+            .call           = "VK2GJ-5",
+            .path           = "WIDE2-1",
+            .symbol         = SYM_DIGIPEATER,
+      },
+      .dig_active           = true
 	},
 
+	// Power control
 	.keep_cam_switched_on	= false,
 	.gps_on_vbat			= 1000,
 	.gps_off_vbat			= 1000,

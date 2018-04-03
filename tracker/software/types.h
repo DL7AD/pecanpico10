@@ -4,10 +4,10 @@
 #include "ch.h"
 #include "ax25_pad.h"
 
-#define FREQ_APRS_DYNAMIC	0
-#define FREQ_APRS_SCAN      1
-#define FREQ_APRS_RECEIVE   2
-#define FREQ_CC_RECEIVE     3
+#define FREQ_APRS_DYNAMIC	0 /* Geofencing frequency (144.8 default). */
+#define FREQ_APRS_SCAN      1 /* Frequency last found in RX scan. - TBI */
+#define FREQ_APRS_RECEIVE   2 /* Active RX frequency - fall back to DYNAMIC. */
+#define FREQ_CMDC_RECEIVE   3 /* Frequency used for command and control. TBI */
 
 #define CYCLE_CONTINUOUSLY	0
 
@@ -71,6 +71,7 @@ typedef struct {
 	sysinterval_t		packet_spacing;
 	sleep_conf_t		sleep_conf;
 	sysinterval_t		cycle;				// Cycle time (0: continously)
+	sysinterval_t       duration;
 } thread_conf_t; // Thread
 
 typedef struct {
@@ -109,15 +110,13 @@ typedef struct {
 	uint8_t density;						// Density of log points being sent out in 1/x (value 10 => 10%)
 } thd_log_conf_t;
 
+
+
 typedef struct {
 	radio_rx_conf_t radio_conf;
-	thread_conf_t thread_conf;
 
 	// Protocol
 	char call[AX25_MAX_ADDR_LEN];
-	//char path[16];
-	//uint16_t symbol;
-    //uint8_t         rssi;                   // Squelch for reception
 } thd_rx_conf_t;
 
 typedef struct {
@@ -125,12 +124,20 @@ typedef struct {
     //thread_conf_t thread_conf;
 
     // Protocol
-    char call[AX25_MAX_ADDR_LEN];
-    char path[16];
-    uint16_t symbol;
+    char            call[AX25_MAX_ADDR_LEN];
+    char            path[16];
+    uint16_t        symbol;
     uint8_t         rssi;                   // Squelch for CCA check
-    bool            dig_active;             // Digipeater active flag
+
 } thd_tx_conf_t;
+
+/* APRS configuration. */
+typedef struct {
+  thread_conf_t thread_conf;
+    thd_rx_conf_t rx;
+    thd_tx_conf_t tx;
+    bool            dig_active;             // Digipeater active flag
+} thd_aprs_conf_t;
 
 typedef struct {
 	thd_pos_conf_t	pos_pri;				// Primary position thread configuration
@@ -140,8 +147,9 @@ typedef struct {
 	thd_img_conf_t	img_sec;				// Secondary image thread configuration
 
 	thd_log_conf_t	log;					// Log transmission configuration
-	thd_rx_conf_t	rx;						// Receiver configuration
-	thd_tx_conf_t   tx;                     // Transmitter configuration
+	thd_aprs_conf_t aprs;
+	//thd_rx_conf_t	rx;						// Receiver configuration
+	//thd_tx_conf_t   tx;                     // Transmitter configuration
 
 	bool			keep_cam_switched_on;	// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time
 

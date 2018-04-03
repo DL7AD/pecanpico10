@@ -8,7 +8,7 @@
 												 * 3V, because USB would not work at 1.8V. Note that the transmission power is increased
 												 * too when operating at 3V. This option will also run the STM32 at 48MHz (AHB) permanently
 												 * because USB needs that speed, otherwise it is running at 6MHz which saves a lot of power. */
-#define ENABLE_EXTERNAL_I2C         TRUE       /* The external port can be used for bit bang I2C. */
+#define ENABLE_EXTERNAL_I2C         FALSE       /* The external port can be used for bit bang I2C. */
 
 #include "types.h"
 

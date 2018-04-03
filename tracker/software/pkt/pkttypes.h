@@ -9,7 +9,7 @@
 /**
  * @file    pkttypes.h
  * @brief   Types definitions.
- * @details Include this file in each source code module.
+ * @details Include this file as required in a source code module.
  *
  * @addtogroup pktconfig
  * @details Decoder type definitions.
