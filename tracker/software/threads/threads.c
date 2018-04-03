@@ -49,11 +49,13 @@ void start_user_threads(void)
 
 	if(conf_sram.log.thread_conf.active) start_logging_thread(&conf_sram.log);
 
-	if(conf_sram.rx.thread_conf.active)
-	  start_rx_thread(PKT_RADIO_1,
-	                  conf_sram.rx.radio_conf.freq,
+	if(conf_sram.aprs.thread_conf.active) {
+	  chThdSleep(conf_sram.aprs.thread_conf.init_delay);
+	  start_aprs_threads(PKT_RADIO_1,
+	                  conf_sram.aprs.rx.radio_conf.freq,
 	                  0,
 	                  0,
-	                  conf_sram.rx.radio_conf.rssi);
+	                  conf_sram.aprs.rx.radio_conf.rssi);
+	}
 }
 

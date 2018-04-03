@@ -84,6 +84,7 @@ bool pktServiceCreate(radio_unit_t radio) {
 /*  if(pktOutgoingBufferPoolCreate(radio) == NULL)
     return false;*/
 
+#if   USE_NEW_PKT_TX_ALLOC == TRUE
   /*
    * Create outgoing buffer sempahore if it does not already exist.
    * If it does exist the ref count is increased.
@@ -91,7 +92,7 @@ bool pktServiceCreate(radio_unit_t radio) {
    */
   if(pktOutgoingBufferSemaphoreCreate(radio) == NULL)
     return false;
-
+#endif
   /* Send request to create radio manager. */
   if (pktRadioManagerCreate(radio) == NULL)
     return false;
@@ -123,7 +124,9 @@ bool pktServiceRelease(radio_unit_t radio) {
 
   if(handler->state != PACKET_READY)
     return false;
+#if   USE_NEW_PKT_TX_ALLOC == TRUE
   pktOutgoingBufferSemaphoreRelease(radio);
+#endif
   pktRadioManagerRelease(radio);
   handler->state = PACKET_IDLE;
   return true;

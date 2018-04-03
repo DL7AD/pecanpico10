@@ -134,28 +134,28 @@ const conf_command_t command_list[] = {
 	{TYPE_STR,  "log.path",                      sizeof(conf_sram.log.path),                                  &conf_sram.log.path                                 },
 	{TYPE_INT,  "log.density",                   sizeof(conf_sram.log.density),                               &conf_sram.log.density                              },
 
-	{TYPE_INT,  "rx.active",                     sizeof(conf_sram.rx.thread_conf.active),                     &conf_sram.rx.thread_conf.active                    },
-	{TYPE_TIME, "rx.init_delay",                 sizeof(conf_sram.rx.thread_conf.init_delay),                 &conf_sram.rx.thread_conf.init_delay                },
-	{TYPE_TIME, "rx.packet_spacing",             sizeof(conf_sram.rx.thread_conf.packet_spacing),             &conf_sram.rx.thread_conf.packet_spacing            },
-	{TYPE_INT,  "rx.sleep_conf.type",            sizeof(conf_sram.rx.thread_conf.sleep_conf.type),            &conf_sram.rx.thread_conf.sleep_conf.type           },
-	{TYPE_INT,  "rx.sleep_conf.vbat_thres",      sizeof(conf_sram.rx.thread_conf.sleep_conf.vbat_thres),      &conf_sram.rx.thread_conf.sleep_conf.vbat_thres     },
-	{TYPE_INT,  "rx.sleep_conf.vsol_thres",      sizeof(conf_sram.rx.thread_conf.sleep_conf.vsol_thres),      &conf_sram.rx.thread_conf.sleep_conf.vsol_thres     },
-	{TYPE_TIME, "rx.cycle",                      sizeof(conf_sram.rx.thread_conf.cycle),                      &conf_sram.rx.thread_conf.cycle                     },
+	{TYPE_INT,  "aprs.active",                   sizeof(conf_sram.aprs.thread_conf.active),                   &conf_sram.aprs.thread_conf.active                  },
+	{TYPE_TIME, "aprs.init_delay",               sizeof(conf_sram.aprs.thread_conf.init_delay),               &conf_sram.aprs.thread_conf.init_delay              },
+	/*
+	{TYPE_TIME, "aprs.packet_spacing",           sizeof(conf_sram.aprs.rx.thread_conf.packet_spacing),        &conf_sram.aprs.rx.thread_conf.packet_spacing       },
+	{TYPE_INT,  "aprs.sleep_conf.type",          sizeof(conf_sram.aprs.rx.thread_conf.sleep_conf.type),       &conf_sram.aprs.rx.thread_conf.sleep_conf.type      },
+	{TYPE_INT,  "aprs.sleep_conf.vbat_thres",    sizeof(conf_sram.aprs.rx.thread_conf.sleep_conf.vbat_thres), &conf_sram.aprs.rx.thread_conf.sleep_conf.vbat_thres},
+	{TYPE_INT,  "aprs.sleep_conf.vsol_thres",    sizeof(conf_sram.aprs.rx.thread_conf.sleep_conf.vsol_thres), &conf_sram.aprs.rx.thread_conf.sleep_conf.vsol_thres},
+	{TYPE_TIME, "aprs.rx.cycle",                 sizeof(conf_sram.aprs.rx.thread_conf.cycle),                 &conf_sram.aprs.rx.thread_conf.cycle                },
+    */
+	{TYPE_INT,  "aprs.rx.freq",                  sizeof(conf_sram.aprs.rx.radio_conf.freq),                   &conf_sram.aprs.rx.radio_conf.freq                  },
+	{TYPE_INT,  "aprs.rx.mod",                   sizeof(conf_sram.aprs.rx.radio_conf.mod),                    &conf_sram.aprs.rx.radio_conf.mod                   },
+	{TYPE_INT,  "aprs.rx.speed",                 sizeof(conf_sram.aprs.rx.radio_conf.speed),                  &conf_sram.aprs.tx.radio_conf.speed                 },
+    {TYPE_STR,  "aprs.rx.call",                  sizeof(conf_sram.aprs.rx.call),                              &conf_sram.aprs.rx.call                             },
 
-	{TYPE_INT,  "rx.freq",                       sizeof(conf_sram.rx.radio_conf.freq),                        &conf_sram.rx.radio_conf.freq                       },
-	{TYPE_INT,  "rx.mod",                        sizeof(conf_sram.rx.radio_conf.mod),                         &conf_sram.rx.radio_conf.mod                        },
-	{TYPE_INT,  "rx.speed",                      sizeof(conf_sram.tx.radio_conf.speed),                       &conf_sram.tx.radio_conf.speed                      },
-    {TYPE_INT,  "rx.active",                     sizeof(conf_sram.rx.thread_conf.active),                     &conf_sram.rx.thread_conf.active                    },
-    {TYPE_STR,  "rx.call",                       sizeof(conf_sram.rx.call),                                   &conf_sram.rx.call                                  },
-
-	{TYPE_INT,  "tx.freq",                       sizeof(conf_sram.tx.radio_conf.freq),                        &conf_sram.rx.radio_conf.freq                       },
-    {TYPE_INT,  "tx.pwr",                        sizeof(conf_sram.tx.radio_conf.pwr),                         &conf_sram.tx.radio_conf.pwr                        },
-    {TYPE_INT,  "tx.mod",                        sizeof(conf_sram.tx.radio_conf.mod),                         &conf_sram.tx.radio_conf.mod                        },
-	{TYPE_INT,  "tx.rssi",                       sizeof(conf_sram.tx.rssi),                                   &conf_sram.tx.rssi                                  },
-    {TYPE_STR,  "tx.call",                       sizeof(conf_sram.tx.call),                                   &conf_sram.tx.call                                  },
-    {TYPE_STR,  "tx.path",                       sizeof(conf_sram.tx.path),                                   &conf_sram.tx.path                                  },
-    {TYPE_INT,  "tx.symbol",                     sizeof(conf_sram.tx.symbol),                                 &conf_sram.tx.symbol                                },
-    {TYPE_INT,  "tx.dig_active",                 sizeof(conf_sram.tx.dig_active),                             &conf_sram.tx.dig_active                            },
+	{TYPE_INT,  "aprs.tx.freq",                  sizeof(conf_sram.aprs.tx.radio_conf.freq),                   &conf_sram.aprs.tx.radio_conf.freq                  },
+    {TYPE_INT,  "aprs.tx.pwr",                   sizeof(conf_sram.aprs.tx.radio_conf.pwr),                    &conf_sram.aprs.tx.radio_conf.pwr                   },
+    {TYPE_INT,  "aprs.tx.mod",                   sizeof(conf_sram.aprs.tx.radio_conf.mod),                    &conf_sram.aprs.tx.radio_conf.mod                   },
+	{TYPE_INT,  "aprs.tx.rssi",                  sizeof(conf_sram.aprs.tx.radio_conf.rssi),                   &conf_sram.aprs.tx.radio_conf.rssi                  },
+    {TYPE_STR,  "aprs.tx.call",                  sizeof(conf_sram.aprs.tx.call),                              &conf_sram.aprs.tx.call                             },
+    {TYPE_STR,  "aprs.tx.path",                  sizeof(conf_sram.aprs.tx.path),                              &conf_sram.aprs.tx.path                             },
+    {TYPE_INT,  "aprs.tx.symbol",                sizeof(conf_sram.aprs.tx.symbol),                            &conf_sram.aprs.tx.symbol                           },
+    {TYPE_INT,  "aprs.dig_active",               sizeof(conf_sram.aprs.dig_active),                           &conf_sram.aprs.dig_active                          },
 	{TYPE_INT,  "keep_cam_switched_on",          sizeof(conf_sram.keep_cam_switched_on),                      &conf_sram.keep_cam_switched_on                     },
 	{TYPE_INT,  "gps_on_vbat",                   sizeof(conf_sram.gps_on_vbat),                               &conf_sram.gps_on_vbat                              },
 	{TYPE_INT,  "gps_off_vbat",                  sizeof(conf_sram.gps_off_vbat),                              &conf_sram.gps_off_vbat                             },
@@ -336,7 +336,7 @@ static bool aprs_decode_message(packet_t pp)
 	}
 
 	// Try to find out if this message is meant for us
-	if(pinfo[10] == ':' && !strcmp(conf_sram.rx.call, dest))
+	if(pinfo[10] == ':' && !strcmp(conf_sram.aprs.rx.call, dest))
 	{
 		char msg_id_rx[8];
 		memset(msg_id_rx, 0, sizeof(msg_id_rx));
@@ -382,52 +382,57 @@ static bool aprs_decode_message(packet_t pp)
 
 			TRACE_INFO("RX   > Message: Position query");
 			dataPoint_t* dataPoint = getLastDataPoint();
-			packet_t pp = aprs_encode_position(conf_sram.tx.call, conf_sram.tx.path, conf_sram.tx.symbol, dataPoint);
+			packet_t pp = aprs_encode_position(conf_sram.aprs.tx.call,
+			                                   conf_sram.aprs.tx.path,
+			                                   conf_sram.aprs.tx.symbol,
+			                                   dataPoint);
             if(pp == NULL) {
               TRACE_WARN("RX   > No free packet objects");
               return false;
             }
             transmitOnRadio(pp,
-                            conf_sram.tx.radio_conf.freq,
+                            conf_sram.aprs.tx.radio_conf.freq,
                             0,
                             0,
-                            conf_sram.tx.radio_conf.pwr,
-                            conf_sram.tx.radio_conf.mod,
-                            conf_sram.tx.radio_conf.rssi);
+                            conf_sram.aprs.tx.radio_conf.pwr,
+                            conf_sram.aprs.tx.radio_conf.mod,
+                            conf_sram.aprs.tx.radio_conf.rssi);
 
 		} else if(!strcmp(command, "?aprsd")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: Directs query");
-			packet_t pp = aprs_encode_query_answer_aprsd(conf_sram.tx.call, conf_sram.tx.path, src);
+			packet_t pp = aprs_encode_query_answer_aprsd(conf_sram.aprs.tx.call, conf_sram.aprs.tx.path, src);
             if(pp == NULL) {
               TRACE_WARN("RX   > No free packet objects");
               return false;
             }
             transmitOnRadio(pp,
-                            conf_sram.tx.radio_conf.freq,
+                            conf_sram.aprs.tx.radio_conf.freq,
                             0,
                             0,
-                            conf_sram.tx.radio_conf.pwr,
-                            conf_sram.tx.radio_conf.mod,
-                            conf_sram.tx.radio_conf.rssi);
+                            conf_sram.aprs.tx.radio_conf.pwr,
+                            conf_sram.aprs.tx.radio_conf.mod,
+                            conf_sram.aprs.tx.radio_conf.rssi);
 
 		} else if(!strcmp(command, "?reset")) { // Transmit position
 
 			TRACE_INFO("RX   > Message: System Reset");
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
-			packet_t pp = aprs_encode_message(conf_sram.tx.call, conf_sram.tx.path, src, buf, true);
+			packet_t pp = aprs_encode_message(conf_sram.aprs.tx.call,
+			                                  conf_sram.aprs.tx.path,
+			                                  src, buf, true);
             if(pp == NULL) {
               TRACE_WARN("RX   > No free packet objects");
               return false;
             }
             transmitOnRadio(pp,
-                            conf_sram.tx.radio_conf.freq,
+                            conf_sram.aprs.tx.radio_conf.freq,
                             0,
                             0,
-                            conf_sram.tx.radio_conf.pwr,
-                            conf_sram.tx.radio_conf.mod,
-                            conf_sram.tx.radio_conf.rssi);
+                            conf_sram.aprs.tx.radio_conf.pwr,
+                            conf_sram.aprs.tx.radio_conf.mod,
+                            conf_sram.aprs.tx.radio_conf.rssi);
 			chThdSleep(TIME_S2I(5)); // Give some time to send the message
 
 			NVIC_SystemReset();
@@ -504,21 +509,21 @@ static bool aprs_decode_message(packet_t pp)
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
             /* FIXME: Calls getting packet_t need to check for NULL result. */
-			packet_t pp = aprs_encode_message(conf_sram.tx.call, conf_sram.tx.path, src, buf, true);
+			packet_t pp = aprs_encode_message(conf_sram.aprs.tx.call, conf_sram.aprs.tx.path, src, buf, true);
             if(pp == NULL) {
               TRACE_WARN("RX   > No free packet objects");
               return false;
             }
             transmitOnRadio(pp,
-                            conf_sram.tx.radio_conf.freq,
+                            conf_sram.aprs.tx.radio_conf.freq,
                             0,
                             0,
-                            conf_sram.tx.radio_conf.pwr,
-                            conf_sram.tx.radio_conf.mod,
-                            conf_sram.tx.radio_conf.rssi);
+                            conf_sram.aprs.tx.radio_conf.pwr,
+                            conf_sram.aprs.tx.radio_conf.mod,
+                            conf_sram.aprs.tx.radio_conf.rssi);
 		}
 
-		return false; // Mark that message dont has to be digipeated
+		return false; // Mark that message should not be digipeated
 	}
 
 	return true; // Mark that message has to be digipeated
@@ -532,16 +537,18 @@ static void aprs_digipeat(packet_t pp)
 	}
 
 	if(!dedupe_check(pp, 0)) { // Last identical packet older than 10 seconds
-		packet_t result = digipeat_match(0, pp, conf_sram.rx.call, conf_sram.tx.call, alias_re, wide_re, 0, preempt, NULL);
+		packet_t result = digipeat_match(0, pp, conf_sram.aprs.rx.call,
+		                                 conf_sram.aprs.tx.call, alias_re,
+		                                 wide_re, 0, preempt, NULL);
 		if(result != NULL) { // Should be digipeated
 			dedupe_remember(result, 0);
 			transmitOnRadio(result,
-			                conf_sram.tx.radio_conf.freq,
+			                conf_sram.aprs.tx.radio_conf.freq,
 		                    0,
 		                    0,
-                            conf_sram.tx.radio_conf.pwr,
-                            conf_sram.tx.radio_conf.mod,
-                            conf_sram.tx.radio_conf.rssi);
+                            conf_sram.aprs.tx.radio_conf.pwr,
+                            conf_sram.aprs.tx.radio_conf.mod,
+                            conf_sram.aprs.tx.radio_conf.rssi);
 		}
 	}
 }
@@ -549,7 +556,8 @@ static void aprs_digipeat(packet_t pp)
 /**
  * Transmit APRS telemetry configuration
  */
-packet_t aprs_encode_telemetry_configuration(const char *callsign, const char *path, uint8_t type)
+packet_t aprs_encode_telemetry_configuration(const char *callsign,
+                                             const char *path, uint8_t type)
 {
 	switch(type)
 	{
@@ -603,7 +611,7 @@ void aprs_decode_packet(packet_t pp)
 	if(pinfo[0] == ':') digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
 
 	// Digipeat packet
-	if(conf_sram.tx.dig_active && digipeat) {
+	if(conf_sram.aprs.dig_active && digipeat) {
 		aprs_digipeat(pp);
 	}
 }

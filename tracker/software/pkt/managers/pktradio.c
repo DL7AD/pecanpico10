@@ -245,8 +245,8 @@ THD_FUNCTION(pktRadioManager, arg) {
       pktCallbackManagerRelease(handler);
 
       /*
-       * Signal close complete for this session.
-       * A new open queued on a sempahore will be readied.
+       * Signal close completed for this session.
+       * Any new open that is queued on the sempahore will be readied.
        */
       chBSemSignal(&handler->close_sem);
       break;
@@ -406,9 +406,8 @@ void pktSubmitRadioTask(radio_unit_t radio,
   packet_svc_t *handler = pktGetServiceObject(radio);
   chDbgAssert(handler != NULL, "invalid radio ID");
 
-  dyn_objects_fifo_t *task_fifo =
-      chFactoryFindObjectsFIFO(handler->rtask_name);
-  chDbgAssert(task_fifo != NULL, "unable to find radio task fifo");
+  dyn_objects_fifo_t *task_fifo = handler->the_radio_fifo;
+  chDbgAssert(task_fifo != NULL, "no radio task fifo");
 
   objects_fifo_t *task_queue = chFactoryGetObjectsFIFO(task_fifo);
   chDbgAssert(task_queue != NULL, "no objects fifo list");
@@ -428,9 +427,6 @@ void pktSubmitRadioTask(radio_unit_t radio,
    * If a callback is specified it is called after the task object is freed.
    */
   chFifoSendObject(task_queue, object);
-
-  /* Release reference to the FIFO acquired earlier by find. */
-  chFactoryReleaseObjectsFIFO(task_fifo);
 }
 
 

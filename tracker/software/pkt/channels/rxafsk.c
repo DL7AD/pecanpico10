@@ -972,10 +972,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                           &p_listener);
 #endif
         } /* Active packet object != NULL. */
-#if SUSPEND_HANDLING == NO_SUSPEND
         myDriver->decoder_state = DECODER_RESET;
         break;
-#endif
         /*
          * Only exit suspend on posted event.
          */

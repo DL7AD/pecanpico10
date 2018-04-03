@@ -162,9 +162,8 @@ static void Si446x_init(radio_unit_t radio) {
     /* Clear FIFO. */
     const uint8_t reset_fifo[] = {0x15, 0x01};
     Si446x_write(reset_fifo, 2);
-    /* No need to do this unreset... see si docs. */
-    //const uint8_t unreset_fifo[] = {0x15, 0x00};
-    //Si446x_write(unreset_fifo, 2);
+    /* No need to unset bits... see si docs. */
+
 
     /*
      * TODO: Move the TX and RX settings out into the respective functions.
@@ -561,7 +560,7 @@ static bool Si446x_transmit(radio_unit_t radio,
     }
 
     /* Check for blind send request. */
-    if(rssi != 0) {
+    if(rssi != 0xFF) {
       Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
       /* Set band parameters. */
       Si446x_setBandParameters(radio, freq, step);     // Set frequency
@@ -1181,6 +1180,29 @@ THD_FUNCTION(min_si_fifo_feeder_fsk, arg) {
   chThdExit(exit_msg);
 }
 
+void Si446x_taskSend2FSK(radio_task_object_t *rt) {
+
+  thread_t *fsk_feeder_thd = NULL;
+
+  /* Create a send thread name which includes the sequence number. */
+  chsnprintf(rt->packet_out->tx_thd_name, sizeof(rt->packet_out->tx_thd_name),
+             "446x_2fsk_tx_%03i", rt->packet_out->tx_seq);
+
+  fsk_feeder_thd = chThdCreateFromHeap(NULL,
+              THD_WORKING_AREA_SIZE(SI_FSK_FIFO_FEEDER_WA_SIZE),
+              rt->packet_out->tx_thd_name,
+              NORMALPRIO - 10,
+              min_si_fifo_feeder_fsk,
+              rt);
+
+  if(fsk_feeder_thd == NULL) {
+    /* Release packet object (to be done by TX thread). */
+    //pktReleaseSendObject(pp);
+
+    TRACE_ERROR("SI   > Unable to create FSK transmit thread");
+  }
+  return;
+}
 /*
  *
  */

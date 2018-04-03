@@ -50,8 +50,8 @@ THD_FUNCTION(posThread, arg)
                               0,
                               0,
                               conf->radio_conf.pwr,
-                              conf_sram.tx.radio_conf.mod,
-                              conf_sram.tx.radio_conf.rssi);
+                              conf->radio_conf.mod,
+                              conf->radio_conf.rssi);
             }
 			chThdSleep(TIME_S2I(5));
 
@@ -88,8 +88,8 @@ THD_FUNCTION(posThread, arg)
                                       0,
                                       0,
                                       conf->radio_conf.pwr,
-                                      conf_sram.tx.radio_conf.mod,
-                                      conf_sram.tx.radio_conf.rssi);
+                                      conf->radio_conf.mod,
+                                      conf->radio_conf.rssi);
                       chThdSleep(TIME_S2I(5));
 		            }
 				}
@@ -104,7 +104,7 @@ THD_FUNCTION(posThread, arg)
 
 void start_position_thread(thd_pos_conf_t *conf)
 {
-	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(10*1024), "POS", NORMALPRIO, posThread, conf);
+	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(10*1024), "POS", LOWPRIO, posThread, conf);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread
 		TRACE_ERROR("POS  > Could not startup thread (not enough memory available)");

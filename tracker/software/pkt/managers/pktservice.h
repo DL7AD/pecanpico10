@@ -20,11 +20,13 @@
 
 #define PKT_FRAME_QUEUE_PREFIX          "pktr_"
 #define PKT_CALLBACK_TERMINATOR_PREFIX  "cbtr_"
+
 #define PKT_SEND_BUFFER_NAME            "pbtx"
 #define PKT_SEND_BUFFER_SEM_NAME        "pstx"
 
-#define PKT_CALLBACK_WA_SIZE    4096
-#define PKT_TERMINATOR_WA_SIZE  1024
+
+#define PKT_CALLBACK_WA_SIZE            8192
+#define PKT_TERMINATOR_WA_SIZE          1024
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */

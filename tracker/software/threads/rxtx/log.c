@@ -66,8 +66,8 @@ THD_FUNCTION(logThread, arg)
                                   0,
                                   0,
                                   conf->radio_conf.pwr,
-                                  conf_sram.tx.radio_conf.mod,
-                                  conf_sram.tx.radio_conf.rssi);
+                                  conf->radio_conf.mod,
+                                  conf->radio_conf.rssi);
 	            }
 			} else {
 				TRACE_INFO("LOG  > No log point in memory");
@@ -80,7 +80,7 @@ THD_FUNCTION(logThread, arg)
 
 void start_logging_thread(thd_log_conf_t *conf)
 {
-	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(6*1024), "LOG", NORMALPRIO, logThread, conf);
+	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(6*1024), "LOG", LOWPRIO, logThread, conf);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread
 		TRACE_ERROR("LOG  > Could not startup thread (not enough memory available)");

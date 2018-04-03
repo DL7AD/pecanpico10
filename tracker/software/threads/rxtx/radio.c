@@ -23,7 +23,7 @@ static void processPacket(uint8_t *buf, uint32_t len) {
 #if USE_NEW_PKT_TX_ALLOC == TRUE
       pktReleaseOutgoingBuffer(pp);
 #else
-      ax25_delete (this_p);
+      ax25_delete (pp);
 #endif
 	        return;
 	    }
@@ -39,7 +39,7 @@ static void processPacket(uint8_t *buf, uint32_t len) {
 #if USE_NEW_PKT_TX_ALLOC == TRUE
       pktReleaseOutgoingBuffer(pp);
 #else
-      ax25_delete (this_p);
+      ax25_delete (pp);
 #endif
 	} else {
 		TRACE_INFO("RX    > Error in packet - dropped");
@@ -55,9 +55,11 @@ void mapCallback(pkt_data_object_t *pkt_buff) {
   ax25size_t frame_size = pkt_buff->packet_size;
 
   /* FIXME: This is a quick diagnostic implementation only. */
+/*
 #if DUMP_PACKET_TO_SERIAL == TRUE && ENABLE_EXTERNAL_I2C != TRUE
   pktDiagnosticOutput(pkt_buff->handler, pkt_buff);
 #endif
+*/
 if(pktIsBufferValidAX25Frame(pkt_buff)) {
   /* Perform the callback. */
   processPacket(frame_buffer, frame_size);
@@ -66,7 +68,7 @@ if(pktIsBufferValidAX25Frame(pkt_buff)) {
   }
 }
 
-void start_rx_thread(radio_unit_t radio, radio_freq_t base_freq,
+void start_aprs_threads(radio_unit_t radio, radio_freq_t base_freq,
                      channel_hz_t step,
                      radio_ch_t chan, radio_squelch_t rssi) {
 
@@ -77,6 +79,11 @@ void start_rx_thread(radio_unit_t radio, radio_freq_t base_freq,
 		step = 0;
 	}
 
+    if(base_freq == FREQ_APRS_RECEIVE) {
+      TRACE_ERROR("RX   > Cannot specify FREQ_APRS_RECEIVE for receiver");
+      return;
+    }
+
     /* Open packet radio service. */
     msg_t omsg = pktOpenRadioReceive(radio,
                          MOD_AFSK,
@@ -84,7 +91,7 @@ void start_rx_thread(radio_unit_t radio, radio_freq_t base_freq,
                          step);
 
     if(omsg != MSG_OK) {
-      TRACE_DEBUG("RX   > Open of radio service failed");
+      TRACE_ERROR("RX   > Open of radio service failed");
       return;
     }
 
@@ -95,7 +102,7 @@ void start_rx_thread(radio_unit_t radio, radio_freq_t base_freq,
                            mapCallback);
     if(smsg != MSG_OK) {
       pktCloseRadioReceive(radio);
-      TRACE_DEBUG("RX   > Start of radio packet reception failed");
+      TRACE_ERROR("RX   > Start of radio packet reception failed");
     }
 }
 
@@ -113,24 +120,31 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 #if USE_NEW_PKT_TX_ALLOC == TRUE
       pktReleaseOutgoingBuffer(pp);
 #else
-      ax25_delete (this_p);
+      ax25_delete (pp);
 #endif
     return false;
   }
-	if(base_freq == FREQ_APRS_DYNAMIC) {
-		base_freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
-		step = 0;
-		chan = 0;
-	}
 
 	if(base_freq == FREQ_APRS_RECEIVE) {
-	  /* TODO: Get current RX frequency (if valid) and use that. */
+	  /* Get current RX frequency (if valid) and use that. */
+	  packet_svc_t *handler = pktGetServiceObject(radio);
+	  if(handler->rx_active == true) {
+	    base_freq = handler->radio_rx_config.base_frequency;
+	    step = handler->radio_rx_config.step_hz;
+	    chan = handler->radio_rx_config.channel;
+	  } else
+	    base_freq = FREQ_APRS_DYNAMIC;
 	}
 
-	//uint8_t *c;
-	uint32_t len = ax25_get_info(pp, /*&c*/NULL);
+    if(base_freq == FREQ_APRS_DYNAMIC) {
+        base_freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
+        step = 0;
+        chan = 0;
+    }
 
-	if(len) // Message length is not zero
+	uint32_t len = ax25_get_info(pp, NULL);
+
+	if(len != 0) // Message length is not zero
 	{
 	  /* Check frequency. */
 	  if(!Si446x_isFrequencyInBand(radio, base_freq, step, chan)) {
@@ -152,17 +166,6 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 		aprs_debug_getPacket(pp, buf, sizeof(buf));
 		TRACE_INFO("TX   > %s", buf);
 
-		/* Check if packet services available for transmit. */
-		if(!pktIsTransmitOpen(radio)) {
-          TRACE_ERROR("RAD  > Packet services are not open for transmit");
-#if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(pp);
-#else
-      ax25_delete (this_p);
-#endif
-		  return false;
-		}
-
 		/* The service object. */
         packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -181,16 +184,16 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 		rt.packet_out = pp;
 		rt.callback = NULL;
 
-		/* Save the current data. */
-		//handler->radio_tx_config = rt;
+		/* Update the task mirror. */
+		handler->radio_tx_config = rt;
 
         msg_t msg = pktSendRadioCommand(radio, &rt);
         if(msg != MSG_OK) {
           TRACE_ERROR("RAD  > Failed to post radio task");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(pp);
+          pktReleaseOutgoingBuffer(pp);
 #else
-      ax25_delete (this_p);
+          ax25_delete (pp);
 #endif
           return false;
         }
@@ -203,10 +206,9 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 #if USE_NEW_PKT_TX_ALLOC == TRUE
       pktReleaseOutgoingBuffer(pp);
 #else
-      ax25_delete (this_p);
+      ax25_delete (pp);
 #endif
 	}
-
 	return true;
 }
 

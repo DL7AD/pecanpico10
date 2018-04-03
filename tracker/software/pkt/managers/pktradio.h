@@ -22,9 +22,9 @@
 /*===========================================================================*/
 
 /* Thread working area size. */
-#define PKT_RADIO_MANAGER_WA_SIZE       1024
+#define PKT_RADIO_MANAGER_WA_SIZE       4096
 
-#define PKT_RADIO_TASK_QUEUE_PREFIX     "radx_"
+#define PKT_RADIO_TASK_QUEUE_PREFIX     "radm_"
 
 /* The number of radio task object the FIFO has. */
 #define RADIO_TASK_QUEUE_MAX                    10

@@ -392,6 +392,9 @@ packet_t ax25_from_text (char *monitor, int strict)
 #if USE_NEW_PKT_TX_ALLOC == TRUE
 	packet_t this_p;
 	msg_t msg = pktGetOutgoingBuffer(&this_p, TIME_INFINITE);
+	/* If the semaphore is reset then exit. */
+	if(msg == MSG_RESET)
+	  return NULL;
 #else
 	packet_t this_p = ax25_new();
 #endif
@@ -503,7 +506,11 @@ packet_t ax25_from_text (char *monitor, int strict)
 
 	if ( ! ax25_parse_addr (AX25_DESTINATION, pa, strict, atemp, &ssid_temp, &heard_temp)) {
 	  TRACE_ERROR ("Failed to create packet from text.  Bad destination address");
-	  ax25_delete (this_p);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+      pktReleaseOutgoingBuffer(this_p);
+#else
+      ax25_delete (this_p);
+#endif
 	  return (NULL);
 	}
 
@@ -655,6 +662,9 @@ packet_t ax25_from_frame (unsigned char *fbuf, int flen)
 
 #if USE_NEW_PKT_TX_ALLOC == TRUE
     msg_t msg = pktGetOutgoingBuffer(&this_p, TIME_INFINITE);
+    /* If the semaphore is reset then exit. */
+    if(msg == MSG_RESET)
+      return NULL;
 #else
     this_p = ax25_new();
 #endif
@@ -708,6 +718,9 @@ packet_t ax25_dup (packet_t copy_from)
 	
 #if USE_NEW_PKT_TX_ALLOC == TRUE
     msg_t msg = pktGetOutgoingBuffer(&this_p, TIME_INFINITE);
+    /* If the semaphore is reset then exit. */
+    if(msg == MSG_RESET)
+      return NULL;
 #else
     this_p = ax25_new();
 #endif

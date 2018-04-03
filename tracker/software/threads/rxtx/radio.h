@@ -19,7 +19,7 @@
 #define APRS_FREQ_ARGENTINA			144930000
 #define APRS_FREQ_BRAZIL			145575000
 
-void start_rx_thread(radio_unit_t radio, radio_freq_t freq, channel_hz_t step,
+void start_aprs_threads(radio_unit_t radio, radio_freq_t freq, channel_hz_t step,
                      radio_ch_t chan, radio_squelch_t rssi);
 bool transmitOnRadio(packet_t pp, radio_freq_t freq, channel_hz_t step,
                      radio_ch_t chan, radio_pwr_t pwr, mod_t mod,

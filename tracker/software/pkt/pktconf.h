@@ -104,6 +104,7 @@
 #define DEC_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 3)
 #define DEC_SUSPEND_EXIT        EVENT_MASK(EVT_PRIORITY_BASE + 4)
 
+
 /* Reserved system thread events (in user threads level). */
 #define USB_SHELL_EVT           EVENT_MASK(EVT_PRIORITY_BASE + 0)
 
@@ -379,7 +380,7 @@ static inline void pktReleaseSendObject(packet_t pp) {
 #if USE_NEW_PKT_TX_ALLOC == TRUE
       pktReleaseOutgoingBuffer(pp);
 #else
-      ax25_delete (this_p);
+      ax25_delete (pp);
 #endif
 #else
   (void)pp;
