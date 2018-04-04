@@ -21,7 +21,7 @@ static dataPoint_t* lastDataPoint;
 static bool threadStarted = false;
 
 /**
-  * Returns most recent data point witch is complete.
+  * Returns most recent data point which is complete.
   */
 dataPoint_t* getLastDataPoint(void)
 {

@@ -204,37 +204,66 @@ bool gps_get_fix(gpsFix_t *fix) {
 		return false;
 	}
 
-	// Extract data from message
-	fix->fixOK = navstatus[5] & 0x1;
-	fix->pdop = navpvt[76] + (navpvt[77] << 8);
+	/* Temporary hack to enable fixed GPS location to be specified. */
+	extern bool test_gps_enabled;
+	/* Fake GPS test. */
+	if(test_gps_enabled) {
+      // Extract data from message
+      fix->fixOK = true;
+      fix->pdop = 2.0;
 
-	fix->num_svs = navpvt[23];
-	fix->type = navpvt[20];
+      fix->num_svs = 20;
+      fix->type = 3;
 
-	fix->time.year = navpvt[4] + (navpvt[5] << 8);
-	fix->time.month = navpvt[6];
-	fix->time.day = navpvt[7];
-	fix->time.hour = navpvt[8];
-	fix->time.minute = navpvt[9];
-	fix->time.second = navpvt[10];
+      fix->time.year = 2018;
+      fix->time.month = 4;
+      fix->time.day = 7;
+      fix->time.hour = 1;
+      fix->time.minute = 2;
+      fix->time.second = 3;
 
-	fix->lat = (int32_t) (
-			(uint32_t)(navpvt[28]) + ((uint32_t)(navpvt[29]) << 8) + ((uint32_t)(navpvt[30]) << 16) + ((uint32_t)(navpvt[31]) << 24)
-			);
-	fix->lon = (int32_t) (
-			(uint32_t)(navpvt[24]) + ((uint32_t)(navpvt[25]) << 8) + ((uint32_t)(navpvt[26]) << 16) + ((uint32_t)(navpvt[27]) << 24)
-			);
-	int32_t alt_tmp = (((int32_t) 
-			((uint32_t)(navpvt[36]) + ((uint32_t)(navpvt[37]) << 8) + ((uint32_t)(navpvt[38]) << 16) + ((uint32_t)(navpvt[39]) << 24))
-			) / 1000);
-	if (alt_tmp <= 0) {
-		fix->alt = 1;
-	} else if (alt_tmp > 50000) {
-		fix->alt = 50000;
+      /*
+       * VK2GJ QTH in degrees...
+       * lat=-33.7331175 lon=151.1143478
+       * UBLOX set using degrees expressed as 1e-7 value.
+       *
+       */
+      fix->lat = -337331175;
+      fix->lon = 1511143478;
+
+      fix->alt = 144;
 	} else {
-		fix->alt = (uint16_t)alt_tmp;
-	}
+      // Extract data from message
+      fix->fixOK = navstatus[5] & 0x1;
+      fix->pdop = navpvt[76] + (navpvt[77] << 8);
 
+      fix->num_svs = navpvt[23];
+      fix->type = navpvt[20];
+
+      fix->time.year = navpvt[4] + (navpvt[5] << 8);
+      fix->time.month = navpvt[6];
+      fix->time.day = navpvt[7];
+      fix->time.hour = navpvt[8];
+      fix->time.minute = navpvt[9];
+      fix->time.second = navpvt[10];
+
+      fix->lat = (int32_t) (
+              (uint32_t)(navpvt[28]) + ((uint32_t)(navpvt[29]) << 8) + ((uint32_t)(navpvt[30]) << 16) + ((uint32_t)(navpvt[31]) << 24)
+              );
+      fix->lon = (int32_t) (
+              (uint32_t)(navpvt[24]) + ((uint32_t)(navpvt[25]) << 8) + ((uint32_t)(navpvt[26]) << 16) + ((uint32_t)(navpvt[27]) << 24)
+              );
+      int32_t alt_tmp = (((int32_t)
+              ((uint32_t)(navpvt[36]) + ((uint32_t)(navpvt[37]) << 8) + ((uint32_t)(navpvt[38]) << 16) + ((uint32_t)(navpvt[39]) << 24))
+              ) / 1000);
+      if (alt_tmp <= 0) {
+          fix->alt = 1;
+      } else if (alt_tmp > 50000) {
+          fix->alt = 50000;
+      } else {
+          fix->alt = (uint16_t)alt_tmp;
+      }
+    }
 	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%d.%02d",
 		fix->time.year, fix->time.month, fix->time.day, fix->time.hour, fix->time.minute, fix->time.second,
 		fix->lat/10000000, (fix->lat > 0 ? 1:-1)*(fix->lat/100)%100000, fix->lon/10000000, (fix->lon > 0 ? 1:-1)*(fix->lon/100)%100000,

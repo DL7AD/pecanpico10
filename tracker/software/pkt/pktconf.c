@@ -23,3 +23,7 @@
 /*===========================================================================*/
 
 packet_svc_t RPKTD1;
+
+memory_heap_t _ccm_heap;
+
+binary_semaphore_t diag_out_sem;

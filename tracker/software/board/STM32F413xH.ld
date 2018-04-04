@@ -16,6 +16,7 @@
 
 /*
  * STM32F413xH memory setup.
+ * Note: Use of ram1 and ram2 is mutually exclusive with use of ram0.
  */
 MEMORY
 {
@@ -30,8 +31,8 @@ MEMORY
     ram0    : org = 0x20000000, len = 320k      /* SRAM1 + SRAM2 */
     ram1    : org = 0x20000000, len = 256k      /* SRAM1 */
     ram2    : org = 0x20040000, len = 64k       /* SRAM2 */
-    ram3    : org = 0x10000000, len = 64k       /* CCM SRAM2 */
-    ram4    : org = 0x00000000, len = 0
+    ram3    : org = 0x00000000, len = 0
+    ram4    : org = 0x10000000, len = 64k       /* CCM SRAM2 */
     ram5    : org = 0x00000000, len = 0
     ram6    : org = 0x00000000, len = 0
     ram7    : org = 0x00000000, len = 0

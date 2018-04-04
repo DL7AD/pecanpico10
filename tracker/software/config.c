@@ -12,12 +12,12 @@ const conf_t conf_flash_default = {
 	.pos_pri = {
 		.thread_conf = {
 			.active			= true,
-			.cycle			= TIME_S2I(300),
+			.cycle			= TIME_S2I(900),
 			.init_delay		= TIME_S2I(5)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
-			.freq			= 145175000,
+			.freq			= FREQ_APRS_RECEIVE,
 			.mod			= MOD_AFSK,
             .rssi           = 0x4F,
 		},
@@ -25,6 +25,7 @@ const conf_t conf_flash_default = {
 		.call				= "VK2GJ-12",
 		.path				= "WIDE2-1",
 		.symbol				= SYM_DIGIPEATER,
+		.aprs_msg           = true,
 
 		.tel_enc_cycle		= TIME_S2I(10800),
 	},
@@ -45,6 +46,7 @@ const conf_t conf_flash_default = {
 		.call				= "DL7AD-14",
 		.path				= "WIDE1-1",
 		.symbol				= SYM_BALLOON,
+		.aprs_msg           = true,
 
 		.tel_enc_cycle		= TIME_S2I(10800),
 	},
@@ -53,7 +55,7 @@ const conf_t conf_flash_default = {
 	.img_pri = {
 		.thread_conf = {
 			.active			= true,
-			.cycle			= TIME_S2I(1800),
+			.cycle			= TIME_S2I(600),
 			.init_delay		= TIME_S2I(20),
 			.packet_spacing	= TIME_S2I(1)
 		},
@@ -129,10 +131,10 @@ const conf_t conf_flash_default = {
       },
       .tx = {
           .radio_conf = {
-                   .freq    = FREQ_APRS_RECEIVE,
-                   .pwr     = 0x7F,
-                   .mod     = MOD_AFSK,
-                   .rssi    = 0x4F
+               .freq        = FREQ_APRS_RECEIVE,
+               .pwr         = 0x7F,
+               .mod         = MOD_AFSK,
+               .rssi        = 0x4F
           },
             .call           = "VK2GJ-5",
             .path           = "WIDE2-1",

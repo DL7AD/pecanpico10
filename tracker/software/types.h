@@ -75,14 +75,14 @@ typedef struct {
 } thread_conf_t; // Thread
 
 typedef struct {
-	thread_conf_t thread_conf;
+	thread_conf_t   thread_conf;
 	radio_tx_conf_t radio_conf;
 
 	// Protocol
-	char call[AX25_MAX_ADDR_LEN];
-	char path[16];
-	uint16_t symbol;
-
+	char            call[AX25_MAX_ADDR_LEN];
+	char            path[16];
+	uint16_t        symbol;
+    bool            aprs_msg;
 	sysinterval_t tel_enc_cycle;
 } thd_pos_conf_t;
 

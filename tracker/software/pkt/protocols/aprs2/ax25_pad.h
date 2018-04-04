@@ -72,6 +72,7 @@
 #define AX25_PID_ESCAPE_CHARACTER 0xFF
 
 #define USE_NEW_PKT_TX_ALLOC    TRUE
+#define USE_CCM_FOR_PKT_TX      TRUE
 
 #include "pkttypes.h"
 

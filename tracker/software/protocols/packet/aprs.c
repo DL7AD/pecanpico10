@@ -336,8 +336,13 @@ static bool aprs_decode_message(packet_t pp)
 	}
 
 	// Try to find out if this message is meant for us
-	if(pinfo[10] == ':' && !strcmp(conf_sram.aprs.rx.call, dest))
-	{
+	bool pos_pri = !strcmp(conf_sram.pos_pri.call, dest)
+	    && (conf_sram.pos_pri.aprs_msg);
+    bool pos_sec = !strcmp(conf_sram.pos_sec.call, dest)
+        && (conf_sram.pos_sec.aprs_msg);
+    bool aprs = !strcmp(conf_sram.aprs.rx.call, dest);
+
+	if((pinfo[10] == ':') && (pos_pri || pos_sec || aprs)) {
 		char msg_id_rx[8];
 		memset(msg_id_rx, 0, sizeof(msg_id_rx));
 

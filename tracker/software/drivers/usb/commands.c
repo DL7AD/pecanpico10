@@ -18,9 +18,22 @@ const ShellCommand commands[] = {
 	{"print_log", usb_cmd_printLog},
 	{"config", usb_cmd_printConfig},
 	{"aprs_message", usb_cmd_send_aprs_message},
+    {"test_gps", usb_cmd_set_test_gps},
 	{NULL, NULL}
 };
 
+bool test_gps_enabled = false;
+
+void usb_cmd_set_test_gps(BaseSequentialStream *chp, int argc, char *argv[])
+{
+    if(argc < 1)
+    {
+        chprintf(chp, "Current test GPS: %s\r\n", test_gps_enabled ? "on" : "off");
+        return;
+    }
+
+    test_gps_enabled = atoi(argv[0]);
+}
 
 void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
 {
