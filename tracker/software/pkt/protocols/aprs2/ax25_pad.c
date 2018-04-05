@@ -282,16 +282,13 @@ packet_t ax25_new (void) {
       return NULL;
 	}
 
-	/*
-	 * Note this sets the nextp link to NULL.
-	 * If removing the memset then set nextp to NULL explicitly.
-	 */
 	memset(this_p, 0, sizeof(struct packet_s));
 
 	this_p->magic1 = MAGIC;
 	this_p->seq = last_seq_num;
 	this_p->magic2 = MAGIC;
 	this_p->num_addr = (-1);
+	this_p->nextp = NULL;
 
 	return (this_p);
 }
@@ -336,7 +333,6 @@ void ax25_delete (packet_t this_p)
 	this_p->magic1 = 0;
 	this_p->magic1 = 0;
 
-	//memset (this_p, 0, sizeof (struct packet_s));
 	chHeapFree(this_p);
 }
 
@@ -400,7 +396,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 
 #if USE_NEW_PKT_TX_ALLOC == TRUE
 	packet_t this_p;
-	msg_t msg = pktGetOutgoingBuffer(&this_p, TIME_INFINITE);
+	msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
 	/* If the semaphore is reset then exit. */
 	if(msg == MSG_RESET)
 	  return NULL;
@@ -454,7 +450,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 
 	if (pinfo == NULL) {
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-	  pktReleaseOutgoingBuffer(this_p);
+	  pktReleasePacketBuffer(this_p);
 #else
 	  ax25_delete (this_p);
 #endif
@@ -477,7 +473,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 	if (pa == NULL) {
 	  TRACE_ERROR ("Failed to create packet from text.  No source address");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(this_p);
+      pktReleasePacketBuffer(this_p);
 #else
       ax25_delete (this_p);
 #endif
@@ -487,7 +483,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 	if ( ! ax25_parse_addr (AX25_SOURCE, pa, strict, atemp, &ssid_temp, &heard_temp)) {
 	  TRACE_ERROR ("Failed to create packet from text.  Bad source address");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(this_p);
+      pktReleasePacketBuffer(this_p);
 #else
       ax25_delete (this_p);
 #endif
@@ -506,7 +502,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 	if (pa == NULL) {
 	  TRACE_ERROR ("Failed to create packet from text.  No destination address");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(this_p);
+      pktReleasePacketBuffer(this_p);
 #else
       ax25_delete (this_p);
 #endif
@@ -516,7 +512,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 	if ( ! ax25_parse_addr (AX25_DESTINATION, pa, strict, atemp, &ssid_temp, &heard_temp)) {
 	  TRACE_ERROR ("Failed to create packet from text.  Bad destination address");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(this_p);
+      pktReleasePacketBuffer(this_p);
 #else
       ax25_delete (this_p);
 #endif
@@ -539,7 +535,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 	  if ( ! ax25_parse_addr (k, pa, strict, atemp, &ssid_temp, &heard_temp)) {
 	    TRACE_ERROR ("Failed to create packet from text.  Bad digipeater address");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(this_p);
+      pktReleasePacketBuffer(this_p);
 #else
       ax25_delete (this_p);
 #endif
@@ -670,7 +666,7 @@ packet_t ax25_from_frame (unsigned char *fbuf, int flen)
 	}
 
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-    msg_t msg = pktGetOutgoingBuffer(&this_p, TIME_INFINITE);
+    msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
     /* If the semaphore is reset then exit. */
     if(msg == MSG_RESET)
       return NULL;
@@ -726,7 +722,7 @@ packet_t ax25_dup (packet_t copy_from)
 
 	
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-    msg_t msg = pktGetOutgoingBuffer(&this_p, TIME_INFINITE);
+    msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
     /* If the semaphore is reset then exit. */
     if(msg == MSG_RESET)
       return NULL;

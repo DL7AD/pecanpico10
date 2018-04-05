@@ -236,9 +236,9 @@ extern "C" {
   dyn_objects_fifo_t *pktOutgoingBufferPoolCreate(radio_unit_t radio);
   void pktOutgoingBufferPoolRelease(radio_unit_t radio);
   dyn_semaphore_t *pktOutgoingBufferSemaphoreCreate(radio_unit_t radio);
-  void pktOutgoingBufferSemaphoreRelease(radio_unit_t radio);
-  msg_t pktGetOutgoingBuffer(packet_t *pp, sysinterval_t timeout);
-  void pktReleaseOutgoingBuffer(packet_t pp);
+  void pktBufferSemaphoreRelease(radio_unit_t radio);
+  msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
+  void pktReleasePacketBuffer(packet_t pp);
 #ifdef __cplusplus
 }
 #endif

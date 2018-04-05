@@ -125,7 +125,7 @@ bool pktServiceRelease(radio_unit_t radio) {
   if(handler->state != PACKET_READY)
     return false;
 #if   USE_NEW_PKT_TX_ALLOC == TRUE
-  pktOutgoingBufferSemaphoreRelease(radio);
+  pktBufferSemaphoreRelease(radio);
 #endif
   pktRadioManagerRelease(radio);
   handler->state = PACKET_IDLE;
@@ -905,7 +905,7 @@ dyn_semaphore_t *pktOutgoingBufferSemaphoreCreate(radio_unit_t radio) {
  * @retval MSG_TIMEOUT  if the semaphore has not been signaled or reset within
  *                      the specified timeout.
  */
-msg_t pktGetOutgoingBuffer(packet_t *pp, sysinterval_t timeout) {
+msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
 
   /* Check if the transmit packet buffer semaphore already exists.
    * If so we get a pointer to it and just return that.
@@ -940,21 +940,17 @@ msg_t pktGetOutgoingBuffer(packet_t *pp, sysinterval_t timeout) {
 }
 
 /*
- * Send shares a common pool of buffers.
- * @retval MSG_RESET    if the semaphore has been reset using @p chSemReset().
- * @retval MSG_TIMEOUT  if the semaphore has not been signaled or reset within
- *                      the specified timeout.
+ * A common pool of AX25 buffers.
  */
-void pktReleaseOutgoingBuffer(packet_t pp) {
+void pktReleasePacketBuffer(packet_t pp) {
 
-  /* Check if the transmit packet buffer semaphore already exists.
-   * If so we get a pointer to it and just return that.
-   * Otherwise create the semaphore and return result.
+  /* Check if the packet buffer semaphore exists.
+   * If not this is a system error.
    */
   dyn_semaphore_t *dyn_sem =
       chFactoryFindSemaphore(PKT_SEND_BUFFER_SEM_NAME);
 
-  chDbgAssert(dyn_sem != NULL, "no send PKT semaphore");
+  chDbgAssert(dyn_sem != NULL, "no general packet buffer semaphore");
 
   /* Free buffer memory. */
   ax25_delete(pp);
@@ -969,7 +965,7 @@ void pktReleaseOutgoingBuffer(packet_t pp) {
 /*
  * Send shares a common pool of buffers.
  */
-void pktOutgoingBufferSemaphoreRelease(radio_unit_t radio) {
+void pktBufferSemaphoreRelease(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 

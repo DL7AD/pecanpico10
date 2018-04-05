@@ -21,6 +21,7 @@ const ShellCommand commands[] = {
 	{"aprs_message", usb_cmd_send_aprs_message},
 	{"msg", usb_cmd_send_aprs_message}, /* Short form alias. */
     {"test_gps", usb_cmd_set_test_gps},
+    {"heap", usb_cmd_ccm_heap},
 	{NULL, NULL}
 };
 
@@ -35,6 +36,21 @@ void usb_cmd_set_test_gps(BaseSequentialStream *chp, int argc, char *argv[])
     }
 
     test_gps_enabled = atoi(argv[0]);
+}
+
+void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
+  size_t n, total, largest;
+
+  (void)argv;
+  if (argc > 0) {
+    shellUsage(chp, "heap");
+    return;
+  }
+  extern memory_heap_t _ccm_heap;
+  n = chHeapStatus(&_ccm_heap, &total, &largest);
+  chprintf(chp, "CCM heap fragments   : %u"SHELL_NEWLINE_STR, n);
+  chprintf(chp, "CCM heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
+  chprintf(chp, "CCM heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
 }
 
 void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])

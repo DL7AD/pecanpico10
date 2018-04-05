@@ -381,7 +381,7 @@ static inline void pktReleaseSendObject(packet_t pp) {
 #if USE_SPI_ATTACHED_RADIO == TRUE
 #if USE_NEW_PKT_TX_ALLOC == TRUE
 
-      pktReleaseOutgoingBuffer(pp);
+      pktReleasePacketBuffer(pp);
 #else
       ax25_delete (pp);
 #endif
@@ -405,7 +405,7 @@ static inline void pktReleaseSendQueue(packet_t pp) {
   /* Release all packets in linked list. */
   do {
     packet_t np = pp->nextp;
-    pktReleaseOutgoingBuffer(pp);
+    pktReleasePacketBuffer(pp);
     pp = np;
   } while(pp != NULL);
 #else

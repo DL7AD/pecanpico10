@@ -11,7 +11,7 @@ void usb_cmd_printLog(BaseSequentialStream *chp, int argc, char *argv[]);
 void usb_cmd_command2Camera(BaseSequentialStream *chp, int argc, char *argv[]);
 void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]);
 void usb_cmd_set_test_gps(BaseSequentialStream *chp, int argc, char *argv[]);
-
+void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]);
 extern const ShellCommand commands[];
 
 #endif

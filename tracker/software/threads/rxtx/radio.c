@@ -9,44 +9,51 @@
 #include "radio.h"
 
 static void processPacket(uint8_t *buf, uint32_t len) {
-  /* Remove CRC from frame. */
-  if(len > 2) {
-    len -= 2;
-    // Decode APRS frame
-	packet_t pp = ax25_from_frame(buf, len);
 
-	if(pp != NULL) {
-	    uint8_t *c;
-	    uint32_t len = ax25_get_info(pp, &c);
-	    if(len == 0) {
-	        TRACE_INFO("RX   > Invalid packet structure - dropped");
-#if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(pp);
-#else
-      ax25_delete (pp);
-#endif
-	        return;
-	    }
-		char serial_buf[512];
-		aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
-		TRACE_INFO("RX   > %s", serial_buf);
-
-		if(pp->num_addr > 0) {
-	      aprs_decode_packet(pp);
-		} else {
-	      TRACE_INFO("RX   > No addresses in packet - dropped");
-		}
-#if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(pp);
-#else
-      ax25_delete (pp);
-#endif
-	} else {
-		TRACE_INFO("RX    > Error in packet - dropped");
-	}
-	return;
+  if(len < 3) {
+    /*
+     *  Incoming packet was too short.
+     *  Don't yet have a general packet so nothing to do.
+     */
+    TRACE_INFO("RX    > Packet dropped due to data length < 2");
+    return;
   }
-  TRACE_INFO("RX    > Packet dropped due to data length < 2");
+  /* Remove CRC from frame. */
+  len -= 2;
+
+  /* Decode APRS frame. */
+  packet_t pp = ax25_from_frame(buf, len);
+
+  if(pp == NULL) {
+    TRACE_INFO("RX    > Error in packet - dropped");
+    return;
+  }
+  /* Continue packet analysis. */
+  uint8_t *c;
+  uint32_t ilen = ax25_get_info(pp, &c);
+  if(ilen == 0) {
+    TRACE_INFO("RX   > Invalid packet structure - dropped");
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+    pktReleasePacketBuffer(pp);
+#else
+    ax25_delete (pp);
+#endif
+    return;
+  }
+  /* Output packet as text. */
+  char serial_buf[512];
+  aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
+  TRACE_INFO("RX   > %s", serial_buf);
+
+  if(pp->num_addr > 0)
+    aprs_decode_packet(pp);
+  else
+    TRACE_INFO("RX   > No addresses in packet - dropped");
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+    pktReleasePacketBuffer(pp);
+#else
+    ax25_delete (pp);
+#endif
 }
 
 void mapCallback(pkt_data_object_t *pkt_buff) {
@@ -118,7 +125,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
   if(!pktIsTransmitOpen(radio)) {
     TRACE_WARN( "RAD  > Transmit is not open on radio");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(pp);
+      pktReleasePacketBuffer(pp);
 #else
       ax25_delete (pp);
 #endif
@@ -151,6 +158,11 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 
         TRACE_ERROR("RAD  > Transmit base frequency of %d.%03d MHz is invalid",
                       base_freq/1000000, (base_freq%1000000)/1000);
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+        pktReleasePacketBuffer(pp);
+#else
+        ax25_delete (pp);
+#endif
         return false;
       }
 
@@ -191,7 +203,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
         if(msg != MSG_OK) {
           TRACE_ERROR("RAD  > Failed to post radio task");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-          pktReleaseOutgoingBuffer(pp);
+          pktReleasePacketBuffer(pp);
 #else
           ax25_delete (pp);
 #endif
@@ -204,7 +216,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 					base_freq/1000000, (base_freq%1000000)/1000, pwr,
 					getModulation(mod), len);
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(pp);
+      pktReleasePacketBuffer(pp);
 #else
       ax25_delete (pp);
 #endif

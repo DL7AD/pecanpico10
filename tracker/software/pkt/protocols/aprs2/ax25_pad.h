@@ -130,22 +130,10 @@ typedef struct packet_s {
 
 #define SSID_LAST_MASK	0x01
 
-	/*
-	 * Pass the radio parameters and radio ID.
-	 * This enables multiple send requests to be queued with their own data.
-	 * TODO: Will be deprecated as TX will be passed radio object with ref to pp
-	 */
-	radio_unit_t    radio;
-	radio_freq_t    base_frequency;
-	channel_hz_t    radio_step;
-	radio_ch_t      radio_chan;
-	radio_pwr_t     radio_pwr;
-	radio_squelch_t cca_rssi;
-	uint16_t        preamble_size;
-	 //===========================
-
+	/* The transmit sequence number for this packet. */
 	uint8_t         tx_seq;
-	/* TODO: Set size of name with definition. */
+
+	/* TODO: Move this out of here... */
 	char            tx_thd_name[16];
 
     /* Frame length without CRC. */
@@ -363,8 +351,8 @@ extern packet_t ax25_dup (packet_t copy_from);
 extern void ax25_delete (packet_t pp);
 
 
-extern msg_t pktGetOutgoingBuffer(packet_t *pp, sysinterval_t timeout);
-extern void pktReleaseOutgoingBuffer(packet_t pp);
+extern msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
+extern void pktReleasePacketBuffer(packet_t pp);
 
 #endif
 

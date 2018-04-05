@@ -540,8 +540,10 @@ static bool aprs_decode_message(packet_t pp)
 	return true; // Mark that message has to be digipeated
 }
 
-static void aprs_digipeat(packet_t pp)
-{
+/*
+ * Transmit failure will release the packet memory.
+ */
+static void aprs_digipeat(packet_t pp) {
 	if(!dedupe_initialized) {
 		dedupe_init(TIME_S2I(10));
 		dedupe_initialized = true;
@@ -580,50 +582,52 @@ packet_t aprs_encode_telemetry_configuration(const char *callsign,
 	}
 }
 
-void aprs_decode_packet(packet_t pp)
-{
-	// Get heard callsign
-	char call[AX25_MAX_ADDR_LEN];
-	int8_t v = -1;
-	do {
-		v++;
-		ax25_get_addr_with_ssid(pp, ax25_get_heard(pp)-v, call);
-	} while(ax25_get_heard(pp)-v >= AX25_SOURCE && (!strncmp("WIDE", call, 4) || !strncmp("TRACE", call, 5)));
+/*
+ * 
+ */
+void aprs_decode_packet(packet_t pp) {
+  // Get heard callsign
+  char call[AX25_MAX_ADDR_LEN];
+  int8_t v = -1;
+  do {
+    v++;
+    ax25_get_addr_with_ssid(pp, ax25_get_heard(pp)-v, call);
+  } while(ax25_get_heard(pp)-v >= AX25_SOURCE && (!strncmp("WIDE", call, 4) || !strncmp("TRACE", call, 5)));
 
-	// Fill/Update direct list
-	sysinterval_t first_time = 0xFFFFFFFF;	// Timestamp of oldest heard list entry
-	uint8_t first_id = 0;					// ID of oldest heard list entry
+  // Fill/Update direct list
+  sysinterval_t first_time = 0xFFFFFFFF;	// Timestamp of oldest heard list entry
+  uint8_t first_id = 0;					// ID of oldest heard list entry
 
-	for(uint8_t i=0; i<=20; i++) {
-		if(i < 20) {
-			// Search for callsign in list
-			if(!strcmp(heard_list[i].call, call)) { // Callsign found in list
-				heard_list[i].time = chVTGetSystemTime(); // Update time the callsign was last heard
-				break;
-			}
+  for(uint8_t i=0; i<=20; i++) {
+    if(i < 20) {
+      // Search for callsign in list
+      if(!strcmp(heard_list[i].call, call)) { // Callsign found in list
+        heard_list[i].time = chVTGetSystemTime(); // Update time the callsign was last heard
+        break;
+      }
 
-			// Find oldest entry
-			if(first_time > heard_list[i].time) {
-				first_time = heard_list[i].time;
-				first_id = i;
-			}
-		} else { // Callsign not in list
-			// Overwrite old entry/ use empty entry
-			memcpy(heard_list[first_id].call, call, sizeof(heard_list[first_id].call));
-			heard_list[first_id].time = chVTGetSystemTime();
-		}
-	}
+      // Find oldest entry
+      if(first_time > heard_list[i].time) {
+        first_time = heard_list[i].time;
+        first_id = i;
+      }
+    } else { // Callsign not in list
+      // Overwrite old entry/ use empty entry
+      memcpy(heard_list[first_id].call, call, sizeof(heard_list[first_id].call));
+      heard_list[first_id].time = chVTGetSystemTime();
+    }
+  }
 
-	// Decode message packets
-	bool digipeat = true;
-	unsigned char *pinfo;
-	if(ax25_get_info(pp, &pinfo) == 0)
-	    return;
-	if(pinfo[0] == ':') digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
+  // Decode message packets
+  bool digipeat = true;
+  unsigned char *pinfo;
+  if(ax25_get_info(pp, &pinfo) == 0)
+    return;
+  if(pinfo[0] == ':') digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
 
-	// Digipeat packet
-	if(conf_sram.aprs.dig_active && digipeat) {
-		aprs_digipeat(pp);
-	}
+  // Digipeat packet
+  if(conf_sram.aprs.dig_active && digipeat) {
+    aprs_digipeat(pp);
+  }
 }
 
