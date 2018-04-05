@@ -415,6 +415,7 @@ static bool transmit_image_packets(const uint8_t *image,
     // Sync byte, CRC and FEC of SSDV not transmitted (because its not necessary inside an APRS packet)
     base91_encode(&pkt[6], pkt_base91, 174);
 
+    /* TODO: Implement en bloc send using chained buffers. */
     packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
     if(packet == NULL) {
       TRACE_ERROR("IMG  > No available packet for image transmission");

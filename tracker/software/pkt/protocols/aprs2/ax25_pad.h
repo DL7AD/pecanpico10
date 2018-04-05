@@ -133,6 +133,7 @@ typedef struct packet_s {
 	/*
 	 * Pass the radio parameters and radio ID.
 	 * This enables multiple send requests to be queued with their own data.
+	 * TODO: Will be deprecated as TX will be passed radio object with ref to pp
 	 */
 	radio_unit_t    radio;
 	radio_freq_t    base_frequency;
@@ -141,6 +142,8 @@ typedef struct packet_s {
 	radio_pwr_t     radio_pwr;
 	radio_squelch_t cca_rssi;
 	uint16_t        preamble_size;
+	 //===========================
+
 	uint8_t         tx_seq;
 	/* TODO: Set size of name with definition. */
 	char            tx_thd_name[16];

@@ -59,6 +59,7 @@ const conf_command_t command_list[] = {
 	{TYPE_STR,  "pos_pri.call",                  sizeof(conf_sram.pos_pri.call),                              &conf_sram.pos_pri.call                             },
 	{TYPE_STR,  "pos_pri.path",                  sizeof(conf_sram.pos_pri.path),                              &conf_sram.pos_pri.path                             },
 	{TYPE_INT,  "pos_pri.symbol",                sizeof(conf_sram.pos_pri.symbol),                            &conf_sram.pos_pri.symbol                           },
+    {TYPE_INT,  "pos_pri.aprs_msg",              sizeof(conf_sram.pos_pri.aprs_msg),                          &conf_sram.pos_pri.aprs_msg                         },
 	{TYPE_TIME, "pos_pri.tel_enc_cycle",         sizeof(conf_sram.pos_pri.tel_enc_cycle),                     &conf_sram.pos_pri.tel_enc_cycle                    },
 
 	{TYPE_INT,  "pos_sec.active",                sizeof(conf_sram.pos_sec.thread_conf.active),                &conf_sram.pos_sec.thread_conf.active               },
@@ -77,6 +78,7 @@ const conf_command_t command_list[] = {
 	{TYPE_STR,  "pos_sec.call",                  sizeof(conf_sram.pos_sec.call),                              &conf_sram.pos_sec.call                             },
 	{TYPE_STR,  "pos_sec.path",                  sizeof(conf_sram.pos_sec.path),                              &conf_sram.pos_sec.path                             },
 	{TYPE_INT,  "pos_sec.symbol",                sizeof(conf_sram.pos_sec.symbol),                            &conf_sram.pos_sec.symbol                           },
+    {TYPE_INT,  "pos_sec.aprs_msg",              sizeof(conf_sram.pos_sec.aprs_msg),                          &conf_sram.pos_sec.aprs_msg                         },
 	{TYPE_TIME, "pos_sec.tel_enc_cycle",         sizeof(conf_sram.pos_sec.tel_enc_cycle),                     &conf_sram.pos_sec.tel_enc_cycle                    },
 
 	{TYPE_INT,  "img_pri.active",                sizeof(conf_sram.img_pri.thread_conf.active),                &conf_sram.img_pri.thread_conf.active               },
@@ -347,7 +349,9 @@ static bool aprs_decode_message(packet_t pp)
 		memset(msg_id_rx, 0, sizeof(msg_id_rx));
 
 		// Cut off control chars
+		/* FIXME: Limit processing to size of incoming message. */
 		for(uint16_t i=11; pinfo[i] != 0 && i<0xFFFF; i++) {
+		  /* FIXME: Trim trailing spaces before {. */
 			if(pinfo[i] == '{') {
 				// Copy ACK ID
 				memcpy(msg_id_rx, &pinfo[i+1], sizeof(msg_id_rx)-1);
@@ -365,10 +369,12 @@ static bool aprs_decode_message(packet_t pp)
 			}
 		}
 
-		// Trace
-		TRACE_INFO("RX   > Received message from %s (ID=%s): %s", src, msg_id_rx, &pinfo[11]);
 
-		char *command = strlwr((char*)&pinfo[11]);
+        char *command = strlwr((char*)&pinfo[11]);
+
+		// Trace
+		TRACE_INFO("RX   > Received message from %s (ID=%s): %s [%s]",
+		           src, msg_id_rx, &pinfo[11], command);
 
 		// Do control actions
 		if(!strcmp(command, "?gpio pa8:1")) { // Switch on pin
@@ -513,7 +519,7 @@ static bool aprs_decode_message(packet_t pp)
 		if(msg_id_rx[0]) { // Message ID has been sent which has to be acknowledged
 			char buf[16];
 			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
-            /* FIXME: Calls getting packet_t need to check for NULL result. */
+
 			packet_t pp = aprs_encode_message(conf_sram.aprs.tx.call, conf_sram.aprs.tx.path, src, buf, true);
             if(pp == NULL) {
               TRACE_WARN("RX   > No free packet objects");

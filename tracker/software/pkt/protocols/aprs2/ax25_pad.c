@@ -282,6 +282,10 @@ packet_t ax25_new (void) {
       return NULL;
 	}
 
+	/*
+	 * Note this sets the nextp link to NULL.
+	 * If removing the memset then set nextp to NULL explicitly.
+	 */
 	memset(this_p, 0, sizeof(struct packet_s));
 
 	this_p->magic1 = MAGIC;

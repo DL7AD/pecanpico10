@@ -39,7 +39,7 @@ void startUSB(void) {
 void manageShell(void) {
 	if(shelltp == NULL) {
 		shelltp = chThdCreateFromHeap(NULL,
-		                              THD_WORKING_AREA_SIZE(2048),
+		                              THD_WORKING_AREA_SIZE(4*1024),
 		                              "shell", NORMALPRIO + 1,
 		                              shellThread,
 		                              (void*)&shell_cfg);
