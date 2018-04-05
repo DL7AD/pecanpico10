@@ -109,7 +109,9 @@ extern "C" {
                                             channel_hz_t step,
                                             radio_ch_t chan);
   bool pktLLDresumeReceive(radio_unit_t radio);
-  bool pktLLDsendPacket(packet_t pp, mod_t type);
+  bool pktLLDsendPacket(radio_task_object_t *rto);
+  void pktSignalSendComplete(radio_task_object_t *rto,
+                                thread_t *thread);
 #ifdef __cplusplus
 }
 #endif

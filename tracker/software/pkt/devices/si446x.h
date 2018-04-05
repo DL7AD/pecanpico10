@@ -215,13 +215,16 @@ typedef struct {
   uint8_t current_byte;
 } up_iterator_t;
 
+typedef struct radioTask radio_task_object_t;
+
 // Public methods
 
 int16_t Si446x_getLastTemperature(radio_unit_t radio);
 void Si446x_shutdown(radio_unit_t radio);
 void Si446x_sendAFSK(packet_t pp);
+bool Si446x_blocSendAFSK(radio_task_object_t *rto);
 void Si446x_send2FSK(packet_t pp);
-
+bool Si446x_blocSend2FSK(radio_task_object_t *rto);
 void Si446x_disableReceive(radio_unit_t radio);
 void Si446x_stopDecoder(void);
 bool Si4464_resumeReceive(radio_unit_t radio,

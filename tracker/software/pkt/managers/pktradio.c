@@ -176,24 +176,28 @@ THD_FUNCTION(pktRadioManager, arg) {
 
       /* TODO: Move all setting of pp params to radio.c */
       packet_t pp = task_object->packet_out;
-      pp->base_frequency = task_object->base_frequency;
+/*      pp->base_frequency = task_object->base_frequency;
       pp->radio_step = task_object->step_hz;
       pp->radio_chan = task_object->channel;
       pp->radio_pwr = task_object->tx_power;
-      pp->cca_rssi = task_object->squelch;
+      pp->cca_rssi = task_object->squelch;*/
 
       /* Give each send a sequence number. */
+      /* TODO: Put in task object instead? */
       pp->tx_seq = ++handler->radio_tx_config.seq_num;
 
-      if(pktLLDsendPacket(pp, task_object->type)) {
+      if(pktLLDsendPacket(task_object)) {
+        /* TODO: Deprecate this gear shift stuff. */
         handler->tx_count++;
         poll_hysteresis = PKT_RADIO_TASK_MANAGER_TX_HYSTERESIS;
         poll_rate = PKT_RADIO_TASK_MANAGER_TX_RATE_MS;
-        /* Success. */
-        break;
+        /* Send Successfully enqueued.
+         * Unlike receive the task object is held by the TX until complete.
+         * It is then released in the TX thread release task. */
+        continue;
       }
-      /* Send failed so release send packet object. */
-      pktReleaseSendObject(pp);
+      /* Send failed so release send packet object(s). */
+      pktReleaseSendQueue(pp);
       break;
     } /* End case PKT_RADIO_TX. */
 
@@ -429,6 +433,26 @@ void pktSubmitRadioTask(radio_unit_t radio,
   chFifoSendObject(task_queue, object);
 }
 
+/**
+ * @brief   Called by transmit threads to schedule release after completing.
+ * @post    A thread release task is posted to the radio manager queue.
+ *
+ * @param[in]   radio   radio unit ID.
+ * @param[in]   thread  thread reference.
+ *
+ * @api
+ */
+void pktSignalSendComplete(radio_task_object_t *rto,
+                              thread_t *thread) {
+
+  packet_svc_t *handler = rto->handler;
+
+  radio_unit_t radio = handler->radio;
+  /* The handler and radio ID are set in returned object. */
+  rto->command = PKT_RADIO_TX_THREAD;
+  rto->thread = thread;
+  pktSubmitRadioTask(radio, rto, rto->callback);
+}
 
 /**
  * @brief   Called by transmit threads to schedule release after completing.
@@ -505,7 +529,7 @@ radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
 }
 
 /**
- * @brief   Enable receive on a radio.
+ * @brief   Send on radio.
  * @notes   This is the API interface to the radio LLD.
  * @notes   Currently just map directly to 446x driver.
  * @notes   In future would implement a lookup and VMT to access radio methods.
@@ -514,14 +538,14 @@ radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
  *
  * @notapi
  */
-bool pktLLDsendPacket(packet_t pp, mod_t type) {
-  switch(type) {
+bool pktLLDsendPacket(radio_task_object_t *rto) {
+  switch(rto->type) {
   case MOD_2FSK:
-    Si446x_send2FSK(pp);
+    Si446x_blocSend2FSK(rto);
     break;
 
   case MOD_AFSK:
-    Si446x_sendAFSK(pp);
+    Si446x_blocSendAFSK(rto);
     break;
 
   case MOD_NONE:
