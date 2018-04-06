@@ -818,8 +818,6 @@ static void Si446x_transmitTimeoutI(thread_t *tp) {
 THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   radio_task_object_t *rto = arg;
 
-  packet_t pp = rto->packet_out;
-
   radio_unit_t radio = rto->handler->radio;
 
   pktAcquireRadio(radio, TIME_INFINITE);
@@ -841,7 +839,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   chVTObjectInit(&send_timer);
   msg_t exit_msg = MSG_OK;
   tx_iterator_t iterator;
-  packet_t np = NULL;
+  packet_t pp = rto->packet_out;
   do {
 
     /*
@@ -973,22 +971,22 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       /* Warn when level drops below 50% of FIFO size. */
       TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
     }
+    packet_t np = pp->nextp;
+       if(exit_msg == MSG_OK) {
 
-    /* Next packet in queue. */
-    np = pp->nextp;
+         /* Send was OK. Release the just completed packet. */
+         pktReleaseSendObject(pp);
+       } else {
+         /* Send failed so release any queue and terminate. */
+         pktReleaseSendQueue(pp);
+         np = NULL;
+       }
 
-    if(exit_msg == MSG_OK) {
+       /* Get the next packet in the send queue. */
+       pp = np;
+     } while(pp != NULL);
 
-      /* Send was OK. Release the just completed packet. */
-      pktReleaseSendObject(pp);
-    } else {
-      /* Send failed so release queue and terminate. */
-      pktReleaseSendQueue(pp);
-      np = NULL;
-    }
-
-  } while(np != NULL);
-
+  chThdSleep(TIME_MS2I(100));
   /* Schedule thread memory release. */
   pktSignalSendComplete(rto, chThdGetSelfX());
 
@@ -1004,12 +1002,12 @@ bool Si446x_blocSendAFSK(radio_task_object_t *rt) {
     thread_t *afsk_feeder_thd = NULL;
 
     /* Create a send thread name which includes the sequence number. */
-    chsnprintf(rt->packet_out->tx_thd_name, sizeof(rt->packet_out->tx_thd_name),
-               "446x_afsk_tx_%03i", rt->packet_out->tx_seq);
+    chsnprintf(rt->tx_thd_name, sizeof(rt->tx_thd_name),
+               "446x_afsk_tx_%03i", rt->tx_seq_num);
 
     afsk_feeder_thd = chThdCreateFromHeap(NULL,
                 THD_WORKING_AREA_SIZE(SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE),
-                rt->packet_out->tx_thd_name,
+                rt->tx_thd_name,
                 NORMALPRIO - 10,
                 bloc_si_fifo_feeder_afsk,
                 rt);
@@ -1037,8 +1035,6 @@ void Si446x_stopDecoder(void) {
 THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   radio_task_object_t *rto = arg;
 
-  packet_t pp = rto->packet_out;
-
   radio_unit_t radio = rto->handler->radio;
 
   /* TODO: Check result for MSG_RESET. */
@@ -1064,7 +1060,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   chVTObjectInit(&send_timer);
 
   tx_iterator_t iterator;
-  packet_t np = NULL;
+
+  packet_t pp = rto->packet_out;
   /* The exit message. */
   msg_t exit_msg;
   do {
@@ -1181,9 +1178,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       /* Warn when level drops below 50% of FIFO size. */
       TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
     }
-    /* Get the next packet in the send queue. */
-    np = pp->nextp;
-
+    packet_t np = pp->nextp;
     if(exit_msg == MSG_OK) {
 
       /* Send was OK. Release the just completed packet. */
@@ -1193,8 +1188,12 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       pktReleaseSendQueue(pp);
       np = NULL;
     }
-  } while(np != NULL);
 
+    /* Get the next packet in the send queue. */
+    pp = np;
+  } while(pp != NULL);
+
+  chThdSleep(TIME_MS2I(100));
   /* Finished send so schedule thread memory and task object release. */
   pktSignalSendComplete(rto, chThdGetSelfX());
 
@@ -1213,12 +1212,12 @@ bool Si446x_blocSend2FSK(radio_task_object_t *rt) {
 
   /* TODO: Don't need to put the thread name in the packet. Just use local var. */
   /* Create a send thread name which includes the sequence number. */
-  chsnprintf(rt->packet_out->tx_thd_name, sizeof(rt->packet_out->tx_thd_name),
-             "446x_2fsk_tx_%03i", rt->packet_out->tx_seq);
+  chsnprintf(rt->tx_thd_name, sizeof(rt->tx_thd_name),
+             "446x_2fsk_tx_%03i", rt->tx_seq_num);
 
   fsk_feeder_thd = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(SI_FSK_FIFO_FEEDER_WA_SIZE),
-              rt->packet_out->tx_thd_name,
+              rt->tx_thd_name,
               NORMALPRIO - 10,
               bloc_si_fifo_feeder_fsk,
               rt);

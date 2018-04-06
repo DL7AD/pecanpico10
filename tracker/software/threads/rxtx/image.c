@@ -372,12 +372,15 @@ static bool transmit_image_packets(const uint8_t *image,
   ssdv_enc_set_buffer(&ssdv, pkt);
   ssdv_enc_feed(&ssdv, image, 0);
 
+  /* TODO: Review/revise how this works with block send. */
   do {
     // Process redundant transmission from last cycle
     if(strlen((char*)pkt_base91) && conf->radio_conf.redundantTx) {
-      packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
+      packet_t packet = aprs_encode_data_packet(conf->call, conf->path,
+                                                'I', pkt_base91);
       if(packet == NULL) {
-        TRACE_ERROR("IMG  > No available packet for redundant image transmission");
+        TRACE_ERROR("IMG  > No available packet for redundant"
+            " image transmission");
       } else {
         if(!transmitOnRadio(packet,
                             conf->radio_conf.freq,
@@ -386,41 +389,72 @@ static bool transmit_image_packets(const uint8_t *image,
                             conf->radio_conf.pwr,
                             conf->radio_conf.mod,
                             conf->radio_conf.rssi)) {
+          /* Packet has been released by transmit. */
           TRACE_ERROR("IMG  > Unable to send redundant image on radio");
         }
       }
       chThdSleep(TIME_MS2I(10)); // Leave other threads some time
     }
 
-    // Encode packet
-    TRACE_INFO("IMG  > Encode APRS/SSDV packet");
-    /* TODO: re-implement chunk sized SSDV conversions. */
-    while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME) {
-      b = &image[bi++];
-      if(bi > image_len) {
-        TRACE_ERROR("SSDV > Premature end of file");
+    packet_t head = NULL;
+    packet_t previous = NULL;
+    uint8_t chain = (conf->radio_conf.mod == MOD_2FSK) ? (NUMBER_COMMON_PKT_BUFFERS / 2) : 1;
+
+    // Encode packet(s)
+    TRACE_INFO("IMG  > Encode APRS/SSDV packet(s) %i", chain);
+    while((chain-- > 0) && (c != SSDV_EOI)) {
+      /* TODO: re-implement chunk sized SSDV conversions. */
+      while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME) {
+        b = &image[bi++];
+        if(bi > image_len) {
+          TRACE_ERROR("SSDV > Premature end of file");
+          if(head != NULL) {
+            pktReleaseSendQueue(head);
+          }
+          return false;
+        }
+        ssdv_enc_feed(&ssdv, b, 1);
+      }
+
+      if(c == SSDV_EOI) {
+        TRACE_INFO("SSDV > ssdv_enc_get_packet said EOI");
+        break;
+      } else if(c != SSDV_OK) {
+        TRACE_ERROR("SSDV > ssdv_enc_get_packet failed: %i", c);
+        if(head != NULL) {
+          pktReleaseSendQueue(head);
+        }
         return false;
       }
-      ssdv_enc_feed(&ssdv, b, 1);
-    }
 
-    if(c == SSDV_EOI) {
-      TRACE_INFO("SSDV > ssdv_enc_get_packet said EOI");
-      return true;
-    } else if(c != SSDV_OK) {
-      TRACE_ERROR("SSDV > ssdv_enc_get_packet failed: %i", c);
-      return false;
-    }
+      /*
+       * Sync byte, CRC and FEC of SSDV not transmitted.
+       * Not necessary inside an APRS packet.
+       */
+      base91_encode(&pkt[6], pkt_base91, 174);
 
-    // Sync byte, CRC and FEC of SSDV not transmitted (because its not necessary inside an APRS packet)
-    base91_encode(&pkt[6], pkt_base91, 174);
+      packet_t packet = aprs_encode_data_packet(conf->call, conf->path,
+                                                'I', pkt_base91);
+      if(packet == NULL) {
+        TRACE_ERROR("IMG  > No available packet for image transmission");
+        /* Error so release any linked packets. */
+        if(head != NULL) {
+          pktReleaseSendQueue(head);
+        }
+        return false;
+      }
+      if(head == NULL)
+        head = packet;
+      if(previous != NULL)
+        /* Link the next packet into the chain. */
+        previous->nextp = packet;
+      /* Now set previous as current. */
+      previous = packet;
+    } /* End while. */
 
-    /* TODO: Implement en bloc send using chained buffers. */
-    packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
-    if(packet == NULL) {
-      TRACE_ERROR("IMG  > No available packet for image transmission");
-    } else {
-      if(!transmitOnRadio(packet,
+    /* If we have some image packet(s) to transmit then do it. */
+    if(head != NULL) {
+      if(!transmitOnRadio(head,
                           conf->radio_conf.freq,
                           0,
                           0,
@@ -428,14 +462,18 @@ static bool transmit_image_packets(const uint8_t *image,
                           conf->radio_conf.mod,
                           conf->radio_conf.rssi)) {
         TRACE_ERROR("IMG  > Unable to send image on radio");
+        /* Transmit on radio will release the packet chain. */
       }
     }
+
     chThdSleep(TIME_MS2I(10)); // Leave other threads some time
 
+    /* TODO: Review/revise how this works with block send. */
     // Repeat packets
     for(uint8_t i=0; i<16; i++) {
       if(packetRepeats[i].n_done && image_id == packetRepeats[i].image_id) {
-        if(!transmit_image_packet(image, image_len, conf, image_id, packetRepeats[i].packet_id)) {
+        if(!transmit_image_packet(image, image_len, conf,
+                                  image_id, packetRepeats[i].packet_id)) {
           TRACE_ERROR("IMG  > Failed re-send of image %i", image_id);
         } else {
           packetRepeats[i].n_done = false; // Set done
@@ -445,8 +483,8 @@ static bool transmit_image_packets(const uint8_t *image,
     }
 
     // Packet spacing (delay)
-    if(conf->thread_conf.packet_spacing)
-      chThdSleep(conf->thread_conf.packet_spacing);
+    if(conf->thread_conf.send_spacing)
+      chThdSleep(conf->thread_conf.send_spacing);
 
     // Handle image rejection flag
     if((conf == &conf_sram.img_pri) && reject_pri) { // Image rejected
@@ -455,7 +493,8 @@ static bool transmit_image_packets(const uint8_t *image,
     if((conf == &conf_sram.img_sec) && reject_sec) { // Image rejected
       reject_sec = false;
     }
-  } while(true);
+  } while(c != SSDV_EOI);
+  return true;
 }
 
 /**
@@ -514,8 +553,8 @@ static bool analyze_image(uint8_t *image, uint32_t image_len)
 
 static bool camInitialized = false;
 
-uint32_t takePicture(uint8_t* buffer, uint32_t size, resolution_t res, bool enableJpegValidation)
-{
+uint32_t takePicture(uint8_t* buffer, uint32_t size,
+                     resolution_t res, bool enableJpegValidation) {
 	uint32_t size_sampled = 0;
 
 	// Initialize mutex
@@ -591,9 +630,11 @@ THD_FUNCTION(imgThread, arg) {
       // Take picture
 
       /* Create image capture buffer. */
-      uint8_t *buffer = chHeapAllocAligned(NULL, conf->buf_size, DMA_FIFO_BURST_ALIGN);
+      uint8_t *buffer = chHeapAllocAligned(NULL, conf->buf_size,
+                                           DMA_FIFO_BURST_ALIGN);
       if(buffer != NULL) {
-        uint32_t size_sampled = takePicture(buffer, conf->buf_size, conf->res, true);
+        uint32_t size_sampled = takePicture(buffer, conf->buf_size,
+                                            conf->res, true);
         gimage_id++; // Increase SSDV image counter
 
         // Radio transmission
@@ -603,7 +644,9 @@ THD_FUNCTION(imgThread, arg) {
           if(initSD())
           {
             char filename[32];
-            chsnprintf(filename, sizeof(filename), "r%02xi%04x.jpg", getLastDataPoint()->reset % 0xFF, (gimage_id-1) % 0xFFFF);
+            chsnprintf(filename, sizeof(filename), "r%02xi%04x.jpg",
+                       getLastDataPoint()->reset % 0xFF,
+                       (gimage_id-1) % 0xFFFF);
 
             // Find SOI
             uint32_t soi;
@@ -617,15 +660,20 @@ THD_FUNCTION(imgThread, arg) {
 
           // Encode and transmit picture
           TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", gimage_id-1);
-          if(!transmit_image_packets(buffer, size_sampled, conf, (uint8_t)(gimage_id-1))) {
-            TRACE_ERROR("IMG  > Error in encoding snapshot image %i - discarded", gimage_id-1);
+          if(!transmit_image_packets(buffer, size_sampled, conf,
+                                     (uint8_t)(gimage_id-1))) {
+            TRACE_ERROR("IMG  > Error in encoding snapshot image"
+                " %i - discarded", gimage_id-1);
             /* Allow time for output queue to be processed. */
             chThdSleep(TIME_S2I(10));
           }
         } else { // No camera found
-          TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d", gimage_id-1);
-          if(!transmit_image_packets(noCameraFound, sizeof(noCameraFound), conf, (uint8_t)(gimage_id-1))) {
-            TRACE_ERROR("IMG  > Error in encoding dummy image %i - discarded", gimage_id-1);
+          TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d",
+                     gimage_id-1);
+          if(!transmit_image_packets(noCameraFound, sizeof(noCameraFound),
+                                     conf, (uint8_t)(gimage_id-1))) {
+            TRACE_ERROR("IMG  > Error in encoding dummy image %i"
+                " - discarded", gimage_id-1);
             /* Allow time for output queue to be processed. */
             chThdSleep(TIME_S2I(10));
           }
@@ -634,7 +682,8 @@ THD_FUNCTION(imgThread, arg) {
         chHeapFree(buffer);
       } else {
         /* Could not get a capture buffer. */
-        TRACE_WARN("IMG  > Unable to get capture buffer for image %i", gimage_id-1);
+        TRACE_WARN("IMG  > Unable to get capture buffer for image %i",
+                   gimage_id-1);
       }
     }
     chThdSleep(TIME_MS2I(10));
@@ -647,10 +696,13 @@ THD_FUNCTION(imgThread, arg) {
  */
 void start_image_thread(thd_img_conf_t *conf)
 {
-	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(40 * 1024), "IMG", LOWPRIO, imgThread, conf);
+	thread_t *th = chThdCreateFromHeap(NULL,
+	                                   THD_WORKING_AREA_SIZE(40 * 1024),
+	                                   "IMG", LOWPRIO, imgThread, conf);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread
-		TRACE_ERROR("IMG  > Could not startup thread (not enough memory available)");
+		TRACE_ERROR("IMG  > Could not startup thread"
+		    " (not enough memory available)");
 	}
 }
 

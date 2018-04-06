@@ -177,7 +177,7 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id, unsigned char *pa
   *
   * This method divides MAX7/8 and MAX6 modules since the protocol changed at MAX7 series. MAX6 requires
   * NAV-POSLLH NAV-TIMEUTC and NAV-SOL to get all information about the GPS. With implementation of the
-  * NAV-PVT message at the MAX7 series, all information can be aquired by only one message. Although
+  * NAV-PVT message at the MAX7 series, all information can be acquired by only one message. Although
   * MAX7 is backward compatible, MAX7/8 will use NAV-PVT rather than the old protocol.
   *
   * argument is call by reference to avoid large stack allocations
@@ -204,7 +204,7 @@ bool gps_get_fix(gpsFix_t *fix) {
 		return false;
 	}
 
-	/* Temporary hack to enable fixed GPS location to be specified. */
+	/* FIXME: Temporary hack to enable fixed GPS location to be specified. */
 	extern bool test_gps_enabled;
 	/* Fake GPS test. */
 	if(test_gps_enabled) {

@@ -131,10 +131,10 @@ typedef struct packet_s {
 #define SSID_LAST_MASK	0x01
 
 	/* The transmit sequence number for this packet. */
-	uint8_t         tx_seq;
+	//uint8_t         tx_seq;
 
 	/* TODO: Move this out of here... */
-	char            tx_thd_name[16];
+	//char            tx_thd_name[16];
 
     /* Frame length without CRC. */
 	int         frame_len;

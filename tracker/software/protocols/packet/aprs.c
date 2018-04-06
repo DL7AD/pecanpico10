@@ -45,7 +45,7 @@ static bool dedupe_initialized;
 const conf_command_t command_list[] = {
 	{TYPE_INT,  "pos_pri.active",                sizeof(conf_sram.pos_pri.thread_conf.active),                &conf_sram.pos_pri.thread_conf.active               },
 	{TYPE_TIME, "pos_pri.init_delay",            sizeof(conf_sram.pos_pri.thread_conf.init_delay),            &conf_sram.pos_pri.thread_conf.init_delay           },
-	{TYPE_TIME, "pos_pri.packet_spacing",        sizeof(conf_sram.pos_pri.thread_conf.packet_spacing),        &conf_sram.pos_pri.thread_conf.packet_spacing       },
+	{TYPE_TIME, "pos_pri.packet_spacing",        sizeof(conf_sram.pos_pri.thread_conf.send_spacing),        &conf_sram.pos_pri.thread_conf.send_spacing       },
 	{TYPE_INT,  "pos_pri.sleep_conf.type",       sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.type),       &conf_sram.pos_pri.thread_conf.sleep_conf.type      },
 	{TYPE_INT,  "pos_pri.sleep_conf.vbat_thres", sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.vbat_thres), &conf_sram.pos_pri.thread_conf.sleep_conf.vbat_thres},
 	{TYPE_INT,  "pos_pri.sleep_conf.vsol_thres", sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.vsol_thres), &conf_sram.pos_pri.thread_conf.sleep_conf.vsol_thres},
@@ -64,7 +64,7 @@ const conf_command_t command_list[] = {
 
 	{TYPE_INT,  "pos_sec.active",                sizeof(conf_sram.pos_sec.thread_conf.active),                &conf_sram.pos_sec.thread_conf.active               },
 	{TYPE_TIME, "pos_sec.init_delay",            sizeof(conf_sram.pos_sec.thread_conf.init_delay),            &conf_sram.pos_sec.thread_conf.init_delay           },
-	{TYPE_TIME, "pos_sec.packet_spacing",        sizeof(conf_sram.pos_sec.thread_conf.packet_spacing),        &conf_sram.pos_sec.thread_conf.packet_spacing       },
+	{TYPE_TIME, "pos_sec.packet_spacing",        sizeof(conf_sram.pos_sec.thread_conf.send_spacing),        &conf_sram.pos_sec.thread_conf.send_spacing       },
 	{TYPE_INT,  "pos_sec.sleep_conf.type",       sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.type),       &conf_sram.pos_sec.thread_conf.sleep_conf.type      },
 	{TYPE_INT,  "pos_sec.sleep_conf.vbat_thres", sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.vbat_thres), &conf_sram.pos_sec.thread_conf.sleep_conf.vbat_thres},
 	{TYPE_INT,  "pos_sec.sleep_conf.vsol_thres", sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.vsol_thres), &conf_sram.pos_sec.thread_conf.sleep_conf.vsol_thres},
@@ -83,7 +83,7 @@ const conf_command_t command_list[] = {
 
 	{TYPE_INT,  "img_pri.active",                sizeof(conf_sram.img_pri.thread_conf.active),                &conf_sram.img_pri.thread_conf.active               },
 	{TYPE_TIME, "img_pri.init_delay",            sizeof(conf_sram.img_pri.thread_conf.init_delay),            &conf_sram.img_pri.thread_conf.init_delay           },
-	{TYPE_TIME, "img_pri.packet_spacing",        sizeof(conf_sram.img_pri.thread_conf.packet_spacing),        &conf_sram.img_pri.thread_conf.packet_spacing       },
+	{TYPE_TIME, "img_pri.packet_spacing",        sizeof(conf_sram.img_pri.thread_conf.send_spacing),          &conf_sram.img_pri.thread_conf.send_spacing         },
 	{TYPE_INT,  "img_pri.sleep_conf.type",       sizeof(conf_sram.img_pri.thread_conf.sleep_conf.type),       &conf_sram.img_pri.thread_conf.sleep_conf.type      },
 	{TYPE_INT,  "img_pri.sleep_conf.vbat_thres", sizeof(conf_sram.img_pri.thread_conf.sleep_conf.vbat_thres), &conf_sram.img_pri.thread_conf.sleep_conf.vbat_thres},
 	{TYPE_INT,  "img_pri.sleep_conf.vsol_thres", sizeof(conf_sram.img_pri.thread_conf.sleep_conf.vsol_thres), &conf_sram.img_pri.thread_conf.sleep_conf.vsol_thres},
@@ -102,7 +102,7 @@ const conf_command_t command_list[] = {
 
 	{TYPE_INT,  "img_sec.active",                sizeof(conf_sram.img_sec.thread_conf.active),                &conf_sram.img_sec.thread_conf.active               },
 	{TYPE_TIME, "img_sec.init_delay",            sizeof(conf_sram.img_sec.thread_conf.init_delay),            &conf_sram.img_sec.thread_conf.init_delay           },
-	{TYPE_TIME, "img_sec.packet_spacing",        sizeof(conf_sram.img_sec.thread_conf.packet_spacing),        &conf_sram.img_sec.thread_conf.packet_spacing       },
+	{TYPE_TIME, "img_sec.packet_spacing",        sizeof(conf_sram.img_sec.thread_conf.send_spacing),        &conf_sram.img_sec.thread_conf.send_spacing       },
 	{TYPE_INT,  "img_sec.sleep_conf.type",       sizeof(conf_sram.img_sec.thread_conf.sleep_conf.type),       &conf_sram.img_sec.thread_conf.sleep_conf.type      },
 	{TYPE_INT,  "img_sec.sleep_conf.vbat_thres", sizeof(conf_sram.img_sec.thread_conf.sleep_conf.vbat_thres), &conf_sram.img_sec.thread_conf.sleep_conf.vbat_thres},
 	{TYPE_INT,  "img_sec.sleep_conf.vsol_thres", sizeof(conf_sram.img_sec.thread_conf.sleep_conf.vsol_thres), &conf_sram.img_sec.thread_conf.sleep_conf.vsol_thres},
@@ -121,7 +121,7 @@ const conf_command_t command_list[] = {
 
 	{TYPE_INT,  "log.active",                    sizeof(conf_sram.log.thread_conf.active),                    &conf_sram.log.thread_conf.active                   },
 	{TYPE_TIME, "log.init_delay",                sizeof(conf_sram.log.thread_conf.init_delay),                &conf_sram.log.thread_conf.init_delay               },
-	{TYPE_TIME, "log.packet_spacing",            sizeof(conf_sram.log.thread_conf.packet_spacing),            &conf_sram.log.thread_conf.packet_spacing           },
+	{TYPE_TIME, "log.packet_spacing",            sizeof(conf_sram.log.thread_conf.send_spacing),            &conf_sram.log.thread_conf.send_spacing           },
 	{TYPE_INT,  "log.sleep_conf.type",           sizeof(conf_sram.log.thread_conf.sleep_conf.type),           &conf_sram.log.thread_conf.sleep_conf.type          },
 	{TYPE_INT,  "log.sleep_conf.vbat_thres",     sizeof(conf_sram.log.thread_conf.sleep_conf.vbat_thres),     &conf_sram.log.thread_conf.sleep_conf.vbat_thres    },
 	{TYPE_INT,  "log.sleep_conf.vsol_thres",     sizeof(conf_sram.log.thread_conf.sleep_conf.vsol_thres),     &conf_sram.log.thread_conf.sleep_conf.vsol_thres    },
@@ -269,7 +269,7 @@ packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t s
 	xmit[len+len2+26] = '|';
 	xmit[len+len2+27] = 0;
 
-	return ax25_from_text(xmit, 1);
+	return ax25_from_text(xmit, true);
 }
 
 packet_t aprs_encode_data_packet(const char *callsign, const char *path, char packetType, uint8_t *data)
@@ -277,7 +277,7 @@ packet_t aprs_encode_data_packet(const char *callsign, const char *path, char pa
 	char xmit[256];
 	chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:{{%c%s", callsign, APRS_DEST_CALLSIGN, path, packetType, data);
 
-	return ax25_from_text(xmit, 1);
+	return ax25_from_text(xmit, true);
 }
 
 /**
@@ -291,7 +291,7 @@ packet_t aprs_encode_message(const char *callsign, const char *path, const char 
 	else
 		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s{%d", callsign, APRS_DEST_CALLSIGN, path, receiver, text, ++msg_id);
 
-	return ax25_from_text(xmit, 1);
+	return ax25_from_text(xmit, true);
 }
 
 packet_t aprs_encode_query_answer_aprsd(const char *callsign, const char *path, const char *receiver)
@@ -339,9 +339,11 @@ static bool aprs_decode_message(packet_t pp)
 
 	// Try to find out if this message is meant for us
 	bool pos_pri = !strcmp(conf_sram.pos_pri.call, dest)
-	    && (conf_sram.pos_pri.aprs_msg);
+	    && (conf_sram.pos_pri.aprs_msg)
+	    && (conf_sram.pos_pri.thread_conf.active);
     bool pos_sec = !strcmp(conf_sram.pos_sec.call, dest)
-        && (conf_sram.pos_sec.aprs_msg);
+        && (conf_sram.pos_sec.aprs_msg)
+        && (conf_sram.pos_sec.thread_conf.active);
     bool aprs = !strcmp(conf_sram.aprs.rx.call, dest);
 
 	if((pinfo[10] == ':') && (pos_pri || pos_sec || aprs)) {
@@ -533,7 +535,6 @@ static bool aprs_decode_message(packet_t pp)
                             conf_sram.aprs.tx.radio_conf.mod,
                             conf_sram.aprs.tx.radio_conf.rssi);
 		}
-
 		return false; // Mark that message should not be digipeated
 	}
 
@@ -555,6 +556,7 @@ static void aprs_digipeat(packet_t pp) {
 		                                 wide_re, 0, preempt, NULL);
 		if(result != NULL) { // Should be digipeated
 			dedupe_remember(result, 0);
+			/* If transmit fails the packet is freed. */
 			transmitOnRadio(result,
 			                conf_sram.aprs.tx.radio_conf.freq,
 		                    0,

@@ -68,7 +68,7 @@ typedef struct {
 typedef struct {
 	bool				active;
 	sysinterval_t		init_delay;
-	sysinterval_t		packet_spacing;
+	sysinterval_t		send_spacing;
 	sleep_conf_t		sleep_conf;
 	sysinterval_t		cycle;				// Cycle time (0: continously)
 	sysinterval_t       duration;

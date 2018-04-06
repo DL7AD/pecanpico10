@@ -42,6 +42,7 @@ THD_FUNCTION(pktRadioManager, arg) {
 #define PKT_RADIO_TASK_MANAGER_TX_RATE_MS       100
 
 /* Continue at TX rate for this number of cycles. */
+  /* TODO: Deprecate this gear shift stuff. */
 #define PKT_RADIO_TASK_MANAGER_TX_HYSTERESIS    10
 
   packet_svc_t *handler = arg;
@@ -51,6 +52,7 @@ THD_FUNCTION(pktRadioManager, arg) {
   chDbgCheck(arg != NULL);
 
   sysinterval_t poll_rate = PKT_RADIO_TASK_MANAGER_IDLE_RATE_MS;
+  /* TODO: Deprecate this gear shift stuff. */
   uint8_t poll_hysteresis = 0;
 
   objects_fifo_t *radio_queue = chFactoryGetObjectsFIFO(the_radio_fifo);
@@ -65,6 +67,7 @@ THD_FUNCTION(pktRadioManager, arg) {
                          (void *)&task_object,
                          TIME_MS2I(poll_rate));
     if(fifo_msg == MSG_TIMEOUT) {
+      /* TODO: Deprecate this gear shift stuff. */
       if(poll_hysteresis == 0)
         poll_rate = PKT_RADIO_TASK_MANAGER_IDLE_RATE_MS;
       else
@@ -174,17 +177,8 @@ THD_FUNCTION(pktRadioManager, arg) {
        * Is it necessary since the RX is not outputting data during TX?
        */
 
-      /* TODO: Move all setting of pp params to radio.c */
-      packet_t pp = task_object->packet_out;
-/*      pp->base_frequency = task_object->base_frequency;
-      pp->radio_step = task_object->step_hz;
-      pp->radio_chan = task_object->channel;
-      pp->radio_pwr = task_object->tx_power;
-      pp->cca_rssi = task_object->squelch;*/
-
       /* Give each send a sequence number. */
-      /* TODO: Put in task object instead? */
-      pp->tx_seq = ++handler->radio_tx_config.seq_num;
+      ++handler->radio_tx_config.tx_seq_num;
 
       if(pktLLDsendPacket(task_object)) {
         /* TODO: Deprecate this gear shift stuff. */
@@ -193,10 +187,13 @@ THD_FUNCTION(pktRadioManager, arg) {
         poll_rate = PKT_RADIO_TASK_MANAGER_TX_RATE_MS;
         /* Send Successfully enqueued.
          * Unlike receive the task object is held by the TX until complete.
-         * It is then released in the TX thread release task. */
+         * This is non blocking as radio transmit runs in a thread.
+         * The radio task object is released in the TX thread release task.
+         */
         continue;
       }
       /* Send failed so release send packet object(s). */
+      packet_t pp = task_object->packet_out;
       pktReleaseSendQueue(pp);
       break;
     } /* End case PKT_RADIO_TX. */

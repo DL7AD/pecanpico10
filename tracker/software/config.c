@@ -34,7 +34,8 @@ const conf_t conf_flash_default = {
 	.pos_sec = {
 		.thread_conf = {
 			.active			= false,
-			.cycle			= TIME_S2I(120)
+			.cycle			= TIME_S2I(120),
+            .init_delay     = TIME_S2I(60)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -57,7 +58,7 @@ const conf_t conf_flash_default = {
 			.active			= false,
 			.cycle			= TIME_S2I(600),
 			.init_delay		= TIME_S2I(20),
-			.packet_spacing	= TIME_S2I(1)
+			.send_spacing	= TIME_S2I(5)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -79,17 +80,19 @@ const conf_t conf_flash_default = {
 	.img_sec = {
 		.thread_conf = {
 			.active			= false,
-			.cycle			= CYCLE_CONTINUOUSLY
+            .cycle          = TIME_S2I(600),
+            .init_delay     = TIME_S2I(20),
+            .send_spacing   = TIME_MS2I(100)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
-			.freq			= FREQ_APRS_DYNAMIC,
+			.freq			= 145175000,
 			.mod			= MOD_AFSK,
             .rssi           = 0x4F,
 		},
 
-		.call				= "DL7AD-14",
-		.path				= "",
+		.call				= "VK2GJ-15",
+        .path               = "DB0BLO",
 
 		.res				= RES_VGA,
 		.quality			= 4,

@@ -6,7 +6,7 @@
 #include "threads.h"
 #include "padc.h"
 
-//#define intoCCM  __attribute__((section(".ram3")))  __attribute__((aligned(4)))
+//#define intoCCM  __attribute__((section(".ram4")))  __attribute__((aligned(4)))
 
 /**
   * Main routine is starting up system, runs the software watchdog (module monitoring), controls LEDs

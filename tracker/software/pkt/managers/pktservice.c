@@ -90,7 +90,7 @@ bool pktServiceCreate(radio_unit_t radio) {
    * If it does exist the ref count is increased.
    * If we can't create it get false else true.
    */
-  if(pktOutgoingBufferSemaphoreCreate(radio) == NULL)
+  if(pktCommonBufferSemaphoreCreate(radio) == NULL)
     return false;
 #endif
   /* Send request to create radio manager. */
@@ -264,7 +264,7 @@ msg_t pktOpenRadioReceive(radio_unit_t radio,
   /*
    * Open (init) the radio (via submit radio task).
    */
-  msg_t msg = pktSendRadioCommand(radio, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
 
   if(msg != MSG_OK)
     return msg;
@@ -314,7 +314,7 @@ msg_t pktStartDataReception(radio_unit_t radio,
 
   rt.command = PKT_RADIO_RX_START;
 
-  msg_t msg = pktSendRadioCommand(radio, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
   if(msg != MSG_OK)
     return MSG_TIMEOUT;
 
@@ -408,7 +408,7 @@ msg_t pktStopDataReception(radio_unit_t radio) {
 
   rt.command = PKT_RADIO_RX_STOP;
 
-  msg_t msg = pktSendRadioCommand(radio, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
   if(msg != MSG_OK)
     return msg;
 
@@ -501,7 +501,7 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
   rt.command = PKT_RADIO_RX_CLOSE;
 
   /* Submit command. A timeout can occur waiting for a command queue object. */
-  msg_t msg = pktSendRadioCommand(radio, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
   if(msg != MSG_OK)
     return msg;
 
@@ -825,7 +825,7 @@ dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 /*
  * Send shares a common pool of buffers.
  */
-dyn_objects_fifo_t *pktOutgoingBufferPoolCreate(radio_unit_t radio) {
+dyn_objects_fifo_t *pktCommonBufferPoolCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -842,7 +842,7 @@ dyn_objects_fifo_t *pktOutgoingBufferPoolCreate(radio_unit_t radio) {
     /* Create the dynamic objects FIFO for the packet data queue. */
     dyn_fifo = chFactoryCreateObjectsFIFO(PKT_SEND_BUFFER_NAME,
         sizeof(packet_tx_t),
-        NUMBER_TX_PKT_BUFFERS, sizeof(msg_t));
+        NUMBER_COMMON_PKT_BUFFERS, sizeof(msg_t));
 
     chDbgAssert(dyn_fifo != NULL, "failed to create send PKT objects FIFO");
   }
@@ -854,7 +854,7 @@ dyn_objects_fifo_t *pktOutgoingBufferPoolCreate(radio_unit_t radio) {
 /*
  * Send shares a common pool of buffers.
  */
-void pktOutgoingBufferPoolRelease(radio_unit_t radio) {
+void pktCommonBufferPoolRelease(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -868,7 +868,7 @@ void pktOutgoingBufferPoolRelease(radio_unit_t radio) {
 /*
  * Send shares a common pool of buffers.
  */
-dyn_semaphore_t *pktOutgoingBufferSemaphoreCreate(radio_unit_t radio) {
+dyn_semaphore_t *pktCommonBufferSemaphoreCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -884,7 +884,7 @@ dyn_semaphore_t *pktOutgoingBufferSemaphoreCreate(radio_unit_t radio) {
   if(dyn_sem == NULL) {
     /* Create the dynamic objects FIFO for the packet data queue. */
     dyn_sem = chFactoryCreateSemaphore(PKT_SEND_BUFFER_SEM_NAME,
-                                        NUMBER_TX_PKT_BUFFERS);
+                                       NUMBER_COMMON_PKT_BUFFERS);
 
     chDbgAssert(dyn_sem != NULL, "failed to create send PKT semaphore");
   } else {

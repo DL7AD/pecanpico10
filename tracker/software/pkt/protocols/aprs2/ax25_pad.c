@@ -238,7 +238,7 @@ packet_t ax25_new (void) {
 
 
 #if DEBUG 
-        TRACE_DEBUG("ax25_new(): before alloc, new=%d, delete=%d", new_count, delete_count);
+        TRACE_DEBUG("PKT  > ax25_new(): before alloc, new=%d, delete=%d", new_count, delete_count);
 #endif
 
 	last_seq_num++;
@@ -278,7 +278,7 @@ packet_t ax25_new (void) {
 #endif
 
 	if (this_p == NULL) {
-	  TRACE_ERROR ("ERROR - can't allocate memory in ax25_new.");
+	  TRACE_ERROR ("PKT  > ERROR - can't allocate memory in ax25_new.");
       return NULL;
 	}
 
@@ -308,11 +308,11 @@ void ax25_delete (packet_t this_p)
 #endif
 {
 #if DEBUG
-        TRACE_DEBUG ("ax25_delete(): before free, new=%d, delete=%d", new_count, delete_count);
+        TRACE_DEBUG ("PKT  > ax25_delete(): before free, new=%d, delete=%d", new_count, delete_count);
 #endif
 
 	if (this_p == NULL) {
-	  TRACE_ERROR ("ERROR - NULL pointer passed to ax25_delete.");
+	  TRACE_ERROR ("PKT  > ERROR - NULL pointer passed to ax25_delete.");
 	  return;
 	}
 
@@ -321,12 +321,12 @@ void ax25_delete (packet_t this_p)
 
 #if AX25MEMDEBUG	
 	if (ax25memdebug) {
-	  TRACE_DEBUG ("ax25_delete, seq=%d, called from %s %d, new_count=%d, delete_count=%d", this_p->seq, src_file, src_line, new_count, delete_count);
+	  TRACE_DEBUG ("PKT  > ax25_delete, seq=%d, called from %s %d, new_count=%d, delete_count=%d", this_p->seq, src_file, src_line, new_count, delete_count);
 	}
 #endif
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 	
@@ -408,7 +408,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 
 #if AX25MEMDEBUG	
 	if (ax25memdebug) {
-	  TRACE_DEBUG ("ax25_from_text, seq=%d, called from %s %d", this_p->seq, src_file, src_line);
+	  TRACE_DEBUG ("PKT  > ax25_from_text, seq=%d, called from %s %d", this_p->seq, src_file, src_line);
 	}
 #endif
 
@@ -438,7 +438,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 	this_p->num_addr = (-1);
 
 	if(ax25_get_num_addr(this_p) != 2) {
-		TRACE_ERROR("Error of unknown reason");
+		TRACE_ERROR("PKT  > Error of unknown reason");
 		return NULL;
 	}
 
@@ -450,6 +450,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 
 	if (pinfo == NULL) {
 #if USE_NEW_PKT_TX_ALLOC == TRUE
+	  /* Only needs a single packet released here (although linked release would be safe too. */
 	  pktReleasePacketBuffer(this_p);
 #else
 	  ax25_delete (this_p);
@@ -471,7 +472,8 @@ packet_t ax25_from_text (char *monitor, int strict)
  */
 	pa = strtok_r (stuff, ">", &saveptr);
 	if (pa == NULL) {
-	  TRACE_ERROR ("Failed to create packet from text.  No source address");
+      TRACE_ERROR("PKT  > No source address in packet");
+	  //TRACE_ERROR ("Failed to create packet from text.  No source address");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
       pktReleasePacketBuffer(this_p);
 #else
@@ -481,8 +483,10 @@ packet_t ax25_from_text (char *monitor, int strict)
 	}
 
 	if ( ! ax25_parse_addr (AX25_SOURCE, pa, strict, atemp, &ssid_temp, &heard_temp)) {
-	  TRACE_ERROR ("Failed to create packet from text.  Bad source address");
+      TRACE_ERROR("PKT  > Bad source address in packet");
+	  //TRACE_ERROR ("Failed to create packet from text.  Bad source address");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
+	  /* Only need single packet release here. */
       pktReleasePacketBuffer(this_p);
 #else
       ax25_delete (this_p);
@@ -500,8 +504,10 @@ packet_t ax25_from_text (char *monitor, int strict)
  
 	pa = strtok_r (NULL, ",", &saveptr);
 	if (pa == NULL) {
-	  TRACE_ERROR ("Failed to create packet from text.  No destination address");
+      TRACE_ERROR("PKT  > No destination address in packet");
+	  //TRACE_ERROR ("Failed to create packet from text.  No destination address");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
+	  /* Only need single packet release here. */
       pktReleasePacketBuffer(this_p);
 #else
       ax25_delete (this_p);
@@ -510,8 +516,10 @@ packet_t ax25_from_text (char *monitor, int strict)
 	}
 
 	if ( ! ax25_parse_addr (AX25_DESTINATION, pa, strict, atemp, &ssid_temp, &heard_temp)) {
-	  TRACE_ERROR ("Failed to create packet from text.  Bad destination address");
+      TRACE_ERROR("PKT  > Bad destination address in packet");
+	  //TRACE_ERROR ("Failed to create packet from text.  Bad destination address");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
+	  /* Only need single packet release here. */
       pktReleasePacketBuffer(this_p);
 #else
       ax25_delete (this_p);
@@ -533,8 +541,10 @@ packet_t ax25_from_text (char *monitor, int strict)
 	  k = this_p->num_addr;
 
 	  if ( ! ax25_parse_addr (k, pa, strict, atemp, &ssid_temp, &heard_temp)) {
-	    TRACE_ERROR ("Failed to create packet from text.  Bad digipeater address");
+	      TRACE_ERROR("PKT  > Bad digipeater address in packet");
+	    //TRACE_ERROR ("Failed to create packet from text.  Bad digipeater address");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
+	    /* Only need single packet release here. */
       pktReleasePacketBuffer(this_p);
 #else
       ax25_delete (this_p);
@@ -568,7 +578,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 //#define DEBUG14H 1
 
 #if DEBUG14H
-	TRACE_DEBUG ("BEFORE: %s\nSAFE:   ", pinfo);
+	TRACE_DEBUG ("PKT  > BEFORE: %s\nSAFE:   ", pinfo);
 	ax25_safe_print (pinfo, -1, 0);
 #endif
 
@@ -598,13 +608,14 @@ packet_t ax25_from_text (char *monitor, int strict)
 	info_part[info_len] = '\0';
 
 #if DEBUG14H
-	TRACE_DEBUG ("AFTER:  %s\nSAFE:   ", info_part);
+	TRACE_DEBUG ("PKT  > AFTER:  %s\nSAFE:   ", info_part);
 	ax25_safe_print (info_part, info_len, 0);
 #endif
 
 /*
  * Append the info part.  
  */
+	/* FIXME: Check for buffer overflow here. */
 	memcpy ((char*)(this_p->frame_data+this_p->frame_len), info_part, info_len);
 	this_p->frame_len += info_len;
 
@@ -661,7 +672,7 @@ packet_t ax25_from_frame (unsigned char *fbuf, int flen)
 
 	if (flen < AX25_MIN_PACKET_LEN || flen > AX25_MAX_PACKET_LEN)
 	{
-	  TRACE_ERROR ("Frame length %d not in allowable range of %d to %d.", flen, AX25_MIN_PACKET_LEN, AX25_MAX_PACKET_LEN);
+	  TRACE_ERROR ("PKT  > Frame length %d not in allowable range of %d to %d.", flen, AX25_MIN_PACKET_LEN, AX25_MAX_PACKET_LEN);
 	  return (NULL);
 	}
 
@@ -678,7 +689,7 @@ packet_t ax25_from_frame (unsigned char *fbuf, int flen)
 
 #if AX25MEMDEBUG	
 	if (ax25memdebug) {
-	  TRACE_DEBUG ("ax25_from_frame, seq=%d, called from %s %d", this_p->seq, src_file, src_line);
+	  TRACE_DEBUG ("PKT  > ax25_from_frame, seq=%d, called from %s %d", this_p->seq, src_file, src_line);
 	}
 #endif
 
@@ -739,7 +750,7 @@ packet_t ax25_dup (packet_t copy_from)
 
 #if AX25MEMDEBUG
 	if (ax25memdebug) {	
-	  TRACE_DEBUG ("ax25_dup, seq=%d, called from %s %d, clone of seq %d", this_p->seq, src_file, src_line, copy_from->seq);
+	  TRACE_DEBUG ("PKT  > ax25_dup, seq=%d, called from %s %d, clone of seq %d", this_p->seq, src_file, src_line, copy_from->seq);
 	}
 #endif
 
@@ -798,8 +809,8 @@ int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, in
 
 	if (strict && strlen(in_addr) >= 2 && strncmp(in_addr, "qA", 2) == 0) {
 
-	  TRACE_ERROR ("%sAddress \"%s\" is a \"q-construct\" used for communicating", position_name[position], in_addr);
-	  TRACE_ERROR ("with APRS Internet Servers.  It was not expected here.");
+	  TRACE_ERROR ("PKT  > %sAddress \"%s\" is a \"q-construct\" used for communicating", position_name[position], in_addr);
+	  TRACE_ERROR ("PKT  > with APRS Internet Servers.  It was not expected here.");
 	}
 
 	//printf ("ax25_parse_addr in: %s\n", in_addr);
@@ -813,13 +824,13 @@ int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, in
 	i = 0;
 	for (p = in_addr; isalnum(*p); p++) {
 	  if (i >= maxlen) {
-	    TRACE_ERROR ("%sAddress is too long. \"%s\" has more than %d characters.", position_name[position], in_addr, maxlen);
+	    TRACE_ERROR ("PKT  > %sAddress is too long. \"%s\" has more than %d characters.", position_name[position], in_addr, maxlen);
 	    return 0;
 	  }
 	  out_addr[i++] = *p;
 	  out_addr[i] = '\0';
 	  if (strict && islower(*p)) {
-	    TRACE_ERROR ("%sAddress has lower case letters. \"%s\" must be all upper case.", position_name[position], in_addr);
+	    TRACE_ERROR ("PKT  > %sAddress has lower case letters. \"%s\" must be all upper case.", position_name[position], in_addr);
 	    return 0;
 	  }
 	}
@@ -829,19 +840,19 @@ int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, in
 	if (*p == '-') {
 	  for (p++; isalnum(*p); p++) {
 	    if (j >= 2) {
-	      TRACE_ERROR ("%sSSID is too long. SSID part of \"%s\" has more than 2 characters.", position_name[position], in_addr);
+	      TRACE_ERROR ("PKT  > %sSSID is too long. SSID part of \"%s\" has more than 2 characters.", position_name[position], in_addr);
 	      return 0;
 	    }
 	    sstr[j++] = *p;
 	    sstr[j] = '\0';
 	    if (strict && ! isdigit(*p)) {
-	      TRACE_ERROR ("%sSSID must be digits. \"%s\" has letters in SSID.", position_name[position], in_addr);
+	      TRACE_ERROR ("PKT  > %sSSID must be digits. \"%s\" has letters in SSID.", position_name[position], in_addr);
 	      return 0;
 	    }
 	  }
 	  k = atoi(sstr);
 	  if (k < 0 || k > 15) {
-	    TRACE_ERROR ("%sSSID out of range. SSID of \"%s\" not in range of 0 to 15.", position_name[position], in_addr);
+	    TRACE_ERROR ("PKT  > %sSSID out of range. SSID of \"%s\" not in range of 0 to 15.", position_name[position], in_addr);
 	    return 0;
 	  }
 	  *out_ssid = k;
@@ -853,7 +864,7 @@ int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, in
 	}
 
 	if (*p != '\0') {
-	    TRACE_ERROR ("Invalid character \"%c\" found in %saddress \"%s\".", *p, position_name[position], in_addr);
+	    TRACE_ERROR ("PKT  > Invalid character \"%c\" found in %saddress \"%s\".", *p, position_name[position], in_addr);
 	  return 0;
 	}
 
@@ -919,7 +930,7 @@ int ax25_check_addresses (packet_t pp)
 	}
 
 	if (! all_ok) {
-	  TRACE_ERROR ("*** The origin and journey of this packet should receive some scrutiny. ***");
+	  TRACE_ERROR ("PKT  > *** The origin and journey of this packet should receive some scrutiny. ***");
 	}
 
 	return (all_ok);
@@ -947,7 +958,8 @@ packet_t ax25_unwrap_third_party (packet_t from_pp)
 	packet_t result_pp;
 
 	if (ax25_get_dti(from_pp) != '}') {
-	  TRACE_ERROR ("Internal error: ax25_unwrap_third_party: wrong data type.");
+      TRACE_ERROR("PKT  > Internal error: ax25_unwrap_third_party: wrong data type.");
+	  //TRACE_ERROR ("Internal error: ax25_unwrap_third_party: wrong data type.");
 	  return (NULL);
 	}
 
@@ -957,7 +969,7 @@ packet_t ax25_unwrap_third_party (packet_t from_pp)
 	// Want strict because addresses should conform to AX.25 here.
 	// That's not the case for something from an Internet Server.
 
-	result_pp = ax25_from_text((char *)info_p + 1, 1);
+	result_pp = ax25_from_text((char *)info_p + 1, true);
 
 	return (result_pp);
 }
@@ -993,11 +1005,13 @@ void ax25_set_addr (packet_t this_p, int n, char *ad)
 	int i;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+      TRACE_ERROR("PKT  > Buffer overflow.");
+		//TRACE_ERROR("Buffer overflow");
 		return;
 	}
 	if(n < 0 || n >= AX25_MAX_ADDRS) {
-		TRACE_ERROR("Address overflow/underflow");
+      TRACE_ERROR("PKT  > Address overflow/underflow.");
+		//TRACE_ERROR("Address overflow/underflow");
 		return;
 	}
 
@@ -1030,7 +1044,8 @@ void ax25_set_addr (packet_t this_p, int n, char *ad)
 	  ax25_insert_addr (this_p, n, ad);
 	}
 	else { 
-	  TRACE_ERROR ("Internal error, ax25_set_addr, bad position %d for '%s'", n, ad);
+      TRACE_ERROR("PKT  > Internal error, ax25_set_addr, bad position %d for '%s'", n, ad);
+	  //TRACE_ERROR ("Internal error, ax25_set_addr, bad position %d for '%s'", n, ad);
 	}
 
 }
@@ -1071,11 +1086,11 @@ void ax25_insert_addr (packet_t this_p, int n, char *ad)
 	int expect;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 	if(n < AX25_REPEATER_1 || n >= AX25_MAX_ADDRS) {
-		TRACE_ERROR("Address overflow");
+		TRACE_ERROR("PKT  > Address overflow");
 		return;
 	}
 
@@ -1114,7 +1129,7 @@ void ax25_insert_addr (packet_t this_p, int n, char *ad)
 	expect = this_p->num_addr;
 	this_p->num_addr = (-1);
 	if (expect != ax25_get_num_addr (this_p)) {
-	  TRACE_ERROR ("Internal error ax25_remove_addr expect %d, actual %d", expect, this_p->num_addr);
+	  TRACE_ERROR ("PKT  > Internal error ax25_remove_addr expect %d, actual %d", expect, this_p->num_addr);
 	}
 }
 
@@ -1143,11 +1158,11 @@ void ax25_remove_addr (packet_t this_p, int n)
 	int expect; 
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 	if(n < AX25_REPEATER_1 || n >= AX25_MAX_ADDRS) {
-		TRACE_ERROR("Address overflow");
+		TRACE_ERROR("PKT  > Address overflow");
 		return;
 	}
 
@@ -1166,7 +1181,7 @@ void ax25_remove_addr (packet_t this_p, int n)
 	expect = this_p->num_addr;
 	this_p->num_addr = (-1);
 	if (expect != ax25_get_num_addr (this_p)) {
-	  TRACE_ERROR ("Internal error ax25_remove_addr expect %d, actual %d", expect, this_p->num_addr);
+	  TRACE_ERROR ("PKT  > Internal error ax25_remove_addr expect %d, actual %d", expect, this_p->num_addr);
 	}
 
 }
@@ -1195,7 +1210,7 @@ int ax25_get_num_addr (packet_t this_p)
 
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -1205,7 +1220,7 @@ int ax25_get_num_addr (packet_t this_p)
 	  return (this_p->num_addr);
 	}
 
-/* Otherwise, determine the number ofaddresses. */
+/* Otherwise, determine the number of addresses. */
 
 	this_p->num_addr = 0;		/* Number of addresses extracted. */
 	
@@ -1243,7 +1258,7 @@ int ax25_get_num_addr (packet_t this_p)
 int ax25_get_num_repeaters (packet_t this_p)
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -1285,21 +1300,21 @@ void ax25_get_addr_with_ssid (packet_t this_p, int n, char *station)
 	int i;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 
 
 	if (n < 0) {
-	  TRACE_ERROR ("Internal error detected in ax25_get_addr_with_ssid, %s, line %d.", __FILE__, __LINE__);
-	  TRACE_ERROR ("Address index, %d, is less than zero.", n);
+	  TRACE_ERROR ("PKT  > Internal error detected in ax25_get_addr_with_ssid, %s, line %d.", __FILE__, __LINE__);
+	  TRACE_ERROR ("PKT  > Address index, %d, is less than zero.", n);
 	  strlcpy (station, "??????", 10);
 	  return;
 	}
 
 	if (n >= this_p->num_addr) {
-	  TRACE_ERROR ("Internal error detected in ax25_get_addr_with_ssid, %s, line %d.", __FILE__, __LINE__);
-	  TRACE_ERROR ("Address index, %d, is too large for number of addresses, %d.", n, this_p->num_addr);
+	  TRACE_ERROR ("PKT  > Internal error detected in ax25_get_addr_with_ssid, %s, line %d.", __FILE__, __LINE__);
+	  TRACE_ERROR ("PKT  > Address index, %d, is too large for number of addresses, %d.", n, this_p->num_addr);
 	  strlcpy (station, "??????", 10);
 	  return;
 	}
@@ -1350,21 +1365,21 @@ void ax25_get_addr_no_ssid (packet_t this_p, int n, char *station)
 	int i;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 
 
 	if (n < 0) {
-	  TRACE_ERROR ("Internal error detected in ax25_get_addr_no_ssid, %s, line %d.", __FILE__, __LINE__);
-	  TRACE_ERROR ("Address index, %d, is less than zero.", n);
+	  TRACE_ERROR ("PKT  > Internal error detected in ax25_get_addr_no_ssid, %s, line %d.", __FILE__, __LINE__);
+	  TRACE_ERROR ("PKT  > Address index, %d, is less than zero.", n);
 	  strlcpy (station, "??????", 7);
 	  return;
 	}
 
 	if (n >= this_p->num_addr) {
-	  TRACE_ERROR ("Internal error detected in ax25_get_no_with_ssid, %s, line %d.", __FILE__, __LINE__);
-	  TRACE_ERROR ("Address index, %d, is too large for number of addresses, %d.", n, this_p->num_addr);
+	  TRACE_ERROR ("PKT  > Internal error detected in ax25_get_no_with_ssid, %s, line %d.", __FILE__, __LINE__);
+	  TRACE_ERROR ("PKT  > Address index, %d, is too large for number of addresses, %d.", n, this_p->num_addr);
 	  strlcpy (station, "??????", 7);
 	  return;
 	}
@@ -1400,7 +1415,7 @@ int ax25_get_ssid (packet_t this_p, int n)
 {
 	
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 	
@@ -1435,7 +1450,7 @@ void ax25_set_ssid (packet_t this_p, int n, int ssid)
 {
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 
@@ -1445,7 +1460,7 @@ void ax25_set_ssid (packet_t this_p, int n, int ssid)
 		((ssid << SSID_SSID_SHIFT) & SSID_SSID_MASK) ;
 	}
 	else {
-	  TRACE_ERROR ("Internal error: ax25_set_ssid(%d,%d), num_addr=%d", n, ssid, this_p->num_addr);
+	  TRACE_ERROR ("PKT  > Internal error: ax25_set_ssid(%d,%d), num_addr=%d", n, ssid, this_p->num_addr);
 	}
 }
 
@@ -1471,11 +1486,11 @@ int ax25_get_h (packet_t this_p, int n)
 {
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 	if(n < 0 || n >= this_p->num_addr) {
-		TRACE_ERROR("Address overflow");
+		TRACE_ERROR("PKT  > Address overflow");
 		return 0;
 	}
 
@@ -1483,7 +1498,7 @@ int ax25_get_h (packet_t this_p, int n)
 	  return ((this_p->frame_data[n*7+6] & SSID_H_MASK) >> SSID_H_SHIFT);
 	}
 	else {
-	  TRACE_ERROR ("Internal error: ax25_get_h(%d), num_addr=%d", n, this_p->num_addr);
+	  TRACE_ERROR ("PKT  > Internal error: ax25_get_h(%d), num_addr=%d", n, this_p->num_addr);
 	  return (0);
 	}
 }
@@ -1510,7 +1525,7 @@ void ax25_set_h (packet_t this_p, int n)
 {
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 
@@ -1518,7 +1533,7 @@ void ax25_set_h (packet_t this_p, int n)
 	  this_p->frame_data[n*7+6] |= SSID_H_MASK;
 	}
 	else {
-	  TRACE_ERROR ("Internal error: ax25_set_hd(%d), num_addr=%d", n, this_p->num_addr);
+	  TRACE_ERROR ("PKT  > Internal error: ax25_set_hd(%d), num_addr=%d", n, this_p->num_addr);
 	}
 }
 
@@ -1545,7 +1560,7 @@ int ax25_get_heard(packet_t this_p)
 	int result;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -1583,7 +1598,7 @@ int ax25_get_first_not_repeated(packet_t this_p)
 	int i;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -1616,11 +1631,11 @@ int ax25_get_rr (packet_t this_p, int n)
 {
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 	if(n < 0 && n >= this_p->num_addr) {
-		TRACE_ERROR("Address overflow");
+		TRACE_ERROR("PKT  > Address overflow");
 		return 0;
 	}
 
@@ -1628,7 +1643,7 @@ int ax25_get_rr (packet_t this_p, int n)
 	  return ((this_p->frame_data[n*7+6] & SSID_RR_MASK) >> SSID_RR_SHIFT);
 	}
 	else {
-	  TRACE_ERROR ("Internal error: ax25_get_rr(%d), num_addr=%d", n, this_p->num_addr);
+	  TRACE_ERROR ("PKT  > Internal error: ax25_get_rr(%d), num_addr=%d", n, this_p->num_addr);
 	  return (0);
 	}
 }
@@ -1718,7 +1733,7 @@ int ax25_cut_at_crlf (packet_t this_p)
 	int j;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -1759,7 +1774,7 @@ int ax25_cut_at_crlf (packet_t this_p)
 int ax25_get_dti (packet_t this_p)
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -1786,7 +1801,7 @@ int ax25_get_dti (packet_t this_p)
 void ax25_set_nextp (packet_t this_p, packet_t next_p)
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 	
@@ -1810,7 +1825,7 @@ void ax25_set_nextp (packet_t this_p, packet_t next_p)
 packet_t ax25_get_nextp (packet_t this_p)
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -1833,7 +1848,7 @@ packet_t ax25_get_nextp (packet_t this_p)
 void ax25_set_release_time (packet_t this_p, double release_time)
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 	
@@ -1853,7 +1868,7 @@ void ax25_set_release_time (packet_t this_p, double release_time)
 double ax25_get_release_time (packet_t this_p)
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -1872,7 +1887,7 @@ double ax25_get_release_time (packet_t this_p)
 void ax25_set_modulo (packet_t this_p, int modulo)
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 
@@ -1920,7 +1935,7 @@ void ax25_format_addrs (packet_t this_p, char *result)
 	char stemp[AX25_MAX_ADDR_LEN];
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 	*result = '\0';
@@ -1987,7 +2002,7 @@ void ax25_format_via_path (packet_t this_p, char *result, size_t result_size)
 	char stemp[AX25_MAX_ADDR_LEN];
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return;
 	}
 	*result = '\0';
@@ -2037,12 +2052,12 @@ void ax25_format_via_path (packet_t this_p, char *result, size_t result_size)
 int ax25_pack (packet_t this_p, unsigned char result[AX25_MAX_PACKET_LEN]) 
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return -1;
 	}
 
 	if(this_p->frame_len == 0 || this_p->frame_len > AX25_MAX_PACKET_LEN) {
-		TRACE_ERROR("Packet length over-/underflow");
+		TRACE_ERROR("PKT  > Packet length over-/underflow");
 		return -1;
 	}
 
@@ -2090,7 +2105,7 @@ ax25_frame_type_t ax25_frame_type (packet_t this_p, cmdres_t *cr, char *desc, in
 	int c2 = 0;	// I & S frames can have second Control byte.
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -2254,7 +2269,7 @@ int ax25_is_aprs (packet_t this_p)
 	int ctrl, pid, is_aprs;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -2291,7 +2306,7 @@ int ax25_is_null_frame (packet_t this_p)
 	int is_null;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -2319,7 +2334,7 @@ int ax25_is_null_frame (packet_t this_p)
 int ax25_get_control (packet_t this_p) 
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -2334,7 +2349,7 @@ int ax25_get_control (packet_t this_p)
 int ax25_get_c2 (packet_t this_p) 
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -2375,7 +2390,7 @@ int ax25_get_c2 (packet_t this_p)
 int ax25_get_pid (packet_t this_p) 
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("Buffer overflow");
+		TRACE_ERROR("PKT  > Buffer overflow");
 		return 0;
 	}
 
@@ -2600,7 +2615,7 @@ void ax25_safe_print (char *pstr, int len, int ascii_only)
 
 // TODO1.2: should return string rather printing to remove a race condition.
 
-	TRACE_DEBUG ("%s", safe_str);
+	TRACE_DEBUG ("PKT  > %s", safe_str);
 
 } /* end ax25_safe_print */
 

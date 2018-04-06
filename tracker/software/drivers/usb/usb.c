@@ -48,7 +48,7 @@ void manageShell(void) {
 	}
     chEvtWaitAnyTimeout(EVENT_MASK(USB_SHELL_EVT), TIME_S2I(1));
 	if(chThdTerminatedX(shelltp)) {
-		chThdRelease(shelltp);
+		chThdWait(shelltp);
 		shelltp = NULL;
 	    chEvtUnregister(&shell_terminated, &shell_el);
 	}

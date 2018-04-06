@@ -16,7 +16,7 @@
 /* Main thread events. */
 
 
-#define PKT_RX_BUFFER_SIZE      PKT_MAX_RX_PACKET_LEN
+#define PKT_RX_BUFFER_SIZE              PKT_MAX_RX_PACKET_LEN
 
 #define PKT_FRAME_QUEUE_PREFIX          "pktr_"
 #define PKT_CALLBACK_TERMINATOR_PREFIX  "cbtr_"
@@ -25,8 +25,8 @@
 #define PKT_SEND_BUFFER_SEM_NAME        "pstx"
 
 
-#define PKT_CALLBACK_WA_SIZE            8192
-#define PKT_TERMINATOR_WA_SIZE          1024
+#define PKT_CALLBACK_WA_SIZE             8192
+#define PKT_TERMINATOR_WA_SIZE           1024
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
@@ -233,9 +233,9 @@ extern "C" {
   thread_t *pktCallbackManagerCreate(radio_unit_t radio);
   void pktCallbackManagerRelease(packet_svc_t *handler);
   void pktIncomingBufferPoolRelease(packet_svc_t *handler);
-  dyn_objects_fifo_t *pktOutgoingBufferPoolCreate(radio_unit_t radio);
-  void pktOutgoingBufferPoolRelease(radio_unit_t radio);
-  dyn_semaphore_t *pktOutgoingBufferSemaphoreCreate(radio_unit_t radio);
+  dyn_objects_fifo_t *pktCommonBufferPoolCreate(radio_unit_t radio);
+  void pktCommonBufferPoolRelease(radio_unit_t radio);
+  dyn_semaphore_t *pktCommonBufferSemaphoreCreate(radio_unit_t radio);
   void pktBufferSemaphoreRelease(radio_unit_t radio);
   msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
   void pktReleasePacketBuffer(packet_t pp);

@@ -125,7 +125,8 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
   if(!pktIsTransmitOpen(radio)) {
     TRACE_WARN( "RAD  > Transmit is not open on radio");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleasePacketBuffer(pp);
+    pktReleaseSendQueue(pp);
+      //pktReleasePacketBuffer(pp);
 #else
       ax25_delete (pp);
 #endif
@@ -159,7 +160,8 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
         TRACE_ERROR("RAD  > Transmit base frequency of %d.%03d MHz is invalid",
                       base_freq/1000000, (base_freq%1000000)/1000);
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-        pktReleasePacketBuffer(pp);
+        pktReleaseSendQueue(pp);
+        //pktReleasePacketBuffer(pp);
 #else
         ax25_delete (pp);
 #endif
@@ -194,16 +196,16 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 		rt.tx_speed = (mod == MOD_2FSK ? 9600 : 1200);
 		rt.squelch = rssi;
 		rt.packet_out = pp;
-		rt.callback = NULL;
 
 		/* Update the task mirror. */
 		handler->radio_tx_config = rt;
 
-        msg_t msg = pktSendRadioCommand(radio, &rt);
+        msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
         if(msg != MSG_OK) {
           TRACE_ERROR("RAD  > Failed to post radio task");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-          pktReleasePacketBuffer(pp);
+          pktReleaseSendQueue(pp);
+          //pktReleasePacketBuffer(pp);
 #else
           ax25_delete (pp);
 #endif
@@ -216,7 +218,8 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 					base_freq/1000000, (base_freq%1000000)/1000, pwr,
 					getModulation(mod), len);
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleasePacketBuffer(pp);
+	    pktReleaseSendQueue(pp);
+      //pktReleasePacketBuffer(pp);
 #else
       ax25_delete (pp);
 #endif

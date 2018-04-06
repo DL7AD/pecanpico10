@@ -723,7 +723,7 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size, resolution_t res)
 		}
 	}
 
-	// Capture image until we get a good image (max cntr tries)
+	// Capture image until we get a good image or reach max retries.
 
     TRACE_INFO("CAM  > Capture image");
 	do {
@@ -1168,7 +1168,7 @@ void OV5640_InitGPIO(void)
 	palSetLineMode(LINE_CAM_D7, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
 	palSetLineMode(LINE_CAM_D8, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
 	palSetLineMode(LINE_CAM_D9, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
-	palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+	//palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
 
 	palSetLineMode(LINE_CAM_EN, PAL_MODE_OUTPUT_PUSHPULL);
 	palSetLineMode(LINE_CAM_RESET, PAL_MODE_OUTPUT_PUSHPULL);
