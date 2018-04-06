@@ -885,8 +885,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
       /* This case is set when an error status. */
       case DECODER_ERROR: {
-        pktAddEventFlags(myHandler, EVT_DECODER_ERROR);
-        myDriver->active_demod_object->status |= EVT_DECODER_ERROR;
+        //pktAddEventFlags(myHandler, EVT_DECODER_ERROR);
+        //myDriver->active_demod_object->status |= EVT_DECODER_ERROR;
         myDriver->decoder_state = DECODER_SUSPEND;
         break;
       } /* End case DECODER_ERROR. */

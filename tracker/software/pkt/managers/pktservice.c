@@ -90,7 +90,7 @@ bool pktServiceCreate(radio_unit_t radio) {
    * If it does exist the ref count is increased.
    * If we can't create it get false else true.
    */
-  if(pktOutgoingBufferSemaphoreCreate(radio) == NULL)
+  if(pktCommonBufferSemaphoreCreate(radio) == NULL)
     return false;
 #endif
   /* Send request to create radio manager. */
@@ -125,7 +125,7 @@ bool pktServiceRelease(radio_unit_t radio) {
   if(handler->state != PACKET_READY)
     return false;
 #if   USE_NEW_PKT_TX_ALLOC == TRUE
-  pktOutgoingBufferSemaphoreRelease(radio);
+  pktBufferSemaphoreRelease(radio);
 #endif
   pktRadioManagerRelease(radio);
   handler->state = PACKET_IDLE;
@@ -264,7 +264,7 @@ msg_t pktOpenRadioReceive(radio_unit_t radio,
   /*
    * Open (init) the radio (via submit radio task).
    */
-  msg_t msg = pktSendRadioCommand(radio, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
 
   if(msg != MSG_OK)
     return msg;
@@ -314,7 +314,7 @@ msg_t pktStartDataReception(radio_unit_t radio,
 
   rt.command = PKT_RADIO_RX_START;
 
-  msg_t msg = pktSendRadioCommand(radio, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
   if(msg != MSG_OK)
     return MSG_TIMEOUT;
 
@@ -408,7 +408,7 @@ msg_t pktStopDataReception(radio_unit_t radio) {
 
   rt.command = PKT_RADIO_RX_STOP;
 
-  msg_t msg = pktSendRadioCommand(radio, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
   if(msg != MSG_OK)
     return msg;
 
@@ -501,7 +501,7 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
   rt.command = PKT_RADIO_RX_CLOSE;
 
   /* Submit command. A timeout can occur waiting for a command queue object. */
-  msg_t msg = pktSendRadioCommand(radio, &rt);
+  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
   if(msg != MSG_OK)
     return msg;
 
@@ -825,7 +825,7 @@ dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 /*
  * Send shares a common pool of buffers.
  */
-dyn_objects_fifo_t *pktOutgoingBufferPoolCreate(radio_unit_t radio) {
+dyn_objects_fifo_t *pktCommonBufferPoolCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -842,7 +842,7 @@ dyn_objects_fifo_t *pktOutgoingBufferPoolCreate(radio_unit_t radio) {
     /* Create the dynamic objects FIFO for the packet data queue. */
     dyn_fifo = chFactoryCreateObjectsFIFO(PKT_SEND_BUFFER_NAME,
         sizeof(packet_tx_t),
-        NUMBER_TX_PKT_BUFFERS, sizeof(msg_t));
+        NUMBER_COMMON_PKT_BUFFERS, sizeof(msg_t));
 
     chDbgAssert(dyn_fifo != NULL, "failed to create send PKT objects FIFO");
   }
@@ -854,7 +854,7 @@ dyn_objects_fifo_t *pktOutgoingBufferPoolCreate(radio_unit_t radio) {
 /*
  * Send shares a common pool of buffers.
  */
-void pktOutgoingBufferPoolRelease(radio_unit_t radio) {
+void pktCommonBufferPoolRelease(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -868,7 +868,7 @@ void pktOutgoingBufferPoolRelease(radio_unit_t radio) {
 /*
  * Send shares a common pool of buffers.
  */
-dyn_semaphore_t *pktOutgoingBufferSemaphoreCreate(radio_unit_t radio) {
+dyn_semaphore_t *pktCommonBufferSemaphoreCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -884,7 +884,7 @@ dyn_semaphore_t *pktOutgoingBufferSemaphoreCreate(radio_unit_t radio) {
   if(dyn_sem == NULL) {
     /* Create the dynamic objects FIFO for the packet data queue. */
     dyn_sem = chFactoryCreateSemaphore(PKT_SEND_BUFFER_SEM_NAME,
-                                        NUMBER_TX_PKT_BUFFERS);
+                                       NUMBER_COMMON_PKT_BUFFERS);
 
     chDbgAssert(dyn_sem != NULL, "failed to create send PKT semaphore");
   } else {
@@ -905,7 +905,7 @@ dyn_semaphore_t *pktOutgoingBufferSemaphoreCreate(radio_unit_t radio) {
  * @retval MSG_TIMEOUT  if the semaphore has not been signaled or reset within
  *                      the specified timeout.
  */
-msg_t pktGetOutgoingBuffer(packet_t *pp, sysinterval_t timeout) {
+msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
 
   /* Check if the transmit packet buffer semaphore already exists.
    * If so we get a pointer to it and just return that.
@@ -940,21 +940,17 @@ msg_t pktGetOutgoingBuffer(packet_t *pp, sysinterval_t timeout) {
 }
 
 /*
- * Send shares a common pool of buffers.
- * @retval MSG_RESET    if the semaphore has been reset using @p chSemReset().
- * @retval MSG_TIMEOUT  if the semaphore has not been signaled or reset within
- *                      the specified timeout.
+ * A common pool of AX25 buffers.
  */
-void pktReleaseOutgoingBuffer(packet_t pp) {
+void pktReleasePacketBuffer(packet_t pp) {
 
-  /* Check if the transmit packet buffer semaphore already exists.
-   * If so we get a pointer to it and just return that.
-   * Otherwise create the semaphore and return result.
+  /* Check if the packet buffer semaphore exists.
+   * If not this is a system error.
    */
   dyn_semaphore_t *dyn_sem =
       chFactoryFindSemaphore(PKT_SEND_BUFFER_SEM_NAME);
 
-  chDbgAssert(dyn_sem != NULL, "no send PKT semaphore");
+  chDbgAssert(dyn_sem != NULL, "no general packet buffer semaphore");
 
   /* Free buffer memory. */
   ax25_delete(pp);
@@ -969,7 +965,7 @@ void pktReleaseOutgoingBuffer(packet_t pp) {
 /*
  * Send shares a common pool of buffers.
  */
-void pktOutgoingBufferSemaphoreRelease(radio_unit_t radio) {
+void pktBufferSemaphoreRelease(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 

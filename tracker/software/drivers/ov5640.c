@@ -723,7 +723,7 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size, resolution_t res)
 		}
 	}
 
-	// Capture image until we get a good image (max cntr tries)
+	// Capture image until we get a good image or reach max retries.
 
     TRACE_INFO("CAM  > Capture image");
 	do {
@@ -978,6 +978,7 @@ void vsync_cb(void *arg) {
 void OV5640_lockResourcesForCapture(void) {
   I2C_Lock();
   pktAcquireRadio(PKT_RADIO_1, TIME_INFINITE);
+  /* FIXME: USB has to be locked. */
 }
 
 /*
@@ -986,7 +987,7 @@ void OV5640_lockResourcesForCapture(void) {
 void OV5640_unlockResourcesForCapture(void) {
   I2C_Unlock();
   pktReleaseRadio(PKT_RADIO_1);
-
+  /* FIXME: USB has to be unlocked. */
 }
 
 uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size)
@@ -1167,7 +1168,7 @@ void OV5640_InitGPIO(void)
 	palSetLineMode(LINE_CAM_D7, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
 	palSetLineMode(LINE_CAM_D8, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
 	palSetLineMode(LINE_CAM_D9, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
-	palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+	//palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
 
 	palSetLineMode(LINE_CAM_EN, PAL_MODE_OUTPUT_PUSHPULL);
 	palSetLineMode(LINE_CAM_RESET, PAL_MODE_OUTPUT_PUSHPULL);

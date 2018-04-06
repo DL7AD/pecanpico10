@@ -28,7 +28,7 @@
 /* Module exported variables.                                                */
 /*===========================================================================*/
 
-binary_semaphore_t callback_sem;
+//binary_semaphore_t diag_out_sem;
 
 /*===========================================================================*/
 /* Module local types.                                                       */
@@ -80,7 +80,8 @@ void pktSerialStart(void) {
   //sdStart(SERIAL_CFG_PACKET_DRIVER, &debug_config);
 
   /* Setup diagnostic resource access semaphore. */
-  chBSemObjectInit(&callback_sem, false);
+  extern binary_semaphore_t diag_out_sem;
+  chBSemObjectInit(&diag_out_sem, false);
 }
 
 void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len) {

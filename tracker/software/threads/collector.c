@@ -21,7 +21,7 @@ static dataPoint_t* lastDataPoint;
 static bool threadStarted = false;
 
 /**
-  * Returns most recent data point witch is complete.
+  * Returns most recent data point which is complete.
   */
 dataPoint_t* getLastDataPoint(void)
 {
@@ -57,7 +57,9 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp, sysinterval_t time
 			do {
 				batt = stm32_get_vbat();
 				gps_get_fix(&gpsFix);
-			} while(!isGPSLocked(&gpsFix) && batt >= conf_sram.gps_off_vbat && chVTGetSystemTime() <= start + timeout); // Do as long no GPS lock and within timeout, timeout=cycle-1sec (-3sec in order to keep synchronization)
+			} while(!isGPSLocked(&gpsFix)
+			    && batt >= conf_sram.gps_off_vbat
+			    && chVTIsSystemTimeWithin(start, start + timeout)); // Do as long no GPS lock and within timeout, timeout=cycle-1sec (-3sec in order to keep synchronization)
 
 			if(batt < conf_sram.gps_off_vbat) { // GPS was switched on but prematurely switched off because the battery is low on power, switch off GPS
 
@@ -278,7 +280,7 @@ THD_FUNCTION(collectorThread, arg) {
 		} else if(conf_sram.pos_pri.thread_conf.active) { // Only primary position thread is active
 			data_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
 		} else if(conf_sram.pos_sec.thread_conf.active) { // Only secondary position thread is active
-			data_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
+			data_cycle_time = conf_sram.pos_sec.thread_conf.cycle;
 		} else { // There must be an error
 			TRACE_ERROR("COLL > Data collector started but no position thread is active");
 		}

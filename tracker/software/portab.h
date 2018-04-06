@@ -90,9 +90,9 @@
 #define PWM_DATA_SLOTS              6000
 
 /* Number of frame receive buffers. */
-#define NUMBER_RX_PKT_BUFFERS        2U
+#define NUMBER_RX_PKT_BUFFERS        3U
 /* Number of frame send buffers. */
-#define NUMBER_TX_PKT_BUFFERS        3U
+#define NUMBER_COMMON_PKT_BUFFERS    20U
 
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */

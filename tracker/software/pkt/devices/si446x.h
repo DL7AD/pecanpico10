@@ -215,13 +215,16 @@ typedef struct {
   uint8_t current_byte;
 } up_iterator_t;
 
+typedef struct radioTask radio_task_object_t;
+
 // Public methods
 
 int16_t Si446x_getLastTemperature(radio_unit_t radio);
 void Si446x_shutdown(radio_unit_t radio);
 void Si446x_sendAFSK(packet_t pp);
+bool Si446x_blocSendAFSK(radio_task_object_t *rto);
 void Si446x_send2FSK(packet_t pp);
-
+bool Si446x_blocSend2FSK(radio_task_object_t *rto);
 void Si446x_disableReceive(radio_unit_t radio);
 void Si446x_stopDecoder(void);
 bool Si4464_resumeReceive(radio_unit_t radio,
@@ -264,11 +267,11 @@ static inline bool Si446x_isFrequencyInBand(radio_unit_t radio,
   return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
 }
 
-extern void pktReleaseOutgoingBuffer(packet_t pp);
+extern void pktReleasePacketBuffer(packet_t pp);
 
 static inline void Si446x_releaseSendObject(packet_t pp) {
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-  pktReleaseOutgoingBuffer(pp);
+  pktReleasePacketBuffer(pp);
 #else
   ax25_delete(pp);
 #endif

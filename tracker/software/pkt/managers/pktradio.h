@@ -69,7 +69,6 @@ typedef void (*radio_task_cb_t)(radio_task_object_t *task_object);
 struct radioTask {
   /* For safety keep clear - where pool stores its free link. */
   struct pool_header        link;
-  //radio_unit_t              radio_id;
   radio_command_t           command;
   mod_t                     type;
   radio_freq_t              base_frequency;
@@ -77,12 +76,14 @@ struct radioTask {
   radio_ch_t                channel;
   radio_squelch_t           squelch;
   radio_task_cb_t           callback;
+  msg_t                     result;
   thread_t                  *thread;
+  char                      tx_thd_name[16];
   packet_svc_t              *handler;
   packet_t                  packet_out;
   uint8_t                   tx_power;
   uint32_t                  tx_speed;
-  uint8_t                   seq_num;
+  uint8_t                   tx_seq_num;
 };
 
 /*===========================================================================*/
@@ -109,7 +110,9 @@ extern "C" {
                                             channel_hz_t step,
                                             radio_ch_t chan);
   bool pktLLDresumeReceive(radio_unit_t radio);
-  bool pktLLDsendPacket(packet_t pp, mod_t type);
+  bool pktLLDsendPacket(radio_task_object_t *rto);
+  void pktSignalSendComplete(radio_task_object_t *rto,
+                                thread_t *thread);
 #ifdef __cplusplus
 }
 #endif

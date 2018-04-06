@@ -45,6 +45,8 @@
 
 #include "bit_array.h"
 
+/* Extend standard OS result codes. */
+#define MSG_ERROR           (msg_t)-3   /**< @brief Error condition.  */
 
 /* General event definitions. */
 #define EVT_NONE                0
@@ -58,7 +60,7 @@
 #define EVT_AX25_FRAME_RDY      EVENT_MASK(EVT_PRIORITY_BASE + 0)
 #define EVT_RADIO_CCA_GLITCH    EVENT_MASK(EVT_PRIORITY_BASE + 1)
 #define EVT_RADIO_CCA_CLOSE     EVENT_MASK(EVT_PRIORITY_BASE + 2)
-#define EVT_DECODER_ERROR       EVENT_MASK(EVT_PRIORITY_BASE + 3)
+//#define EVT_DECODER_ERROR       EVENT_MASK(EVT_PRIORITY_BASE + 3)
 
 #define EVT_AFSK_TERMINATED     EVENT_MASK(EVT_PRIORITY_BASE + 4)
 #define EVT_PWM_UNKNOWN_INBAND  EVENT_MASK(EVT_PRIORITY_BASE + 5)
@@ -345,20 +347,22 @@ static inline void pktWritePWMMirror(uint8_t state) {
  * @brief   Sends a command request to a radio.
  * @post    The command object posted to the radio manager queue.
  *
- * @param[in]   radio    radio unit ID.
- * @param[in]   task     pointer to a task object.
+ * @param[in]   radio   radio unit ID.
+ * @param[in]   task    pointer to a task object.
+ * @param[in]   cb      function to call with result (can be NULL).
  *
  * @api
  */
 static inline msg_t pktSendRadioCommand(radio_unit_t radio,
-                                        radio_task_object_t *task) {
+                                        radio_task_object_t *task,
+                                        radio_task_cb_t cb) {
 #if USE_SPI_ATTACHED_RADIO == TRUE
   radio_task_object_t *rt = NULL;
   msg_t msg = pktGetRadioTaskObject(radio, TIME_MS2I(3000), &rt);
   if(msg != MSG_OK)
     return MSG_TIMEOUT;
   *rt = *task;
-  pktSubmitRadioTask(radio, rt, NULL);
+  pktSubmitRadioTask(radio, rt, cb);
   return msg;
 #else
   (void)task;
@@ -378,7 +382,34 @@ static inline msg_t pktSendRadioCommand(radio_unit_t radio,
 static inline void pktReleaseSendObject(packet_t pp) {
 #if USE_SPI_ATTACHED_RADIO == TRUE
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-      pktReleaseOutgoingBuffer(pp);
+
+      pktReleasePacketBuffer(pp);
+#else
+      ax25_delete (pp);
+#endif
+#else
+  (void)pp;
+#endif
+}
+
+/**
+ * @brief   Release memory from one or more send object(s).
+ * @notes   a linked list will have all members released.
+ * @post    The object memory is released.
+ *
+ * @param[in]   pp     pointer to a @p packet send object
+ *
+ * @api
+ */
+static inline void pktReleaseSendQueue(packet_t pp) {
+#if USE_SPI_ATTACHED_RADIO == TRUE
+#if USE_NEW_PKT_TX_ALLOC == TRUE
+  /* Release all packets in linked list. */
+  do {
+    packet_t np = pp->nextp;
+    pktReleasePacketBuffer(pp);
+    pp = np;
+  } while(pp != NULL);
 #else
       ax25_delete (pp);
 #endif

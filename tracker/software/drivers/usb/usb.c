@@ -39,7 +39,7 @@ void startUSB(void) {
 void manageShell(void) {
 	if(shelltp == NULL) {
 		shelltp = chThdCreateFromHeap(NULL,
-		                              THD_WORKING_AREA_SIZE(2048),
+		                              THD_WORKING_AREA_SIZE(4*1024),
 		                              "shell", NORMALPRIO + 1,
 		                              shellThread,
 		                              (void*)&shell_cfg);
@@ -48,7 +48,7 @@ void manageShell(void) {
 	}
     chEvtWaitAnyTimeout(EVENT_MASK(USB_SHELL_EVT), TIME_S2I(1));
 	if(chThdTerminatedX(shelltp)) {
-		chThdRelease(shelltp);
+		chThdWait(shelltp);
 		shelltp = NULL;
 	    chEvtUnregister(&shell_terminated, &shell_el);
 	}

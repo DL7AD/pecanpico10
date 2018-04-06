@@ -3,6 +3,7 @@
 #include "shell.h"
 #include "debug.h"
 #include <stdlib.h>
+#include "ctype.h"
 #include "image.h"
 #include "aprs.h"
 #include "radio.h"
@@ -18,9 +19,39 @@ const ShellCommand commands[] = {
 	{"print_log", usb_cmd_printLog},
 	{"config", usb_cmd_printConfig},
 	{"aprs_message", usb_cmd_send_aprs_message},
+	{"msg", usb_cmd_send_aprs_message}, /* Short form alias. */
+    {"test_gps", usb_cmd_set_test_gps},
+    {"heap", usb_cmd_ccm_heap},
 	{NULL, NULL}
 };
 
+bool test_gps_enabled = false;
+
+void usb_cmd_set_test_gps(BaseSequentialStream *chp, int argc, char *argv[])
+{
+    if(argc < 1)
+    {
+        chprintf(chp, "Current test GPS: %s\r\n", test_gps_enabled ? "on" : "off");
+        return;
+    }
+
+    test_gps_enabled = atoi(argv[0]);
+}
+
+void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
+  size_t n, total, largest;
+
+  (void)argv;
+  if (argc > 0) {
+    shellUsage(chp, "heap");
+    return;
+  }
+  extern memory_heap_t _ccm_heap;
+  n = chHeapStatus(&_ccm_heap, &total, &largest);
+  chprintf(chp, "CCM heap fragments   : %u"SHELL_NEWLINE_STR, n);
+  chprintf(chp, "CCM heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
+  chprintf(chp, "CCM heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
+}
 
 void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
 {
@@ -34,6 +65,7 @@ void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
 		chprintf(chp, "Level 4: Errors + Warnings + Info + Debug\r\n");
 		return;
 	}
+
 
 	usb_trace_level = atoi(argv[0]);
 }
@@ -168,34 +200,51 @@ void usb_cmd_printConfig(BaseSequentialStream *chp, int argc, char *argv[])
 
 void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[])
 {
-/*	if(argc < 2)
+	if(argc < 2)
 	{
 		chprintf(chp, "Argument missing!\r\n");
 		chprintf(chp, "Argument 1: Destination\r\n");
 		chprintf(chp, "Argument 2: Message\r\n");
 		return;
 	}
-	chprintf(chp, "Destination: %s\r\n", argv[0]);
-	chprintf(chp, "Message: %s\r\n", argv[1]);
 
-	packet_t packet = aprs_encode_message(conf_sram.rx.call,
-	                                      conf_sram.rx.path,
-	                                      argv[0], argv[1], false);
+    char *s = argv[0];
+    while(*s) {
+      *s = toupper((uint8_t) *s);
+      s++;
+    }
+
+	chprintf(chp, "Destination: %s\r\n", argv[0]);
+
+	char m[50] = {'\0'};
+	for(uint8_t i = 1; i < argc; i++) {
+	  strcat(m, argv[i]);
+	  if(i < argc - 1)
+	    strcat(m, (char *)" ");
+	}
+
+	chprintf(chp, "Message: %s\r\n", m);
+
+	/* Send without ack request (last arg false). */
+	packet_t packet = aprs_encode_message(conf_sram.aprs.tx.call,
+	                                      conf_sram.aprs.tx.path,
+	                                      argv[0], m, false);
     if(packet == NULL) {
       TRACE_WARN("CMD  > No free packet objects");
       return;
     }
 	transmitOnRadio(packet,
-	                conf_sram.rx.radio_conf.freq,
-                    conf_sram.rx.radio_conf.step0,
-                    conf_sram.rx.radio_conf.chan0,
-                    conf_sram.rx.radio_conf.pwr,
-                    conf_sram.rx.radio_conf.mod);
+	                conf_sram.aprs.tx.radio_conf.freq,
+                    0,
+                    0,
+                    conf_sram.aprs.tx.radio_conf.pwr,
+                    conf_sram.aprs.tx.radio_conf.mod,
+                    conf_sram.aprs.tx.radio_conf.rssi);
 
-	chprintf(chp, "Message sent!\r\n");*/
-
+	chprintf(chp, "Message sent!\r\n");
+/*
   (void)argc;
     (void)argv;
-    chprintf(chp, "TODO: Not implemented\r\n");
+    chprintf(chp, "TODO: Not implemented\r\n");*/
 }
 
