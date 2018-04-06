@@ -5,7 +5,7 @@ class Database extends SQLite3 {
 	private static $instance = null;
 
 	function __construct() {
-		$this->open("/src/pecanpico9/decoder/decoder.sqlite");
+		$this->open("/src/pecanpico10/decoder/decoder.sqlite");
 
 		if($this->lastErrorCode())
 			echo $this->lastErrorMsg();
