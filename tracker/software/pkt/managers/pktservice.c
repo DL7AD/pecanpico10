@@ -17,6 +17,8 @@
 /* Module exported variables.                                                */
 /*===========================================================================*/
 
+memory_heap_t *ccm_heap = NULL;
+
 /*===========================================================================*/
 /* Module local types.                                                       */
 /*===========================================================================*/
@@ -25,6 +27,8 @@
 /* Module local variables.                                                   */
 /*===========================================================================*/
 
+static memory_heap_t _ccm_heap;
+
 /*===========================================================================*/
 /* Module local functions.                                                   */
 /*===========================================================================*/
@@ -32,6 +36,32 @@
 /*===========================================================================*/
 /* Module exported functions.                                                */
 /*===========================================================================*/
+
+/**
+ * @brief   Initializes the packet system.
+ *
+ *@return   result of operation.
+ *@retval   true    system initialized.
+ *@retval   false   initialization failed.
+ *
+ * @api
+ */
+bool pktSystemInit(void) {
+
+  //#define intoCCM  __attribute__((section(".ram4")))  __attribute__((aligned(4)))
+
+  /* Create heap in CCM. */
+  if(ccm_heap == NULL) {
+    ccm_heap = &_ccm_heap;
+    chHeapObjectInit(ccm_heap, (void *)0x10000000, 0x10000);
+  }
+  /*
+   * Create common packet buffer control.
+   */
+  if(pktInitBufferControl() == NULL)
+    return false;
+  return true;
+}
 
 /**
  * @brief   Initializes packet handlers and starts the radio manager.
@@ -77,22 +107,6 @@ bool pktServiceCreate(radio_unit_t radio) {
   /* Set radio semaphore to free state. */
   chBSemObjectInit(&handler->radio_sem, false);
 
-  /*
-   * Create outgoing pool if it does not already exist.
-   * If it does exist the ref count is increased.
-   */
-/*  if(pktOutgoingBufferPoolCreate(radio) == NULL)
-    return false;*/
-
-#if   USE_NEW_PKT_TX_ALLOC == TRUE
-  /*
-   * Create outgoing buffer sempahore if it does not already exist.
-   * If it does exist the ref count is increased.
-   * If we can't create it get false else true.
-   */
-  if(pktCommonBufferSemaphoreCreate(radio) == NULL)
-    return false;
-#endif
   /* Send request to create radio manager. */
   if (pktRadioManagerCreate(radio) == NULL)
     return false;
@@ -124,9 +138,9 @@ bool pktServiceRelease(radio_unit_t radio) {
 
   if(handler->state != PACKET_READY)
     return false;
-#if   USE_NEW_PKT_TX_ALLOC == TRUE
+
   pktReleaseBufferSemaphore(radio);
-#endif
+
   pktRadioManagerRelease(radio);
   handler->state = PACKET_IDLE;
   return true;
@@ -823,13 +837,9 @@ dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 }
 
 /*
- * Send shares a common pool of buffers.
+ * Send and packet analysis share a common pool of buffers.
  */
-dyn_semaphore_t *pktCommonBufferSemaphoreCreate(radio_unit_t radio) {
-
-  packet_svc_t *handler = pktGetServiceObject(radio);
-
-  chDbgAssert(handler != NULL, "invalid radio ID");
+dyn_semaphore_t *pktInitBufferControl() {
 
   /* Check if the transmit packet buffer semaphore already exists.
    * If so we get a pointer to it and just return that.
@@ -843,16 +853,9 @@ dyn_semaphore_t *pktCommonBufferSemaphoreCreate(radio_unit_t radio) {
     dyn_sem = chFactoryCreateSemaphore(PKT_SEND_BUFFER_SEM_NAME,
                                        NUMBER_COMMON_PKT_BUFFERS);
 
-    chDbgAssert(dyn_sem != NULL, "failed to create send PKT semaphore");
-  } else {
-    /* Increase buffer number by adjusting semaphore.
-     * TODO: Once bumped up the count can't be decreased if a radio is closed. */
-/*    chSysLock();
-    chSemAddCounterI(chFactoryGetSemaphore(dyn_sem), NUMBER_TX_PKT_BUFFERS);
-    chSchRescheduleS();
-    chSysUnlock();*/
+    chDbgAssert(dyn_sem != NULL, "failed to create common packet semaphore");
+    return NULL;
   }
-  handler->tx_packet_sem = dyn_sem;
   return dyn_sem;
 }
 
@@ -864,9 +867,8 @@ dyn_semaphore_t *pktCommonBufferSemaphoreCreate(radio_unit_t radio) {
  */
 msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
 
-  /* Check if the transmit packet buffer semaphore already exists.
-   * If so we get a pointer to it and just return that.
-   * Otherwise create the semaphore and return result.
+  /* Check if the packet buffer semaphore already exists.
+   * If so we get a pointer to it and get the semaphore.
    */
   dyn_semaphore_t *dyn_sem =
       chFactoryFindSemaphore(PKT_SEND_BUFFER_SEM_NAME);
@@ -878,11 +880,13 @@ msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
   if(dyn_sem == NULL)
     return MSG_TIMEOUT;
 
-  /* Decrease ref count. */
-  chFactoryReleaseSemaphore(dyn_sem);
 
   /* Wait in queue for permission to allocate a buffer. */
   msg_t msg = chSemWaitTimeout(chFactoryGetSemaphore(dyn_sem), timeout);
+
+  /* Decrease ref count. */
+  chFactoryReleaseSemaphore(dyn_sem);
+
   if(msg != MSG_OK)
     /* This can be MSG_TIMEOUT or MSG_RESET. */
     return msg;
@@ -912,7 +916,7 @@ void pktReleasePacketBuffer(packet_t pp) {
   /* Free buffer memory. */
   ax25_delete(pp);
 
-  /* Relinquish the buffer creation permission. */
+  /* Signal buffer is available. */
   chSemSignal(chFactoryGetSemaphore(dyn_sem));
 
   /* Decrease factory ref count. */

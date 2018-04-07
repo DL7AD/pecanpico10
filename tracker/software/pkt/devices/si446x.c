@@ -843,6 +843,9 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
+  /* Use the specified CCA RSSI level on the first pass only. */
+  radio_squelch_t rssi = rto->squelch;
+
   do {
 
     /*
@@ -919,7 +922,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                        rto->channel,
                        rto->tx_power,
                        all,
-                       rto->squelch,
+                       rssi,
                        TIME_S2I(10))) {
       /* Feed the FIFO while data remains to be sent. */
       while((all - c) > 0) {
@@ -985,6 +988,9 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       pktReleaseBufferChain(pp);
       np = NULL;
     }
+
+    /* No CCA on subsequent packet sends. */
+    rssi = 0xFF;
 
     /* Process next packet. */
     pp = np;
@@ -1072,6 +1078,10 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
   /* The exit message. */
   msg_t exit_msg;
+
+  /* Use the specified CCA RSSI level on the first pass only. */
+  radio_squelch_t rssi = rto->squelch;
+
   do {
     pktStreamIteratorInit(&iterator, pp, 30, 10, 10, true);
 
@@ -1134,7 +1144,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                        rto->channel,
                        rto->tx_power,
                        all,
-                       rto->squelch,
+                       rssi,
                        TIME_S2I(10))) {
       /* Feed the FIFO while data remains to be sent. */
       while((all - c) > 0) {
@@ -1199,6 +1209,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
          np = NULL;
        }
 
+       /* No CCA on subsequent packet sends. */
+       rssi = 0xFF;
        /* Process next packet. */
        pp = np;
     } while(pp != NULL);

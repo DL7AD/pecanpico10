@@ -25,7 +25,7 @@ static void processPacket(uint8_t *buf, uint32_t len) {
   packet_t pp = ax25_from_frame(buf, len);
 
   if(pp == NULL) {
-    TRACE_INFO("RX    > Error in packet - dropped");
+    TRACE_INFO("RX   > Error in packet - dropped");
     return;
   }
   /* Continue packet analysis. */

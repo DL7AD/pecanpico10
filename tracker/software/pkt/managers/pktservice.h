@@ -202,6 +202,7 @@ extern packet_svc_t RPKTD1;
 #ifdef __cplusplus
 extern "C" {
 #endif
+  bool pktSystemInit(void);
   bool pktServiceCreate(radio_unit_t radio);
   bool pktServiceRelease(radio_unit_t radio);
   msg_t pktOpenRadioReceive(radio_unit_t radio,
@@ -228,7 +229,7 @@ extern "C" {
   void pktIncomingBufferPoolRelease(packet_svc_t *handler);
   dyn_objects_fifo_t *pktCommonBufferPoolCreate(radio_unit_t radio);
   void pktCommonBufferPoolRelease(radio_unit_t radio);
-  dyn_semaphore_t *pktCommonBufferSemaphoreCreate(radio_unit_t radio);
+  dyn_semaphore_t *pktInitBufferControl(void);
   void pktReleaseBufferSemaphore(radio_unit_t radio);
   msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
   void pktReleasePacketBuffer(packet_t pp);

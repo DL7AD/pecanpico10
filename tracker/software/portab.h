@@ -92,7 +92,7 @@
 /* Number of frame receive buffers. */
 #define NUMBER_RX_PKT_BUFFERS        3U
 /* Number of frame send buffers. */
-#define NUMBER_COMMON_PKT_BUFFERS    20U
+#define NUMBER_COMMON_PKT_BUFFERS    10U
 
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */

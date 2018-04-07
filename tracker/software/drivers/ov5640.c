@@ -708,10 +708,10 @@ static resolution_t last_res = RES_NONE;
   * that could lead to different resolutions on different method calls.
   * The method returns the size of the image.
   */
-uint32_t OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size, resolution_t res)
-{
+uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
+                             uint32_t size, resolution_t res) {
 	uint8_t cntr = 5;
-	bool status;
+	//bool status;
 	uint32_t size_sampled;
 
 	// Set resolution (if not already done earlier)
@@ -728,18 +728,19 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size, resolution_t res)
     TRACE_INFO("CAM  > Capture image");
 	do {
 		// Clearing buffer
-		for(uint32_t i=0; i<size; i++)
+		for(uint32_t i = 0; i < size; i++)
 			buffer[i] = 0;
-		status = false;
+		//status = false;
 		size_sampled = OV5640_Capture(buffer, size);
 		//TRACE_INFO("CAM  > Capture finished");
 
 		//size_sampled = size - 1;
 		while(!buffer[size_sampled - 1] && size_sampled > 0)
 			size_sampled--;
-		if(size_sampled > 0) status = true;
+		if(size_sampled > 0)
+		  return size_sampled;
 
-	} while(!status && cntr--);
+	} while(/*!status && */cntr--);
     TRACE_INFO("CAM  > Image size: %d bytes", size_sampled);
 	return size_sampled;
 }
@@ -990,8 +991,7 @@ void OV5640_unlockResourcesForCapture(void) {
   /* FIXME: USB has to be unlocked. */
 }
 
-uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size)
-{
+uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	OV5640_setLightIntensity();
 
 	/*
@@ -1038,7 +1038,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size)
 
     if (((uint32_t)buffer % DMA_FIFO_BURST_ALIGN) != 0) {
       TRACE_ERROR("CAM  > Buffer not allocated on DMA burst boundary");
-      return false;
+      return 0;
     }
     /*
      * Set the initial buffer addresses.
@@ -1055,9 +1055,9 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size)
     dma_buffers = (size / DMA_SEGMENT_SIZE);
     if (dma_buffers == 0) {
       TRACE_ERROR("CAM  > Capture buffer less than minimum DMA segment size");
-      return false;
+      return 0;
     }
-    /* Start with buffer index 0. */
+    /* Start with buffer page 0. */
     dma_index = 0;
     buff_ptr = buffer;
     dma_count = 0;
@@ -1138,7 +1138,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size)
 			TRACE_ERROR("CAM  > DMA direct mode error");
 			error = 0x5;
 		}
-		TRACE_ERROR("CAM  > Error capturing image");
+		TRACE_ERROR("CAM  > Timeout error capturing image");
 		return 0;
 	}
 

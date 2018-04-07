@@ -406,7 +406,7 @@ static bool transmit_image_packets(const uint8_t *image,
 
   while(c != SSDV_EOI) {
     // Encode packet(s)
-    /* En bloc send is available if redundant TX is not requested. */
+    /* Packet burst send is available if redundant TX is not requested. */
     uint8_t chain = (conf->radio_conf.mod == MOD_2FSK
         && !conf->radio_conf.redundantTx) ?
         (NUMBER_COMMON_PKT_BUFFERS / 2) : 1;

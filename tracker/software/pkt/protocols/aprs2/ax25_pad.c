@@ -263,8 +263,8 @@ packet_t ax25_new (void) {
 
 #if	USE_NEW_PKT_TX_ALLOC == TRUE
 #if USE_CCM_FOR_PKT_TX == TRUE
-    extern memory_heap_t _ccm_heap;
-    this_p = chHeapAlloc(&_ccm_heap, sizeof (struct packet_s));
+    extern memory_heap_t *ccm_heap;
+    this_p = chHeapAlloc(NULL, sizeof (struct packet_s));
 #else
     this_p = chHeapAlloc(NULL, sizeof (struct packet_s));
 #endif
@@ -278,7 +278,7 @@ packet_t ax25_new (void) {
 #endif
 
 	if (this_p == NULL) {
-	  TRACE_ERROR ("PKT  > ERROR - can't allocate memory in ax25_new.");
+	  TRACE_ERROR ("PKT  > Can't allocate memory in ax25_new.");
       return NULL;
 	}
 
@@ -393,17 +393,11 @@ packet_t ax25_from_text (char *monitor, int strict)
 	char info_part[AX25_MAX_INFO_LEN+1];
 	int info_len;
 
-#if USE_NEW_PKT_TX_ALLOC == TRUE
 	packet_t this_p;
 	msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
 	/* If the semaphore is reset then exit. */
-	if(msg == MSG_RESET)
+	if(msg == MSG_RESET || this_p == NULL)
 	  return NULL;
-#else
-	packet_t this_p = ax25_new();
-#endif
-    if(this_p == NULL)
-      return NULL;
 
 #if AX25MEMDEBUG	
 	if (ax25memdebug) {
@@ -418,7 +412,6 @@ packet_t ax25_from_text (char *monitor, int strict)
 	/* There we need to maintain a separate length and not use normal C string functions. */
 
 	strlcpy (stuff, monitor, sizeof(stuff));
-
 
 /*
  * Initialize the packet structure with two addresses and control/pid
@@ -438,6 +431,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 
 	if(ax25_get_num_addr(this_p) != 2) {
 		TRACE_ERROR("PKT  > Error of unknown reason");
+		pktReleasePacketBuffer(this_p);
 		return NULL;
 	}
 
@@ -448,12 +442,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 	pinfo = strchr (stuff, ':');
 
 	if (pinfo == NULL) {
-#if USE_NEW_PKT_TX_ALLOC == TRUE
-	  /* Only needs a single packet released here (although linked release would be safe too. */
 	  pktReleasePacketBuffer(this_p);
-#else
-	  ax25_delete (this_p);
-#endif
 	  return (NULL);
 	}
 
@@ -473,23 +462,15 @@ packet_t ax25_from_text (char *monitor, int strict)
 	if (pa == NULL) {
       TRACE_ERROR("PKT  > No source address in packet");
 	  //TRACE_ERROR ("Failed to create packet from text.  No source address");
-#if USE_NEW_PKT_TX_ALLOC == TRUE
       pktReleasePacketBuffer(this_p);
-#else
-      ax25_delete (this_p);
-#endif
 	  return (NULL);
 	}
 
 	if ( ! ax25_parse_addr (AX25_SOURCE, pa, strict, atemp, &ssid_temp, &heard_temp)) {
       TRACE_ERROR("PKT  > Bad source address in packet");
 	  //TRACE_ERROR ("Failed to create packet from text.  Bad source address");
-#if USE_NEW_PKT_TX_ALLOC == TRUE
 	  /* Only need single packet release here. */
       pktReleasePacketBuffer(this_p);
-#else
-      ax25_delete (this_p);
-#endif
 	  return (NULL);
 	}
 
@@ -505,24 +486,15 @@ packet_t ax25_from_text (char *monitor, int strict)
 	if (pa == NULL) {
       TRACE_ERROR("PKT  > No destination address in packet");
 	  //TRACE_ERROR ("Failed to create packet from text.  No destination address");
-#if USE_NEW_PKT_TX_ALLOC == TRUE
 	  /* Only need single packet release here. */
       pktReleasePacketBuffer(this_p);
-#else
-      ax25_delete (this_p);
-#endif
 	  return (NULL);
 	}
 
 	if ( ! ax25_parse_addr (AX25_DESTINATION, pa, strict, atemp, &ssid_temp, &heard_temp)) {
       TRACE_ERROR("PKT  > Bad destination address in packet");
 	  //TRACE_ERROR ("Failed to create packet from text.  Bad destination address");
-#if USE_NEW_PKT_TX_ALLOC == TRUE
-	  /* Only need single packet release here. */
       pktReleasePacketBuffer(this_p);
-#else
-      ax25_delete (this_p);
-#endif
 	  return (NULL);
 	}
 
@@ -542,12 +514,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 	  if ( ! ax25_parse_addr (k, pa, strict, atemp, &ssid_temp, &heard_temp)) {
 	      TRACE_ERROR("PKT  > Bad digipeater address in packet");
 	    //TRACE_ERROR ("Failed to create packet from text.  Bad digipeater address");
-#if USE_NEW_PKT_TX_ALLOC == TRUE
-	    /* Only need single packet release here. */
       pktReleasePacketBuffer(this_p);
-#else
-      ax25_delete (this_p);
-#endif
 	    return (NULL);
 	  }
 

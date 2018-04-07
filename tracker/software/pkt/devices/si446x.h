@@ -270,11 +270,7 @@ static inline bool Si446x_isFrequencyInBand(radio_unit_t radio,
 extern void pktReleasePacketBuffer(packet_t pp);
 
 static inline void Si446x_releaseSendObject(packet_t pp) {
-#if USE_NEW_PKT_TX_ALLOC == TRUE
   pktReleasePacketBuffer(pp);
-#else
-  ax25_delete(pp);
-#endif
 }
 
 #endif /* __si446x__H__ */

@@ -57,8 +57,9 @@ void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
   chprintf(chp, "heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
   chprintf(chp, "heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
 
-  extern memory_heap_t _ccm_heap;
-  n = chHeapStatus(&_ccm_heap, &total, &largest);
+  extern memory_heap_t *ccm_heap;
+
+  n = chHeapStatus(ccm_heap, &total, &largest);
   chprintf(chp, SHELL_NEWLINE_STR"CCM Heap"SHELL_NEWLINE_STR, n);
   chprintf(chp, "heap fragments   : %u"SHELL_NEWLINE_STR, n);
   chprintf(chp, "heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
