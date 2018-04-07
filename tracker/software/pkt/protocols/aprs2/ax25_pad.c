@@ -264,7 +264,7 @@ packet_t ax25_new (void) {
 #if	USE_NEW_PKT_TX_ALLOC == TRUE
 #if USE_CCM_FOR_PKT_TX == TRUE
     extern memory_heap_t *ccm_heap;
-    this_p = chHeapAlloc(NULL, sizeof (struct packet_s));
+    this_p = chHeapAlloc(ccm_heap, sizeof (struct packet_s));
 #else
     this_p = chHeapAlloc(NULL, sizeof (struct packet_s));
 #endif

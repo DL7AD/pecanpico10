@@ -560,7 +560,7 @@ static bool Si446x_transmit(radio_unit_t radio,
     }
 
     /* Check for blind send request. */
-    if(rssi != 0xFF) {
+    if(rssi != PKT_SI446X_NO_CCA_RSSI) {
       Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
       /* Set band parameters. */
       Si446x_setBandParameters(radio, freq, step);     // Set frequency
@@ -990,7 +990,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     }
 
     /* No CCA on subsequent packet sends. */
-    rssi = 0xFF;
+    rssi = PKT_SI446X_NO_CCA_RSSI;
 
     /* Process next packet. */
     pp = np;
@@ -1210,7 +1210,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
        }
 
        /* No CCA on subsequent packet sends. */
-       rssi = 0xFF;
+       rssi = PKT_SI446X_NO_CCA_RSSI;
        /* Process next packet. */
        pp = np;
     } while(pp != NULL);

@@ -27,7 +27,9 @@ memory_heap_t *ccm_heap = NULL;
 /* Module local variables.                                                   */
 /*===========================================================================*/
 
+#if USE_CCM_FOR_PKT_TX == TRUE
 static memory_heap_t _ccm_heap;
+#endif
 
 /*===========================================================================*/
 /* Module local functions.                                                   */
@@ -50,11 +52,13 @@ bool pktSystemInit(void) {
 
   //#define intoCCM  __attribute__((section(".ram4")))  __attribute__((aligned(4)))
 
+#if USE_CCM_FOR_PKT_TX == TRUE
   /* Create heap in CCM. */
   if(ccm_heap == NULL) {
     ccm_heap = &_ccm_heap;
     chHeapObjectInit(ccm_heap, (void *)0x10000000, 0x10000);
   }
+#endif
   /*
    * Create common packet buffer control.
    */

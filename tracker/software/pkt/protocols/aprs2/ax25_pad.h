@@ -72,11 +72,10 @@
 #define AX25_PID_ESCAPE_CHARACTER 0xFF
 
 #define USE_NEW_PKT_TX_ALLOC    TRUE
-#define USE_CCM_FOR_PKT_TX      TRUE
+#define USE_CCM_FOR_PKT_TX      FALSE
 
 #include "pkttypes.h"
 
-/* TODO: Create a chFactory FIFO to manage these objects. */
 typedef struct packet_s {
 
     /* for error checking. */

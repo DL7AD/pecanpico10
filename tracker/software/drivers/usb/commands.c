@@ -57,6 +57,7 @@ void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
   chprintf(chp, "heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
   chprintf(chp, "heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
 
+#if USE_CCM_FOR_PKT_TX == TRUE
   extern memory_heap_t *ccm_heap;
 
   n = chHeapStatus(ccm_heap, &total, &largest);
@@ -64,6 +65,7 @@ void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
   chprintf(chp, "heap fragments   : %u"SHELL_NEWLINE_STR, n);
   chprintf(chp, "heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
   chprintf(chp, "heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
+#endif
 }
 
 void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
