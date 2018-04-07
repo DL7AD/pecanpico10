@@ -837,9 +837,12 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   virtual_timer_t send_timer;
 
   chVTObjectInit(&send_timer);
-  msg_t exit_msg = MSG_OK;
+  msg_t exit_msg;
   tx_iterator_t iterator;
   packet_t pp = rto->packet_out;
+
+  chDbgAssert(pp != NULL, "no packet in radio task");
+
   do {
 
     /*
@@ -860,11 +863,11 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
       TRACE_ERROR("SI   > AFSK TX no NRZI data encoded");
 
-      // Free packet object memory
+      /* Free packet object memory. */
       pktReleaseSendQueue(pp);
 
       /* Schedule thread and task object memory release. */
-      pktSignalSendComplete(rto, chThdGetSelfX());
+      pktScheduleSendComplete(rto, chThdGetSelfX());
 
       /* Exit thread. */
       chThdExit(MSG_ERROR);
@@ -971,24 +974,27 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       /* Warn when level drops below 50% of FIFO size. */
       TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
     }
+    /* Get the next linked packet to send. */
     packet_t np = pp->nextp;
-       if(exit_msg == MSG_OK) {
+    if(exit_msg == MSG_OK) {
 
-         /* Send was OK. Release the just completed packet. */
-         pktReleaseSendObject(pp);
-       } else {
-         /* Send failed so release any queue and terminate. */
-         pktReleaseSendQueue(pp);
-         np = NULL;
-       }
+      /* Send was OK. Release the just completed packet. */
+      pktReleaseSendObject(pp);
+    } else {
+      /* Send failed so release any queue and terminate. */
+      pktReleaseSendQueue(pp);
+      np = NULL;
+    }
 
-       /* Get the next packet in the send queue. */
-       pp = np;
-     } while(pp != NULL);
+    /* Process next packet. */
+    pp = np;
+  } while(pp != NULL);
 
-  chThdSleep(TIME_MS2I(100));
+  rto->result = exit_msg;
+
+  //chThdSleep(TIME_MS2I(100));
   /* Schedule thread memory release. */
-  pktSignalSendComplete(rto, chThdGetSelfX());
+  pktScheduleSendComplete(rto, chThdGetSelfX());
 
   /* Exit thread. */
   chThdExit(exit_msg);
@@ -1058,10 +1064,12 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   virtual_timer_t send_timer;
 
   chVTObjectInit(&send_timer);
-
   tx_iterator_t iterator;
 
   packet_t pp = rto->packet_out;
+
+  chDbgAssert(pp != NULL, "no packet in radio task");
+
   /* The exit message. */
   msg_t exit_msg;
   do {
@@ -1078,8 +1086,10 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       // Free packet object memory
       pktReleaseSendQueue(pp);
 
+      rto->result = MSG_ERROR;
+
       /* Schedule thread and task object memory release. */
-      pktSignalSendComplete(rto, chThdGetSelfX());
+      pktScheduleSendComplete(rto, chThdGetSelfX());
 
       /* Exit thread. */
       chThdExit(MSG_ERROR);
@@ -1177,24 +1187,28 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       /* Warn when level drops below 50% of FIFO size. */
       TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
     }
+    /* Get the next linked packet to send. */
     packet_t np = pp->nextp;
-    if(exit_msg == MSG_OK) {
+       if(exit_msg == MSG_OK) {
 
-      /* Send was OK. Release the just completed packet. */
-      pktReleaseSendObject(pp);
-    } else {
-      /* Send failed so release any queue and terminate. */
-      pktReleaseSendQueue(pp);
-      np = NULL;
-    }
+         /* Send was OK. Release the just completed packet. */
+         pktReleaseSendObject(pp);
+       } else {
+         /* Send failed so release any queue and terminate. */
+         pktReleaseSendQueue(pp);
+         np = NULL;
+       }
 
-    /* Get the next packet in the send queue. */
-    pp = np;
-  } while(pp != NULL);
+       /* Process next packet. */
+       pp = np;
+    } while(pp != NULL);
 
-  chThdSleep(TIME_MS2I(100));
+  //chThdSleep(TIME_MS2I(100));
   /* Finished send so schedule thread memory and task object release. */
-  pktSignalSendComplete(rto, chThdGetSelfX());
+
+  rto->result = exit_msg;
+
+  pktScheduleSendComplete(rto, chThdGetSelfX());
 
   /* Exit thread. */
   chThdExit(exit_msg);

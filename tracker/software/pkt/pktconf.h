@@ -382,10 +382,10 @@ static inline msg_t pktSendRadioCommand(radio_unit_t radio,
 static inline void pktReleaseSendObject(packet_t pp) {
 #if USE_SPI_ATTACHED_RADIO == TRUE
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-
-      pktReleasePacketBuffer(pp);
+  chDbgAssert(pp != NULL, "no packet pointer");
+  pktReleasePacketBuffer(pp);
 #else
-      ax25_delete (pp);
+  ax25_delete (pp);
 #endif
 #else
   (void)pp;
@@ -404,6 +404,7 @@ static inline void pktReleaseSendObject(packet_t pp) {
 static inline void pktReleaseSendQueue(packet_t pp) {
 #if USE_SPI_ATTACHED_RADIO == TRUE
 #if USE_NEW_PKT_TX_ALLOC == TRUE
+
   /* Release all packets in linked list. */
   do {
     packet_t np = pp->nextp;

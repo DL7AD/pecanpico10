@@ -146,13 +146,6 @@ typedef struct packetHandlerData {
   dyn_objects_fifo_t        *the_packet_fifo;
 
   /**
-   * @brief AX25 packet guarded FIFO for send.
-   * TODO: Deprecate.
-   */
-  dyn_objects_fifo_t        *tx_packet_fifo;
-
-
-  /**
    * @brief AX25 send buffer throttling semaphore.
    */
   dyn_semaphore_t           *tx_packet_sem;
@@ -236,7 +229,7 @@ extern "C" {
   dyn_objects_fifo_t *pktCommonBufferPoolCreate(radio_unit_t radio);
   void pktCommonBufferPoolRelease(radio_unit_t radio);
   dyn_semaphore_t *pktCommonBufferSemaphoreCreate(radio_unit_t radio);
-  void pktBufferSemaphoreRelease(radio_unit_t radio);
+  void pktReleaseBufferSemaphore(radio_unit_t radio);
   msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
   void pktReleasePacketBuffer(packet_t pp);
 #ifdef __cplusplus

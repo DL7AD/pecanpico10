@@ -125,7 +125,7 @@ bool pktServiceRelease(radio_unit_t radio) {
   if(handler->state != PACKET_READY)
     return false;
 #if   USE_NEW_PKT_TX_ALLOC == TRUE
-  pktBufferSemaphoreRelease(radio);
+  pktReleaseBufferSemaphore(radio);
 #endif
   pktRadioManagerRelease(radio);
   handler->state = PACKET_IDLE;
@@ -825,49 +825,6 @@ dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 /*
  * Send shares a common pool of buffers.
  */
-dyn_objects_fifo_t *pktCommonBufferPoolCreate(radio_unit_t radio) {
-
-  packet_svc_t *handler = pktGetServiceObject(radio);
-
-  chDbgAssert(handler != NULL, "invalid radio ID");
-
-  /* Check if the transmit packet buffer factory already exists.
-   * If so we get a pointer to it and just return that.
-   * Otherwise create the FIFO and return result.
-   */
-  dyn_objects_fifo_t *dyn_fifo =
-      chFactoryFindObjectsFIFO(PKT_SEND_BUFFER_NAME);
-
-  if(dyn_fifo == NULL) {
-    /* Create the dynamic objects FIFO for the packet data queue. */
-    dyn_fifo = chFactoryCreateObjectsFIFO(PKT_SEND_BUFFER_NAME,
-        sizeof(packet_tx_t),
-        NUMBER_COMMON_PKT_BUFFERS, sizeof(msg_t));
-
-    chDbgAssert(dyn_fifo != NULL, "failed to create send PKT objects FIFO");
-  }
-  /* Save the factory FIFO reference. */
-  handler->tx_packet_fifo = dyn_fifo;
-  return dyn_fifo;
-}
-
-/*
- * Send shares a common pool of buffers.
- */
-void pktCommonBufferPoolRelease(radio_unit_t radio) {
-
-  packet_svc_t *handler = pktGetServiceObject(radio);
-
-  chDbgAssert(handler != NULL, "invalid radio ID");
-  chDbgAssert(handler->tx_packet_fifo != NULL, "no outgoing FIFO assigned");
-  /* Release FIFO. If this is the last radio using it the FIFO is released. */
-  chFactoryReleaseObjectsFIFO(handler->tx_packet_fifo);
-  handler->tx_packet_fifo = NULL;
-}
-
-/*
- * Send shares a common pool of buffers.
- */
 dyn_semaphore_t *pktCommonBufferSemaphoreCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
@@ -965,12 +922,11 @@ void pktReleasePacketBuffer(packet_t pp) {
 /*
  * Send shares a common pool of buffers.
  */
-void pktBufferSemaphoreRelease(radio_unit_t radio) {
+void pktReleaseBufferSemaphore(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   chDbgAssert(handler != NULL, "invalid radio ID");
-  chDbgAssert(handler->tx_packet_fifo != NULL, "no outgoing FIFO assigned");
 
   /*
    *  Release Semaphore.

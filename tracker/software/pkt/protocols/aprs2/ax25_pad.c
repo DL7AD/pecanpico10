@@ -327,7 +327,6 @@ void ax25_delete (packet_t this_p)
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
 		TRACE_ERROR("PKT  > Buffer overflow");
-		return;
 	}
 	
 	this_p->magic1 = 0;

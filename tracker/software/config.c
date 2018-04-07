@@ -56,8 +56,8 @@ const conf_t conf_flash_default = {
 	.img_pri = {
 		.thread_conf = {
 			.active			= true,
-			.cycle			= TIME_S2I(1800),
-			.init_delay		= TIME_S2I(900),
+			.cycle			= TIME_S2I(120),
+			.init_delay		= TIME_S2I(120),
 			.send_spacing	= TIME_S2I(5)
 		},
 		.radio_conf = {
@@ -103,7 +103,7 @@ const conf_t conf_flash_default = {
 	.log = {
 		.thread_conf = {
 			.active			= false,
-			.cycle			= TIME_S2I(30),
+			.cycle			= TIME_S2I(10),
 			.init_delay		= TIME_S2I(5)
 		},
 		.radio_conf = {
@@ -113,7 +113,7 @@ const conf_t conf_flash_default = {
             .rssi           = 0x4F,
 		},
 
-		.call				= "DL7AD-13",
+		.call				= "VK2GJ-13",
 		.path				= "WIDE1-1",
 		.density			= 10
 	},

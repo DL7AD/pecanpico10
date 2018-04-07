@@ -111,7 +111,7 @@ extern "C" {
                                             radio_ch_t chan);
   bool pktLLDresumeReceive(radio_unit_t radio);
   bool pktLLDsendPacket(radio_task_object_t *rto);
-  void pktSignalSendComplete(radio_task_object_t *rto,
+  void pktScheduleSendComplete(radio_task_object_t *rto,
                                 thread_t *thread);
 #ifdef __cplusplus
 }

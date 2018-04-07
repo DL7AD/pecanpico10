@@ -386,7 +386,6 @@ msg_t pktGetRadioTaskObject(radio_unit_t radio,
     return MSG_TIMEOUT;
   }
   (*rt)->handler = handler;
-  //(*rt)->radio_id = radio;
   return MSG_OK;
 }
 
@@ -415,9 +414,6 @@ void pktSubmitRadioTask(radio_unit_t radio,
 
   /* Populate the object with information from request. */
 
-  /* TODO: Put command information into queue object.
-   * Have to do this so that commands are not overwritten in handler.
-   */
   object->handler = handler;
   object->callback = cb;
 
@@ -425,7 +421,7 @@ void pktSubmitRadioTask(radio_unit_t radio,
    * Submit the task to the queue.
    * The task thread will process the request.
    * The task object is returned to the free list.
-   * If a callback is specified it is called after the task object is freed.
+   * If a callback is specified it is called before the task object is freed.
    */
   chFifoSendObject(task_queue, object);
 }
@@ -439,7 +435,7 @@ void pktSubmitRadioTask(radio_unit_t radio,
  *
  * @api
  */
-void pktSignalSendComplete(radio_task_object_t *rto,
+void pktScheduleSendComplete(radio_task_object_t *rto,
                               thread_t *thread) {
 
   packet_svc_t *handler = rto->handler;
@@ -448,34 +444,8 @@ void pktSignalSendComplete(radio_task_object_t *rto,
   /* The handler and radio ID are set in returned object. */
   rto->command = PKT_RADIO_TX_THREAD;
   rto->thread = thread;
+  /* Submit guaranteed to succeed by design. */
   pktSubmitRadioTask(radio, rto, rto->callback);
-}
-
-/**
- * @brief   Called by transmit threads to schedule release after completing.
- * @post    A thread release task is posted to the radio manager queue.
- *
- * @param[in]   radio   radio unit ID.
- * @param[in]   thread  thread reference.
- *
- * @api
- */
-void pktScheduleThreadRelease(radio_unit_t radio,
-                              thread_t *thread) {
-
-  packet_svc_t *handler = pktGetServiceObject(radio);
-
-  chDbgAssert(handler != NULL, "invalid radio ID");
-
-  radio_task_object_t *rto;
-
-  /* Block waiting for a task manager object. */
-  pktGetRadioTaskObject(radio, TIME_INFINITE, &rto);
-
-  /* The handler and radio ID are set in returned object. */
-  rto->command = PKT_RADIO_TX_THREAD;
-  rto->thread = thread;
-  pktSubmitRadioTask(radio, rto, NULL);
 }
 
 /**

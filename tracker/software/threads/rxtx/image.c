@@ -285,8 +285,11 @@ ssdv_packet_t packetRepeats[16];
 bool reject_pri;
 bool reject_sec;
 
-static bool transmit_image_packet(const uint8_t *image, uint32_t image_len, thd_img_conf_t* conf, uint8_t image_id, uint16_t packet_id)
-{
+static bool transmit_image_packet(const uint8_t *image,
+                                  uint32_t image_len,
+                                  thd_img_conf_t* conf,
+                                  uint8_t image_id,
+                                  uint16_t packet_id) {
 	ssdv_t ssdv;
 	uint8_t pkt[SSDV_PKT_SIZE];
 	uint8_t pkt_base91[256] = {0};
@@ -357,53 +360,64 @@ static bool transmit_image_packets(const uint8_t *image,
                                    uint32_t image_len,
                                    thd_img_conf_t* conf,
                                    uint8_t image_id) {
-  ssdv_t ssdv;
+
   uint8_t pkt[SSDV_PKT_SIZE];
   uint8_t pkt_base91[256] = {0};
+
+
+  /* FIXME: This doesn't work with 'en bloc' packet sends. */
+  // Process redundant transmission from last cycle
+  if(strlen((char*)pkt_base91)
+      && conf->radio_conf.redundantTx) {
+    packet_t packet = aprs_encode_data_packet(conf->call, conf->path,
+                                              'I', pkt_base91);
+    if(packet == NULL) {
+      TRACE_ERROR("IMG  > No available packet for redundant"
+          " image transmission");
+    } else {
+      if(!transmitOnRadio(packet,
+                          conf->radio_conf.freq,
+                          0,
+                          0,
+                          conf->radio_conf.pwr,
+                          conf->radio_conf.mod,
+                          conf->radio_conf.rssi)) {
+        /* Packet has been released by transmit. */
+        TRACE_ERROR("IMG  > Unable to send redundant image on radio");
+      }
+    }
+    chThdSleep(TIME_MS2I(10)); // Leave other threads some time
+  }
+
+  // Init SSDV (FEC at 2FSK, non FEC at APRS)
+  //bi = 0;
+
+
+  /* Prepare for image encode and send. */
+  ssdv_t ssdv;
   const uint8_t *b;
   uint32_t bi = 0;
   uint8_t c = SSDV_OK;
 
-  // Init SSDV (FEC at 2FSK, non FEC at APRS)
-  bi = 0;
+  /* Initialize SSDV, output buffer and input buffer. */
   ssdv_enc_init(&ssdv, SSDV_TYPE_PADDING, "N0CALL", image_id, conf->quality);
-
-  /* Initialize output buffer and input buffer. */
   ssdv_enc_set_buffer(&ssdv, pkt);
   ssdv_enc_feed(&ssdv, image, 0);
 
-  /* TODO: Review/revise how this works with block send. */
-  do {
-    // Process redundant transmission from last cycle
-    if(strlen((char*)pkt_base91) && conf->radio_conf.redundantTx) {
-      packet_t packet = aprs_encode_data_packet(conf->call, conf->path,
-                                                'I', pkt_base91);
-      if(packet == NULL) {
-        TRACE_ERROR("IMG  > No available packet for redundant"
-            " image transmission");
-      } else {
-        if(!transmitOnRadio(packet,
-                            conf->radio_conf.freq,
-                            0,
-                            0,
-                            conf->radio_conf.pwr,
-                            conf->radio_conf.mod,
-                            conf->radio_conf.rssi)) {
-          /* Packet has been released by transmit. */
-          TRACE_ERROR("IMG  > Unable to send redundant image on radio");
-        }
-      }
-      chThdSleep(TIME_MS2I(10)); // Leave other threads some time
-    }
+  while(c != SSDV_EOI) {
+    // Encode packet(s)
+    /* En bloc send is available if redundant TX is not requested. */
+    uint8_t chain = (conf->radio_conf.mod == MOD_2FSK
+        && !conf->radio_conf.redundantTx) ?
+        (NUMBER_COMMON_PKT_BUFFERS / 2) : 1;
+    TRACE_INFO("IMG  > Encode APRS/SSDV packet(s) %i", chain);
 
+    /* Packet linking control. */
     packet_t head = NULL;
     packet_t previous = NULL;
-    uint8_t chain = (conf->radio_conf.mod == MOD_2FSK) ? (NUMBER_COMMON_PKT_BUFFERS / 2) : 1;
 
-    // Encode packet(s)
-    TRACE_INFO("IMG  > Encode APRS/SSDV packet(s) %i", chain);
-    while((chain-- > 0) && (c != SSDV_EOI)) {
-      /* TODO: re-implement chunk sized SSDV conversions. */
+    while(chain-- > 0) {
+      /* TODO: re-implement chunk sized SSDV conversions? */
       while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME) {
         b = &image[bi++];
         if(bi > image_len) {
@@ -450,7 +464,7 @@ static bool transmit_image_packets(const uint8_t *image,
         previous->nextp = packet;
       /* Now set previous as current. */
       previous = packet;
-    } /* End while. */
+    } /* End while(chain-- > 0) */
 
     /* If we have some image packet(s) to transmit then do it. */
     if(head != NULL) {
@@ -465,35 +479,33 @@ static bool transmit_image_packets(const uint8_t *image,
         /* Transmit on radio will release the packet chain. */
       }
     }
-
     chThdSleep(TIME_MS2I(10)); // Leave other threads some time
+  } /* End while(c!= SSDV_EOI) */
 
-    /* TODO: Review/revise how this works with block send. */
-    // Repeat packets
-    for(uint8_t i=0; i<16; i++) {
-      if(packetRepeats[i].n_done && image_id == packetRepeats[i].image_id) {
-        if(!transmit_image_packet(image, image_len, conf,
-                                  image_id, packetRepeats[i].packet_id)) {
-          TRACE_ERROR("IMG  > Failed re-send of image %i", image_id);
-        } else {
-          packetRepeats[i].n_done = false; // Set done
-        }
+  // Repeat packets
+  for(uint8_t i=0; i<16; i++) {
+    if(packetRepeats[i].n_done && image_id == packetRepeats[i].image_id) {
+      if(!transmit_image_packet(image, image_len, conf,
+                                image_id, packetRepeats[i].packet_id)) {
+        TRACE_ERROR("IMG  > Failed re-send of image %i", image_id);
+      } else {
+        packetRepeats[i].n_done = false; // Set done
       }
-      chThdSleep(TIME_MS2I(100)); // Leave other threads some time
     }
+    chThdSleep(TIME_MS2I(100)); // Leave other threads some time
+  }
 
-    // Packet spacing (delay)
-    if(conf->thread_conf.send_spacing)
-      chThdSleep(conf->thread_conf.send_spacing);
+  // Packet spacing (delay)
+  if(conf->thread_conf.send_spacing)
+    chThdSleep(conf->thread_conf.send_spacing);
 
-    // Handle image rejection flag
-    if((conf == &conf_sram.img_pri) && reject_pri) { // Image rejected
-      reject_pri = false;
-    }
-    if((conf == &conf_sram.img_sec) && reject_sec) { // Image rejected
-      reject_sec = false;
-    }
-  } while(c != SSDV_EOI);
+  // Handle image rejection flag
+  if((conf == &conf_sram.img_pri) && reject_pri) { // Image rejected
+    reject_pri = false;
+  }
+  if((conf == &conf_sram.img_sec) && reject_sec) { // Image rejected
+    reject_sec = false;
+  }
   return true;
 }
 
