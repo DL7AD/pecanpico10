@@ -401,7 +401,7 @@ static inline void pktReleaseSendObject(packet_t pp) {
  *
  * @api
  */
-static inline void pktReleaseSendQueue(packet_t pp) {
+static inline void pktReleaseBufferChain(packet_t pp) {
 #if USE_SPI_ATTACHED_RADIO == TRUE
 #if USE_NEW_PKT_TX_ALLOC == TRUE
 

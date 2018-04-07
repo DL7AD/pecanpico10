@@ -19,15 +19,19 @@ void startUSB(void) {
 	if(usb_initialized)
 		return; // Avoid duplicate initialization
 
-	// Start USB
-	sduObjectInit(&SDU1);
-	sduStart(&SDU1, &serusbcfg);
+    /* Initialize USB. */
+    sduObjectInit(&SDU1);
 
+    /* Currently does nothing. */
 	usbDisconnectBus(serusbcfg.usbp);
 	chThdSleep(TIME_MS2I(100));
+
 	usbStart(serusbcfg.usbp, &usbcfg);
+
+    /* Currently does nothing. */
 	usbConnectBus(serusbcfg.usbp);
-	usb_initialized = true;
+
+    sduStart(&SDU1, &serusbcfg);
 
 	// Initialize shell
 	shelltp = NULL;
@@ -37,14 +41,16 @@ void startUSB(void) {
 }
 
 void manageShell(void) {
-	if(shelltp == NULL) {
-		shelltp = chThdCreateFromHeap(NULL,
-		                              THD_WORKING_AREA_SIZE(4*1024),
-		                              "shell", NORMALPRIO + 1,
-		                              shellThread,
-		                              (void*)&shell_cfg);
+	if(shelltp == NULL && isUSBactive()) {
 
-	    chEvtRegister(&shell_terminated, &shell_el, USB_SHELL_EVT);
+      shelltp = chThdCreateFromHeap(NULL,
+                                    THD_WORKING_AREA_SIZE(4*1024),
+                                    "shell", NORMALPRIO + 1,
+                                    shellThread,
+                                    (void*)&shell_cfg);
+
+
+      chEvtRegister(&shell_terminated, &shell_el, USB_SHELL_EVT);
 	}
     chEvtWaitAnyTimeout(EVENT_MASK(USB_SHELL_EVT), TIME_S2I(1));
 	if(chThdTerminatedX(shelltp)) {
@@ -54,6 +60,6 @@ void manageShell(void) {
 	}
 }
 
-bool isUSBInitialized(void) {
+bool isSDUAvailable(void) {
 	return usb_initialized;
 }

@@ -423,7 +423,7 @@ static bool transmit_image_packets(const uint8_t *image,
         if(bi > image_len) {
           TRACE_ERROR("SSDV > Premature end of file");
           if(head != NULL) {
-            pktReleaseSendQueue(head);
+            pktReleaseBufferChain(head);
           }
           return false;
         }
@@ -436,7 +436,7 @@ static bool transmit_image_packets(const uint8_t *image,
       } else if(c != SSDV_OK) {
         TRACE_ERROR("SSDV > ssdv_enc_get_packet failed: %i", c);
         if(head != NULL) {
-          pktReleaseSendQueue(head);
+          pktReleaseBufferChain(head);
         }
         return false;
       }
@@ -453,7 +453,7 @@ static bool transmit_image_packets(const uint8_t *image,
         TRACE_ERROR("IMG  > No available packet for image transmission");
         /* Error so release any linked packets. */
         if(head != NULL) {
-          pktReleaseSendQueue(head);
+          pktReleaseBufferChain(head);
         }
         return false;
       }
@@ -670,6 +670,9 @@ THD_FUNCTION(imgThread, arg) {
             writeBufferToFile(filename, &buffer[soi], size_sampled-soi);
           }
 
+          if(conf->radio_conf.mod == MOD_2FSK && conf->radio_conf.redundantTx) {
+            TRACE_WARN("IMG  > Redundant TX disables 2FSK burst send mode");
+          }
           // Encode and transmit picture
           TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", gimage_id-1);
           if(!transmit_image_packets(buffer, size_sampled, conf,

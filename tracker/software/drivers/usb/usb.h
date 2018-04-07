@@ -8,7 +8,7 @@
 
 void startUSB(void);
 void manageShell(void);
-bool isUSBInitialized(void);
+bool isSDUAvailable(void);
 
 #endif
 

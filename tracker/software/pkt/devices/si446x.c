@@ -864,7 +864,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       TRACE_ERROR("SI   > AFSK TX no NRZI data encoded");
 
       /* Free packet object memory. */
-      pktReleaseSendQueue(pp);
+      pktReleaseBufferChain(pp);
 
       /* Schedule thread and task object memory release. */
       pktScheduleSendComplete(rto, chThdGetSelfX());
@@ -982,7 +982,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       pktReleaseSendObject(pp);
     } else {
       /* Send failed so release any queue and terminate. */
-      pktReleaseSendQueue(pp);
+      pktReleaseBufferChain(pp);
       np = NULL;
     }
 
@@ -1084,7 +1084,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       TRACE_ERROR("SI   > 2FSK TX no NRZI data encoded");
 
       // Free packet object memory
-      pktReleaseSendQueue(pp);
+      pktReleaseBufferChain(pp);
 
       rto->result = MSG_ERROR;
 
@@ -1195,7 +1195,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
          pktReleaseSendObject(pp);
        } else {
          /* Send failed so release any queue and terminate. */
-         pktReleaseSendQueue(pp);
+         pktReleaseBufferChain(pp);
          np = NULL;
        }
 

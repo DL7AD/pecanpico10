@@ -125,7 +125,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
   if(!pktIsTransmitOpen(radio)) {
     TRACE_WARN( "RAD  > Transmit is not open on radio");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-    pktReleaseSendQueue(pp);
+    pktReleaseBufferChain(pp);
       //pktReleasePacketBuffer(pp);
 #else
       ax25_delete (pp);
@@ -160,7 +160,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
         TRACE_ERROR("RAD  > Transmit base frequency of %d.%03d MHz is invalid",
                       base_freq/1000000, (base_freq%1000000)/1000);
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-        pktReleaseSendQueue(pp);
+        pktReleaseBufferChain(pp);
         //pktReleasePacketBuffer(pp);
 #else
         ax25_delete (pp);
@@ -204,7 +204,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
         if(msg != MSG_OK) {
           TRACE_ERROR("RAD  > Failed to post radio task");
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-          pktReleaseSendQueue(pp);
+          pktReleaseBufferChain(pp);
           //pktReleasePacketBuffer(pp);
 #else
           ax25_delete (pp);
@@ -218,11 +218,12 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 					base_freq/1000000, (base_freq%1000000)/1000, pwr,
 					getModulation(mod), len);
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-	    pktReleaseSendQueue(pp);
+	    pktReleaseBufferChain(pp);
       //pktReleasePacketBuffer(pp);
 #else
       ax25_delete (pp);
 #endif
+      return false;
 	}
 	return true;
 }

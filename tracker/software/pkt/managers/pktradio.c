@@ -194,7 +194,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       }
       /* Send failed so release send packet object(s). */
       packet_t pp = task_object->packet_out;
-      pktReleaseSendQueue(pp);
+      pktReleaseBufferChain(pp);
       break;
     } /* End case PKT_RADIO_TX. */
 
