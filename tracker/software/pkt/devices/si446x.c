@@ -1075,7 +1075,6 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
       TRACE_ERROR("SI   > 2FSK TX no NRZI data encoded");
 
-
       // Free packet object memory
       pktReleaseSendQueue(pp);
 

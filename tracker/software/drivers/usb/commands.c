@@ -21,7 +21,11 @@ const ShellCommand commands[] = {
 	{"aprs_message", usb_cmd_send_aprs_message},
 	{"msg", usb_cmd_send_aprs_message}, /* Short form alias. */
     {"test_gps", usb_cmd_set_test_gps},
+#if SHELL_CMD_MEM_ENABLED == TRUE
     {"heap", usb_cmd_ccm_heap},
+#else
+    {"mem", usb_cmd_ccm_heap},
+#endif
 	{NULL, NULL}
 };
 
@@ -46,11 +50,18 @@ void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
     shellUsage(chp, "heap");
     return;
   }
+  n = chHeapStatus(NULL, &total, &largest);
+  chprintf(chp, "core free memory : %u bytes"SHELL_NEWLINE_STR, chCoreGetStatusX());
+  chprintf(chp, SHELL_NEWLINE_STR"System Heap"SHELL_NEWLINE_STR, n);
+  chprintf(chp, "heap fragments   : %u"SHELL_NEWLINE_STR, n);
+  chprintf(chp, "heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
+  chprintf(chp, "heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
   extern memory_heap_t _ccm_heap;
   n = chHeapStatus(&_ccm_heap, &total, &largest);
-  chprintf(chp, "CCM heap fragments   : %u"SHELL_NEWLINE_STR, n);
-  chprintf(chp, "CCM heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
-  chprintf(chp, "CCM heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
+  chprintf(chp, SHELL_NEWLINE_STR"CCM Heap"SHELL_NEWLINE_STR, n);
+  chprintf(chp, "heap fragments   : %u"SHELL_NEWLINE_STR, n);
+  chprintf(chp, "heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
+  chprintf(chp, "heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
 }
 
 void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
@@ -65,8 +76,6 @@ void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
 		chprintf(chp, "Level 4: Errors + Warnings + Info + Debug\r\n");
 		return;
 	}
-
-
 	usb_trace_level = atoi(argv[0]);
 }
 

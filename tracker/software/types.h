@@ -104,10 +104,10 @@ typedef struct {
 	radio_tx_conf_t radio_conf;
 
 	// Protocol
-	char call[AX25_MAX_ADDR_LEN];
-	char path[16];
+	char            call[AX25_MAX_ADDR_LEN];
+	char            path[16];
 
-	uint8_t density;						// Density of log points being sent out in 1/x (value 10 => 10%)
+	uint8_t         density;				// Density of log points being sent out in 1/x (value 10 => 10%)
 } thd_log_conf_t;
 
 
@@ -133,9 +133,9 @@ typedef struct {
 
 /* APRS configuration. */
 typedef struct {
-  thread_conf_t thread_conf;
-    thd_rx_conf_t rx;
-    thd_tx_conf_t tx;
+  thread_conf_t     thread_conf;
+    thd_rx_conf_t   rx;
+    thd_tx_conf_t   tx;
     bool            dig_active;             // Digipeater active flag
 } thd_aprs_conf_t;
 
@@ -148,24 +148,22 @@ typedef struct {
 
 	thd_log_conf_t	log;					// Log transmission configuration
 	thd_aprs_conf_t aprs;
-	//thd_rx_conf_t	rx;						// Receiver configuration
-	//thd_tx_conf_t   tx;                     // Transmitter configuration
 
 	bool			keep_cam_switched_on;	// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time
 
 	uint16_t		gps_on_vbat;			// Battery voltage threshold at which GPS is switched on
 	uint16_t		gps_off_vbat;			// Battery voltage threshold at which GPS is switched off
 	uint16_t		gps_onper_vbat;			// Battery voltage threshold at which GPS is kept switched on all time. This value must be larger
-											// than gps_on_vbat and gps_off_vbat otherwise this value has no effect. Value 0 disables this feature
-
-	uint32_t magic;
+											// When gps_on_vbat and gps_off_vbat otherwise this value has no effect. Value 0 disables this feature
+	uint32_t        magic;                  // Key that indicates if the flash is loaded or has been updated
+	uint16_t        crc;                    // CRC to verify content
 } conf_t;
 
 typedef struct {
-	uint8_t type;
-	char name[64];
-	size_t size;
-	void *ptr;
+	uint8_t         type;
+	char            name[64];
+	size_t          size;
+	void            *ptr;
 } conf_command_t;
 
 #endif
