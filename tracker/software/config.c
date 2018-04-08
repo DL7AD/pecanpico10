@@ -58,7 +58,7 @@ const conf_t conf_flash_default = {
 			.active			= true,
 			.cycle			= TIME_S2I(60),
 			.init_delay		= TIME_S2I(2*60),
-			.send_spacing	= TIME_S2I(5)
+			.send_spacing	= TIME_S2I(2)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,

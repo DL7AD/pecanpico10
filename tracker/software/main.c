@@ -17,10 +17,6 @@ int main(void) {
 	DEBUG_INIT();
 	TRACE_INFO("MAIN > Startup");
 
-/*	if(!pktSystemInit()) {
-	  chDbgAssert(false, "Packet system init failed");
-	}*/
-
 	pktSystemInit();
 
     /* Start serial channels. */

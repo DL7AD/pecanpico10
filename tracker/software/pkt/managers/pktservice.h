@@ -19,10 +19,9 @@
 #define PKT_RX_BUFFER_SIZE              PKT_MAX_RX_PACKET_LEN
 
 #define PKT_FRAME_QUEUE_PREFIX          "pktr_"
-#define PKT_CALLBACK_TERMINATOR_PREFIX  "cbtr_"
+#define PKT_CALLBACK_TERMINATOR_PREFIX  "cbte_"
 
-#define PKT_SEND_BUFFER_NAME            "pbtx"
-#define PKT_SEND_BUFFER_SEM_NAME        "pstx"
+#define PKT_SEND_BUFFER_SEM_NAME        "pbsem"
 
 
 #define PKT_CALLBACK_WA_SIZE             8192
