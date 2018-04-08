@@ -45,7 +45,7 @@ static bool dedupe_initialized;
 const conf_command_t command_list[] = {
 	{TYPE_INT,  "pos_pri.active",                sizeof(conf_sram.pos_pri.thread_conf.active),                &conf_sram.pos_pri.thread_conf.active               },
 	{TYPE_TIME, "pos_pri.init_delay",            sizeof(conf_sram.pos_pri.thread_conf.init_delay),            &conf_sram.pos_pri.thread_conf.init_delay           },
-	{TYPE_TIME, "pos_pri.packet_spacing",        sizeof(conf_sram.pos_pri.thread_conf.send_spacing),        &conf_sram.pos_pri.thread_conf.send_spacing       },
+	{TYPE_TIME, "pos_pri.send_spacing",          sizeof(conf_sram.pos_pri.thread_conf.send_spacing),          &conf_sram.pos_pri.thread_conf.send_spacing       },
 	{TYPE_INT,  "pos_pri.sleep_conf.type",       sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.type),       &conf_sram.pos_pri.thread_conf.sleep_conf.type      },
 	{TYPE_INT,  "pos_pri.sleep_conf.vbat_thres", sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.vbat_thres), &conf_sram.pos_pri.thread_conf.sleep_conf.vbat_thres},
 	{TYPE_INT,  "pos_pri.sleep_conf.vsol_thres", sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.vsol_thres), &conf_sram.pos_pri.thread_conf.sleep_conf.vsol_thres},
@@ -64,7 +64,7 @@ const conf_command_t command_list[] = {
 
 	{TYPE_INT,  "pos_sec.active",                sizeof(conf_sram.pos_sec.thread_conf.active),                &conf_sram.pos_sec.thread_conf.active               },
 	{TYPE_TIME, "pos_sec.init_delay",            sizeof(conf_sram.pos_sec.thread_conf.init_delay),            &conf_sram.pos_sec.thread_conf.init_delay           },
-	{TYPE_TIME, "pos_sec.packet_spacing",        sizeof(conf_sram.pos_sec.thread_conf.send_spacing),        &conf_sram.pos_sec.thread_conf.send_spacing       },
+	{TYPE_TIME, "pos_sec.send_spacing",          sizeof(conf_sram.pos_sec.thread_conf.send_spacing),          &conf_sram.pos_sec.thread_conf.send_spacing       },
 	{TYPE_INT,  "pos_sec.sleep_conf.type",       sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.type),       &conf_sram.pos_sec.thread_conf.sleep_conf.type      },
 	{TYPE_INT,  "pos_sec.sleep_conf.vbat_thres", sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.vbat_thres), &conf_sram.pos_sec.thread_conf.sleep_conf.vbat_thres},
 	{TYPE_INT,  "pos_sec.sleep_conf.vsol_thres", sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.vsol_thres), &conf_sram.pos_sec.thread_conf.sleep_conf.vsol_thres},
@@ -83,7 +83,7 @@ const conf_command_t command_list[] = {
 
 	{TYPE_INT,  "img_pri.active",                sizeof(conf_sram.img_pri.thread_conf.active),                &conf_sram.img_pri.thread_conf.active               },
 	{TYPE_TIME, "img_pri.init_delay",            sizeof(conf_sram.img_pri.thread_conf.init_delay),            &conf_sram.img_pri.thread_conf.init_delay           },
-	{TYPE_TIME, "img_pri.packet_spacing",        sizeof(conf_sram.img_pri.thread_conf.send_spacing),          &conf_sram.img_pri.thread_conf.send_spacing         },
+	{TYPE_TIME, "img_pri.send_spacing",          sizeof(conf_sram.img_pri.thread_conf.send_spacing),          &conf_sram.img_pri.thread_conf.send_spacing         },
 	{TYPE_INT,  "img_pri.sleep_conf.type",       sizeof(conf_sram.img_pri.thread_conf.sleep_conf.type),       &conf_sram.img_pri.thread_conf.sleep_conf.type      },
 	{TYPE_INT,  "img_pri.sleep_conf.vbat_thres", sizeof(conf_sram.img_pri.thread_conf.sleep_conf.vbat_thres), &conf_sram.img_pri.thread_conf.sleep_conf.vbat_thres},
 	{TYPE_INT,  "img_pri.sleep_conf.vsol_thres", sizeof(conf_sram.img_pri.thread_conf.sleep_conf.vsol_thres), &conf_sram.img_pri.thread_conf.sleep_conf.vsol_thres},
@@ -102,7 +102,7 @@ const conf_command_t command_list[] = {
 
 	{TYPE_INT,  "img_sec.active",                sizeof(conf_sram.img_sec.thread_conf.active),                &conf_sram.img_sec.thread_conf.active               },
 	{TYPE_TIME, "img_sec.init_delay",            sizeof(conf_sram.img_sec.thread_conf.init_delay),            &conf_sram.img_sec.thread_conf.init_delay           },
-	{TYPE_TIME, "img_sec.packet_spacing",        sizeof(conf_sram.img_sec.thread_conf.send_spacing),        &conf_sram.img_sec.thread_conf.send_spacing       },
+	{TYPE_TIME, "img_sec.send_spacing",          sizeof(conf_sram.img_sec.thread_conf.send_spacing),          &conf_sram.img_sec.thread_conf.send_spacing       },
 	{TYPE_INT,  "img_sec.sleep_conf.type",       sizeof(conf_sram.img_sec.thread_conf.sleep_conf.type),       &conf_sram.img_sec.thread_conf.sleep_conf.type      },
 	{TYPE_INT,  "img_sec.sleep_conf.vbat_thres", sizeof(conf_sram.img_sec.thread_conf.sleep_conf.vbat_thres), &conf_sram.img_sec.thread_conf.sleep_conf.vbat_thres},
 	{TYPE_INT,  "img_sec.sleep_conf.vsol_thres", sizeof(conf_sram.img_sec.thread_conf.sleep_conf.vsol_thres), &conf_sram.img_sec.thread_conf.sleep_conf.vsol_thres},
@@ -121,7 +121,7 @@ const conf_command_t command_list[] = {
 
 	{TYPE_INT,  "log.active",                    sizeof(conf_sram.log.thread_conf.active),                    &conf_sram.log.thread_conf.active                   },
 	{TYPE_TIME, "log.init_delay",                sizeof(conf_sram.log.thread_conf.init_delay),                &conf_sram.log.thread_conf.init_delay               },
-	{TYPE_TIME, "log.packet_spacing",            sizeof(conf_sram.log.thread_conf.send_spacing),            &conf_sram.log.thread_conf.send_spacing           },
+	{TYPE_TIME, "log.send_spacing",              sizeof(conf_sram.log.thread_conf.send_spacing),              &conf_sram.log.thread_conf.send_spacing           },
 	{TYPE_INT,  "log.sleep_conf.type",           sizeof(conf_sram.log.thread_conf.sleep_conf.type),           &conf_sram.log.thread_conf.sleep_conf.type          },
 	{TYPE_INT,  "log.sleep_conf.vbat_thres",     sizeof(conf_sram.log.thread_conf.sleep_conf.vbat_thres),     &conf_sram.log.thread_conf.sleep_conf.vbat_thres    },
 	{TYPE_INT,  "log.sleep_conf.vsol_thres",     sizeof(conf_sram.log.thread_conf.sleep_conf.vsol_thres),     &conf_sram.log.thread_conf.sleep_conf.vsol_thres    },

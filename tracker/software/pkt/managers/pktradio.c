@@ -181,8 +181,13 @@ THD_FUNCTION(pktRadioManager, arg) {
       ++handler->radio_tx_config.tx_seq_num;
 
       if(pktLLDsendPacket(task_object)) {
-        /* TODO: Deprecate this gear shift stuff. */
+        /*
+         * Keep count of active sends.
+         * Shutdown or resume receive when all done.
+         */
         handler->tx_count++;
+
+        /* TODO: Deprecate this gear shift stuff. */
         poll_hysteresis = PKT_RADIO_TASK_MANAGER_TX_HYSTERESIS;
         poll_rate = PKT_RADIO_TASK_MANAGER_TX_RATE_MS;
         /* Send Successfully enqueued.

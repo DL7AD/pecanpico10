@@ -477,9 +477,13 @@ static bool transmit_image_packets(const uint8_t *image,
                           conf->radio_conf.rssi)) {
         TRACE_ERROR("IMG  > Unable to send image on radio");
         /* Transmit on radio will release the packet chain. */
+      } else {
+        // Packet spacing (delay)
+        if(conf->thread_conf.send_spacing)
+          chThdSleep(conf->thread_conf.send_spacing);
       }
     }
-    chThdSleep(TIME_MS2I(10)); // Leave other threads some time
+      chThdSleep(TIME_MS2I(10)); // Leave other threads some time
   } /* End while(c!= SSDV_EOI) */
 
   // Repeat packets
@@ -492,12 +496,8 @@ static bool transmit_image_packets(const uint8_t *image,
         packetRepeats[i].n_done = false; // Set done
       }
     }
-    chThdSleep(TIME_MS2I(100)); // Leave other threads some time
+    chThdSleep(TIME_MS2I(10)); // Leave other threads some time
   }
-
-  // Packet spacing (delay)
-  if(conf->thread_conf.send_spacing)
-    chThdSleep(conf->thread_conf.send_spacing);
 
   // Handle image rejection flag
   if((conf == &conf_sram.img_pri) && reject_pri) { // Image rejected

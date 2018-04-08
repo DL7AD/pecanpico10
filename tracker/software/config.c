@@ -56,9 +56,9 @@ const conf_t conf_flash_default = {
 	.img_pri = {
 		.thread_conf = {
 			.active			= true,
-			.cycle			= TIME_S2I(120),
-			.init_delay		= TIME_S2I(120),
-			.send_spacing	= TIME_MS2I(50)
+			.cycle			= TIME_S2I(60),
+			.init_delay		= TIME_S2I(2*60),
+			.send_spacing	= TIME_S2I(5)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,

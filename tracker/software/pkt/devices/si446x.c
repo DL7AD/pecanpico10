@@ -996,10 +996,10 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     pp = np;
   } while(pp != NULL);
 
+  /* Save status in case a callback requires it. */
   rto->result = exit_msg;
 
-  //chThdSleep(TIME_MS2I(100));
-  /* Schedule thread memory release. */
+  /* Finished send so schedule thread memory and task object release. */
   pktScheduleSendComplete(rto, chThdGetSelfX());
 
   /* Exit thread. */
@@ -1199,27 +1199,26 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     }
     /* Get the next linked packet to send. */
     packet_t np = pp->nextp;
-       if(exit_msg == MSG_OK) {
+    if(exit_msg == MSG_OK) {
 
-         /* Send was OK. Release the just completed packet. */
-         pktReleaseSendObject(pp);
-       } else {
-         /* Send failed so release any queue and terminate. */
-         pktReleaseBufferChain(pp);
-         np = NULL;
-       }
+      /* Send was OK. Release the just completed packet. */
+      pktReleaseSendObject(pp);
+    } else {
+      /* Send failed so release any queue and terminate. */
+      pktReleaseBufferChain(pp);
+      np = NULL;
+    }
 
-       /* No CCA on subsequent packet sends. */
-       rssi = PKT_SI446X_NO_CCA_RSSI;
-       /* Process next packet. */
-       pp = np;
-    } while(pp != NULL);
+    /* No CCA on subsequent packet sends. */
+    rssi = PKT_SI446X_NO_CCA_RSSI;
+    /* Process next packet. */
+    pp = np;
+  } while(pp != NULL);
 
-  //chThdSleep(TIME_MS2I(100));
-  /* Finished send so schedule thread memory and task object release. */
-
+  /* Save status in case a callback requires it. */
   rto->result = exit_msg;
 
+  /* Finished send so schedule thread memory and task object release. */
   pktScheduleSendComplete(rto, chThdGetSelfX());
 
   /* Exit thread. */
