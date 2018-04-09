@@ -18,6 +18,7 @@
 /*===========================================================================*/
 
 memory_heap_t *ccm_heap = NULL;
+guarded_memory_pool_t *ccm_pool = NULL;
 
 /*===========================================================================*/
 /* Module local types.                                                       */
@@ -29,6 +30,8 @@ memory_heap_t *ccm_heap = NULL;
 
 #if USE_CCM_FOR_PKT_TX == TRUE
 static memory_heap_t _ccm_heap;
+#elif USE_CCM_FOR_PKT_POOL == TRUE
+static guarded_memory_pool_t _ccm_pool;
 #endif
 
 /*===========================================================================*/
@@ -38,6 +41,7 @@ static memory_heap_t _ccm_heap;
 /*===========================================================================*/
 /* Module exported functions.                                                */
 /*===========================================================================*/
+
 
 /**
  * @brief   Initializes the packet system.
@@ -58,13 +62,23 @@ bool pktSystemInit(void) {
     ccm_heap = &_ccm_heap;
     chHeapObjectInit(ccm_heap, (void *)0x10000000, 0x10000);
   }
-#endif
+#elif USE_CCM_FOR_PKT_POOL == TRUE
+  if(ccm_pool == NULL) {
+    ccm_pool = &_ccm_pool;
+    chGuardedPoolObjectInitAligned(ccm_pool, sizeof(packet_gen_t), 4);
+    chGuardedPoolLoadArray(ccm_pool, (void *)0x10000000,
+                           NUMBER_COMMON_PKT_BUFFERS);
+  }
+  return true;
+#else
+
   /*
    * Create common packet buffer control.
    */
   if(pktInitBufferControl() == NULL)
     return false;
   return true;
+#endif
 }
 
 /**
@@ -871,6 +885,16 @@ dyn_semaphore_t *pktInitBufferControl() {
  */
 msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
 
+#if USE_CCM_FOR_PKT_POOL == TRUE
+  (void)timeout;
+  if(ccm_pool == NULL)
+    return MSG_TIMEOUT;
+  *pp = ax25_new();
+  if(pp == NULL)
+   return MSG_TIMEOUT;
+  return MSG_OK;
+
+#else
   /* Check if the packet buffer semaphore already exists.
    * If so we get a pointer to it and get the semaphore.
    */
@@ -902,6 +926,7 @@ msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
   if(pp == NULL)
    return MSG_TIMEOUT;
   return MSG_OK;
+#endif
 }
 
 /*
@@ -909,6 +934,10 @@ msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
  */
 void pktReleasePacketBuffer(packet_t pp) {
 
+#if USE_CCM_FOR_PKT_POOL == TRUE
+  chDbgAssert(pp != NULL, "packet is invalid");
+  ax25_delete(pp);
+#else
   /* Check if the packet buffer semaphore exists.
    * If not this is a system error.
    */
@@ -925,13 +954,14 @@ void pktReleasePacketBuffer(packet_t pp) {
 
   /* Decrease factory ref count. */
   chFactoryReleaseSemaphore(dyn_sem);
+#endif
 }
 
 /*
  * Send shares a common pool of buffers.
  */
 void pktReleaseBufferSemaphore(radio_unit_t radio) {
-
+#if USE_CCM_FOR_PKT_POOL != TRUE
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   chDbgAssert(handler != NULL, "invalid radio ID");
@@ -942,6 +972,9 @@ void pktReleaseBufferSemaphore(radio_unit_t radio) {
    */
   chFactoryReleaseSemaphore(handler->tx_packet_sem);
   handler->tx_packet_sem = NULL;
+#else
+  (void)radio;
+#endif
 }
 
 /*

@@ -982,7 +982,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     if(exit_msg == MSG_OK) {
 
       /* Send was OK. Release the just completed packet. */
-      pktReleaseSendObject(pp);
+      pktReleaseBufferObject(pp);
     } else {
       /* Send failed so release any queue and terminate. */
       pktReleaseBufferChain(pp);
@@ -1202,7 +1202,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     if(exit_msg == MSG_OK) {
 
       /* Send was OK. Release the just completed packet. */
-      pktReleaseSendObject(pp);
+      pktReleaseBufferObject(pp);
     } else {
       /* Send failed so release any queue and terminate. */
       pktReleaseBufferChain(pp);

@@ -73,6 +73,7 @@
 
 #define USE_NEW_PKT_TX_ALLOC    TRUE
 #define USE_CCM_FOR_PKT_TX      FALSE
+#define USE_CCM_FOR_PKT_POOL    TRUE
 
 #include "pkttypes.h"
 
@@ -154,7 +155,7 @@ typedef struct packet_s {
 
     /* Will get stomped on if above overflows. */
 	int magic2;
-} packet_tx_t;
+} packet_gen_t;
 
 /*
  * packet_t is a pointer to a packet object.

@@ -39,6 +39,6 @@ bool gps_get_fix(gpsFix_t *fix);
 bool GPS_Init(void);
 void GPS_Deinit(void);
 uint32_t GPS_get_mcu_frequency(void);
-
+bool gps_calc_ubx_csum(uint8_t *mbuf, uint16_t mlen);
 #endif
 

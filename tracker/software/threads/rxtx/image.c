@@ -285,6 +285,14 @@ ssdv_packet_t packetRepeats[16];
 bool reject_pri;
 bool reject_sec;
 
+/*
+ * Memory pool integrity checking... will expand to be that
+ */
+static struct pool_header *pktSystemCheck(void) {
+  extern guarded_memory_pool_t *ccm_pool;
+  return ((struct pool_header *)(ccm_pool->pool.next))->next;
+}
+
 static bool transmit_image_packet(const uint8_t *image,
                                   uint32_t image_len,
                                   thd_img_conf_t* conf,
@@ -364,8 +372,7 @@ static bool transmit_image_packets(const uint8_t *image,
   uint8_t pkt[SSDV_PKT_SIZE];
   uint8_t pkt_base91[256] = {0};
 
-
-  /* FIXME: This doesn't work with 'en bloc' packet sends. */
+  /* FIXME: This doesn't work with burst mode packet sends. */
   // Process redundant transmission from last cycle
   if(strlen((char*)pkt_base91)
       && conf->radio_conf.redundantTx) {
@@ -389,11 +396,7 @@ static bool transmit_image_packets(const uint8_t *image,
     chThdSleep(TIME_MS2I(10)); // Leave other threads some time
   }
 
-  // Init SSDV (FEC at 2FSK, non FEC at APRS)
-  //bi = 0;
-
-
-  /* Prepare for image encode and send. */
+  /* Prepare for new image encode and send. */
   ssdv_t ssdv;
   const uint8_t *b;
   uint32_t bi = 0;
@@ -405,11 +408,19 @@ static bool transmit_image_packets(const uint8_t *image,
   ssdv_enc_feed(&ssdv, image, 0);
 
   while(c != SSDV_EOI) {
-    // Encode packet(s)
-    /* Packet burst send is available if redundant TX is not requested. */
+
+    /*
+     * Next encode packets.
+     * Packet burst send is available if redundant TX is not requested.
+     * Limiting the number of packets in a burst is important.
+     * Else APRS-IS may drop fast arriving packets.
+     * Also having a send_spacing > 0 is important.
+     * This allows APRS-IS time to forward packets from its buffer.
+     */
+    uint8_t buffers = fmin((NUMBER_COMMON_PKT_BUFFERS / 2), 5);
     uint8_t chain = (conf->radio_conf.mod == MOD_2FSK
         && !conf->radio_conf.redundantTx) ?
-        (NUMBER_COMMON_PKT_BUFFERS / 2) : 1;
+        buffers : 1;
     TRACE_INFO("IMG  > Encode APRS/SSDV packet(s) %i", chain);
 
     /* Packet linking control. */
@@ -417,7 +428,6 @@ static bool transmit_image_packets(const uint8_t *image,
     packet_t previous = NULL;
 
     while(chain-- > 0) {
-      /* TODO: re-implement chunk sized SSDV conversions? */
       while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME) {
         b = &image[bi++];
         if(bi > image_len) {
@@ -457,12 +467,13 @@ static bool transmit_image_packets(const uint8_t *image,
         }
         return false;
       }
-      if(head == NULL)
-        head = packet;
       if(previous != NULL)
         /* Link the next packet into the chain. */
         previous->nextp = packet;
-      /* Now set previous as current. */
+      else
+        /* This is the first packet. */
+        head = packet;
+      /* Now set new packet as previous. */
       previous = packet;
     } /* End while(chain-- > 0) */
 
@@ -534,26 +545,20 @@ static bool analyze_image(uint8_t *image, uint32_t image_len)
 	ssdv_enc_init(&ssdv, SSDV_TYPE_NOFEC, "", 0, 7);
 	ssdv_enc_set_buffer(&ssdv, pkt);
 
-	while(true) // FIXME: I get caught in these loops occasionally and never return
-	{
-		while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME)
-		{
-			b = &image[bi];
-			uint8_t r = bi < image_len-128 ? 128 : image_len - bi;
-			bi += r;
-			if(r <= 0)
-			{
+	while(true) {
+		while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME) {
+			b = &image[bi++];
+			if(bi > image_len) {
 				TRACE_ERROR("CAM  > Error in image (Premature end of file %d)", i);
 				return false;
 			}
-			ssdv_enc_feed(&ssdv, b, r);
+			ssdv_enc_feed(&ssdv, b, 1);
 		}
 
 		if(c == SSDV_EOI) // End of image
 			return true;
 
-		if(c != SSDV_OK) // Error in JPEG image
-		{
+		if(c != SSDV_OK) {
 			TRACE_ERROR("CAM  > Error in image (ssdv_enc_get_packet failed: %d %d)", c, i);
 			return false;
 		}
@@ -591,10 +596,12 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 				OV5640_init();
 				camInitialized = true;
 			}
-
+			  TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
 			// Sample data from pseudo DCMI through DMA into RAM
 			size_sampled = OV5640_Snapshot2RAM(buffer, size, res);
-
+            TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
+            if(size_sampled == 0)
+                continue;
 			// Switch off camera
 			if(!conf_sram.keep_cam_switched_on) {
 				OV5640_deinit();
@@ -682,7 +689,7 @@ THD_FUNCTION(imgThread, arg) {
             /* Allow time for output queue to be processed. */
             chThdSleep(TIME_S2I(10));
           }
-        } else { // No camera found
+        } else { // No camera found or capture failed after retries.
           TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d",
                      gimage_id-1);
           if(!transmit_image_packets(noCameraFound, sizeof(noCameraFound),

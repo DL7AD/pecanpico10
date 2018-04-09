@@ -91,8 +91,8 @@
 
 /* Number of frame receive buffers. */
 #define NUMBER_RX_PKT_BUFFERS        3U
-/* Number of frame send buffers. */
-#define NUMBER_COMMON_PKT_BUFFERS    10U
+/* Number of general AX25/APRS processing & frame send buffers. */
+#define NUMBER_COMMON_PKT_BUFFERS    20U
 
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */

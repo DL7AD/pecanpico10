@@ -165,7 +165,7 @@ static void getSensors(dataPoint_t* tp)
 		tp->sen_e1_press = BME280_getPressure(&handle, 32);
 		tp->sen_e1_hum = BME280_getHumidity(&handle);
 		tp->sen_e1_temp = BME280_getTemperature(&handle);
-	} else { // No internal BME280 found
+	} else { // No external BME280 found
 		TRACE_ERROR("COLL > External BME280 E1 not found");
 		tp->sen_e1_press = 0;
 		tp->sen_e1_hum = 0;
@@ -179,7 +179,7 @@ static void getSensors(dataPoint_t* tp)
 		tp->sen_e2_press = BME280_getPressure(&handle, 32);
 		tp->sen_e2_hum = BME280_getHumidity(&handle);
 		tp->sen_e2_temp = BME280_getTemperature(&handle);
-	} else { // No internal BME280 found
+	} else { // No external BME280 found
 		TRACE_ERROR("COLL > External BME280 E2 not found");
 		tp->sen_e2_press = 0;
 		tp->sen_e2_hum = 0;
@@ -329,7 +329,7 @@ void init_data_collector(void)
 		threadStarted = true;
 
 		TRACE_INFO("COLL > Startup data collector thread");
-		thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(2*1024), "TRA", LOWPRIO, collectorThread, NULL);
+		thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(10*1024), "TRA", LOWPRIO, collectorThread, NULL);
 		if(!th) {
 			// Print startup error, do not start watchdog for this thread
 			TRACE_ERROR("COLL > Could not startup thread (not enough memory available)");

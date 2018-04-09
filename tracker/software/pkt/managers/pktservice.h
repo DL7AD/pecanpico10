@@ -537,7 +537,6 @@ static inline bool pktIsTransmitOpen(radio_unit_t radio) {
   return !(state == PACKET_IDLE || state == PACKET_INVALID);
 }
 
-
 #endif /* PKT_CHANNELS_PKTSERVICE_H_ */
 
 /** @} */

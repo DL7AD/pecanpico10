@@ -296,6 +296,7 @@ uint8_t gps_disable_nmea_output(void) {
 		0xaa, 0x79							// checksum
 	};
 
+	gps_calc_ubx_csum(nonmea, sizeof(nonmea));
 	gps_transmit_string(nonmea, sizeof(nonmea));
 	return gps_receive_ack(0x06, 0x00, 1000);
 }
@@ -335,6 +336,7 @@ uint8_t gps_set_airborne_model(void) {
 		0x1a, 0x28								// checksum
 	};
 
+    gps_calc_ubx_csum(model6, sizeof(model6));
 	gps_transmit_string(model6, sizeof(model6));
 	return gps_receive_ack(0x06, 0x24, 1000);
 }
@@ -445,3 +447,24 @@ void GPS_Deinit(void)
 	palClearLine(LINE_GPS_EN);
 }
 
+
+/*
+ * Calculate checksum and insert into buffer.
+ *
+ */
+bool gps_calc_ubx_csum(uint8_t *mbuf, uint16_t mlen) {
+
+  uint16_t i;
+  uint8_t ck_a = 0, ck_b = 0;
+  if(mlen < 5)
+    /* Excluding sync bytes there must be at at least one byte to checksum. */
+    return false;
+
+  for (i = 2; i < mlen - 2; i++) {
+      ck_b += (ck_a += mbuf[i]);
+  }
+  mbuf[mlen - 2] = ck_a;
+  mbuf[mlen - 1] = ck_b;
+
+return true;
+}

@@ -698,6 +698,14 @@ static uint8_t* dma_buffer;
 
 static resolution_t last_res = RES_NONE;
 
+/*
+ * Memory pool integrity checking... will expand to be that
+ */
+static struct pool_header *pktSystemCheck(void) {
+  extern guarded_memory_pool_t *ccm_pool;
+  return ((struct pool_header *)(ccm_pool->pool.next))->next;
+}
+
 /**
   * Captures an image from the camera.
   * @buffer Buffer in which the image can be sampled
@@ -724,25 +732,19 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
 	}
 
 	// Capture image until we get a good image or reach max retries.
-
-    TRACE_INFO("CAM  > Capture image");
+	TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
+    TRACE_INFO("CAM  > Capture image into buffer @ 0x%08x size 0x%08x",
+               buffer, size);
 	do {
-		// Clearing buffer
-		for(uint32_t i = 0; i < size; i++)
-			buffer[i] = 0;
-		//status = false;
+		TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
 		size_sampled = OV5640_Capture(buffer, size);
-		//TRACE_INFO("CAM  > Capture finished");
-
-		//size_sampled = size - 1;
-		while(!buffer[size_sampled - 1] && size_sampled > 0)
-			size_sampled--;
-		if(size_sampled > 0)
+		if(size_sampled > 0) {
+		  TRACE_INFO("CAM  > Image size: %d bytes", size_sampled);
 		  return size_sampled;
-
-	} while(/*!status && */cntr--);
-    TRACE_INFO("CAM  > Image size: %d bytes", size_sampled);
-	return size_sampled;
+		}
+	} while(cntr--);
+    TRACE_ERROR("CAM  > No image captured");
+	return 0;
 }
 
 const stm32_dma_stream_t *dmastp;
@@ -992,7 +994,7 @@ void OV5640_unlockResourcesForCapture(void) {
 }
 
 uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
-	OV5640_setLightIntensity();
+  TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
 
 	/*
 	 * Note:
@@ -1102,7 +1104,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 #endif
 
 	// Wait for capture to be finished
-	uint8_t timout = 100; // 1000ms max
+	uint8_t timout = 50; // 500ms max
 	do {
 		chThdSleep(TIME_MS2I(10));
 	} while(!capture_finished && !dma_error && --timout);
@@ -1141,6 +1143,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 		TRACE_ERROR("CAM  > Timeout error capturing image");
 		return 0;
 	}
+	  TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
 
     TRACE_INFO("CAM  > Capture success");
 

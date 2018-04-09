@@ -262,7 +262,11 @@ packet_t ax25_new (void) {
 	}
 
 #if	USE_NEW_PKT_TX_ALLOC == TRUE
-#if USE_CCM_FOR_PKT_TX == TRUE
+#if USE_CCM_FOR_PKT_POOL == TRUE
+    extern guarded_memory_pool_t *ccm_pool;
+	this_p = chGuardedPoolAllocTimeout(ccm_pool, TIME_INFINITE);
+    TRACE_DEBUG("PKT  > Allocated buffer 0x%x, link 0x%x", this_p, ((struct pool_header *)(this_p))->next);
+#elif USE_CCM_FOR_PKT_TX == TRUE
     extern memory_heap_t *ccm_heap;
     this_p = chHeapAlloc(ccm_heap, sizeof (struct packet_s));
 #else
@@ -331,8 +335,13 @@ void ax25_delete (packet_t this_p)
 	
 	this_p->magic1 = 0;
 	this_p->magic1 = 0;
-
+#if USE_CCM_FOR_PKT_POOL == TRUE
+    extern guarded_memory_pool_t *ccm_pool;
+    TRACE_DEBUG("PKT  > Returning buffer 0x%x", this_p);
+	chGuardedPoolFree(ccm_pool, this_p);
+#else
 	chHeapFree(this_p);
+#endif
 }
 
 
@@ -396,9 +405,10 @@ packet_t ax25_from_text (char *monitor, int strict)
 	packet_t this_p;
 	msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
 	/* If the semaphore is reset then exit. */
-	if(msg == MSG_RESET || this_p == NULL)
+	if(msg == MSG_RESET || this_p == NULL) {
+      TRACE_ERROR("PKT  > No packet buffer available");
 	  return NULL;
-
+	}
 #if AX25MEMDEBUG	
 	if (ax25memdebug) {
 	  TRACE_DEBUG ("PKT  > ax25_from_text, seq=%d, called from %s %d", this_p->seq, src_file, src_line);
@@ -442,6 +452,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 	pinfo = strchr (stuff, ':');
 
 	if (pinfo == NULL) {
+      TRACE_ERROR("PKT  > No address separator");
 	  pktReleasePacketBuffer(this_p);
 	  return (NULL);
 	}
@@ -512,9 +523,8 @@ packet_t ax25_from_text (char *monitor, int strict)
 	  k = this_p->num_addr;
 
 	  if ( ! ax25_parse_addr (k, pa, strict, atemp, &ssid_temp, &heard_temp)) {
-	      TRACE_ERROR("PKT  > Bad digipeater address in packet");
-	    //TRACE_ERROR ("Failed to create packet from text.  Bad digipeater address");
-      pktReleasePacketBuffer(this_p);
+	    TRACE_ERROR("PKT  > Bad digipeater address in packet");
+	    pktReleasePacketBuffer(this_p);
 	    return (NULL);
 	  }
 
@@ -525,12 +535,12 @@ packet_t ax25_from_text (char *monitor, int strict)
 	  // TODO: Complain if more than one "*".
 	  // Could also check for all has been repeated bits are adjacent.
 	
-          if (heard_temp) {
+      if (heard_temp) {
 	    for ( ; k >= AX25_REPEATER_1; k--) {
 	      ax25_set_h (this_p, k);
 	    }
 	  }
-        }
+    }
 
 
 /*
@@ -541,7 +551,6 @@ packet_t ax25_from_text (char *monitor, int strict)
  * We might want to manually generate UTF-8 characters such as degree.
  */
 
-//#define DEBUG14H 1
 
 #if DEBUG14H
 	TRACE_DEBUG ("PKT  > BEFORE: %s\nSAFE:   ", pinfo);
@@ -581,8 +590,13 @@ packet_t ax25_from_text (char *monitor, int strict)
 /*
  * Append the info part.  
  */
-	/* FIXME: Check for buffer overflow here. */
-	memcpy ((char*)(this_p->frame_data+this_p->frame_len), info_part, info_len);
+	/* Check for buffer overflow here. */
+	if((this_p->frame_len + info_len) > AX25_MAX_PACKET_LEN) {
+	  TRACE_ERROR ("PKT  > frame buffer overrun");
+      pktReleasePacketBuffer(this_p);
+      return (NULL);
+	}
+	memcpy ((char*)(this_p->frame_data + this_p->frame_len), info_part, info_len);
 	this_p->frame_len += info_len;
 
 	return (this_p);
@@ -994,10 +1008,10 @@ void ax25_set_addr (packet_t this_p, int n, char *ad)
 
 	  ax25_parse_addr (n, ad, 0, atemp, &ssid_temp, &heard_temp);
 
-	  memset (this_p->frame_data + n*7, ' ' << 1, 6);
+	  memset (this_p->frame_data + n * 7, ' ' << 1, 6);
 
-	  for (i=0; i<6 && atemp[i] != '\0'; i++) {
-	    this_p->frame_data[n*7+i] = atemp[i] << 1;
+	  for (i = 0; i < 6 && atemp[i] != '\0'; i++) {
+	    this_p->frame_data[n * 7 + i] = atemp[i] << 1;
 	  }
 	  ax25_set_ssid (this_p, n, ssid_temp);
 	}

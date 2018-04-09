@@ -28,7 +28,7 @@ extern uint8_t usb_trace_level;
 		} \
 		chprintf((BaseSequentialStream*)&SDU1, "[%s]", type); \
 		if(TRACE_FILE) { \
-			chprintf((BaseSequentialStream*)&SDU1, "[%10s %04d]", __FILENAME__, __LINE__); \
+			chprintf((BaseSequentialStream*)&SDU1, "[%12s %04d]", __FILENAME__, __LINE__); \
 		} \
 		chprintf((BaseSequentialStream*)&SDU1, " "); \
 		chprintf((BaseSequentialStream*)&SDU1, (format), ##args); \
@@ -43,7 +43,7 @@ extern uint8_t usb_trace_level;
 #define TRACE_ERROR(format, args...) if(usb_trace_level > 0) { TRACE_BASE(format, "ERROR", ##args) }
 
 #if TRACE_TIME && TRACE_FILE
-#define TRACE_TAB "                                             "
+#define TRACE_TAB "                                               "
 #elif TRACE_TIME && !TRACE_FILE
 #define TRACE_TAB "                            "
 #elif !TRACE_TIME && TRACE_FILE

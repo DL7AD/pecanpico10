@@ -379,14 +379,10 @@ static inline msg_t pktSendRadioCommand(radio_unit_t radio,
  *
  * @api
  */
-static inline void pktReleaseSendObject(packet_t pp) {
+static inline void pktReleaseBufferObject(packet_t pp) {
 #if USE_SPI_ATTACHED_RADIO == TRUE
-#if USE_NEW_PKT_TX_ALLOC == TRUE
   chDbgAssert(pp != NULL, "no packet pointer");
   pktReleasePacketBuffer(pp);
-#else
-  ax25_delete (pp);
-#endif
 #else
   (void)pp;
 #endif
@@ -403,17 +399,14 @@ static inline void pktReleaseSendObject(packet_t pp) {
  */
 static inline void pktReleaseBufferChain(packet_t pp) {
 #if USE_SPI_ATTACHED_RADIO == TRUE
-#if USE_NEW_PKT_TX_ALLOC == TRUE
 
+  chDbgAssert(pp != NULL, "no packet pointer");
   /* Release all packets in linked list. */
   do {
     packet_t np = pp->nextp;
     pktReleasePacketBuffer(pp);
     pp = np;
   } while(pp != NULL);
-#else
-      ax25_delete (pp);
-#endif
 #else
   (void)pp;
 #endif
