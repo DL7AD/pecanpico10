@@ -4,9 +4,11 @@
 
 ** TARGET **
 
-The demo targets a generic ARM Cortex-A5 device without HAL support.
+The demo runs on an SAMA5D2-XPLAINED board.
 
 ** The Demo **
+
+Demo implement a simple buzzer playing every 500 ms
 
 ** Build Procedure **
 

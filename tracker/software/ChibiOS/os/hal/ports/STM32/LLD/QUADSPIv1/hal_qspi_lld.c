@@ -77,12 +77,15 @@ static void qspi_lld_serve_dma_interrupt(QSPIDriver *qspip, uint32_t flags) {
  */
 static void qspi_lld_serve_interrupt(QSPIDriver *qspip) {
 
-  /* Stop everything.*/
-  dmaStreamDisable(qspip->dma);
-
   /* Portable QSPI ISR code defined in the high level driver, note, it is
      a macro.*/
   _qspi_isr_code(qspip);
+
+  /* Stop everything, we need to give DMA enough time to complete the ongoing
+     operation. Race condition hidden here.*/
+  while (dmaStreamGetTransactionSize(qspip->dma) > 0U)
+    ;
+  dmaStreamDisable(qspip->dma);
 }
 
 /*===========================================================================*/
@@ -324,7 +327,7 @@ void qspi_lld_map_flash(QSPIDriver *qspip,
 }
 
 /**
- * @brief   Maps in memory space a QSPI flash device.
+ * @brief   Unmaps from memory space a QSPI flash device.
  * @post    The memory flash device must be re-initialized for normal
  *          commands exchange.
  *

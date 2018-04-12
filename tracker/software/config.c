@@ -55,8 +55,8 @@ const conf_t conf_flash_default = {
 	// Primary image transmission thread
 	.img_pri = {
 		.thread_conf = {
-			.active			= true,
-			.cycle			= TIME_S2I(60*5),
+			.active			= false,
+			.cycle			= TIME_S2I(60*30),
 			.init_delay		= TIME_S2I(60*1),
 			.send_spacing	= TIME_S2I(3)
 		},
@@ -139,7 +139,7 @@ const conf_t conf_flash_default = {
                .mod         = MOD_AFSK,
                .rssi        = 0x4F
           },
-            .call           = "VK2GJ-12",
+            .call           = "VK2GJ-5",
             .path           = "WIDE2-1",
             .symbol         = SYM_DIGIPEATER,
       },

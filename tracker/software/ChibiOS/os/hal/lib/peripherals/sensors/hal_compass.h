@@ -78,12 +78,14 @@ struct BaseCompassVMT {
   _base_sensor_data
 	
 /**
+ * @extends BaseSensor
+ *
  * @brief   Base compass class.
  * @details This class represents a generic compass.
  */
 typedef struct {
   /** @brief Virtual Methods Table.*/
-  const struct BaseCompassVMT *vmt_basecompass;
+  const struct BaseCompassVMT *vmt;
   _base_compass_data
 } BaseCompass;
 
@@ -103,7 +105,7 @@ typedef struct {
  * @api
  */
 #define compassGetAxesNumber(ip)                                            \
-        (ip)->vmt_basecompass->get_channels_number(ip)
+        (ip)->vmt->get_channels_number(ip)
 
 /**
  * @brief   Compass read raw data.
@@ -118,7 +120,7 @@ typedef struct {
  * @api
  */
 #define compassReadRaw(ip, dp)                                              \
-        (ip)->vmt_basecompass->read_raw(ip, dp)
+        (ip)->vmt->read_raw(ip, dp)
 
 /**
  * @brief   Compass read cooked data.
@@ -133,7 +135,7 @@ typedef struct {
  * @api
  */
 #define compassReadCooked(ip, dp)                                           \
-        (ip)->vmt_basecompass->read_cooked(ip, dp)
+        (ip)->vmt->read_cooked(ip, dp)
 
 /**
  * @brief   Updates compass bias data from received buffer.
@@ -150,7 +152,7 @@ typedef struct {
  * @api
  */
 #define compassSetBias(ip, bp)                                            \
-        (ip)->vmt_basecompass->set_bias(ip, bp)
+        (ip)->vmt->set_bias(ip, bp)
 
 /**
  * @brief   Reset compass bias data restoring it to zero.
@@ -164,7 +166,7 @@ typedef struct {
  * @api
  */
 #define compassResetBias(ip)                                               \
-        (ip)->vmt_basecompass->reset_bias(ip)
+        (ip)->vmt->reset_bias(ip)
 
 /**
  * @brief   Updates compass sensitivity data from received buffer.
@@ -181,7 +183,7 @@ typedef struct {
  * @api
  */
 #define compassSetSensitivity(ip, sp)                                     \
-        (ip)->vmt_basecompass->set_sensitivity(ip, sp)
+        (ip)->vmt->set_sensitivity(ip, sp)
 
 /**
  * @brief   Reset compass sensitivity data restoring it to its typical
@@ -196,7 +198,7 @@ typedef struct {
  * @api
  */
 #define compassResetSensitivity(ip)                                       \
-        (ip)->vmt_basecompass->reset_sensitivity(ip)
+        (ip)->vmt->reset_sensitivity(ip)
 /** @} */
 
 /*===========================================================================*/

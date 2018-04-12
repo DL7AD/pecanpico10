@@ -37,22 +37,10 @@
 #define SAMA_XDMAC_ADVANCED         TRUE
 
 /**
- * @brief   Total number of DMA controllers.
- * @details This is the total number of DMA controllers.
- */
-#define XDMAC_CONTROLLERS           2
-
-/**
  * @brief   Number of DMA channels.
  * @details This is the number of DMA channel for each controller.
  */
 #define XDMAC_CHANNELS              (XDMACCHID_NUMBER)
-
-/**
- * @brief   Total number of DMA channels.
- * @details This is the total number of channels among all the DMA units.
- */
-#define XDMAC_CHANNELS_TOT          (XDMACCHID_NUMBER * XDMAC_CONTROLLERS)
 
 /**
  * @brief   Max single transfer size.
@@ -144,7 +132,7 @@ typedef struct {
  * @{
  */
 /**
- * @brief   Get content of Channel Interrupt Status register.
+ * @brief   Gets content of Channel Interrupt Status register.
  * @note    Reading interrupt is equivalent to clearing interrupt.
  *
  * @param[in] dmachp      pointer to a sama_dma_channel_t structure
@@ -154,6 +142,20 @@ typedef struct {
  */
 #define dmaGetChannelInt(dmachp)                                      \
   (dmachp)->xdmac->XDMAC_CHID[(dmachp)->chid].XDMAC_CIS
+
+/**
+ * @brief   Returns the number of transfers to be performed.
+ * @note    This function can be invoked in both ISR or thread context.
+ * @pre     The stream must have been allocated using @p dmaChannelAllocate().
+ * @post    After use the stream can be released using @p dmaChannelRelease().
+ *
+ * @param[in] dmachp       pointer to a @p sama_dma_channel_t structure
+ * @return              The number of transfers to be performed.
+ *
+ * @special
+ */
+#define dmaChannelGetTransactionSize(dmachp)                          \
+  ((size_t)((dmachp)->xdmac->XDMAC_CHID[(dmachp)->chid].XDMAC_CUBC))
 
 /**
  * @brief   Associates a source to a DMA channel.
@@ -185,8 +187,6 @@ typedef struct {
   (dmachp)->xdmac->XDMAC_CHID[(dmachp)->chid].XDMAC_CDA = XDMAC_CDA_DA((uint32_t)addr); \
 }
 
-
-
 /**
  * @brief   Sets the channel mode settings.
  * @note    This function can be invoked in both ISR or thread context.
@@ -203,7 +203,7 @@ typedef struct {
 }
 
 /**
- * @brief   DMA channel enable.
+ * @brief   Enables DMA channel.
  * @note    This function can be invoked in both ISR or thread context.
  *          The hardware disables a channel on transfer completion by clearing
  *          bit XDMAC_GS.STx.
@@ -278,8 +278,8 @@ typedef struct {
  * @param[in] dmachp    pointer to a sama_dma_channel_t structure
  */
 #define dmaWaitCompletion(dmachp) {                                               \
-  (dmachp)->xdmac->XDMAC_GID |= XDMAC_GID_ID0 << ((dmachp)->chid));               \
-  while ((dmachp)->xdmac->XDMAC_GS & (XDMAC_GS_ST0 << ((dmachp)->chid))))         \
+  (dmachp)->xdmac->XDMAC_GID |= XDMAC_GID_ID0 << ((dmachp)->chid);                \
+  while ((dmachp)->xdmac->XDMAC_GS & (XDMAC_GS_ST0 << ((dmachp)->chid)))          \
     ;                                                                             \
   dmaGetChannelInt(dmachp);                                                       \
 }
@@ -290,7 +290,7 @@ typedef struct {
 /*===========================================================================*/
 
 #if !defined(__DOXYGEN__)
-extern sama_dma_channel_t _sama_dma_channel_t[XDMAC_CHANNELS_TOT];
+extern sama_dma_channel_t _sama_dma_channel_t[XDMAC_CHANNELS];
 #endif
 
 #ifdef __cplusplus

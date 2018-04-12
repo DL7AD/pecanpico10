@@ -15,7 +15,7 @@
 */
 
 /**
- * @file    chconf.h
+ * @file    templates/chconf.h
  * @brief   Configuration file template.
  * @details A copy of this file must be placed in each project directory, it
  *          contains the application specific kernel settings.
@@ -43,7 +43,7 @@
  * @note    This number is not inclusive of the idle thread which is
  *          Implicitly handled.
  */
-#define CH_CFG_NUM_THREADS                  2
+#define CH_CFG_NUM_THREADS                  3
 
 /** @} */
 
@@ -66,7 +66,7 @@
  *          option defines the maximum amount of time allowed for
  *          timeouts.
  */
-#define CH_CFG_ST_FREQUENCY                 15624
+#define CH_CFG_ST_FREQUENCY                 1000
 
 /**
  * @brief   Time delta constant for the tick-less mode.
@@ -76,7 +76,7 @@
  *          The value one is not valid, timeouts are rounded up to
  *          this value.
  */
-#define CH_CFG_ST_TIMEDELTA                 2
+#define CH_CFG_ST_TIMEDELTA                 0
 
 /** @} */
 

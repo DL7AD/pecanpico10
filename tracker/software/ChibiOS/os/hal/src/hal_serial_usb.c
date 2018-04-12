@@ -135,6 +135,9 @@ static msg_t _ctl(void *ip, unsigned int operation, void *arg) {
   case CHN_CTL_NOP:
     osalDbgCheck(arg == NULL);
     break;
+  case CHN_CTL_INVALID:
+    osalDbgAssert(false, "invalid CTL operation");
+    break;
   default:
 #if defined(SDU_LLD_IMPLEMENTS_CTL)
     /* The SDU driver does not have a LLD but the application can use this
@@ -143,15 +146,15 @@ static msg_t _ctl(void *ip, unsigned int operation, void *arg) {
                                  unsigned int operation,
                                  void *arg);
     return sdu_lld_control(sdup, operation, arg);
-#endif
-  case CHN_CTL_INVALID:
-    osalDbgAssert(false, "invalid CTL operation");
+#else
     break;
+#endif
   }
   return MSG_OK;
 }
 
 static const struct SerialUSBDriverVMT vmt = {
+  (size_t)0,
   _write, _read, _put, _get,
   _putt, _gett, _writet, _readt,
   _ctl
@@ -481,20 +484,25 @@ void sduDataTransmitted(USBDriver *usbp, usbep_t ep) {
  * @param[in] ep        OUT endpoint number
  */
 void sduDataReceived(USBDriver *usbp, usbep_t ep) {
+  size_t size;
   SerialUSBDriver *sdup = usbp->out_params[ep - 1U];
+
   if (sdup == NULL) {
     return;
   }
 
   osalSysLockFromISR();
 
-  /* Signaling that data is available in the input queue.*/
-  chnAddFlagsI(sdup, CHN_INPUT_AVAILABLE);
+  /* Checking for zero-size transactions.*/
+  size = usbGetReceiveTransactionSizeX(sdup->config->usbp,
+                                       sdup->config->bulk_out);
+  if (size > (size_t)0) {
+    /* Signaling that data is available in the input queue.*/
+    chnAddFlagsI(sdup, CHN_INPUT_AVAILABLE);
 
-  /* Posting the filled buffer in the queue.*/
-  ibqPostFullBufferI(&sdup->ibqueue,
-                     usbGetReceiveTransactionSizeX(sdup->config->usbp,
-                                                   sdup->config->bulk_out));
+    /* Posting the filled buffer in the queue.*/
+    ibqPostFullBufferI(&sdup->ibqueue, size);
+  }
 
   /* The endpoint cannot be busy, we are in the context of the callback,
      so a packet is in the buffer for sure. Trying to get a free buffer

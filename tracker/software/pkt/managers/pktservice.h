@@ -13,9 +13,6 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-/* Main thread events. */
-
-
 #define PKT_RX_BUFFER_SIZE              PKT_MAX_RX_PACKET_LEN
 
 #define PKT_FRAME_QUEUE_PREFIX          "pktr_"

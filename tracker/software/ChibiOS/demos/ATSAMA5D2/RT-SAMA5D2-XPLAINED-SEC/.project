@@ -79,7 +79,7 @@
 		<link>
 			<name>board</name>
 			<type>2</type>
-			<locationURI>CHIBIOS/os/hal/boards/ATSAMA5D2_XULT</locationURI>
+			<locationURI>CHIBIOS/os/hal/boards/ATSAMA5D2_XULT_SEC</locationURI>
 		</link>
 		<link>
 			<name>os</name>
@@ -89,7 +89,7 @@
 		<link>
 			<name>test</name>
 			<type>2</type>
-			<location>/home/isiora/Chibilogic/ChibiOS_trunk/test</location>
+			<locationURI>CHIBIOS/test</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

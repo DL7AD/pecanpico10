@@ -117,13 +117,13 @@ void palSetBusMode(IOBus *bus, iomode_t mode) {
   palSetGroupMode(bus->portid, bus->mask, bus->offset, mode);
 }
 
-#if PAL_USE_CALLBACKS || defined(__DOXYGEN__)
+#if (PAL_USE_CALLBACKS == TRUE) || defined(__DOXYGEN__)
 /**
  * @brief   Associates a callback to a port/pad.
  *
  * @param[in] port      port identifier
  * @param[in] pad       pad number within the port
- * @param[in] callback  event callback function
+ * @param[in] cb        event callback function
  * @param[in] arg       callback argument
  *
  * @api
@@ -140,7 +140,7 @@ void palSetPadCallbackI(ioportid_t port, iopadid_t pad,
  * @brief   Associates a callback to a line.
  *
  * @param[in] line      line identifier
- * @param[in] callback  event callback function
+ * @param[in] cb        event callback function
  * @param[in] arg       callback argument
  *
  * @api
@@ -151,14 +151,19 @@ void palSetLineCallbackI(ioline_t line, palcallback_t cb, void *arg) {
   pep->cb = cb;
   pep->arg = arg;
 }
-#endif /* PAL_USE_CALLBACKS */
+#endif /* PAL_USE_CALLBACKS == TRUE */
 
-#if PAL_USE_WAIT || defined(__DOXYGEN__)
+#if (PAL_USE_WAIT == TRUE) || defined(__DOXYGEN__)
 /**
  * @brief   Waits for an edge on the specified port/pad.
  *
  * @param[in] port      port identifier
  * @param[in] pad       pad number within the port
+ * @param[in] timeout   the number of ticks before the operation timeouts,
+ *                      the following special values are allowed:
+ *                      - @a TIME_IMMEDIATE immediate timeout.
+ *                      - @a TIME_INFINITE no timeout.
+ *                      .
  * @returns             The operation state.
  * @retval MSG_OK       if an edge has been detected.
  * @retval MSG_TIMEOUT  if a timeout occurred before an edge could be detected.
@@ -173,6 +178,35 @@ msg_t palWaitPadTimeoutS(ioportid_t port,
 
   palevent_t *pep = pal_lld_get_pad_event(port, pad);
   return osalThreadEnqueueTimeoutS(&pep->threads, timeout);
+}
+
+/**
+ * @brief   Waits for an edge on the specified port/pad.
+ *
+ * @param[in] port      port identifier
+ * @param[in] pad       pad number within the port
+ * @param[in] timeout   the number of ticks before the operation timeouts,
+ *                      the following special values are allowed:
+ *                      - @a TIME_IMMEDIATE immediate timeout.
+ *                      - @a TIME_INFINITE no timeout.
+ *                      .
+ * @returns             The operation state.
+ * @retval MSG_OK       if an edge has been detected.
+ * @retval MSG_TIMEOUT  if a timeout occurred before an edge cound be detected.
+ * @retval MSG_RESET    if the event has been disabled while the thread was
+ *                      waiting for an edge.
+ *
+ * @api
+ */
+msg_t palWaitPadTimeout(ioportid_t port,
+                        iopadid_t pad,
+                        sysinterval_t timeout) {
+  msg_t msg;
+
+  osalSysLock();
+  msg = palWaitPadTimeoutS(port, pad, timeout);
+  osalSysUnlock();
+  return msg;
 }
 
 /**
@@ -194,7 +228,29 @@ msg_t palWaitLineTimeoutS(ioline_t line,
   palevent_t *pep = pal_lld_get_line_event(line);
   return osalThreadEnqueueTimeoutS(&pep->threads, timeout);
 }
-#endif /* PAL_USE_WAIT */
+
+/**
+ * @brief   Waits for an edge on the specified line.
+ *
+ * @param[in] line      line identifier
+ * @param[in] timeout   operation timeout
+ * @returns             The operation state.
+ * @retval MSG_OK       if an edge has been detected.
+ * @retval MSG_TIMEOUT  if a timeout occurred before an edge cound be detected.
+ * @retval MSG_RESET    if the event has been disabled while the thread was
+ *                      waiting for an edge.
+ *
+ * @api
+ */
+msg_t palWaitLineTimeout(ioline_t line, sysinterval_t timeout) {
+  msg_t msg;
+
+  osalSysLock();
+  msg= palWaitLineTimeoutS(line, timeout);
+  osalSysUnlock();
+  return msg;
+}
+#endif /* PAL_USE_WAIT == TRUE */
 
 #endif /* HAL_USE_PAL == TRUE */
 

@@ -34,7 +34,6 @@
  */
 
 #include "ch.h"
-#include "debug.h"
 
 /*===========================================================================*/
 /* Module exported variables.                                                */
@@ -197,8 +196,6 @@ void chSysInit(void) {
  * @special
  */
 void chSysHalt(const char *reason) {
-
-  TRACE_DEBUG("SYSTEM HALT! REASON: %s", reason);
 
   port_disable();
 

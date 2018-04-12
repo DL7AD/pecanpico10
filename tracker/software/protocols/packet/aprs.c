@@ -377,7 +377,7 @@ static bool aprs_decode_message(packet_t pp) {
 
 		// Cut off control chars
 		/* FIXME: Limit processing to size of incoming message. */
-		for(uint16_t i=11; pinfo[i] != 0 && i<0xFFFF; i++) {
+		for(uint16_t i = 11; pinfo[i] != 0 && i < AX25_MAX_APRS_MSG_LEN + 11; i++) {
 		  /* FIXME: Trim trailing spaces before {. */
 			if(pinfo[i] == '{') {
 				// Copy ACK ID
@@ -563,7 +563,7 @@ static bool aprs_decode_message(packet_t pp) {
 			}
 
 		} else {
-			TRACE_INFO("RX   > No command to process in message");
+			TRACE_INFO("RX   > No command found in message");
 		}
 
 		if(msg_id_rx[0]) { // Message ID has been sent which has to be acknowledged

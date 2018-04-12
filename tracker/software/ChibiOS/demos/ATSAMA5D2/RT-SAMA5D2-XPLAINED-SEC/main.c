@@ -16,10 +16,96 @@
 
 #include "ch.h"
 #include "hal.h"
+#include "chtssi.h"
+#include "proxies/tssockstub.h"
 #include "rt_test_root.h"
 #include "oslib_test_root.h"
 #include "chprintf.h"
-#include "chsmc.h"
+#include <string.h>
+
+#define SERVER_PORT_NUM 8080
+#define SERVER_IP_ADDRESS "192.168.1.76"
+
+void tcpexample(int port) {
+  int socket_fd;
+  struct sockaddr_in ra;
+
+  int recv_data; char data_buffer[80];
+  struct fd_set rset;
+  struct timeval tm = {10, 0};
+
+  /*
+   * Creates an TCP socket, i.e. a SOCK_STREAM, with Internet Protocol Family,
+   * i.e. PF_INET. Protocol family and Address family are related. For example
+   * PF_INET Protocol Family and AF_INET family are coupled.
+   */
+  socket_fd = socket(PF_INET, SOCK_STREAM, 0);
+
+  if ( socket_fd < 0 ) {
+    chprintf((BaseSequentialStream *)&SD1, "socket call failed.\r\n");
+    return;
+  }
+
+  FD_ZERO(&rset);
+
+  /* Connects to server ip-address.*/
+  memset(&ra, 0, sizeof(struct sockaddr_in));
+  ra.sin_family = AF_INET;
+  ra.sin_addr.s_addr = inet_addr(SERVER_IP_ADDRESS);
+  ra.sin_port = htons(port);
+
+
+  if (connect(socket_fd, (struct sockaddr *)&ra,
+      sizeof (struct sockaddr_in)) < 0) {
+    chprintf((BaseSequentialStream *)&SD1, "Connect failed.\r\n");
+    close(socket_fd);
+    return;
+  }
+  while (true) {
+    chsnprintf(data_buffer, sizeof data_buffer,
+        "Sending this message on port %d.\r\n", port);
+    if (send(socket_fd, data_buffer, strlen(data_buffer), 0) < 0) {
+      chprintf((BaseSequentialStream *)&SD1, "Send failed.\r\n");
+      close(socket_fd);
+      return;
+    }
+    do {
+      FD_SET(socket_fd, &rset);
+      recv_data = select(socket_fd+1, &rset, 0, 0, &tm);
+      if (recv_data < 0) {
+        chprintf((BaseSequentialStream *)&SD1, "Select failed.\r\n");
+        close(socket_fd);
+        return;
+      }
+    } while (recv_data == 0);
+    recv_data = recv(socket_fd, data_buffer, sizeof data_buffer, 0);
+    if (recv_data < 0) {
+      chprintf((BaseSequentialStream *)&SD1, "Recv failed.\r\n");
+      close(socket_fd);
+      return;
+    }
+    data_buffer[recv_data] = '\0';
+    chprintf((BaseSequentialStream *)&SD1, "Received data: %s.\r\n", data_buffer);
+  }
+  close(socket_fd);
+}
+
+/*
+ * Two threads that run the same tcp example on two
+ * different ports.
+ */
+static THD_WORKING_AREA(waThreadTcp1, 512);
+static THD_WORKING_AREA(waThreadTcp2, 512);
+static THD_FUNCTION(ThreadTcp, arg) {
+  int port  = (int)arg;
+
+  tsWaitStubSkelReady();
+  chThdSleepMilliseconds(5000);
+  while (true) {
+    tcpexample(port);
+    chThdSleepMilliseconds(250);
+  }
+}
 
 /*
  * LED blinker thread, times are in milliseconds.
@@ -53,43 +139,6 @@ static const SerialConfig sdcfg = {
 };
 
 /*
- *  Dummy trust service thread.
- */
-static THD_WORKING_AREA(waDummyTrustedService, 512);
-static THD_FUNCTION(DummyTrustedService, arg) {
-
-  (void)arg;
-  msg_t m;
-  smc_service_t *svcp;
-  chRegSetThreadName("DTS");
-
-  /*
-   * Register the trust service
-   */
-  registered_object_t *smc_hdl = smcRegisterMeAsService("DummyTrustedService");
-  if (smc_hdl == NULL) {
-    /*
-     * Error: the service is already registered
-     * or memory is exhausted.
-     */
-    return;
-  }
-  /*
-   * Wait and process requests
-   */
-  svcp = (smc_service_t *)smc_hdl->objp;
-  while (true) {
-    m = smcServiceWaitRequest(svcp);
-    if (m == MSG_OK && svcp->svc_datalen > 0) {
-      *((char *)svcp->svc_data + svcp->svc_datalen) = '\0';
-      chprintf((BaseSequentialStream*)&SD1, (char *)svcp->svc_data);
-      chprintf((BaseSequentialStream*)&SD1, "\r\n");
-    }
-    chThdSleepMilliseconds(500);
-  }
-}
-
-/*
  * Application entry point.
  */
 int main(void) {
@@ -100,80 +149,29 @@ int main(void) {
    *   and performs the board-specific initializations.
    * - Kernel initialization, the main() function becomes a thread and the
    *   RTOS is active.
+   *   The foreign interrupts are disabled up to the trampoline in the non secure world
    */
   halInit();
   chSysInit();
-  smcInit();
 
   /*
    * Activates the serial driver 0 using the driver default configuration.
    */
   sdStart(&SD1, &sdcfg);
 
-  /* Redirecting  UART0 RX on PD2 and UART0 TX on PD3. */
-  palSetGroupMode(PIOD, PAL_PORT_BIT(2) | PAL_PORT_BIT(3), 0U,
-                  PAL_SAMA_FUNC_PERIPH_A | PAL_MODE_SECURE);
   /*
-   * Creates the blinker thread.
+   * Creates the blinker thread (and any other ancillary thread).
    */
-  chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO-64, Thread1, NULL);
-  /*
-   * Creates the dummy service thread.
-   */
-  chThdCreateStatic(waDummyTrustedService, sizeof(waDummyTrustedService), NORMALPRIO-32,
-      DummyTrustedService, NULL);
+  chThdCreateStatic(waThread1, sizeof waThread1, NORMALPRIO, Thread1, NULL);
+  chThdCreateStatic(waThreadTcp1, sizeof waThreadTcp1, NORMALPRIO+1, ThreadTcp, (void *)8080);
+  chThdCreateStatic(waThreadTcp2, sizeof waThreadTcp2, NORMALPRIO+1, ThreadTcp, (void *)8081);
 
   /*
-   * The DDR memory is divided in 4 regions. Each region is 2MB large.
-   * The first region is split in two areas, each 1MB large.
-   * The lower area of this first region is non secure.
-   * All the rest of the regions space is secured.
+   * System initializations.
+   * - TSSI initialization, the trusted services are created and started.
+   *   Lastly, the thread "main" becomes the non secure execution environment.
    */
-  mtxSetSlaveRegionSize(MATRIX0, H64MX_SLAVE_DDR_PORT0, MATRIX_AREA_SIZE_2M, REGION_0_MSK);
-  mtxSetSlaveRegionSize(MATRIX0, H64MX_SLAVE_DDR_PORT1, MATRIX_AREA_SIZE_2M, REGION_0_MSK);
-
-  mtxSetSlaveSplitAddr(MATRIX0, H64MX_SLAVE_DDR_PORT0, MATRIX_AREA_SIZE_1M, REGION_0_MSK);
-  mtxSetSlaveSplitAddr(MATRIX0, H64MX_SLAVE_DDR_PORT0, MATRIX_AREA_SIZE_2M,
-      REGION_1_MSK | REGION_2_MSK | REGION_3_MSK);
-  mtxSetSlaveSplitAddr(MATRIX0, H64MX_SLAVE_DDR_PORT1, MATRIX_AREA_SIZE_1M, REGION_0_MSK);
-  mtxSetSlaveSplitAddr(MATRIX0, H64MX_SLAVE_DDR_PORT1, MATRIX_AREA_SIZE_2M,
-      REGION_1_MSK | REGION_2_MSK | REGION_3_MSK);
-
-  mtxConfigSlaveSec(MATRIX0, H64MX_SLAVE_DDR_PORT0,
-      mtxRegionLansech(REGION_0, UPPER_AREA_SECURABLE) |
-      mtxRegionLansech(REGION_1, UPPER_AREA_SECURABLE) |
-      mtxRegionLansech(REGION_2, UPPER_AREA_SECURABLE) |
-      mtxRegionLansech(REGION_3, UPPER_AREA_SECURABLE),
-      mtxRegionRdnsech(REGION_0, NOT_SECURE_READ) |
-      mtxRegionRdnsech(REGION_1, NOT_SECURE_READ) |
-      mtxRegionRdnsech(REGION_2, NOT_SECURE_READ) |
-      mtxRegionRdnsech(REGION_3, NOT_SECURE_READ),
-      mtxRegionWrnsech(REGION_0, NOT_SECURE_WRITE) |
-      mtxRegionWrnsech(REGION_1, NOT_SECURE_WRITE) |
-      mtxRegionWrnsech(REGION_2, NOT_SECURE_WRITE) |
-      mtxRegionWrnsech(REGION_3, NOT_SECURE_WRITE));
-  mtxConfigSlaveSec(MATRIX0, H64MX_SLAVE_DDR_PORT1,
-      mtxRegionLansech(REGION_0, UPPER_AREA_SECURABLE) |
-      mtxRegionLansech(REGION_1, UPPER_AREA_SECURABLE) |
-      mtxRegionLansech(REGION_2, UPPER_AREA_SECURABLE) |
-      mtxRegionLansech(REGION_3, UPPER_AREA_SECURABLE),
-      mtxRegionRdnsech(REGION_0, NOT_SECURE_READ) |
-      mtxRegionRdnsech(REGION_1, NOT_SECURE_READ) |
-      mtxRegionRdnsech(REGION_2, NOT_SECURE_READ) |
-      mtxRegionRdnsech(REGION_3, NOT_SECURE_READ),
-      mtxRegionWrnsech(REGION_0, NOT_SECURE_WRITE) |
-      mtxRegionWrnsech(REGION_1, NOT_SECURE_WRITE) |
-      mtxRegionWrnsech(REGION_2, NOT_SECURE_WRITE) |
-      mtxRegionWrnsech(REGION_3, NOT_SECURE_WRITE));
-
-  /*
-   * Jump in the NON SECURE world
-   * This 'main' thread become the non secure environment as view by
-   * the secure world.
-   */
-  chThdSleepMilliseconds(1000);
-  chprintf((BaseSequentialStream*)&SD1, "Jumping in the non secure world\n\r");
-  _ns_trampoline(0x20000000);
+  tssiInit();
   /*
    * It never goes here
    */

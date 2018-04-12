@@ -91,12 +91,8 @@
 bool mtxConfigPeriphSecurity(Matrix *mtxp, uint32_t id, bool mode) {
 
   uint32_t mask;
-  if (id < 74) {
-    mask = id & 0x1F;
-  }
-  else {
-    mask = (id & 0x1F) - 1;
-  }
+  mask = id & 0x1F;
+
   mtxDisableWP(mtxp);
   if (mode) {
     mtxp->MATRIX_SPSELR[id / 32] |= (MATRIX_SPSELR_NSECP0 << mask);
@@ -171,11 +167,14 @@ void mtxSetSlaveSplitAddr(Matrix *mtxp, uint8_t slaveID,
   mtxDisableWP(mtxp);
   uint8_t i = mask, j = 0;
   uint32_t value = 0;
+  uint32_t pmask = 0;
   for (i = 1; (i <= mask) && (j < 32); i <<= 1, j += 4) {
-    if (i & mask)
+    if (i & mask) {
       value |= areaSize << j;
+      pmask |= 0x0F << j;
+    }
   }
-  mtxp->MATRIX_SASSR[slaveID] = value;
+  mtxp->MATRIX_SASSR[slaveID] = (mtxp->MATRIX_SASSR[slaveID] & ~pmask) | value;
   mtxEnableWP(mtxp);
 }
 
@@ -196,11 +195,14 @@ void mtxSetSlaveRegionSize(Matrix *mtxp, uint8_t slaveID,
   mtxDisableWP(mtxp);
   uint8_t i = mask, j = 0;
   uint32_t value = 0;
+  uint32_t pmask = 0;
   for (i = 1; (i <= mask) && (j < 32 ); i <<= 1, j += 4) {
-    if (i & mask)
+    if (i & mask) {
       value |= areaSize << j;
+      pmask |= 0x0F << j;
+    }
   }
-  mtxp->MATRIX_SRTSR[slaveID] = value;
+  mtxp->MATRIX_SRTSR[slaveID] = (mtxp->MATRIX_SRTSR[slaveID] & ~pmask) | value;
   mtxEnableWP(mtxp);
 }
 

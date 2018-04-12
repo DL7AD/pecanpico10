@@ -159,8 +159,7 @@ void stm32_clock_init(void) {
   /* HSI is selected as new source without touching the other fields in
      CFGR. Clearing the register has to be postponed after HSI is the
      new source.*/
-  RCC->CFGR &= ~RCC_CFGR_SW;                /* Reset SW */
-  RCC->CFGR |= RCC_CFGR_SWS_HSI;            /* Select HSI as internal*/
+  RCC->CFGR &= ~RCC_CFGR_SW;                /* Reset SW, selecting HSI.     */
   while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI)
     ;                                       /* Wait until HSI is selected.  */
 
@@ -217,7 +216,7 @@ void stm32_clock_init(void) {
 
   /* After PLL activation because the special requirements for TIM1 and
      TIM8 bits.*/
-  RCC->CFGR3 |= STM32_TIM8SW | STM32_TIM1SW;
+  RCC->CFGR3 |= STM32_HRTIM1SW | STM32_TIM8SW | STM32_TIM1SW;
 #endif /* !STM32_NO_INIT */
 }
 

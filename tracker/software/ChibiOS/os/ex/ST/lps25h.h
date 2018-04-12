@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2016 Rocco Marco Guglielmi
+    ChibiOS - Copyright (C) 2016..2018 Rocco Marco Guglielmi
 
     This file is part of ChibiOS.
 
@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  
+
 */
 
 /**
@@ -30,6 +30,7 @@
 #define _LPS25H_H_
 
 #include "hal_barometer.h"
+#include "hal_thermometer.h"
 
 /*===========================================================================*/
 /* Driver constants.                                                         */
@@ -42,75 +43,92 @@
 /**
  * @brief   LPS25H driver version string.
  */
-#define EX_LPS25H_VERSION           "1.0.3"
+#define EX_LPS25H_VERSION                   "1.1.0"
 
 /**
  * @brief   LPS25H driver version major number.
  */
-#define EX_LPS25H_MAJOR             1
+#define EX_LPS25H_MAJOR                     1
 
 /**
  * @brief   LPS25H driver version minor number.
  */
-#define EX_LPS25H_MINOR             0
+#define EX_LPS25H_MINOR                     1
 
 /**
  * @brief   LPS25H driver version patch number.
  */
-#define EX_LPS25H_PATCH             3
+#define EX_LPS25H_PATCH                     0
 /** @} */
 
 /**
- * @brief   LPS25H characteristics.
+ * @brief   LPS25H barometer subsystem characteristics.
+ * @note    Sensitivity is expressed as hPa/LSB whereas hPa stand for
+ *          hectopascal.
+ * @note    Bias is expressed as hPa.
  *
  * @{
  */
-#define LPS25H_NUMBER_OF_AXES       1U
+#define LPS25H_BARO_NUMBER_OF_AXES          1U
 
-#define LPS25H_SENS                 0.00024414f /**< hPa/LSB                */
+#define LPS25H_BARO_SENS                    0.00024414f
+#define LPS25H_BARO_BIAS                    0.0f
+/** @} */
+
+/**
+ * @brief   LPS25H thermometer subsystem characteristics.
+ * @note    Sensitivity is expressed as °C/LSB.
+ * @note    Bias is expressed as °C.
+ *
+ * @{
+ */
+#define LPS25H_THERMO_NUMBER_OF_AXES        1U
+
+#define LPS25H_THERMO_SENS                  0.00208333f
+#define LPS25H_THERMO_BIAS                  -42.5f
 /** @} */
 
 /**
  * @name    LPS25H communication interfaces related bit masks
  * @{
  */
-#define LPS25H_DI_MASK              0xFF        /**< Data In mask           */
-#define LPS25H_DI(n)                (1 << n)    /**< Data In bit n          */
-#define LPS25H_AD_MASK              0x3F        /**< Address Data mask      */
-#define LPS25H_AD(n)                (1 << n)    /**< Address Data bit n     */
-#define LPS25H_MS                   (1 << 6)    /**< Multiple read write    */
-#define LPS25H_RW                   (1 << 7)    /**< Read Write selector    */
+#define LPS25H_DI_MASK                      0xFF
+#define LPS25H_DI(n)                        (1 << n)
+#define LPS25H_AD_MASK                      0x3F
+#define LPS25H_AD(n)                        (1 << n)
+#define LPS25H_MS                           (1 << 6)
+#define LPS25H_RW                           (1 << 7)
 
-#define LPS25H_SUB_MS               (1 << 7)    /**< Multiple read write in I2C mode */
+#define LPS25H_SUB_MS                       (1 << 7)
 /** @} */
 
 /**
  * @name    LPS25H register addresses
  * @{
  */
-#define LPS25H_AD_REF_P_XL          0x08
-#define LPS25H_AD_REF_P_L           0x09
-#define LPS25H_AD_REF_P_H           0x0A
-#define LPS25H_AD_WHO_AM_I          0x0F
-#define LPS25H_AD_RES_CONF          0x10
-#define LPS25H_AD_CTRL_REG1         0x20
-#define LPS25H_AD_CTRL_REG2         0x21
-#define LPS25H_AD_CTRL_REG3         0x22
-#define LPS25H_AD_CTRL_REG4         0x23
-#define LPS25H_AD_INT_CFG           0x24
-#define LPS25H_AD_INT_SRC           0x25
-#define LPS25H_AD_STATUS_REG        0x27
-#define LPS25H_AD_PRESS_OUT_XL      0x28
-#define LPS25H_AD_PRESS_OUT_L       0x29
-#define LPS25H_AD_PRESS_OUT_H       0x2A
-#define LPS25H_AD_TEMP_OUT_L        0x2B
-#define LPS25H_AD_TEMP_OUT_H        0x2C
-#define LPS25H_AD_FIFO_CTRL         0x2E
-#define LPS25H_AD_FIFO_SRC          0x2F
-#define LPS25H_AD_THS_P_L           0x30
-#define LPS25H_AD_THS_P_H           0x31
-#define LPS25H_AD_RPDS_L            0x39
-#define LPS25H_AD_RPDS_H            0x3A
+#define LPS25H_AD_REF_P_XL                  0x08
+#define LPS25H_AD_REF_P_L                   0x09
+#define LPS25H_AD_REF_P_H                   0x0A
+#define LPS25H_AD_WHO_AM_I                  0x0F
+#define LPS25H_AD_RES_CONF                  0x10
+#define LPS25H_AD_CTRL_REG1                 0x20
+#define LPS25H_AD_CTRL_REG2                 0x21
+#define LPS25H_AD_CTRL_REG3                 0x22
+#define LPS25H_AD_CTRL_REG4                 0x23
+#define LPS25H_AD_INT_CFG                   0x24
+#define LPS25H_AD_INT_SRC                   0x25
+#define LPS25H_AD_STATUS_REG                0x27
+#define LPS25H_AD_PRESS_OUT_XL              0x28
+#define LPS25H_AD_PRESS_OUT_L               0x29
+#define LPS25H_AD_PRESS_OUT_H               0x2A
+#define LPS25H_AD_TEMP_OUT_L                0x2B
+#define LPS25H_AD_TEMP_OUT_H                0x2C
+#define LPS25H_AD_FIFO_CTRL                 0x2E
+#define LPS25H_AD_FIFO_SRC                  0x2F
+#define LPS25H_AD_THS_P_L                   0x30
+#define LPS25H_AD_THS_P_H                   0x31
+#define LPS25H_AD_RPDS_L                    0x39
+#define LPS25H_AD_RPDS_H                    0x3A
 /** @} */
 
 /**
@@ -202,6 +220,16 @@
 #endif
 
 /**
+ * @brief   LPS25H shared SPI switch.
+ * @details If set to @p TRUE the device acquires SPI bus ownership
+ *          on each transaction.
+ * @note    The default is @p FALSE. Requires SPI_USE_MUTUAL_EXCLUSION.
+ */
+#if !defined(LPS25H_SHARED_SPI) || defined(__DOXYGEN__)
+#define LPS25H_SHARED_SPI                   FALSE
+#endif
+
+/**
  * @brief   LPS25H I2C interface switch.
  * @details If set to @p TRUE the support for I2C is included.
  * @note    The default is @p TRUE.
@@ -211,22 +239,23 @@
 #endif
 
 /**
- * @brief   LPS25H advanced configurations switch.
+ * @brief   LPS25H shared I2C switch.
+ * @details If set to @p TRUE the device acquires I2C bus ownership
+ *          on each transaction.
+ * @note    The default is @p FALSE. Requires I2C_USE_MUTUAL_EXCLUSION.
+ */
+#if !defined(LPS25H_SHARED_I2C) || defined(__DOXYGEN__)
+#define LPS25H_SHARED_I2C                   FALSE
+#endif
+
+/**
+ * @brief   LPS25H accelerometer subsystem advanced configurations
+ *          switch.
  * @details If set to @p TRUE more configurations are available.
  * @note    The default is @p FALSE.
  */
 #if !defined(LPS25H_USE_ADVANCED) || defined(__DOXYGEN__)
 #define LPS25H_USE_ADVANCED                 FALSE
-#endif
-
-/**
- * @brief   LPS25H shared I2C switch.
- * @details If set to @p TRUE the device acquires I2C bus ownership
- *          on each transaction.
- * @note    The default is @p FALSE. Requires I2C_USE_MUTUAL_EXCLUSION
- */
-#if !defined(LPS25H_SHARED_I2C) || defined(__DOXYGEN__)
-#define LPS25H_SHARED_I2C                   FALSE
 #endif
 /** @} */
 
@@ -242,8 +271,8 @@
 #error "LPS25H_USE_SPI requires HAL_USE_SPI"
 #endif
 
-#if LPS25H_USE_SPI
-#error "LPS25H over SPI still not supported"
+#if LPS25H_SHARED_SPI && !SPI_USE_MUTUAL_EXCLUSION
+#error "LPS25H_SHARED_SPI requires SPI_USE_MUTUAL_EXCLUSION"
 #endif
 
 #if LPS25H_USE_I2C && !HAL_USE_I2C
@@ -254,9 +283,12 @@
 #error "LPS25H_SHARED_I2C requires I2C_USE_MUTUAL_EXCLUSION"
 #endif
 
-/*
- * TODO: Add SPI support.
+/**
+ * @todo    Add support for LPS25H over SPI.
  */
+#if LPS25H_USE_SPI
+#error "LPS25H over SPI still not supported"
+#endif
 
 /*===========================================================================*/
 /* Driver data structures and types.                                         */
@@ -267,12 +299,17 @@
  * @{
  */
 /**
- * @brief  LPS25H slave address
+ * @brief   Structure representing a LPS25H driver.
+ */
+typedef struct LPS25HDriver LPS25HDriver;
+
+/**
+ * @brief   LPS25H slave address
  */
 typedef enum {
-  LPS25H_SAD_GND = 0x5C,           /**< Slave Address when SA0 is to GND   */
-  LPS25H_SAD_VCC = 0x5D            /**< Slave Address when SA0 is to VCC   */
-}lps25h_sad_t; 
+  LPS25H_SAD_GND = 0x5C,            /**< Slave Address when SA0 is to GND   */
+  LPS25H_SAD_VCC = 0x5D             /**< Slave Address when SA0 is to VCC   */
+}lps25h_sad_t;
  
 /**
  * @brief   LPS25H output data rate and bandwidth.
@@ -346,19 +383,27 @@ typedef struct {
    * @brief I2C configuration associated to this LPS25H.
    */
   const I2CConfig           *i2ccfg;
-#endif /* LPS25H_USE_I2C */
-  /**
-   * @brief LPS25H initial sensitivity.
-   */
-  float*                    sensitivity;
-  /**
-   * @brief LPS25H initial bias.
-   */
-  float*                    bias;
   /**
    * @brief LPS25H slave address
    */
   lps25h_sad_t              slaveaddress;
+#endif /* LPS25H_USE_I2C */
+  /**
+   * @brief LPS25H barometer subsystem initial sensitivity.
+   */
+  float                     *barosensitivity;
+  /**
+   * @brief LPS25H barometer subsystem initial bias.
+   */
+  float                     *barobias;
+  /**
+   * @brief LPS25H thermometer subsystem initial sensitivity.
+   */
+  float                     *thermosensitivity;
+  /**
+   * @brief LPS25H thermometer subsystem initial bias.
+   */
+  float                     *thermobias;
   /**
    * @brief LPS25H output data rate selection.
    */
@@ -369,49 +414,69 @@ typedef struct {
    */
   lps25h_bdu_t              blockdataupdate;
   /**
-   * @brief   LPS25H pressure resolution.
+   * @brief LPS25H barometer subsystem  resolution.
    */
-  lps25h_avgp_t             respressure;
+  lps25h_avgp_t             baroresolution;
   /**
-   * @brief   LPS25H temperature resolution.
+   * @brief LPS25H thermometer subsystem  resolution.
    */
-  lps25h_avgt_t             restemperature;
+  lps25h_avgt_t             thermoresolution;
 #endif
 } LPS25HConfig;
 
 /**
- * @brief   Structure representing a LPS25H driver.
+ * @brief   @p LPS25H specific methods.
+ * @note    No methods so far, just a common ancestor interface.
  */
-typedef struct LPS25HDriver LPS25HDriver;
+#define _lps25h_methods_alone
 
+/**
+ * @brief @p LPS25H specific methods with inherited ones.
+ */
+#define _lps25h_methods                                                     \
+  _base_object_methods                                                      \
+  _lps25h_methods_alone
+
+/**
+ * @extends BaseObjectVMT
+ *
+ * @brief @p LPS25H virtual methods table.
+ */
+struct LPS25HVMT {
+  _lps25h_methods
+};
+  
 /**
  * @brief   @p LPS25HDriver specific data.
  */
 #define _lps25h_data                                                        \
-  _base_barometer_data                                                      \
   /* Driver state.*/                                                        \
   lps25h_state_t            state;                                          \
   /* Current configuration data.*/                                          \
   const LPS25HConfig        *config;                                        \
-  /* Current sensitivity data.*/                                            \
-  float                     sensitivity;                                    \
-  /* Current Bias data.*/                                                   \
-  float                     bias;
+  /* Barometer subsystem axes number.*/                                     \
+  size_t                    baroaxes;                                       \
+  /* Barometer subsystem current sensitivity.*/                             \
+  float                     barosensitivity;                                \
+  /* Barometer subsystem current bias .*/                                   \
+  float                     barobias;                                       \
+  /* Thermometer subsystem axes number.*/                                   \
+  size_t                    thermoaxes;                                     \
+  /* Thermometer subsystem current sensitivity.*/                           \
+  float                     thermosensitivity;                              \
+  /* Thermometer subsystem current bias.*/                                  \
+  float                     thermobias;
 
 /**
- * @extends BaseGyroscope
- *
- * @brief   LPS25H 3-axis barometer class.
- * @details This class extends @p BaseGyroscope by adding physical
- *          driver implementation.
+ * @brief   LPS25H 2-axis barometer/thermometer class.
  */
 struct LPS25HDriver {
-  /** @brief BaseSensor Virtual Methods Table. */
-  const struct BaseSensorVMT *vmt_basesensor;
-  /** @brief BaseBarometer Virtual Methods Table. */
-  const struct BaseBarometerVMT *vmt_basebarometer;
-  /** @brief LPS25H Virtual Methods Table. */
-  const struct LPS25HVMT *vmt_lps25h;
+  /** @brief Virtual Methods Table.*/
+  const struct LPS25HVMT    *vmt;
+  /** @brief Base barometer interface.*/
+  BaseBarometer             baro_if;
+  /** @brief Base thermometer interface.*/
+  BaseThermometer           thermo_if;
   _lps25h_data
 };
 /** @} */
@@ -419,7 +484,243 @@ struct LPS25HDriver {
 /*===========================================================================*/
 /* Driver macros.                                                            */
 /*===========================================================================*/
-       
+
+/**
+ * @brief   Return the number of axes of the BaseBarometer.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ *
+ * @return              the number of axes.
+ *
+ * @api
+ */
+#define lps25hBarometerGetAxesNumber(devp)                                  \
+        barometerGetAxesNumber(&((devp)->baro_if))
+
+/**
+ * @brief   Retrieves raw data from the BaseBarometer.
+ * @note    This data is retrieved from MEMS register without any algebraical
+ *          manipulation.
+ * @note    The axes array must be at least the same size of the
+ *          BaseBarometer axes number.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ * @param[out] axes     a buffer which would be filled with raw data.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ * @retval MSG_RESET    if one or more I2C errors occurred, the errors can
+ *                      be retrieved using @p i2cGetErrors().
+ * @retval MSG_TIMEOUT  if a timeout occurred before operation end.
+ *
+ * @api
+ */
+#define lps25hBarometerReadRaw(devp, axes)                                  \
+        barometerReadRaw(&((devp)->baro_if), axes)
+
+/**
+ * @brief   Retrieves cooked data from the BaseBarometer.
+ * @note    This data is manipulated according to the formula
+ *          cooked = (raw * sensitivity) - bias.
+ * @note    Final data is expressed as hPa.
+ * @note    The axes array must be at least the same size of the
+ *          BaseBarometer axes number.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ * @param[out] axes     a buffer which would be filled with cooked data.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ * @retval MSG_RESET    if one or more I2C errors occurred, the errors can
+ *                      be retrieved using @p i2cGetErrors().
+ * @retval MSG_TIMEOUT  if a timeout occurred before operation end.
+ *
+ * @api
+ */
+#define lps25hBarometerReadCooked(devp, axes)                               \
+        barometerReadCooked(&((devp)->baro_if), axes)
+
+/**
+ * @brief   Set bias values for the BaseBarometer.
+ * @note    Bias must be expressed as hPa.
+ * @note    The bias buffer must be at least the same size of the
+ *          BaseBarometer axes number.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ * @param[in] bp        a buffer which contains biases.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ *
+ * @api
+ */
+#define lps25hBarometerSetBias(devp, bp)                                    \
+        barometerSetBias(&((devp)->baro_if), bp)
+
+/**
+ * @brief   Reset bias values for the BaseBarometer.
+ * @note    Default biases value are obtained from device datasheet when
+ *          available otherwise they are considered zero.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ *
+ * @api
+ */
+#define lps25hBarometerResetBias(devp)                                      \
+        barometerResetBias(&((devp)->baro_if))
+
+/**
+ * @brief   Set sensitivity values for the BaseBarometer.
+ * @note    Sensitivity must be expressed as hPa/LSB.
+ * @note    The sensitivity buffer must be at least the same size of the
+ *          BaseBarometer axes number.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ * @param[in] sp        a buffer which contains sensitivities.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ *
+ * @api
+ */
+#define lps25hBarometerSetSensitivity(devp, sp)                             \
+        barometerSetSensitivity(&((devp)->baro_if), sp)
+
+/**
+ * @brief   Reset sensitivity values for the BaseBarometer.
+ * @note    Default sensitivities value are obtained from device datasheet.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ *
+ * @api
+ */
+#define lps25hBarometerResetSensitivity(devp)                               \
+        barometerResetSensitivity(&((devp)->baro_if))
+
+/**
+ * @brief   Return the number of axes of the BaseThermometer.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ *
+ * @return              the number of axes.
+ *
+ * @api
+ */
+#define lps25hThermometerGetAxesNumber(devp)                                \
+        thermometerGetAxesNumber(&((devp)->thermo_if))
+
+/**
+ * @brief   Retrieves raw data from the BaseThermometer.
+ * @note    This data is retrieved from MEMS register without any algebraical
+ *          manipulation.
+ * @note    The axes array must be at least the same size of the
+ *          BaseThermometer axes number.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ * @param[out] axes     a buffer which would be filled with raw data.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ * @retval MSG_RESET    if one or more I2C errors occurred, the errors can
+ *                      be retrieved using @p i2cGetErrors().
+ * @retval MSG_TIMEOUT  if a timeout occurred before operation end.
+ *
+ * @api
+ */
+#define lps25hThermometerReadRaw(devp, axes)                                \
+        thermometerReadRaw(&((devp)->thermo_if), axes)
+
+/**
+ * @brief   Retrieves cooked data from the BaseThermometer.
+ * @note    This data is manipulated according to the formula
+ *          cooked = (raw * sensitivity) - bias.
+ * @note    Final data is expressed as Â°C.
+ * @note    The axes array must be at least the same size of the
+ *          BaseThermometer axes number.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ * @param[out] axes     a buffer which would be filled with cooked data.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ * @retval MSG_RESET    if one or more I2C errors occurred, the errors can
+ *                      be retrieved using @p i2cGetErrors().
+ * @retval MSG_TIMEOUT  if a timeout occurred before operation end.
+ *
+ * @api
+ */
+#define lps25hThermometerReadCooked(devp, axes)                             \
+        thermometerReadCooked(&((devp)->thermo_if), axes)
+
+/**
+ * @brief   Set bias values for the BaseThermometer.
+ * @note    Bias must be expressed as Â°C.
+ * @note    The bias buffer must be at least the same size of the
+ *          BaseThermometer axes number.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ * @param[in] bp        a buffer which contains biases.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ *
+ * @api
+ */
+#define lps25hThermometerSetBias(devp, bp)                                  \
+        thermometerSetBias(&((devp)->thermo_if), bp)
+
+/**
+ * @brief   Reset bias values for the BaseThermometer.
+ * @note    Default biases value are obtained from device datasheet when
+ *          available otherwise they are considered zero.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ *
+ * @api
+ */
+#define lps25hThermometerResetBias(devp)                                    \
+        thermometerResetBias(&((devp)->thermo_if))
+
+/**
+ * @brief   Set sensitivity values for the BaseThermometer.
+ * @note    Sensitivity must be expressed as Â°C/LSB.
+ * @note    The sensitivity buffer must be at least the same size of the
+ *          BaseThermometer axes number.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ * @param[in] sp        a buffer which contains sensitivities.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ *
+ * @api
+ */
+#define lps25hThermometerSetSensitivity(devp, sp)                           \
+        thermometerSetSensitivity(&((devp)->thermo_if), sp)
+
+/**
+ * @brief   Reset sensitivity values for the BaseThermometer.
+ * @note    Default sensitivities value are obtained from device datasheet.
+ *
+ * @param[in] devp      pointer to @p LPS25HDriver.
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       if the function succeeded.
+ *
+ * @api
+ */
+#define lps25hThermometerResetSensitivity(devp)                             \
+        thermometerResetSensitivity(&((devp)->thermo_if))
+        
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/

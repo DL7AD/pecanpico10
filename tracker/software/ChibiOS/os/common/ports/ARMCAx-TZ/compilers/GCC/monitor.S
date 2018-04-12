@@ -56,9 +56,6 @@
                 .set    MODE_UND,       0x1B
                 .set    MODE_SYS,       0x1F
 
-                .set    I_BIT,          0x80
-                .set    F_BIT,          0x40
-
                 .set    SCR_NS,         0x01
                 .set    SCR_IRQ,        0x02
                 .set    SCR_FIQ,        0x04
@@ -69,16 +66,62 @@
                 .set    MON_S_SCR,      (SCR_IRQ)           // (SCR_EA|SCR_IRQ)
                 .set    MON_NS_SCR,     (SCR_FIQ|SCR_NS)
 
-                .set    MSG_OK,         0
-                .set    MSG_TIMEOUT,    -1
-                .set    MSG_RESET,      -2
-                .section .data
-                .balign 4
- _ns_thread:    .zero   4
+                .set    SMC_SVC_INTR,   -1
 
+                .comm   sm_secctx, 20*4, 4
+                .comm   sm_nsecctx, 20*4, 4
+
+                .global _ns_thread
                 .section .text
                 .code   32
                 .balign 4
+/*
+ * Helper macros
+ */
+/*
+ * Store banked registers in a world area pointed by rm
+ */
+                .macro  sm_store_ooctx_regs rm
+                // cps  #MODE_SYS              // Assume mode SYS
+                stm     \rm!, {sp, lr}
+                cps     #MODE_FIQ
+                mrs     r12, spsr
+                stm     \rm!, {r12, sp, lr}
+                cps     #MODE_IRQ
+                mrs     r12, spsr
+                stm     \rm!, {r12, sp, lr}
+                cps     #MODE_ABT
+                mrs     r12, spsr
+                stm     \rm!, {r12, sp, lr}
+                cps     #MODE_SVC
+                mrs     r12, spsr
+                stm     \rm!, {r12, sp, lr}
+                cps     #MODE_UND
+                mrs     r12, spsr
+                stm     \rm!, {r12, sp, lr}
+                .endm
+/*
+ * Retrieve banked registers from a world area pointed by rm
+ */
+                .macro  sm_load_ooctx_regs rm
+                // cps  #MODE_SYS              // Assume mode SYS
+                ldm     \rm!, {sp, lr}
+                cps     #MODE_FIQ
+                ldm     \rm!, {r12, sp, lr}
+                msr     spsr_fsxc, r12
+                cps     #MODE_IRQ
+                ldm     \rm!, {r12, sp, lr}
+                msr     spsr_fsxc, r12
+                cps     #MODE_ABT
+                ldm     \rm!, {r12, sp, lr}
+                msr     spsr_fsxc, r12
+                cps     #MODE_SVC
+                ldm     \rm!, {r12, sp, lr}
+                msr     spsr_fsxc, r12
+                cps     #MODE_UND
+                ldm     \rm!, {r12, sp, lr}
+                msr     spsr_fsxc, r12
+                .endm
 /*
  * Monitor vectors
  */
@@ -96,26 +139,53 @@ _monitor_vectors:
  * SMC entry
  */
 sm_call:
-                ldr     r12, =MON_S_SCR                     // enter in the secure world
+                stmfd   sp!, {r4, r12}
+                ldr     r12, =MON_S_SCR         // enter in the secure world
                 mcr     p15, 0, r12, c1, c1, 0
-                ands    r0, r0                              // OS special service,
-                                                            // 0 == jump trampoline to non secure world
-                                                            // r1 contains the address where it jumps
+                ands    r0, r0                  // OS special service,
+                                                // 0 == jump trampoline to non secure world
+                                                // r1 contains the address where it jumps
                 beq     1f
-                msr     CPSR_c, #MODE_SYS | I_BIT           // switch to sys mode, foreign int disabled
-                stmfd   sp!, {lr}                           // save lr
-                bl      smcEntry                            // call the C smc handler
-                ldmfd   sp!, {lr}                           // restore lr
-                msr     CPSR_c, #MODE_MON | I_BIT | F_BIT   // switch to monitor mode
-                ldr     r12, =MON_NS_SCR                    // enter in the non-secure world
+
+                mrs     r4, SPSR
+                mov     r12, lr
+                stmfd   sp!, {r4, r12}          // push r4=spsr_mon, r12=lr_mon.
+
+                cps     #MODE_SYS               // switch to sys mode, ints disabled
+                ldr     r4, =sm_nsecctx
+                sm_store_ooctx_regs r4
+
+                cps     #MODE_SYS
+                ldr     r4, =sm_secctx
+                sm_load_ooctx_regs r4
+
+                cps     #MODE_SYS
+                bl      smcEntry                // call the C smc handler
+
+                ldr     r4, =sm_secctx
+                sm_store_ooctx_regs r4
+
+                cps     #MODE_SYS
+                ldr     r4, =sm_nsecctx
+                sm_load_ooctx_regs r4
+
+                cps     #MODE_MON           // switch to monitor mode
+
+                ldmfd   sp!, {r4, r12}          // pop r4=spsr_mon, r12=lr_mon.
+                msr     SPSR_fsxc, r4
+                mov     lr, r12
+
+                ldr     r12, =MON_NS_SCR        // enter in the non-secure world
                 mcr     p15, 0, r12, c1, c1, 0
-                subs    pc, lr, #0                          // return from smc
+                ldmfd   sp!, {r4, r12}
+                subs    pc, lr, #0              // return from smc
 1:
-                mov     lr, r1                              // use the address in r1 as return address
-                                                            // in the non secure world
-                ldr     r12, =MON_NS_SCR                    // enter in the non-secure world
+                mov     lr, r1                  // use the address in r1 as return address
+                                                // in the non secure world
+                ldr     r12, =MON_NS_SCR        // enter in the non-secure world
                 mcr     p15, 0, r12, c1, c1, 0
-                subs    pc, lr, #0                          // return from smc
+                ldmfd   sp!, {r4, r12}
+                subs    pc, lr, #0              // return from smc
 
 /*
  * FIQ entry
@@ -129,65 +199,101 @@ sm_call:
  * without scheduling.
  */
 sm_fiq:
-                                                            // check point: SCR.NS == 1
-                stmfd   sp!, {r0}
-                ldr     r0, =MON_S_SCR                      // enter in the secure world
+                                                // check point: SCR.NS == 1
+                stmfd   sp!, {r0, r12}
+                ldr     r0, =MON_S_SCR          // enter in the secure world
                 mcr     p15, 0, r0, c1, c1, 0
-                msr     CPSR_c, #MODE_SYS | I_BIT           // FIQ enabled, served via base table
-                msr     CPSR_c, #MODE_MON | I_BIT | F_BIT   // the handler returns here. Switch to monitor mode
-                ldr     r0, =MON_NS_SCR                     // set non-secure SCR before return
+
+                cps     #MODE_SYS
+                ldr     r0, =sm_nsecctx
+                sm_store_ooctx_regs r0
+
+                cps     #MODE_SYS
+                ldr     r0, =sm_secctx
+                sm_load_ooctx_regs r0
+
+                cpsie   f, #MODE_SYS            // FIQ enabled, served via base table
+
+                cpsid   f, #MODE_SYS            // the handler returns here, FIQ disabled.
+                ldr     r0, =sm_secctx
+                sm_store_ooctx_regs r0
+
+                cps     #MODE_SYS
+                ldr     r0, =sm_nsecctx
+                sm_load_ooctx_regs r0
+
+                cps     #MODE_MON               // switch to monitor mode
+                ldr     r0, =MON_NS_SCR         // set non-secure SCR before return
                 mcr     p15, 0, r0, c1, c1, 0
-                ldmfd   sp!, {r0}
-                subs    pc, lr, #4                          // return into non-secure world
+                ldmfd   sp!, {r0, r12}
+                subs    pc, lr, #4              // return into non-secure world
 /*
  * IRQ entry
  *
  * Here the IRQ is taken from secure state.
  * Current mode is monitor (so current state is secure),
- * the previous mode and status is in mon.spsr and
- * the return address+4 is in mon.lr.
+ * the previous mode and status is in spsr_mon and
+ * the return address+4 is in lr_mon.
  * Because we are running in secure state, we are sure that
  * the main thread is suspended in the smc handler.
- * The main thread is then resumed with MSG_TIMEOUT
- * The non secure IRQ handler has then the responsibility to return into
+ * The main thread is then resumed with SMC_SVC_INTR
+ * The non secure world has then the responsibility to return into
  * secure state via a smc.
  *
  */
- sm_irq:
-                                                            // check point: SCR.NS == 0
-                msr     CPSR_c, #MODE_SYS | I_BIT | F_BIT
-                stmfd   sp!, {r0-r3, r12, lr}               // save scratch registers and lr
-                msr     CPSR_c, #MODE_MON | I_BIT | F_BIT
-                mrs     r0, SPSR
+sm_irq:
+                                                // check point: SCR.NS == 0
+                cps     #MODE_SYS
+                stmfd   sp!, {r0-r3, r12, lr}   // save scratch registers and lr
+                cps     #MODE_MON               // switch to monitor mode
+                mrs     r0, spsr
                 mov     r1, lr
-                msr     CPSR_c, #MODE_SYS | I_BIT | F_BIT
-                stmfd   sp!, {r0, r1}                       // push R0=SPSR, R1=LR_MON.
-                                                            // check point: ns_tread != 0
-                ldr     r0, =_ns_thread
-                mov     r1, #MSG_TIMEOUT
+                cps     #MODE_SYS
+                stmfd   sp!, {r0, r1}           // push r0=spsr_mon, r1=lr_mon.
+                                                // check point: ns_tread != 0
 #if (CH_DBG_SYSTEM_STATE_CHECK == TRUE)
                 bl      _dbg_check_lock
 #endif
-                bl      chThdResumeS                        // resume the ns_thread and serve the IRQ
-                                                            // into non-secure world
+                ldr     r0, =_ns_thread
+                mov     r1, #SMC_SVC_INTR
+                bl      chThdResumeS            // resume the ns_thread and serve the IRQ
+                                                // into non-secure world
 #if (CH_DBG_SYSTEM_STATE_CHECK == TRUE)
                 bl      _dbg_check_unlock
 #endif
                 // The ns_thread reentered smc, that set SRC.NS to 0
                 // re-establish the original conditions
-                ldmfd   sp!, {r0, r1}                       // pop R0=SPSR, R1=LR_MON.
-                msr     CPSR_c, #MODE_MON | I_BIT | F_BIT
+                ldmfd   sp!, {r0, r1}           // pop r0=spsr_mon, r1=lr_mon.
+                cps     #MODE_MON               // switch to monitor mode
                 msr     SPSR_fsxc, r0
                 mov     lr, r1
-                msr     CPSR_c, #MODE_SYS | I_BIT | F_BIT
+                cps     #MODE_SYS
                 ldmfd   sp!, {r0-r3, r12, lr}
-                msr     CPSR_c, #MODE_MON | I_BIT | F_BIT
-                subs    pc, lr, #4                          // return into secure world
+                cps     #MODE_MON               // switch to monitor mode
+                subs    pc, lr, #4              // return into secure world
 
                 .global _ns_trampoline
 _ns_trampoline:
                 mov     r1, r0
+
+                ldr     r0, =sm_secctx
+                sm_store_ooctx_regs r0
+                cps     #MODE_SYS
+
                 ldr     r0, =#0
+                mov     r2, r0
+                mov     r3, r0
+                mov     r4, r0
+                mov     r5, r0
+                mov     r6, r0
+                mov     r7, r0
+                mov     r8, r0
+                mov     r9, r0
+                mov     r10, r0
+                mov     r11, r0
+                mov     r12, r0
+                mov     sp, r0
+                mov     lr, r0
                 smc     #0
 
 #endif /* !defined(__DOXYGEN__) */

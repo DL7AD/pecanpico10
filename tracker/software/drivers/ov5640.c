@@ -1090,30 +1090,29 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
     dmaStreamClearInterrupt(dma_control.dmastp);
 
     dma_control.dma_error = false;
-    //dma_error = false;
     dma_control.dma_flags = 0;
-    //dma_flags = 0;
 
 	/*
 	 * Setup timer for PCLK
-	 * Setup timer to trigger DMA in capture mode.
-	 * FIXME: Remove reset and enable...
 	 */
 
+    dma_control.timer = TIM8;
 	rccEnableTIM8(FALSE);
     rccResetTIM8();
 
-    dma_control.timer = TIM8;
 
 	/* TODO: deprecate ARR as not used for Input Capture mode. */
 	//TIM8->ARR = 1;
-	dma_control.timer->CCR1 = 0;
-	dma_control.timer->CCER = 0;
+	//dma_control.timer->CCR1 = 0;
+	//dma_control.timer->CCER = 0;
+    /*
+     * Setup capture mode triggered from TI1.
+     * What is captured isn't used just the DMA trigger.
+     */
 	dma_control.timer->CCMR1 = TIM_CCMR1_CC1S_0;
 	dma_control.timer->CCER = TIM_CCER_CC1E;
 
 	dma_control.capture = false;
-	//capture_finished = false;
 	vsync_cntr = 0;
 
 #define NEW_CAPTURE_VSYNC

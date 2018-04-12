@@ -23,7 +23,7 @@
  * HAL driver system settings.
  */
 #define SAMA_HAL_IS_SECURE                  TRUE
-#define SAMA_NO_INIT                        FALSE
+#define SAMA_NO_INIT                        TRUE
 #define SAMA_MOSCRC_ENABLED                 FALSE
 #define SAMA_MOSCXT_ENABLED                 TRUE
 #define SAMA_MOSC_SEL                       SAMA_MOSC_MOSCXT
@@ -82,9 +82,11 @@
 /*
  * SECUMOD
  */
-#define SAMA_ST_USE_PIT                     TRUE
+#define HAL_USE_SECUMOD                     FALSE
+#define SAMA_ST_USE_PIT                     FALSE
 #define SAMA_ST_USE_TC0                     FALSE
-#define SAMA_ST_USE_TC1                     FALSE
+#define SAMA_ST_USE_TC1                     TRUE
+
 
 /*
  * TC driver system settings.

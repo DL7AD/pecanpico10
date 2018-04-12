@@ -34,7 +34,7 @@
  * @{
  */
 /*===========================================================================*/
-/* STM32F745xx, STM32F746xx, STM32F756xx.                                    */
+/* STM32H743xx, STM32H753xx.                                                 */
 /*===========================================================================*/
 #if defined(STM32H743xx) || defined(STM32H753xx) ||                         \
     defined(__DOXYGEN__)
@@ -409,7 +409,7 @@
 
 /* CRC attributes.*/
 #define STM32_HAS_CRC                       TRUE
-#define STM32_CRC_PROGRAMMABLE              FALSE
+#define STM32_CRC_PROGRAMMABLE              TRUE
 
 #endif /* defined(STM32H743xx) || defined(STM32H753xx) */
 /** @} */
