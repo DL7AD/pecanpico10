@@ -50,6 +50,8 @@
 #define SYM_SHIP						0x2F73
 #define SYM_DIGIPEATER					0x2F23
 
+extern bool test_gps_enabled;
+
 void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len);
 
 packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t symbol, dataPoint_t *dataPoint);

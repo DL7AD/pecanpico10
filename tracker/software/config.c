@@ -12,7 +12,7 @@ const conf_t conf_flash_default = {
 	.pos_pri = {
 		.thread_conf = {
 			.active			= true,
-			.cycle			= TIME_S2I(60),
+			.cycle			= TIME_S2I(60*30),
 			.init_delay		= TIME_S2I(10)
 		},
 		.radio_conf = {
@@ -56,8 +56,8 @@ const conf_t conf_flash_default = {
 	.img_pri = {
 		.thread_conf = {
 			.active			= true,
-			.cycle			= TIME_S2I(120),
-			.init_delay		= TIME_S2I(60*2),
+			.cycle			= TIME_S2I(60*5),
+			.init_delay		= TIME_S2I(60*1),
 			.send_spacing	= TIME_S2I(3)
 		},
 		.radio_conf = {
@@ -69,7 +69,7 @@ const conf_t conf_flash_default = {
 		},
 
 		.call				= "VK2GJ-15",
-		.path				= "DB0BLO",
+		.path				= "",
 
 		.res				= RES_VGA,
 		.quality			= 4,
@@ -92,7 +92,7 @@ const conf_t conf_flash_default = {
 		},
 
 		.call				= "VK2GJ-15",
-        .path               = "DB0BLO",
+        .path               = "",
 
 		.res				= RES_VGA,
 		.quality			= 4,
@@ -124,7 +124,7 @@ const conf_t conf_flash_default = {
           .active       = true,
           .init_delay   = TIME_S2I(20)
       },
-      .rx = {
+      .rx = { // The receive identity for APRS
           .radio_conf = {
               .freq			= 145175000,
               .mod			= MOD_AFSK,
@@ -132,18 +132,29 @@ const conf_t conf_flash_default = {
           },
            .call            = "VK2GJ-4",
       },
-      .tx = {
+      .tx = { // The transmit identity for digipeat transmit and messages responses
           .radio_conf = {
                .freq        = FREQ_APRS_RECEIVE,
                .pwr         = 0x7F,
                .mod         = MOD_AFSK,
                .rssi        = 0x4F
           },
-            .call           = "VK2GJ-5",
+            .call           = "VK2GJ-12",
             .path           = "WIDE2-1",
             .symbol         = SYM_DIGIPEATER,
       },
-      .dig_active           = true
+      .base = { // The base station parameters - how and where tracker originated messages are sent
+             .enabled       = true,
+             .call          = "VK2GJ-7",
+             .path          = "WIDE2-1",
+          .radio_conf = {
+              .freq         = 145175000,
+              .pwr          = 0x7F,
+              .mod          = MOD_AFSK,
+              .rssi         = 0x4F
+            }
+      },
+      .dig_active           = true,
 	},
 
 	// Power control

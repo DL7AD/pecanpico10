@@ -28,7 +28,7 @@ guarded_memory_pool_t *ccm_pool = NULL;
 /* Module local variables.                                                   */
 /*===========================================================================*/
 
-#if USE_CCM_FOR_PKT_TX == TRUE
+#if USE_CCM_FOR_PKT_HEAP == TRUE
 static memory_heap_t _ccm_heap;
 #elif USE_CCM_FOR_PKT_POOL == TRUE
 static guarded_memory_pool_t _ccm_pool;
@@ -56,27 +56,78 @@ bool pktSystemInit(void) {
 
   //#define intoCCM  __attribute__((section(".ram4")))  __attribute__((aligned(4)))
 
-#if USE_CCM_FOR_PKT_TX == TRUE
+#if USE_CCM_FOR_PKT_HEAP == TRUE
+  chDbgAssert(ccm_heap == NULL, "CCM heap already exists");
   /* Create heap in CCM. */
   if(ccm_heap == NULL) {
     ccm_heap = &_ccm_heap;
     chHeapObjectInit(ccm_heap, (void *)0x10000000, 0x10000);
   }
+
+  /*
+   * Create common packet buffer control.
+   */
+  if(pktInitBufferControl() == NULL) {
+    ccm_heap = NULL;
+    return false;
+  }
+  return true;
 #elif USE_CCM_FOR_PKT_POOL == TRUE
+  chDbgAssert(ccm_pool == NULL, "CCM guarded pool already exists");
   if(ccm_pool == NULL) {
     ccm_pool = &_ccm_pool;
     chGuardedPoolObjectInitAligned(ccm_pool, sizeof(packet_gen_t), 4);
     chGuardedPoolLoadArray(ccm_pool, (void *)0x10000000,
                            NUMBER_COMMON_PKT_BUFFERS);
+    return true;
   }
+  return false;
+#else
+  return true;
+#endif
+}
+
+/**
+ * @brief   Deinits the packet system.
+ *
+ *@return   result of operation.
+ *@retval   true    deinit success.
+ *@retval   false   deinit failed.
+ *
+ * @api
+ */
+bool pktSystemDeinit(void) {
+
+  //#define intoCCM  __attribute__((section(".ram4")))  __attribute__((aligned(4)))
+
+#if USE_CCM_FOR_PKT_HEAP == TRUE
+  /*
+   * Remove common packet buffer control.
+   */
+  chDbgAssert(ccm_heap != NULL, "CCM heap does not exist");
+  chSysLock();
+
+  pktDeinitBufferControl();
+
+  /* Remove reference to heap in CCM. */
+  ccm_heap = NULL;
+  return true;
+#elif USE_CCM_FOR_PKT_POOL == TRUE
+  chDbgAssert(ccm_pool != NULL, "CCM guarded pool does not exist");
+  if(ccm_pool == NULL) {
+    return false;
+  }
+  chSysLock();
+  chSemWaitTimeoutS(&ccm_pool->sem, TIME_INFINITE);
+  /*
+   *  Kick everyone off and set available buffers to zero.
+   *  Users need to look for MSG_RESET from wait.
+   */
+  chSemResetI(&ccm_pool->sem, 0);
+  chSchRescheduleS();
+  chSysUnlock();
   return true;
 #else
-
-  /*
-   * Create common packet buffer control.
-   */
-  if(pktInitBufferControl() == NULL)
-    return false;
   return true;
 #endif
 }
@@ -370,6 +421,8 @@ void pktStartDecoder(radio_unit_t radio) {
 
   chDbgAssert(handler != NULL, "invalid radio ID");
 
+  if(handler->rx_active)
+    return;
   event_listener_t el;
   event_source_t *esp;
 
@@ -405,6 +458,7 @@ void pktStartDecoder(radio_unit_t radio) {
     evt = chEvtGetAndClearFlags(&el);
   } while (evt != DEC_START_EXEC);
   pktUnregisterEventListener(esp, &el);
+  handler->rx_active = true;
 }
 
 /**
@@ -465,6 +519,9 @@ void pktStopDecoder(radio_unit_t radio) {
   if(handler == NULL)
     chDbgAssert(false, "invalid radio ID");
 
+  if(!handler->rx_active)
+    return;
+
   event_listener_t el;
   event_source_t *esp;
 
@@ -498,6 +555,7 @@ void pktStopDecoder(radio_unit_t radio) {
     evt = chEvtGetAndClearFlags(&el);
   } while (evt != DEC_STOP_EXEC);
   pktUnregisterEventListener(esp, &el);
+  handler->rx_active = false;
 }
 
 /**
@@ -872,9 +930,39 @@ dyn_semaphore_t *pktInitBufferControl() {
                                        NUMBER_COMMON_PKT_BUFFERS);
 
     chDbgAssert(dyn_sem != NULL, "failed to create common packet semaphore");
-    return NULL;
+    if(dyn_sem == NULL)
+      return NULL;
+    return dyn_sem;
+  } else {
+    chDbgAssert(false, "common packet semaphore already created");
+    return dyn_sem;
   }
-  return dyn_sem;
+}
+
+/*
+ * Send and packet analysis share a common pool of buffers.
+ */
+void pktDeinitBufferControl() {
+
+  /* Check if the transmit packet buffer semaphore already exists.
+   * If so we get a pointer to it and just return that.
+   * Otherwise create the semaphore and return result.
+   */
+  dyn_semaphore_t *dyn_sem =
+      chFactoryFindSemaphore(PKT_SEND_BUFFER_SEM_NAME);
+  chDbgAssert(dyn_sem != NULL, "common packet semaphore does not exist");
+  if(dyn_sem == NULL)
+    return;
+  chSysLock();
+  chSemWaitTimeoutS(chFactoryGetSemaphore(dyn_sem), TIME_INFINITE);
+  /*
+   *  Kick everyone off and set available buffers to zero.
+   *  Users need to look for MSG_RESET from wait.
+   */
+  chSemResetI(&dyn_sem->sem, 0);
+  chSchRescheduleS();
+  chSysUnlock();
+  chFactoryReleaseSemaphore(dyn_sem);
 }
 
 /*

@@ -9,6 +9,7 @@ bool sdInitialized = false;
 
 bool initSD(void)
 {
+  return false;
 	// Setup pins
 	palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);		// SCK
 	palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MISO

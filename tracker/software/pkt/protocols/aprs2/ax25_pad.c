@@ -266,7 +266,7 @@ packet_t ax25_new (void) {
     extern guarded_memory_pool_t *ccm_pool;
 	this_p = chGuardedPoolAllocTimeout(ccm_pool, TIME_INFINITE);
     TRACE_DEBUG("PKT  > Allocated buffer 0x%x, link 0x%x", this_p, ((struct pool_header *)(this_p))->next);
-#elif USE_CCM_FOR_PKT_TX == TRUE
+#elif USE_CCM_FOR_PKT_HEAP == TRUE
     extern memory_heap_t *ccm_heap;
     this_p = chHeapAlloc(ccm_heap, sizeof (struct packet_s));
 #else
@@ -472,15 +472,14 @@ packet_t ax25_from_text (char *monitor, int strict)
 	pa = strtok_r (stuff, ">", &saveptr);
 	if (pa == NULL) {
       TRACE_ERROR("PKT  > No source address in packet");
-	  //TRACE_ERROR ("Failed to create packet from text.  No source address");
+      /* Only need single packet release here but linked probably better for consistency. */
       pktReleasePacketBuffer(this_p);
 	  return (NULL);
 	}
 
 	if ( ! ax25_parse_addr (AX25_SOURCE, pa, strict, atemp, &ssid_temp, &heard_temp)) {
       TRACE_ERROR("PKT  > Bad source address in packet");
-	  //TRACE_ERROR ("Failed to create packet from text.  Bad source address");
-	  /* Only need single packet release here. */
+	  /* Only need single packet release here but linked probably better for consistency. */
       pktReleasePacketBuffer(this_p);
 	  return (NULL);
 	}
@@ -496,15 +495,14 @@ packet_t ax25_from_text (char *monitor, int strict)
 	pa = strtok_r (NULL, ",", &saveptr);
 	if (pa == NULL) {
       TRACE_ERROR("PKT  > No destination address in packet");
-	  //TRACE_ERROR ("Failed to create packet from text.  No destination address");
-	  /* Only need single packet release here. */
+      /* Only need single packet release here but linked probably better for consistency. */
       pktReleasePacketBuffer(this_p);
 	  return (NULL);
 	}
 
 	if ( ! ax25_parse_addr (AX25_DESTINATION, pa, strict, atemp, &ssid_temp, &heard_temp)) {
       TRACE_ERROR("PKT  > Bad destination address in packet");
-	  //TRACE_ERROR ("Failed to create packet from text.  Bad destination address");
+      /* Only need single packet release here but linked probably better for consistency. */
       pktReleasePacketBuffer(this_p);
 	  return (NULL);
 	}

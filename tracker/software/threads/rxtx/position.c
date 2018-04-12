@@ -63,30 +63,32 @@ THD_FUNCTION(posThread, arg)
 
 			// Encode/Transmit APRSD packet
             /*
-             * FIXME: When sending out an unsolicited APRSD who to send it to?
-             * Should there be a callsign set in config that APRSD is sent to?
-             * For now just send to self... doesn't make sense though.
+             * This is a tracker originated message (not a reply to an incoming).
+             * The message will be sent to the base station if set.
              */
-			bool rx = conf->aprs_msg;
-			packet = aprs_encode_query_answer_aprsd(conf->call,
-                                                 conf->path,
-                                                 rx ? conf->call
-                                                    : conf_sram.aprs.tx.call);
-            if(packet == NULL) {
-              TRACE_WARN("POS  > No free packet objects for "
-                  "APRSD transmission");
-            } else {
-              if(!transmitOnRadio(packet,
-                              conf->radio_conf.freq,
-                              0,
-                              0,
-                              conf->radio_conf.pwr,
-                              conf->radio_conf.mod,
-                              conf->radio_conf.rssi)) {
-                TRACE_ERROR("POS  > Failed to transmit APRSD data");
+			if(conf_sram.aprs.base.enabled) {
+              packet = aprs_encode_query_answer_aprsd(conf->call, /* from */
+                                       conf_sram.aprs.base.path,  /* via */
+                                       conf_sram.aprs.base.call); /* to */
+              if(packet == NULL) {
+                TRACE_WARN("POS  > No free packet objects for "
+                    "or badly formed APRSD message");
+              } else {
+                if(!transmitOnRadio(packet,
+                                conf_sram.aprs.base.radio_conf.freq,
+                                0,
+                                0,
+                                conf_sram.aprs.base.radio_conf.pwr,
+                                conf_sram.aprs.base.radio_conf.mod,
+                                conf_sram.aprs.base.radio_conf.rssi
+                                )) {
+                  TRACE_ERROR("POS  > Failed to transmit APRSD data");
+                }
+                chThdSleep(TIME_S2I(5));
               }
-              chThdSleep(TIME_S2I(5));
-            }
+			} else {
+              TRACE_INFO("POS  > APRSD data not sent - no base station specified");
+			}
 
 			// Telemetry encoding parameter transmission
 			if(conf->tel_enc_cycle != 0 && last_conf_transmission
@@ -128,7 +130,7 @@ THD_FUNCTION(posThread, arg)
  */
 void start_position_thread(thd_pos_conf_t *conf)
 {
-	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(20*1024),
+	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(10*1024),
 	                                   "POS", LOWPRIO, posThread, conf);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread

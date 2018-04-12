@@ -43,16 +43,18 @@ static void processPacket(uint8_t *buf, uint32_t len) {
   /* Output packet as text. */
   char serial_buf[512];
   aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
-  TRACE_INFO("RX   > %s", serial_buf);
+  TRACE_MON("RX   > %s", serial_buf);
 
-  if(pp->num_addr > 0)
+  if(pp->num_addr > 0) {
     aprs_decode_packet(pp);
-  else
+  }
+  else {
     TRACE_INFO("RX   > No addresses in packet - dropped");
+  }
 #if USE_NEW_PKT_TX_ALLOC == TRUE
-    pktReleasePacketBuffer(pp);
+  pktReleasePacketBuffer(pp);
 #else
-    ax25_delete (pp);
+  ax25_delete (pp);
 #endif
 }
 

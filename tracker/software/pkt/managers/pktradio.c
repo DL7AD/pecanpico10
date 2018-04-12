@@ -141,7 +141,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         /* TODO: If decoder is not running error out. */
 
         pktStartDecoder(radio);
-        handler->rx_active = true;
+        //handler->rx_active = true;
         /* Allow transmit requests. */
         pktReleaseRadio(radio);
         break;
@@ -159,7 +159,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       switch(task_object->type) {
             case MOD_AFSK: {
               pktStopDecoder(handler->radio);
-              handler->rx_active = false;
+              //handler->rx_active = false;
               break;
               } /* End case. */
 

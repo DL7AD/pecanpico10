@@ -10,6 +10,8 @@
 #include "debug.h"
 #include "config.h"
 
+bool test_gps_enabled = false;
+
 #if defined(UBLOX_USE_UART)
 // Serial driver configuration for GPS
 const SerialConfig gps_config =
@@ -205,7 +207,7 @@ bool gps_get_fix(gpsFix_t *fix) {
 	}
 
 	/* FIXME: Temporary hack to enable fixed GPS location to be specified. */
-	extern bool test_gps_enabled;
+
 	/* Fake GPS test. */
 	if(test_gps_enabled) {
       // Extract data from message
@@ -217,7 +219,7 @@ bool gps_get_fix(gpsFix_t *fix) {
 
       fix->time.year = 2018;
       fix->time.month = 4;
-      fix->time.day = 7;
+      fix->time.day = 12;
       fix->time.hour = 1;
       fix->time.minute = 2;
       fix->time.second = 3;
@@ -293,7 +295,7 @@ uint8_t gps_disable_nmea_output(void) {
 		0x01, 0x00,							// output protocols (uBx only)
 		0x00, 0x00,							// flags
 		0x00, 0x00,							// reserved
-		0xaa, 0x79							// checksum
+		0xaa, 0x79		                    // CRC place holders
 	};
 
 	gps_calc_ubx_csum(nonmea, sizeof(nonmea));
@@ -333,7 +335,7 @@ uint8_t gps_set_airborne_model(void) {
 		0x00, 0x00, 							// reserved
 		0xc8, 0x00,								// static hold max. distance
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 	// reserved
-		0x1a, 0x28								// checksum
+		0x1a, 0x28								// CRC place holders
 	};
 
     gps_calc_ubx_csum(model6, sizeof(model6));
@@ -364,9 +366,10 @@ uint8_t gps_set_power_save(void) {
 		0x00, 0x00, 0x00, 0x00,				// reserved 7
 		0x00, 0x00, 0x00, 0x00,				// reserved 8,9,10
 		0x00, 0x00, 0x00, 0x00,				// reserved 11
-		0xef, 0x29
+		0xef, 0x29                         // CRC place holders
 	};
 
+    gps_calc_ubx_csum(powersave, sizeof(powersave));
 	gps_transmit_string(powersave, sizeof(powersave));
 	return gps_receive_ack(0x06, 0x3B, 1000);
 }
@@ -379,15 +382,16 @@ uint8_t gps_set_power_save(void) {
 uint8_t gps_power_save(int on) {
 	uint8_t recvmgmt[] = {
 		0xB5, 0x62, 0x06, 0x11, 2, 0,	// UBX-CFG-RXM
-		0x08, 0x01,						// reserved, enable power save mode
-		0x22, 0x92
+		0x08, on ? 0x01 : 0x00,	        // reserved, enable power save mode
+		0x22, 0x92                      // CRC place holders
 	};
-	if (!on) {
+/*	if (!on) {
 		recvmgmt[7] = 0x00;		// continuous mode
 		recvmgmt[8] = 0x21;		// new checksum
 		recvmgmt[9] = 0x91;
-	}
+	}*/
 
+    gps_calc_ubx_csum(recvmgmt, sizeof(recvmgmt));
 	gps_transmit_string(recvmgmt, sizeof(recvmgmt));
 	return gps_receive_ack(0x06, 0x11, 1000);
 }
@@ -446,7 +450,6 @@ void GPS_Deinit(void)
 	TRACE_INFO("GPS  > Switch off");
 	palClearLine(LINE_GPS_EN);
 }
-
 
 /*
  * Calculate checksum and insert into buffer.

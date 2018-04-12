@@ -71,9 +71,11 @@
 #define AX25_PID_SEGMENTATION_FRAGMENT 0x08
 #define AX25_PID_ESCAPE_CHARACTER 0xFF
 
+#define AX25_MAX_APRS_MSG_LEN   67
+
 #define USE_NEW_PKT_TX_ALLOC    TRUE
-#define USE_CCM_FOR_PKT_TX      FALSE
-#define USE_CCM_FOR_PKT_POOL    TRUE
+#define USE_CCM_FOR_PKT_HEAP    TRUE
+#define USE_CCM_FOR_PKT_POOL    FALSE
 
 #include "pkttypes.h"
 

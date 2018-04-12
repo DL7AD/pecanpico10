@@ -17,9 +17,18 @@ int main(void) {
 	DEBUG_INIT();
 	TRACE_INFO("MAIN > Startup");
 
-	pktSystemInit();
+	/* Temporary fix. */
+	//pktConfigureBusGPIO();
 
-    /* Start serial channels. */
+	/*
+	 * Setup buffers in CCM if available.
+	 * Setup IO device arbitration.
+	 */
+	bool pkt = pktSystemInit();
+
+    chDbgAssert(pkt == true, "failed to init packet system");
+
+    /* Start serial channels if selected. */
     pktSerialStart();
 
     /* Create packet radio service. */

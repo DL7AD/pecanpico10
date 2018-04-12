@@ -285,14 +285,6 @@ ssdv_packet_t packetRepeats[16];
 bool reject_pri;
 bool reject_sec;
 
-/*
- * Memory pool integrity checking... will expand to be that
- */
-static struct pool_header *pktSystemCheck(void) {
-  extern guarded_memory_pool_t *ccm_pool;
-  return ((struct pool_header *)(ccm_pool->pool.next))->next;
-}
-
 static bool transmit_image_packet(const uint8_t *image,
                                   uint32_t image_len,
                                   thd_img_conf_t* conf,
@@ -523,49 +515,46 @@ static bool transmit_image_packets(const uint8_t *image,
 /**
   * Analyzes the image for JPEG errors. Returns true if the image is error free.
   */
-static bool analyze_image(uint8_t *image, uint32_t image_len)
-{
-	return true;
-	#if !OV5640_USE_DMA_DBM
-	if(image_len >= 65535)
-	{
-		TRACE_ERROR("CAM  > Camera has %d bytes allocated but DMA DBM not activated", image_len);
-		TRACE_ERROR("CAM  > DMA can only use 65535 bytes only");
-		image_len = 65535;
-	}
-	#endif
+static bool analyze_image(uint8_t *image, uint32_t image_len) {
 
-	ssdv_t ssdv;
-	uint8_t pkt[SSDV_PKT_SIZE];
-	uint8_t *b;
-	uint32_t bi = 0;
-	uint16_t i = 0;
-	uint8_t c = SSDV_OK;
+#if !OV5640_USE_DMA_DBM
+  if(image_len >= 65535) {
+    TRACE_ERROR("CAM  > Camera has %d bytes allocated but DMA DBM not activated", image_len);
+    TRACE_ERROR("CAM  > DMA can only use 65535 bytes only");
+    image_len = 65535;
+  }
+#endif
 
-	ssdv_enc_init(&ssdv, SSDV_TYPE_NOFEC, "", 0, 7);
-	ssdv_enc_set_buffer(&ssdv, pkt);
+  ssdv_t ssdv;
+  uint8_t pkt[SSDV_PKT_SIZE];
+  uint8_t *b;
+  uint32_t bi = 0;
+  uint32_t i = 0;
+  uint8_t c = SSDV_OK;
 
-	while(true) {
-		while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME) {
-			b = &image[bi++];
-			if(bi > image_len) {
-				TRACE_ERROR("CAM  > Error in image (Premature end of file %d)", i);
-				return false;
-			}
-			ssdv_enc_feed(&ssdv, b, 1);
-		}
+  ssdv_enc_init(&ssdv, SSDV_TYPE_NOFEC, "", 0, 7);
+  ssdv_enc_set_buffer(&ssdv, pkt);
 
-		if(c == SSDV_EOI) // End of image
-			return true;
+  while(++i < image_len) {
+    while((c = ssdv_enc_get_packet(&ssdv)) == SSDV_FEED_ME) {
+      b = &image[bi++];
+      if(bi > image_len) {
+        TRACE_ERROR("CAM  > Error in image (Premature end of file %d)", i);
+        return false;
+      }
+      ssdv_enc_feed(&ssdv, b, 1);
+    }
 
-		if(c != SSDV_OK) {
-			TRACE_ERROR("CAM  > Error in image (ssdv_enc_get_packet failed: %d %d)", c, i);
-			return false;
-		}
+    if(c == SSDV_EOI) // End of image
+      return true;
 
-		i++;
-		chThdSleep(TIME_MS2I(5));
-	}
+    if(c != SSDV_OK) {
+      TRACE_ERROR("CAM  > Error in image (ssdv_enc_get_packet failed: %d %d)", c, i);
+      return false;
+    }
+    chThdSleep(TIME_MS2I(5));
+  } /* End while. */
+  return false;
 }
 
 static bool camInitialized = false;
@@ -590,23 +579,26 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 
 		uint8_t cntr = 5;
 		bool jpegValid;
+        // Init camera
+        if(!camInitialized) {
+            OV5640_init();
+            camInitialized = true;
+        }
 		do {
 			// Init camera
-			if(!camInitialized) {
+/*			if(!camInitialized) {
 				OV5640_init();
 				camInitialized = true;
-			}
-			  TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
+			}*/
 			// Sample data from pseudo DCMI through DMA into RAM
 			size_sampled = OV5640_Snapshot2RAM(buffer, size, res);
-            TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
             if(size_sampled == 0)
                 continue;
 			// Switch off camera
-			if(!conf_sram.keep_cam_switched_on) {
+/*			if(!conf_sram.keep_cam_switched_on) {
 				OV5640_deinit();
 				camInitialized = false;
-			}
+			}*/
 
 			// Validate JPEG image
 			if(enableJpegValidation)
@@ -623,16 +615,21 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 
 		camInitialized = false;
 		TRACE_ERROR("IMG  > No camera found");
-
 	}
-
+    // Switch off camera
+    if(!conf_sram.keep_cam_switched_on) {
+        OV5640_deinit();
+        camInitialized = false;
+    }
 	// Unlock camera
 	TRACE_INFO("IMG  > Unlock camera");
 	chMtxUnlock(&camera_mtx);
 
 	return size_sampled;
 }
-
+/*
+ *
+ */
 THD_FUNCTION(imgThread, arg) {
   thd_img_conf_t* conf = (thd_img_conf_t*)arg;
 
@@ -645,70 +642,93 @@ THD_FUNCTION(imgThread, arg) {
   sysinterval_t time = chVTGetSystemTime();
   while(true) {
     TRACE_INFO("IMG  > Do module IMAGE cycle");
-    if(!p_sleep(&conf->thread_conf.sleep_conf)) {
-      // Take picture
+    if(p_sleep(&conf->thread_conf.sleep_conf)) {
+      /* Re-check every minute. */
+      chThdSleep(TIME_S2I(60));
+      continue;
+    }
 
-      /* Create image capture buffer. */
-      uint8_t *buffer = chHeapAllocAligned(NULL, conf->buf_size,
-                                           DMA_FIFO_BURST_ALIGN);
-      if(buffer != NULL) {
-        uint32_t size_sampled = takePicture(buffer, conf->buf_size,
-                                            conf->res, true);
-        gimage_id++; // Increase SSDV image counter
+    /* Create image capture buffer. */
+    uint8_t *buffer = chHeapAllocAligned(NULL, conf->buf_size,
+                                         DMA_FIFO_BURST_ALIGN);
+    if(buffer == NULL) {
+      /* Could not get a capture buffer. */
+      TRACE_WARN("IMG  > Unable to get capture buffer for image %i",
+                 gimage_id);
+      /* Allow time for other threads. */
+      chThdSleep(TIME_MS2I(10));
+      /* Try again at next run time. */
+      time = waitForTrigger(time, conf->thread_conf.cycle);
+      continue;
+    }
+    /* Take picture. */
+    uint32_t size_sampled = takePicture(buffer, conf->buf_size,
+                                        conf->res, true);
+    /* Nothing captured? */
+    if(size_sampled == 0) {
+      TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d",
+                 gimage_id);
+      if(!transmit_image_packets(noCameraFound, sizeof(noCameraFound),
+                                 conf, (uint8_t)(gimage_id))) {
+        TRACE_ERROR("IMG  > Error in encoding dummy image %i"
+            " - discarded", gimage_id);
+      }
+      /* Return the buffer to the heap. */
+      chHeapFree(buffer);
+      /* Allow time for other threads. */
+      chThdSleep(TIME_MS2I(10));
+      /* Try again at next run time. */
+      time = waitForTrigger(time, conf->thread_conf.cycle);
+      continue;
+    }
 
-        // Radio transmission
-        if(size_sampled) {
+    /* Find SOI in image buffer. */
+    uint32_t soi;
+    bool soi_found = false;
+    while(soi < (size_sampled - 1)) {
+      if(buffer[soi] == 0xFF && buffer[soi + 1] == 0xD8) {
+        /* Found an SOI. */
+        soi_found = true;
+        TRACE_INFO("IMG  > SOI at index %i of buffer", soi);
+        /* Write to SD if present. */
+        if(initSD()) {
+          char filename[32];
           // Write picture to SD card
           TRACE_INFO("IMG  > Save image to SD card");
-          if(initSD())
-          {
-            char filename[32];
-            chsnprintf(filename, sizeof(filename), "r%02xi%04x.jpg",
-                       getLastDataPoint()->reset % 0xFF,
-                       (gimage_id-1) % 0xFFFF);
 
-            // Find SOI
-            uint32_t soi;
-            for(soi=0; soi<conf->buf_size; soi++) {
-              if(buffer[soi] == 0xFF && buffer[soi+1] == 0xD8)
-                break;
-            }
-            TRACE_DEBUG("IMG  > SOI at byte %d");
-            writeBufferToFile(filename, &buffer[soi], size_sampled-soi);
-          }
+          chsnprintf(filename, sizeof(filename), "r%02xi%04x.jpg",
+                     getLastDataPoint()->reset % 0xFF,
+                     (gimage_id - 1) % 0xFFFF);
 
-          if(conf->radio_conf.mod == MOD_2FSK && conf->radio_conf.redundantTx) {
-            TRACE_WARN("IMG  > Redundant TX disables 2FSK burst send mode");
-          }
-          // Encode and transmit picture
-          TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", gimage_id-1);
-          if(!transmit_image_packets(buffer, size_sampled, conf,
-                                     (uint8_t)(gimage_id-1))) {
-            TRACE_ERROR("IMG  > Error in encoding snapshot image"
-                " %i - discarded", gimage_id-1);
-            /* Allow time for output queue to be processed. */
-            chThdSleep(TIME_S2I(10));
-          }
-        } else { // No camera found or capture failed after retries.
-          TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d",
-                     gimage_id-1);
-          if(!transmit_image_packets(noCameraFound, sizeof(noCameraFound),
-                                     conf, (uint8_t)(gimage_id-1))) {
-            TRACE_ERROR("IMG  > Error in encoding dummy image %i"
-                " - discarded", gimage_id-1);
-            /* Allow time for output queue to be processed. */
-            chThdSleep(TIME_S2I(10));
-          }
+          writeBufferToFile(filename, &buffer[soi], size_sampled - soi);
+        } else {
+          TRACE_INFO("IMG  > SD card not present");
+        } /* End initSD() */
+
+        /* Transmit on radio. */
+        if(conf->radio_conf.mod == MOD_2FSK && conf->radio_conf.redundantTx) {
+          TRACE_WARN("IMG  > Redundant TX disables 2FSK burst send mode");
         }
-        /* Return the buffer to the heap. */
-        chHeapFree(buffer);
-      } else {
-        /* Could not get a capture buffer. */
-        TRACE_WARN("IMG  > Unable to get capture buffer for image %i",
-                   gimage_id-1);
-      }
+
+        /* Encode and transmit picture. */
+        TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", gimage_id);
+        if(!transmit_image_packets(buffer, size_sampled, conf,
+                                   (uint8_t)(gimage_id))) {
+          TRACE_ERROR("IMG  > Error in encoding snapshot image"
+              " %i - discarded", gimage_id);
+        }
+      gimage_id++;
+      break;
+      } /* End if SOI in buffer. */
+    } /* End while soi < size_sampled - 1. */
+    if(!soi_found) { /* No SOI found. */
+    TRACE_INFO("IMG  > No SOI found in image");
     }
+    /* Return the buffer to the heap. */
+    chHeapFree(buffer);
+    /* Allow minimum time for other threads. */
     chThdSleep(TIME_MS2I(10));
+    /* Update next run time. */
     time = waitForTrigger(time, conf->thread_conf.cycle);
   }
 }

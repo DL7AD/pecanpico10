@@ -163,6 +163,7 @@ AFSKDemodDriver AFSKD1;
  *
  * @api
  */
+/* TODO: Move this into rxpwm.c ?? */
 void pktEnablePWM(AFSKDemodDriver *myDriver) {
 
   chDbgAssert(myDriver->icudriver != NULL, "no ICU driver");
@@ -189,6 +190,7 @@ void pktEnablePWM(AFSKDemodDriver *myDriver) {
  * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
  * @api
  */
+/* TODO: Move this into rxpwm.c ?? */
 void pktDisablePWM(AFSKDemodDriver *myDriver) {
 
   chDbgAssert(myDriver->icudriver != NULL, "no ICU driver");

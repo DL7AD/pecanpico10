@@ -119,6 +119,7 @@ extern "C" {
 #endif
   void pktConfigSerialDiag(void);
   void pktConfigSerialPkt(void);
+  void pktConfigureBusGPIO(void);
   void pktSetLineModeICU(void);
   void pktSerialStart(void);
   void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);

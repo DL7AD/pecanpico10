@@ -113,6 +113,8 @@ extern "C" {
   bool pktLLDsendPacket(radio_task_object_t *rto);
   void pktScheduleSendComplete(radio_task_object_t *rto,
                                 thread_t *thread);
+  void pktStartDecoder(radio_unit_t radio);
+  void pktStopDecoder(radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif
