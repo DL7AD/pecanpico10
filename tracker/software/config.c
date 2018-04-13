@@ -55,8 +55,8 @@ const conf_t conf_flash_default = {
 	// Primary image transmission thread
 	.img_pri = {
 		.thread_conf = {
-			.active			= false,
-			.cycle			= TIME_S2I(60*30),
+			.active			= true,
+			.cycle			= TIME_S2I(60*1),
 			.init_delay		= TIME_S2I(60*1),
 			.send_spacing	= TIME_S2I(3)
 		},

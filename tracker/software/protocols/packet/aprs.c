@@ -175,19 +175,19 @@ const conf_command_t command_list[] = {
 void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 {
 	// Decode packet
-	char rec[256];
+	char rec[127];
 	unsigned char *pinfo;
-	ax25_format_addrs(pp, rec);
+	ax25_format_addrs(pp, rec, sizeof(rec));
 	if(ax25_get_info(pp, &pinfo) == 0)
 	  return;
 
     // Print decoded packet
     uint32_t out = chsnprintf(buf, len, "%s", rec);
-    for(uint32_t i=0; pinfo[i]; i++) {
+    for(uint32_t i = 0; pinfo[i]; i++) {
         if(pinfo[i] < 32 || pinfo[i] > 126) {
-            out += chsnprintf(&buf[out], len-out, "<0x%02x>", pinfo[i]);
+            out += chsnprintf(&buf[out], len - out, "<0x%02x>", pinfo[i]);
         } else {
-            out += chsnprintf(&buf[out], len-out, "%c", pinfo[i]);
+            out += chsnprintf(&buf[out], len - out, "%c", pinfo[i]);
         }
     }
 }
@@ -335,11 +335,11 @@ packet_t aprs_encode_query_answer_aprsd(const char *callsign,
 
 static bool aprs_decode_message(packet_t pp) {
 	// Get Info field
-	char src[256];
+	char src[127];
 	unsigned char *pinfo;
 	if(ax25_get_info(pp, &pinfo) == 0)
 	  return false;
-	ax25_format_addrs(pp, src);
+	ax25_format_addrs(pp, src, sizeof(src));
 
 	// Decode destination callsign
 	char dest[AX25_MAX_ADDR_LEN];

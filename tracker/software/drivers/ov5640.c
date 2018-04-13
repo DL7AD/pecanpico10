@@ -776,7 +776,7 @@ inline void dma_start(const stm32_dma_stream_t *dmastp) {
 
 /*
  * Stop DMA release stream and return count remaining.
- * Note that any DMA FIFO transfer will complete.
+ * Note that any DMA FIFO transfer in progress will complete.
  * The Chibios DMAV2 driver waits for EN to clear before proceeding.
  */
 inline uint16_t dma_stop(const stm32_dma_stream_t *dmastp) {
@@ -788,6 +788,9 @@ inline uint16_t dma_stop(const stm32_dma_stream_t *dmastp) {
 
 #if OV5640_USE_DMA_DBM == TRUE
 
+/*
+ *
+ */
 static void dma_interrupt(void *p, uint32_t flags) {
   dma_capture_t *dma_control = p;
 
@@ -983,11 +986,13 @@ void vsync_cb(void *arg) {
  */
 msg_t OV5640_LockResourcesForCapture(void) {
   I2C_Lock();
+
   msg_t msg = pktAcquireRadio(PKT_RADIO_1, TIME_INFINITE);
   if(msg != MSG_OK) {
     return msg;
   }
-  pktPauseDecoder(PKT_RADIO_1);
+  pktPauseReception(PKT_RADIO_1);
+  //chMtxLock(&trace_mtx);
   return MSG_OK;
   /* FIXME: USB has to be locked? */
 }
@@ -996,10 +1001,11 @@ msg_t OV5640_LockResourcesForCapture(void) {
  * Unlock competing drivers.
  */
 void OV5640_UnlockResourcesForCapture(void) {
-  I2C_Unlock();
-  pktResumeDecoder(PKT_RADIO_1);
-  pktReleaseRadio(PKT_RADIO_1);
   /* FIXME: USB has to be unlocked? */
+  //chMtxUnlock(&trace_mtx);
+  I2C_Unlock();
+  pktResumeReception(PKT_RADIO_1);
+  pktReleaseRadio(PKT_RADIO_1);
 }
 
 uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
@@ -1010,6 +1016,8 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	 *  In makefile add entry to UDEFS:
 	 *   UDEFS = -DSTM32_DMA_REQUIRED
 	 */
+
+    /* WARNING: Do not use TRACE between locking and unlocking. */
 	if(OV5640_LockResourcesForCapture() != MSG_OK) {
 	  /* Unable to lock resources. */
 	  return 0;
@@ -1058,6 +1066,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
      */
 
     if (((uint32_t)buffer % DMA_FIFO_BURST_ALIGN) != 0) {
+      OV5640_UnlockResourcesForCapture();
       TRACE_ERROR("CAM  > Buffer not allocated on DMA burst boundary");
       return 0;
     }
@@ -1075,6 +1084,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
      */
     dma_control.dbm_index = (size / DMA_SEGMENT_SIZE);
     if(dma_control.dbm_index < 2) {
+      OV5640_UnlockResourcesForCapture();
       TRACE_ERROR("CAM  > Capture buffer less than 2 DMA segment segments");
       return 0;
     }
@@ -1130,17 +1140,16 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	do {
 		chThdSleep(TIME_MS2I(10));
 	} while(!dma_control.capture && !dma_control.dma_error && --timout);
+
     palDisableLineEvent(LINE_CAM_VSYNC);
+    OV5640_UnlockResourcesForCapture();
+
 	if(!timout) {
-		TRACE_ERROR("CAM  > Image sampling timeout");
-
-		dma_control.dma_count = dma_stop(dma_control.dmastp);
-		dma_control.timer->DIER &= ~TIM_DIER_CC1DE;
-		dma_control.dma_error = true;
+      TRACE_ERROR("CAM  > Image sampling timeout");
+      dma_control.dma_count = dma_stop(dma_control.dmastp);
+      dma_control.timer->DIER &= ~TIM_DIER_CC1DE;
+      dma_control.dma_error = true;
 	}
-
-    // Capture done, unlock competing processes.
-	OV5640_UnlockResourcesForCapture();
 
 	if(dma_control.dma_error) {
 		if(dma_control.dma_flags & STM32_DMA_ISR_HTIF) {
@@ -1352,7 +1361,8 @@ bool OV5640_isAvailable(void) {
 
   uint8_t val, val2;
   bool ret;
-  if(I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300A, &val) && I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300B, &val2)) {
+  if(I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300A, &val)
+      && I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300B, &val2)) {
       ret = val == 0x56 && val2 == 0x40;
   } else {
       error = 0x1;

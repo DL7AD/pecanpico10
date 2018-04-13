@@ -400,7 +400,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 	char atemp[AX25_MAX_ADDR_LEN];
 
 	char info_part[AX25_MAX_INFO_LEN+1];
-	int info_len;
+	uint16_t info_len;
 
 	packet_t this_p;
 	msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
@@ -624,7 +624,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 #if AX25MEMDEBUG
 packet_t ax25_from_frame_debug (unsigned char *fbuf, int flen, char *src_file, int src_line)
 #else
-packet_t ax25_from_frame (unsigned char *fbuf, int flen)
+packet_t ax25_from_frame (unsigned char *fbuf, uint16_t flen)
 #endif
 {
 	packet_t this_p;
@@ -648,7 +648,7 @@ packet_t ax25_from_frame (unsigned char *fbuf, int flen)
  */
 
 
-	if (flen < AX25_MIN_PACKET_LEN || flen > AX25_MAX_PACKET_LEN)
+	if (AX25_MIN_PACKET_LEN > flen || flen >= AX25_MAX_PACKET_LEN)
 	{
 	  TRACE_ERROR ("PKT  > Frame length %d not in allowable range of %d to %d.", flen, AX25_MIN_PACKET_LEN, AX25_MAX_PACKET_LEN);
 	  return (NULL);
@@ -1290,9 +1290,12 @@ void ax25_get_addr_with_ssid (packet_t this_p, int n, char *station)
 	  return;
 	}
 
-	if (n >= this_p->num_addr) {
-	  TRACE_ERROR ("PKT  > Internal error detected in ax25_get_addr_with_ssid, %s, line %d.", __FILE__, __LINE__);
-	  TRACE_ERROR ("PKT  > Address index, %d, is too large for number of addresses, %d.", n, this_p->num_addr);
+	if (n >= this_p->num_addr || n > AX25_MAX_ADDRS) {
+	  TRACE_ERROR ("PKT  > Internal error detected "
+	      "in ax25_get_addr_with_ssid, %s, line %d.", __FILE__, __LINE__);
+	  TRACE_ERROR ("PKT  > Address index, %d, is too large or "
+	      "exceeds number of addresses in this packet, %d.",
+	      n, this_p->num_addr);
 	  strlcpy (station, "??????", 10);
 	  return;
 	}
@@ -1645,9 +1648,9 @@ int ax25_get_rr (packet_t this_p, int n)
  *
  *------------------------------------------------------------------------------*/
 
-int ax25_get_info (packet_t this_p, unsigned char **paddr) {
+uint16_t ax25_get_info (packet_t this_p, unsigned char **paddr) {
 	unsigned char *info_ptr;
-	int info_len;
+	uint16_t info_len;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
 		TRACE_ERROR("PKT  > Buffer overflow");
@@ -1906,7 +1909,7 @@ void ax25_set_modulo (packet_t this_p, int modulo)
 
 // TODO: max len for result.  buffer overflow?
 
-void ax25_format_addrs (packet_t this_p, char *result)
+void ax25_format_addrs (packet_t this_p, char *result, int8_t size)
 {
 	int i;
 	int heard;
@@ -1926,24 +1929,40 @@ void ax25_format_addrs (packet_t this_p, char *result)
 	  return;
 	}
 
+	/* TODO: Make a safe strcat function. */
 	ax25_get_addr_with_ssid (this_p, AX25_SOURCE, stemp);
+
+	if(size - (strlen(stemp) + 1) < 2)
+	  return;
+	size -= (strlen(stemp) + 1);
 	strcat (result, stemp);
 	strcat (result, ">");
 
 	ax25_get_addr_with_ssid (this_p, AX25_DESTINATION, stemp);
+    if((size - strlen(stemp)) < 2)
+      return;
+    size -= strlen(stemp);
 	strcat (result, stemp);
 
 	heard = ax25_get_heard(this_p);
 
 	for (i=(int)AX25_REPEATER_1; i<this_p->num_addr; i++) {
 	  ax25_get_addr_with_ssid (this_p, i, stemp);
+	  if(size - (strlen(stemp) + 1) < 2)
+	      return;
+	    size -= (strlen(stemp) + 1);
 	  strcat (result, ",");
 	  strcat (result, stemp);
 	  if (i == heard) {
+	    if(size < 2)
+	      return;
+	    size--;
 	    strcat (result, "*");
 	  }
 	}
-	
+    if(size < 2)
+      return;
+    size--;
 	strcat (result, ":");
 }
 

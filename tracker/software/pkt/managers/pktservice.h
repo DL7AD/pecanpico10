@@ -33,7 +33,8 @@ typedef enum packetHandlerStates {
   PACKET_IDLE = 0,
   PACKET_READY,
   PACKET_OPEN,
-  PACKET_RUN,
+  PACKET_DECODE,
+  PACKET_PAUSE,
   PACKET_STOP,
   PACKET_CLOSE,
   PACKET_INVALID
@@ -100,7 +101,7 @@ typedef struct packetHandlerData {
   /**
    * @brief Radio is running a continuous receive.
    */
-  bool                      rx_active;
+  //bool                      rx_active;
 
   /**
    * @brief Radio transmitter operating parameters.
@@ -206,12 +207,12 @@ extern "C" {
                                      encoding_type_t encoding,
                                      radio_freq_t frequency,
                                      channel_hz_t ch_step);
-  msg_t pktStartDataReception(radio_unit_t radio,
+  msg_t pktEnableDataReception(radio_unit_t radio,
                               radio_ch_t channel,
                               radio_squelch_t sq,
                               pkt_buffer_cb_t cb);
   void pktStartDecoder(radio_unit_t radio);
-  msg_t pktStopDataReception(radio_unit_t radio);
+  msg_t pktDisableDataReception(radio_unit_t radio);
   void pktStopDecoder(radio_unit_t radio);
   msg_t pktCloseRadioReceive(radio_unit_t radio);
   bool  pktStoreBufferData(pkt_data_object_t *buffer, ax25char_t data);
@@ -519,7 +520,6 @@ static inline packet_state_t pktGetServiceState(radio_unit_t radio) {
   return handler->state;
 }
 
-
 /**
  * @brief   Tests if transmit is available for the radio.
  *
@@ -534,6 +534,38 @@ static inline packet_state_t pktGetServiceState(radio_unit_t radio) {
 static inline bool pktIsTransmitOpen(radio_unit_t radio) {
   packet_state_t state = pktGetServiceState(radio);
   return !(state == PACKET_IDLE || state == PACKET_INVALID);
+}
+
+/**
+ * @brief   Tests if receive is active on the radio.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @return        Result.
+ * @retval true   If receive is active.
+ * @retval false  If receive is paused.
+ *
+ * @api
+ */
+static inline bool pktIsReceiveActive(radio_unit_t radio) {
+  packet_state_t state = pktGetServiceState(radio);
+  return (state == PACKET_DECODE);
+}
+
+/**
+ * @brief   Tests if receive is paused on the radio.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @return        Result.
+ * @retval true   If receive is paused.
+ * @retval false  If receive is not paused.
+ *
+ * @api
+ */
+static inline bool pktIsReceivePaused(radio_unit_t radio) {
+  packet_state_t state = pktGetServiceState(radio);
+  return (state == PACKET_PAUSE);
 }
 
 #endif /* PKT_CHANNELS_PKTSERVICE_H_ */
