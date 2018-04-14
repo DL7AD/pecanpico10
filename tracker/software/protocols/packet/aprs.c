@@ -362,21 +362,24 @@ static bool aprs_decode_message(packet_t pp) {
 		}
 	}
 
-	// Try to find out if this message is meant for us
+	/* Check if this message is meant for us. */
 	bool pos_pri = !strcmp(conf_sram.pos_pri.call, dest)
 	    && (conf_sram.pos_pri.aprs_msg)
 	    && (conf_sram.pos_pri.thread_conf.active);
     bool pos_sec = !strcmp(conf_sram.pos_sec.call, dest)
         && (conf_sram.pos_sec.aprs_msg)
         && (conf_sram.pos_sec.thread_conf.active);
-    bool aprs = !strcmp(conf_sram.aprs.rx.call, dest);
+    bool aprs_rx = !strcmp(conf_sram.aprs.rx.call, dest)
+        && (conf_sram.aprs.thread_conf.active);
+    bool aprs_tx = !strcmp(conf_sram.aprs.tx.call, dest)
+        && (conf_sram.aprs.thread_conf.active)
+        && (conf_sram.aprs.dig_active);
 
-	if((pinfo[10] == ':') && (pos_pri || pos_sec || aprs)) {
+	if((pinfo[10] == ':') && (pos_pri || pos_sec || aprs_rx || aprs_tx)) {
 		char msg_id_rx[8];
 		memset(msg_id_rx, 0, sizeof(msg_id_rx));
 
 		// Cut off control chars
-		/* FIXME: Limit processing to size of incoming message. */
 		for(uint16_t i = 11; pinfo[i] != 0 && i < AX25_MAX_APRS_MSG_LEN + 11; i++) {
 		  /* FIXME: Trim trailing spaces before {. */
 			if(pinfo[i] == '{') {

@@ -43,12 +43,11 @@ void I2C_Unlock(void) {
   i2cReleaseBus(I2C_DRIVER);
 }
 
-void pi2cInit(void)
-{
+/*void pi2cInit(void) {
 	TRACE_INFO("I2C  > Initialize I2C Pins");
 	palSetLineMode(LINE_I2C_SDA, PAL_MODE_ALTERNATE(4) | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_OPENDRAIN); // SDA
 	palSetLineMode(LINE_I2C_SCL, PAL_MODE_ALTERNATE(4) | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_OPENDRAIN); // SCL
-}
+}*/
 
 bool I2C_write8(uint8_t address, uint8_t reg, uint8_t value)
 {

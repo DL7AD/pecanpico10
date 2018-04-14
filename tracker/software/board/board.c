@@ -238,8 +238,7 @@ bool sdc_lld_is_write_protected(SDCDriver *sdcp) {
 bool mmc_lld_is_card_inserted(MMCDriver *mmcp) {
 
   (void)mmcp;
-  /* TODO: Fill the implementation.*/
-  return true;
+  return   palReadLine(LINE_SD_DET);
 }
 
 /**

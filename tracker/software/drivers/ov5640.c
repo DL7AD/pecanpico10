@@ -687,13 +687,6 @@ static const struct regval_list OV5640_QSXGA2XGA[]  =
 	{0xffff, 0xff},	
 };
 
-//static bool capture_finished;
-//static bool dma_error;
-//static uint8_t *buff_ptr;
-//static uint32_t dma_flags;
-
-//static uint8_t* dma_buffer;
-
 static resolution_t last_res = RES_NONE;
 
 typedef struct dmaControl {

@@ -18,7 +18,6 @@ sysinterval_t watchdog_tracking;
 void start_essential_threads(void)
 {
 	init_watchdog();				// Init watchdog
-	pi2cInit();						// Initialize I2C
 	pac1720_init();					// Initialize current measurement
 	chThdSleep(TIME_MS2I(300));		// Wait for tracking manager to initialize
 }

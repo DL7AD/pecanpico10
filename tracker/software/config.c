@@ -27,7 +27,7 @@ const conf_t conf_flash_default = {
 		.symbol				= SYM_DIGIPEATER,
 		.aprs_msg           = true,
 
-		.tel_enc_cycle		= TIME_S2I(10800),
+		.tel_enc_cycle		= TIME_S2I(10800)
 	},
 
 	// Secondary position transmission thread
@@ -41,7 +41,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
 			.mod			= MOD_AFSK,
-            .rssi           = 0x4F,
+            .rssi           = 0x4F
 		},
 
 		.call				= "DL7AD-14",
@@ -49,16 +49,16 @@ const conf_t conf_flash_default = {
 		.symbol				= SYM_BALLOON,
 		.aprs_msg           = true,
 
-		.tel_enc_cycle		= TIME_S2I(10800),
+		.tel_enc_cycle		= TIME_S2I(10800)
 	},
 
 	// Primary image transmission thread
 	.img_pri = {
 		.thread_conf = {
 			.active			= true,
-			.cycle			= TIME_S2I(60*1),
+			.cycle			= TIME_S2I(60*30),
 			.init_delay		= TIME_S2I(60*1),
-			.send_spacing	= TIME_S2I(3)
+			.send_spacing	= TIME_S2I(10)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -88,7 +88,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
 			.freq			= 145175000,
 			.mod			= MOD_AFSK,
-            .rssi           = 0x4F,
+            .rssi           = 0x4F
 		},
 
 		.call				= "VK2GJ-15",
@@ -110,7 +110,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
 			.mod			= MOD_AFSK,
-            .rssi           = 0x4F,
+            .rssi           = 0x4F
 		},
 
 		.call				= "VK2GJ-13",
@@ -130,7 +130,7 @@ const conf_t conf_flash_default = {
               .mod			= MOD_AFSK,
               .rssi         = 0x3F
           },
-           .call            = "VK2GJ-4",
+           .call            = "VK2GJ-4"
       },
       .tx = { // The transmit identity for digipeat transmit and messages responses
           .radio_conf = {
@@ -141,7 +141,7 @@ const conf_t conf_flash_default = {
           },
             .call           = "VK2GJ-5",
             .path           = "WIDE2-1",
-            .symbol         = SYM_DIGIPEATER,
+            .symbol         = SYM_DIGIPEATER
       },
       .base = { // The base station parameters - how and where tracker originated messages are sent
              .enabled       = true,

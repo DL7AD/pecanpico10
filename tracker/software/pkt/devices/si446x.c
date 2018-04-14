@@ -121,7 +121,7 @@ static void Si446x_init(radio_unit_t radio) {
 
   chDbgAssert(handler != NULL, "invalid radio ID");
 
-  pktConfigureRadioGPIO(radio);
+  pktPowerUpRadio(radio);
 
     // Power up (send oscillator type)
     const uint8_t x3 = (Si446x_CCLK >> 24) & 0x0FF;
@@ -509,27 +509,37 @@ void Si446x_shutdown(radio_unit_t radio) {
 
   chDbgAssert(handler != NULL, "invalid radio ID");
 
-  pktDeconfigureRadioGPIO(radio);
+  pktPowerDownRadio(radio);
   handler->radio_init = false;
 }
 
 /* ====================================================================== Radio TX/RX ======================================================================= */
-
-static bool Si446x_isRadioInBand(radio_freq_t freq) {
-  return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
-}
-
-static bool Si446x_getLatchedCCA(radio_unit_t radio, uint8_t ms) {
-  /* TODO: Hardware mapping. */
+/*
+static bool Si446x_isRadioInBand(radio_unit_t radio, radio_freq_t freq) {
+   TODO: Hardware mapping of radio.
   (void)radio;
-    uint16_t cca = 0;
-    for(uint16_t i=0; i<ms*10; i++) {
-        cca += Si446x_getCCA();
-        /* FIXME: Using 5KHz systick lowest resolution is 200uS. */
-        chThdSleep(TIME_US2I(100));
-    }
-    TRACE_INFO("SI   > CCA=%03d RX=%d", cca, cca > ms/10);
-    return cca > ms; // Max. 1 spike per ms
+  return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
+}*/
+
+/*
+ * Get CCA over measurement interval.
+ * Algorithm counts CCA pulses per millisecond (in systick time slices).
+ * If more than one pulse per millisecond is counted then CCA is not true.
+ */
+static bool Si446x_checkCCAthreshold(radio_unit_t radio, uint8_t ms) {
+  /* TODO: Hardware mapping of radio. */
+  (void)radio;
+  uint16_t cca = 0;
+  /* Tick per millisecond. */
+  //sysinterval_t uslice = TIME_MS2I(1);
+  /* Measure sliced CCA instances in period. */
+  for(uint16_t i = 0; i < (ms * TIME_MS2I(1)); i++) {
+    cca += Si446x_getCCA();
+    /* Sleep one tick. */
+    chThdSleep(1);
+  }
+  /* Return result. */
+  return cca > ms;
 }
 
 /*
@@ -542,70 +552,76 @@ static bool Si446x_transmit(radio_unit_t radio,
                             radio_pwr_t power,
                             uint16_t size,
                             radio_squelch_t rssi,
-                            sysinterval_t sql_timeout) {
+                            sysinterval_t cca_timeout) {
 
   radio_freq_t op_freq = pktComputeOperatingFrequency(freq, step, chan);
 
-    if(!Si446x_isRadioInBand(op_freq)) {
-      TRACE_ERROR("SI   > Frequency out of range");
-      TRACE_ERROR("SI   > abort transmission");
-      return false;
-    }
+  if(!pktIsRadioInBand(radio, op_freq)) {
+    TRACE_ERROR("SI   > Frequency out of range");
+    TRACE_ERROR("SI   > abort transmission");
+    return false;
+  }
 
-    // Switch to ready state
-    if(Si446x_getState(radio) == Si446x_STATE_RX) {
-      TRACE_INFO("SI   > Switch Si446x to ready state");
-      Si446x_setReadyState(radio);
-      chThdSleep(TIME_MS2I(1));
-    }
-
-    /* Check for blind send request. */
-    if(rssi != PKT_SI446X_NO_CCA_RSSI) {
-      Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
-      /* Set band parameters. */
-      Si446x_setBandParameters(radio, freq, step);     // Set frequency
-
-      /* Listen on the TX frequency. */
-      Si446x_setRXState(radio, chan);
-      while(Si446x_getState(radio) != Si446x_STATE_RX) {
-        chThdSleep(TIME_MS2I(1));
-      }
-/*
-      // Wait until nobody is transmitting (until timeout)
-
-      if(Si446x_getState(radio) != Si446x_STATE_RX
-          || Si446x_getLatchedCCA(radio, 50)) {
-*/
-
-          TRACE_INFO( "SI   > Wait for clear channel on %d.%03d MHz",
-                      op_freq/1000000, (op_freq%1000000)/1000);
-
-          /* FIXME: Fix timeout. Using 5KHz systick lowest resolution is 200uS. */
-          sysinterval_t t0 = chVTGetSystemTime();
-          while((Si446x_getState(radio) != Si446x_STATE_RX
-              || Si446x_getLatchedCCA(radio, 50))
-              && chVTIsSystemTimeWithinX(t0, t0 + sql_timeout)) {
-            chThdSleep(TIME_US2I(100));
-          }
-      }
- /*   }*/
-
-    // Transmit
-    TRACE_INFO("SI   > Tune Si446x to %d.%03d MHz (TX)",
-               op_freq/1000000, (op_freq%1000000)/1000);
+  /* Switch to ready state if receive is active. */
+  if(Si446x_getState(radio) == Si446x_STATE_RX) {
+    TRACE_INFO("SI   > Switch Si446x to ready state");
     Si446x_setReadyState(radio);
-    while(Si446x_getState(radio) != Si446x_STATE_READY) {
+    chThdSleep(TIME_MS2I(1));
+  }
+
+  /* Check for blind send request. */
+  if(rssi != PKT_SI446X_NO_CCA_RSSI) {
+    Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
+    /* Set band parameters. */
+    Si446x_setBandParameters(radio, freq, step);
+
+    /* Listen on the TX frequency. */
+    Si446x_setRXState(radio, chan);
+    /* Wait for RX state. */
+    while(Si446x_getState(radio) != Si446x_STATE_RX) {
       chThdSleep(TIME_MS2I(1));
     }
-    Si446x_setPowerLevel(power);        // Set power level
-    Si446x_setTXState(radio, chan, size);
-
-    // Wait until transceiver enters transmission state
-    /* TODO: Make a function to handle timeout on fail to reach state. */
-    while(Si446x_getState(radio) != Si446x_STATE_TX) {
-        chThdSleep(TIME_MS2I(1));
+    /* Minimum timeout for CCA is 1 second. */
+    if(cca_timeout < TIME_S2I(1)) {
+      TRACE_WARN("SI   > Minimum CCA wait time forced to 1 second,"
+          " %d ms was specified", chTimeI2MS(cca_timeout));
+      cca_timeout = TIME_S2I(1);
     }
-    return true;
+
+    /* Try to get clear channel. */
+    TRACE_INFO( "SI   > Wait maximum of %.1f seconds for clear channel on"
+        " %d.%03d MHz",
+        (float32_t)(TIME_I2MS(cca_timeout) / 1000),
+        op_freq/1000000, (op_freq%1000000)/1000);
+#define CCA_VALID_TIME_MS   50
+    sysinterval_t t0 = chVTGetSystemTime();
+    while((Si446x_getState(radio) != Si446x_STATE_RX
+        || Si446x_checkCCAthreshold(radio, CCA_VALID_TIME_MS))
+        && chVTIsSystemTimeWithinX(t0, t0 + cca_timeout)) {
+      chThdSleep(TIME_MS2I(1));
+    }
+    /* Clear channel timing. */
+    TRACE_INFO( "SI   > CCA time = %d milliseconds",
+                chTimeI2MS(chVTTimeElapsedSinceX(t0)));
+  }
+
+  // Transmit
+  TRACE_INFO("SI   > Tune Si446x to %d.%03d MHz (TX)",
+             op_freq/1000000, (op_freq%1000000)/1000);
+  Si446x_setReadyState(radio);
+  while(Si446x_getState(radio) != Si446x_STATE_READY) {
+    chThdSleep(TIME_MS2I(1));
+  }
+  /* Set power level and start transmit. */
+  Si446x_setPowerLevel(power);
+  Si446x_setTXState(radio, chan, size);
+
+  // Wait until transceiver enters transmit state
+  /* TODO: Make a function to handle timeout on fail to reach state. */
+  while(Si446x_getState(radio) != Si446x_STATE_TX) {
+    chThdSleep(TIME_MS2I(1));
+  }
+  return true;
 }
 
 /*
@@ -619,7 +635,7 @@ bool Si446x_receiveNoLock(radio_unit_t radio,
                           mod_t mod) {
   radio_freq_t op_freq = pktComputeOperatingFrequency(freq, step, channel);
   /* TODO: compute f + s*c. */
-  if(!Si446x_isRadioInBand(op_freq)) {
+  if(!pktIsRadioInBand(radio, op_freq)) {
     TRACE_ERROR("SI   > Frequency out of range");
     TRACE_ERROR("SI   > abort reception");
     return false;
@@ -656,7 +672,7 @@ bool Si446x_receiveNoLock(radio_unit_t radio,
 
   Si446x_setRXState(radio, channel);
 
-  // Wait for the receiver to start (because it is used as mutex)
+  /* Wait for the receiver to start. */
   while(Si446x_getState(radio) != Si446x_STATE_RX)
       chThdSleep(TIME_MS2I(1));
   return true;
@@ -757,8 +773,6 @@ static void Si446x_transmitTimeoutI(thread_t *tp) {
 /*
  * Simple AFSK send thread with minimized buffering and burst send capability.
  * Uses an iterator to size NRZI output and allocate suitable size buffer.
- * Plan is to replace with a version using even less memory.
- * Will require up-sample iterator to do so.
  *
  */
 THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
@@ -791,7 +805,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   /* Set 446x back to READY. */
   Si446x_pauseReceive(radio);
-
+  /* Set the radio for AFSK upsampled mode. */
   Si446x_setModemAFSK_TX(radio);
 
   /* Initialize variables for AFSK encoder. */
@@ -800,8 +814,6 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   chVTObjectInit(&send_timer);
   msg_t exit_msg;
   tx_iterator_t iterator;
-
-  chDbgAssert(pp != NULL, "no packet in radio task");
 
   /*
    * Use the specified CCA RSSI level.
@@ -818,7 +830,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
      * Preamble length (HDLC flags)
      * Postamble length (HDLC flags)
      * Tail length (HDLC zeros)
-     * Scramble off/on
+     * Scramble off
      */
     pktStreamIteratorInit(&iterator, pp, 30, 10, 10, false);
 
@@ -889,6 +901,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                        all,
                        rssi,
                        TIME_S2I(10))) {
+
       /* Feed the FIFO while data remains to be sent. */
       while((all - c) > 0) {
         /* Get TX FIFO free count. */
@@ -1039,15 +1052,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   /* Initialize radio. */
   Si446x_conditional_init(radio);
 
-  /* Set 446x back to READY. */
+  /* Set 446x back to READY from RX (if active). */
   Si446x_pauseReceive(radio);
 
   Si446x_setBandParameters(radio, rto->base_frequency, rto->step_hz);
 
-  /* Set parameters for 2FSK transmission.
-   * TODO: Should we pass in 9600 or just set it here?
-   * In any case we should have a define I guess. */
-  Si446x_setModem2FSK_TX(9600);
+  /* Set parameters for 2FSK transmission. */
+  Si446x_setModem2FSK_TX(rto->tx_speed);
 
   /* Initialize variables for 2FSK encoder. */
 
@@ -1060,10 +1071,22 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   /* The exit message. */
   msg_t exit_msg;
 
-  /* Use the specified CCA RSSI level on the first pass only. */
+  /*
+   * Use the specified CCA RSSI level.
+   * RSSI will be set to blind send after first packet.
+   */
   radio_squelch_t rssi = rto->squelch;
 
   do {
+    /*
+     * Set NRZI encoding format.
+     * Iterator object.
+     * Packet reference.
+     * Preamble length (HDLC flags)
+     * Postamble length (HDLC flags)
+     * Tail length (HDLC zeros)
+     * Scramble on
+     */
     pktStreamIteratorInit(&iterator, pp, 30, 10, 10, true);
 
     /* Compute size of NRZI stream. */

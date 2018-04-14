@@ -93,28 +93,29 @@ struct radioTask {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  thread_t *pktRadioManagerCreate(radio_unit_t radio);
-  void pktRadioManagerRelease(radio_unit_t radio);
-  void pktRadioManager(void *arg);
-  msg_t pktGetRadioTaskObject(radio_unit_t radio,
+  thread_t  *pktRadioManagerCreate(radio_unit_t radio);
+  void      pktRadioManagerRelease(radio_unit_t radio);
+  void      pktRadioManager(void *arg);
+  msg_t     pktGetRadioTaskObject(radio_unit_t radio,
                               sysinterval_t timeout,
                               radio_task_object_t **rt);
-  void pktSubmitRadioTask(radio_unit_t radio,
+  void      pktSubmitRadioTask(radio_unit_t radio,
                           radio_task_object_t *object,
                           radio_task_cb_t cb);
-  void pktScheduleThreadRelease(radio_unit_t radio,
+  void      pktScheduleThreadRelease(radio_unit_t radio,
                                 thread_t *thread);
-  msg_t pktAcquireRadio(radio_unit_t radio, sysinterval_t timeout);
-  void pktReleaseRadio(radio_unit_t radio);
+  msg_t     pktAcquireRadio(radio_unit_t radio, sysinterval_t timeout);
+  void      pktReleaseRadio(radio_unit_t radio);
   radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
                                             channel_hz_t step,
                                             radio_ch_t chan);
-  bool pktLLDresumeReceive(radio_unit_t radio);
-  bool pktLLDsendPacket(radio_task_object_t *rto);
-  void pktScheduleSendComplete(radio_task_object_t *rto,
+  bool pktIsRadioInBand(radio_unit_t radio, radio_freq_t freq);
+  bool      pktLLDresumeReceive(radio_unit_t radio);
+  bool      pktLLDsendPacket(radio_task_object_t *rto);
+  void      pktScheduleSendComplete(radio_task_object_t *rto,
                                 thread_t *thread);
-  void pktStartDecoder(radio_unit_t radio);
-  void pktStopDecoder(radio_unit_t radio);
+  void      pktStartDecoder(radio_unit_t radio);
+  void      pktStopDecoder(radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif

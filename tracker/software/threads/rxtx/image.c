@@ -413,7 +413,8 @@ static bool transmit_image_packets(const uint8_t *image,
     uint8_t chain = (conf->radio_conf.mod == MOD_2FSK
         && !conf->radio_conf.redundantTx) ?
         buffers : 1;
-    TRACE_INFO("IMG  > Encode APRS/SSDV packet(s) %i", chain);
+    TRACE_INFO("IMG  > Encode %i APRS/SSDV packet%s", chain,
+               (chain > 1 ? " burst" : ""));
 
     /* Packet linking control. */
     packet_t head = NULL;
@@ -701,8 +702,6 @@ THD_FUNCTION(imgThread, arg) {
                      (gimage_id - 1) % 0xFFFF);
 
           writeBufferToFile(filename, &buffer[soi], size_sampled - soi);
-        } else {
-          TRACE_INFO("IMG  > SD card not present");
         } /* End initSD() */
 
         /* Transmit on radio. */

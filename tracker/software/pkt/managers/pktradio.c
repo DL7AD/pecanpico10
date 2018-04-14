@@ -510,6 +510,20 @@ radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
 }
 
 /**
+ * @brief   Check if requested frequency is in bad for the radio.
+ *
+ * @param[in] radio   radio unit ID.
+ * @param[in] freq    Radio frequency.
+ *
+ * @api
+ */
+bool pktIsRadioInBand(radio_unit_t radio, radio_freq_t freq) {
+  /* TODO: Mapping of radio ID to radio device/capabilities. */
+  (void)radio;
+  return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
+}
+
+/**
  * @brief   Send on radio.
  * @notes   This is the API interface to the radio LLD.
  * @notes   Currently just map directly to 446x driver.
