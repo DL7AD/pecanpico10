@@ -59,14 +59,14 @@ def imgproc():
 		time.sleep(1)
 
 w = time.time()
-def insert_image(sqlite, receiver, call, data_b91):
+def insert_image(db, receiver, call, data_b91):
 	global imageProcessor,imageData,w
 
 	data = base91.decode(data_b91)
 	if len(data) != 174:
 		return # APRS message has invalid type or length (or both)
 
-	cur = sqlite.cursor()
+	cur = db.cursor()
 
 	# Decode various meta data
 	imageID  = data[0]
@@ -91,7 +91,7 @@ def insert_image(sqlite, receiver, call, data_b91):
 
 	# Find image ID (or generate new one)
 	_id = None
-	cur.execute("SELECT id,packetID FROM image WHERE call = ? AND imageID = ? AND rxtime+10*60 >= ? ORDER BY rxtime DESC LIMIT 1", (call, imageID, timd))
+	cur.execute("SELECT `id`,`packetID` FROM `image` WHERE `call` = %s AND `imageID` = %s AND `rxtime`+10*60 >= %s ORDER BY `rxtime` DESC LIMIT 1", (call, imageID, timd))
 	fetch = cur.fetchall()
 	if len(fetch):
 		_id = fetch[0][0]
@@ -99,7 +99,7 @@ def insert_image(sqlite, receiver, call, data_b91):
 
 	if _id is None:
 		# Generate ID
-		cur.execute("SELECT id+1 FROM image ORDER BY id DESC LIMIT 1")
+		cur.execute("SELECT `id`+1 FROM `image` ORDER BY `id` DESC LIMIT 1")
 		fetch = cur.fetchall()
 		if len(fetch):
 			_id = fetch[0][0]
@@ -111,18 +111,18 @@ def insert_image(sqlite, receiver, call, data_b91):
 
 	# Insert into database
 	cur.execute("""
-		INSERT OR IGNORE INTO image (call,rxtime,imageID,packetID,data,id)
-		VALUES (?,?,?,?,?,?)""",
+		INSERT IGNORE INTO `image` (`call`,`rxtime`,`imageID`,`packetID`,`data`,`id`)
+		VALUES (%s,%s,%s,%s,%s,%s)""",
 		(call, timd, imageID, packetID, data, _id)
 	)
 
 	if w+0.5 < time.time():
-		sqlite.commit()
+		db.commit()
 		w = time.time()
 
 	with lock:
 		allData = ''
-		cur.execute("SELECT data FROM image WHERE id = ? ORDER BY packetID", (_id,))
+		cur.execute("SELECT `data` FROM `image` WHERE `id` = %s ORDER BY `packetID`", (_id,))
 		for data, in cur.fetchall():
 			allData += '55' + data + (144*'0')
 		imageData[_id] = (call, binascii.unhexlify(allData))
