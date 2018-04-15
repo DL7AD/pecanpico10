@@ -9,25 +9,19 @@ bool sdInitialized = false;
 
 bool initSD(void)
 {
-	// Setup pins
-	palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);		// SCK
-	palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MISO
-	palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);	// MOSI
-	palSetLineMode(LINE_SD_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// SD CS
-	palSetLineMode(LINE_SD_DET, PAL_MODE_INPUT_PULLUP | PAL_STM32_OSPEED_HIGHEST);	    // SD DET
-	palSetLineMode(LINE_RADIO_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);	// RADIO CS
 
-	// Pull CS of all SPI slaves high
-	palSetLine(LINE_SD_CS);
-	palSetLine(LINE_RADIO_CS);
+  /*
+   * Quick check of card inserted.
+   * This is OK for in flight.
+   */
+  if(palReadLine(LINE_SD_DET)) {
+      TRACE_INFO("SD   > No SD card inserted");
+      sdInitialized = false;
+      return false;
+  }
+  TRACE_INFO("SD   > Access SD card");
 
-	if(palReadLine(LINE_SD_DET)) {
-		TRACE_INFO("SD   > No SD card inserted");
-		sdInitialized = false;
-		return false;
-	}
-
-	TRACE_INFO("SD   > Initialize SD card");
+    /* NOTE: SD_CS line is set in board.h and initialized to HIGH. */
 
 	// Maximum speed SPI configuration
 	static SPIConfig hs_spicfg = {

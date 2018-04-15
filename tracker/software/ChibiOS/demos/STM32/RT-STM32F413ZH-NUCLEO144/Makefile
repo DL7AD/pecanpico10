@@ -86,7 +86,8 @@ endif
 PROJECT = ch
 
 # Imported source files and paths
-CHIBIOS = ../../..
+#CHIBIOS = ../../..
+CHIBIOS = C:\ChibiStudio\chibios_f413_trunk
 # Startup files.
 include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32f4xx.mk
 # HAL-OSAL files (optional).

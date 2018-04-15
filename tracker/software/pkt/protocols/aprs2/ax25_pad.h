@@ -38,7 +38,7 @@
 #define AX25_MAX_ADDR_LEN 12
 
 /* Previously 1 when considering only APRS. */
-#define AX25_MIN_INFO_LEN 0
+#define AX25_MIN_INFO_LEN 0U
 				
 /* Maximum size for APRS. */
 /* AX.25 starts out with 256 as the default max */
@@ -50,7 +50,7 @@
 /* These don't include the 2 bytes for the */
 /* HDLC frame FCS. */
 //#define AX25_MAX_INFO_LEN 2048
-#define AX25_MAX_INFO_LEN 512
+#define AX25_MAX_INFO_LEN 512U
 
 /* 
  * Previously, for APRS only.
@@ -71,9 +71,11 @@
 #define AX25_PID_SEGMENTATION_FRAGMENT 0x08
 #define AX25_PID_ESCAPE_CHARACTER 0xFF
 
+#define AX25_MAX_APRS_MSG_LEN   67
+
 #define USE_NEW_PKT_TX_ALLOC    TRUE
-#define USE_CCM_FOR_PKT_TX      FALSE
-#define USE_CCM_FOR_PKT_POOL    TRUE
+#define USE_CCM_FOR_PKT_HEAP    TRUE
+#define USE_CCM_FOR_PKT_POOL    FALSE
 
 #include "pkttypes.h"
 
@@ -137,7 +139,7 @@ typedef struct packet_s {
 	//char            tx_thd_name[16];
 
     /* Frame length without CRC. */
-	int         frame_len;
+	uint16_t         frame_len;
 
     /* I & S frames have sequence numbers of either 3 bits (modulo 8) */
     /* or 7 bits (modulo 128).  This is conveyed by either 1 or 2 */
@@ -344,7 +346,7 @@ extern void ax25_delete_debug (packet_t pp, char *src_file, int src_line);
 
 extern packet_t ax25_from_text (char *monitor, int strict);
 
-extern packet_t ax25_from_frame (unsigned char *data, int len);
+extern packet_t ax25_from_frame (unsigned char *data, uint16_t len);
 
 extern packet_t ax25_dup (packet_t copy_from);
 
@@ -387,7 +389,7 @@ extern int ax25_get_first_not_repeated(packet_t pp);
 
 extern int ax25_get_rr (packet_t this_p, int n);
 
-extern int ax25_get_info (packet_t pp, unsigned char **paddr);
+extern uint16_t ax25_get_info (packet_t pp, unsigned char **paddr);
 extern int ax25_cut_at_crlf (packet_t this_p);
 
 extern void ax25_set_nextp (packet_t this_p, packet_t next_p);
@@ -401,7 +403,7 @@ extern double ax25_get_release_time (packet_t this_p);
 
 extern void ax25_set_modulo (packet_t this_p, int modulo);
 
-extern void ax25_format_addrs (packet_t pp, char *);
+extern void ax25_format_addrs (packet_t pp, char *buff, int8_t size);
 extern void ax25_format_via_path (packet_t this_p, char *result, size_t result_size);
 
 extern int ax25_pack (packet_t pp, unsigned char result[AX25_MAX_PACKET_LEN]);

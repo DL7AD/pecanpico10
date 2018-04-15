@@ -150,6 +150,12 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "aprs.rx.speed",                 sizeof(conf_sram.aprs.rx.radio_conf.speed),                  &conf_sram.aprs.tx.radio_conf.speed                 },
     {TYPE_STR,  "aprs.rx.call",                  sizeof(conf_sram.aprs.rx.call),                              &conf_sram.aprs.rx.call                             },
 
+    {TYPE_INT,  "aprs.base.freq",                sizeof(conf_sram.aprs.base.radio_conf.freq),                 &conf_sram.aprs.base.radio_conf.freq                },
+    {TYPE_INT,  "aprs.base.pwr",                 sizeof(conf_sram.aprs.base.radio_conf.pwr),                  &conf_sram.aprs.base.radio_conf.pwr                 },
+    {TYPE_INT,  "aprs.base.mod",                 sizeof(conf_sram.aprs.base.radio_conf.mod),                  &conf_sram.aprs.base.radio_conf.mod                 },
+    {TYPE_INT,  "aprs.base.rssi",                sizeof(conf_sram.aprs.base.radio_conf.rssi),                 &conf_sram.aprs.base.radio_conf.rssi                },
+    {TYPE_STR,  "aprs.base.call",                sizeof(conf_sram.aprs.base.call),                            &conf_sram.aprs.base.call                           },
+
 	{TYPE_INT,  "aprs.tx.freq",                  sizeof(conf_sram.aprs.tx.radio_conf.freq),                   &conf_sram.aprs.tx.radio_conf.freq                  },
     {TYPE_INT,  "aprs.tx.pwr",                   sizeof(conf_sram.aprs.tx.radio_conf.pwr),                    &conf_sram.aprs.tx.radio_conf.pwr                   },
     {TYPE_INT,  "aprs.tx.mod",                   sizeof(conf_sram.aprs.tx.radio_conf.mod),                    &conf_sram.aprs.tx.radio_conf.mod                   },
@@ -158,7 +164,7 @@ const conf_command_t command_list[] = {
     {TYPE_STR,  "aprs.tx.path",                  sizeof(conf_sram.aprs.tx.path),                              &conf_sram.aprs.tx.path                             },
     {TYPE_INT,  "aprs.tx.symbol",                sizeof(conf_sram.aprs.tx.symbol),                            &conf_sram.aprs.tx.symbol                           },
     {TYPE_INT,  "aprs.dig_active",               sizeof(conf_sram.aprs.dig_active),                           &conf_sram.aprs.dig_active                          },
-	{TYPE_INT,  "keep_cam_switched_on",          sizeof(conf_sram.keep_cam_switched_on),                      &conf_sram.keep_cam_switched_on                     },
+    {TYPE_INT,  "keep_cam_switched_on",          sizeof(conf_sram.keep_cam_switched_on),                      &conf_sram.keep_cam_switched_on                     },
 	{TYPE_INT,  "gps_on_vbat",                   sizeof(conf_sram.gps_on_vbat),                               &conf_sram.gps_on_vbat                              },
 	{TYPE_INT,  "gps_off_vbat",                  sizeof(conf_sram.gps_off_vbat),                              &conf_sram.gps_off_vbat                             },
 	{TYPE_INT,  "gps_onper_vbat",                sizeof(conf_sram.gps_onper_vbat),                            &conf_sram.gps_onper_vbat                           },
@@ -169,19 +175,19 @@ const conf_command_t command_list[] = {
 void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 {
 	// Decode packet
-	char rec[256];
+	char rec[127];
 	unsigned char *pinfo;
-	ax25_format_addrs(pp, rec);
+	ax25_format_addrs(pp, rec, sizeof(rec));
 	if(ax25_get_info(pp, &pinfo) == 0)
 	  return;
 
     // Print decoded packet
     uint32_t out = chsnprintf(buf, len, "%s", rec);
-    for(uint32_t i=0; pinfo[i]; i++) {
+    for(uint32_t i = 0; pinfo[i]; i++) {
         if(pinfo[i] < 32 || pinfo[i] > 126) {
-            out += chsnprintf(&buf[out], len-out, "<0x%02x>", pinfo[i]);
+            out += chsnprintf(&buf[out], len - out, "<0x%02x>", pinfo[i]);
         } else {
-            out += chsnprintf(&buf[out], len-out, "%c", pinfo[i]);
+            out += chsnprintf(&buf[out], len - out, "%c", pinfo[i]);
         }
     }
 }
@@ -196,7 +202,9 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
  * - Number of satellites being used
  * - Number of cycles where GPS has been lost (if applicable in cycle)
  */
-packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t symbol, dataPoint_t *dataPoint)
+packet_t aprs_encode_position(const char *callsign,
+                              const char *path, uint16_t symbol,
+                              dataPoint_t *dataPoint)
 {
 	// Latitude
 	uint32_t y = 380926 * (90 - dataPoint->gps_lat/10000000.0);
@@ -291,9 +299,12 @@ packet_t aprs_encode_data_packet(const char *callsign, const char *path,
  */
 packet_t aprs_encode_message(const char *callsign, const char *path,
                              const char *receiver, const char *text,
-                             const bool noCounter)
-{
+                             const bool noCounter) {
 	char xmit[256];
+	if((strlen(text) > AX25_MAX_APRS_MSG_LEN)
+	    || (strpbrk(text, "|~{") != NULL))
+	  /* Invalid message. */
+	  return NULL;
 	if(noCounter)
 		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s", callsign,
 		           APRS_DEST_CALLSIGN, path, receiver, text);
@@ -304,7 +315,9 @@ packet_t aprs_encode_message(const char *callsign, const char *path,
 	return ax25_from_text(xmit, true);
 }
 
-packet_t aprs_encode_query_answer_aprsd(const char *callsign, const char *path, const char *receiver)
+packet_t aprs_encode_query_answer_aprsd(const char *callsign,
+                                        const char *path,
+                                        const char *receiver)
 {
 	char buf[256] = "Directs=";
 	uint32_t out = 8;
@@ -320,14 +333,13 @@ packet_t aprs_encode_query_answer_aprsd(const char *callsign, const char *path, 
 	return aprs_encode_message(callsign, path, receiver, buf, true);
 }
 
-static bool aprs_decode_message(packet_t pp)
-{
+static bool aprs_decode_message(packet_t pp) {
 	// Get Info field
-	char src[256];
+	char src[127];
 	unsigned char *pinfo;
 	if(ax25_get_info(pp, &pinfo) == 0)
 	  return false;
-	ax25_format_addrs(pp, src);
+	ax25_format_addrs(pp, src, sizeof(src));
 
 	// Decode destination callsign
 	char dest[AX25_MAX_ADDR_LEN];
@@ -350,22 +362,25 @@ static bool aprs_decode_message(packet_t pp)
 		}
 	}
 
-	// Try to find out if this message is meant for us
+	/* Check if this message is meant for us. */
 	bool pos_pri = !strcmp(conf_sram.pos_pri.call, dest)
 	    && (conf_sram.pos_pri.aprs_msg)
 	    && (conf_sram.pos_pri.thread_conf.active);
     bool pos_sec = !strcmp(conf_sram.pos_sec.call, dest)
         && (conf_sram.pos_sec.aprs_msg)
         && (conf_sram.pos_sec.thread_conf.active);
-    bool aprs = !strcmp(conf_sram.aprs.rx.call, dest);
+    bool aprs_rx = !strcmp(conf_sram.aprs.rx.call, dest)
+        && (conf_sram.aprs.thread_conf.active);
+    bool aprs_tx = !strcmp(conf_sram.aprs.tx.call, dest)
+        && (conf_sram.aprs.thread_conf.active)
+        && (conf_sram.aprs.dig_active);
 
-	if((pinfo[10] == ':') && (pos_pri || pos_sec || aprs)) {
+	if((pinfo[10] == ':') && (pos_pri || pos_sec || aprs_rx || aprs_tx)) {
 		char msg_id_rx[8];
 		memset(msg_id_rx, 0, sizeof(msg_id_rx));
 
 		// Cut off control chars
-		/* FIXME: Limit processing to size of incoming message. */
-		for(uint16_t i=11; pinfo[i] != 0 && i<0xFFFF; i++) {
+		for(uint16_t i = 11; pinfo[i] != 0 && i < AX25_MAX_APRS_MSG_LEN + 11; i++) {
 		  /* FIXME: Trim trailing spaces before {. */
 			if(pinfo[i] == '{') {
 				// Copy ACK ID
@@ -403,8 +418,22 @@ static bool aprs_decode_message(packet_t pp)
 			palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
 			palClearPad(GPIOA, 8);
 
-		} else if(!strcmp(command, "?aprsp")) { // Transmit position
+        } else if(!strcmp(command, "?gps fixed")) { // Use fixed gps coordinates
 
+            TRACE_INFO("RX   > Message: GPS fixed location");
+            test_gps_enabled = true;
+
+        } else if(!strcmp(command, "?gps normal")) { // Use fixed gps coordinates
+
+            TRACE_INFO("RX   > Message: GPS acquire location");
+            test_gps_enabled = false;
+
+		} else if(!strcmp(command, "?aprsp")) { // Transmit position
+		    /*
+		     * There is no reply sent to the src (ack can be sent).
+		     * Just a position sent from the APRS TX identity.
+		     * The identity could be the same as one of the POS identities.
+		     */
 			TRACE_INFO("RX   > Message: Position query");
 			dataPoint_t* dataPoint = getLastDataPoint();
 			packet_t pp = aprs_encode_position(conf_sram.aprs.tx.call,
@@ -430,7 +459,7 @@ static bool aprs_decode_message(packet_t pp)
 			    aprs_encode_query_answer_aprsd(conf_sram.aprs.tx.call,
 			                                   conf_sram.aprs.tx.path, src);
             if(pp == NULL) {
-              TRACE_WARN("RX   > No free packet objects");
+              TRACE_WARN("RX   > No free packet objects or badly formed message");
               return false;
             }
             transmitOnRadio(pp,
@@ -537,7 +566,7 @@ static bool aprs_decode_message(packet_t pp)
 			}
 
 		} else {
-			TRACE_INFO("RX   > Message does not contain a known command");
+			TRACE_INFO("RX   > No command found in message");
 		}
 
 		if(msg_id_rx[0]) { // Message ID has been sent which has to be acknowledged
@@ -561,7 +590,6 @@ static bool aprs_decode_message(packet_t pp)
 		}
 		return false; // Mark that message should not be digipeated
 	}
-
 	return true; // Mark that message has to be digipeated
 }
 
@@ -622,7 +650,7 @@ void aprs_decode_packet(packet_t pp) {
   do {
     v++;
     ax25_get_addr_with_ssid(pp, ax25_get_heard(pp)-v, call);
-  } while(ax25_get_heard(pp)-v >= AX25_SOURCE && (!strncmp("WIDE", call, 4) || !strncmp("TRACE", call, 5)));
+  } while(ax25_get_heard(pp) - v >= AX25_SOURCE && (!strncmp("WIDE", call, 4) || !strncmp("TRACE", call, 5)));
 
   // Fill/Update direct list
   sysinterval_t first_time = 0xFFFFFFFF;	// Timestamp of oldest heard list entry
@@ -653,6 +681,11 @@ void aprs_decode_packet(packet_t pp) {
   unsigned char *pinfo;
   if(ax25_get_info(pp, &pinfo) == 0)
     return;
+  /*
+   * Check if the message is for us.
+   * Execute any command found in the message.
+   * If not then digipeat it.
+   */
   if(pinfo[0] == ':') digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
 
   // Digipeat packet

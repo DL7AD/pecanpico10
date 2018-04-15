@@ -418,6 +418,11 @@
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
 
+/* License checks.*/
+#if !defined(CH_CUSTOMER_LIC_NIL) || !defined(CH_LICENSE_FEATURES)
+#error "malformed chlicense.h"
+#endif
+
 #if CH_CUSTOMER_LIC_NIL == FALSE
 #error "ChibiOS/NIL not licensed"
 #endif
@@ -1556,13 +1561,8 @@ extern "C" {
 }
 #endif
 
-/* Optional subsystems.*/
-#include "chmboxes.h"
-#include "chmemcore.h"
-#include "chheap.h"
-#include "chmempools.h"
-#include "chfifo.h"
-#include "chfactory.h"
+/* OSLIB.*/
+#include "chlib.h"
 
 #endif /* CH_H */
 

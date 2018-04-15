@@ -151,13 +151,13 @@ typedef void (*palcallback_t)(void *arg);
  * @brief   Type of a PAL event record.
  */
 typedef struct {
-#if PAL_USE_WAIT || defined(__DOXYGEN__)
+#if (PAL_USE_WAIT == TRUE) || defined(__DOXYGEN__)
   /**
    * @brief   Threads queued for an event.
    */
   threads_queue_t       threads;
 #endif
-#if PAL_USE_CALLBACKS || defined(__DOXYGEN__)
+#if (PAL_USE_CALLBACKS == TRUE) || defined(__DOXYGEN__)
   /**
    * @brief   Event callback.
    */
@@ -245,12 +245,14 @@ typedef struct {
 #define IOBUS_DECL(name, port, width, offset)                               \
   IOBus name = _IOBUS_DATA(name, port, width, offset)
 
-#if PAL_USE_CALLBACKS || PAL_USE_WAIT || defined(__DOXYGEN__)
+#if (PAL_USE_CALLBACKS == TRUE) || (PAL_USE_WAIT == TRUE) ||                \
+    defined(__DOXYGEN__)
 /**
  * @name    Low level driver helper macros
  * @{
  */
-#if (PAL_USE_CALLBACKS && PAL_USE_WAIT) || defined(__DOXYGEN__)
+#if ((PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == TRUE)) ||              \
+    defined(__DOXYGEN__)
 /**
  * @brief   Initializes a PAL event object.
  *
@@ -264,24 +266,24 @@ typedef struct {
     _pal_events[e].cb = NULL;                                               \
     _pal_events[e].arg = NULL;                                              \
   } while (false)
-#endif /* PAL_USE_CALLBACKS && PAL_USE_WAIT */
+#endif /* (PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == TRUE) */
 
-#if PAL_USE_CALLBACKS && !PAL_USE_WAIT
+#if (PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == FALSE)
 #define _pal_init_event(e)                                                  \
   do {                                                                      \
     _pal_events[e].cb = NULL;                                               \
     _pal_events[e].arg = NULL;                                              \
   } while (false)
-#endif /* PAL_USE_CALLBACKS && !PAL_USE_WAIT */
+#endif /* (PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == FALSE) */
 
-#if !PAL_USE_CALLBACKS && PAL_USE_WAIT
+#if (PAL_USE_CALLBACKS == FALSE) && (PAL_USE_WAIT == TRUE)
 #define _pal_init_event(e)                                                  \
   do {                                                                      \
     osalThreadQueueObjectInit(&_pal_events[e].threads);                     \
   } while (false)
-#endif /* !PAL_USE_CALLBACKS && PAL_USE_WAIT */
+#endif /* (PAL_USE_CALLBACKS == FALSE) && (PAL_USE_WAIT == TRUE) */
 
-#if (PAL_USE_CALLBACKS && PAL_USE_WAIT) || defined(__DOXYGEN__)
+#if ((PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == TRUE)) || defined(__DOXYGEN__)
 /**
  * @brief   Clears a PAL event object.
  *
@@ -295,22 +297,22 @@ typedef struct {
     _pal_events[e].cb = NULL;                                               \
     _pal_events[e].arg = NULL;                                              \
   } while (false)
-#endif /* PAL_USE_CALLBACKS && PAL_USE_WAIT */
+#endif /* (PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == TRUE) */
 
-#if PAL_USE_CALLBACKS && !PAL_USE_WAIT
+#if (PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == FALSE)
 #define _pal_clear_event(e)                                                 \
   do {                                                                      \
     _pal_events[e].cb = NULL;                                               \
     _pal_events[e].arg = NULL;                                              \
   } while (false)
-#endif /* PAL_USE_CALLBACKS && !PAL_USE_WAIT */
+#endif /* (PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == FALSE) */
 
-#if !PAL_USE_CALLBACKS && PAL_USE_WAIT
+#if (PAL_USE_CALLBACKS == FALSE) && (PAL_USE_WAIT == TRUE)
 #define _pal_clear_event(e)                                                 \
   do {                                                                      \
     osalThreadDequeueAllI(&_pal_events[pad].threads, MSG_RESET);            \
   } while (false)
-#endif /* !PAL_USE_CALLBACKS && PAL_USE_WAIT */
+#endif /* (PAL_USE_CALLBACKS == FALSE) && (PAL_USE_WAIT == TRUE) */
 
 /**
  * @brief   Common ISR code.
@@ -321,7 +323,8 @@ typedef struct {
  *
  * @notapi
  */
-#if (PAL_USE_CALLBACKS && PAL_USE_WAIT) || defined(__DOXYGEN__)
+#if ((PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == TRUE)) ||              \
+    defined(__DOXYGEN__)
 #define _pal_isr_code(e) do {                                               \
   if (_pal_events[e].cb != NULL) {                                          \
     _pal_events[e].cb(_pal_events[e].arg);                                  \
@@ -330,26 +333,27 @@ typedef struct {
   osalThreadDequeueAllI(&_pal_events[e].threads, MSG_OK);                   \
   osalSysUnlockFromISR();                                                   \
 } while (false)
-#endif /* PAL_USE_CALLBACKS && PAL_USE_WAIT */
+#endif /* (PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == TRUE) */
 
-#if PAL_USE_CALLBACKS && !PAL_USE_WAIT
+#if (PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == FALSE)
 #define _pal_isr_code(e) do {                                               \
   if (_pal_events[e].cb != NULL) {                                          \
     _pal_events[e].cb(_pal_events[e].arg);                                  \
   }                                                                         \
 } while (false)
-#endif /* PAL_USE_CALLBACKS && !PAL_USE_WAIT */
+#endif /* (PAL_USE_CALLBACKS == TRUE) && (PAL_USE_WAIT == FALSE) */
 
-#if (!PAL_USE_CALLBACKS && PAL_USE_WAIT) || defined(__DOXYGEN__)
+#if ((PAL_USE_CALLBACKS == FALSE) && (PAL_USE_WAIT == TRUE)) ||             \
+    defined(__DOXYGEN__)
 #define _pal_isr_code(e) do {                                               \
   osalSysLockFromISR();                                                     \
   osalThreadDequeueAllI(&_pal_events[e].threads, MSG_OK);                   \
   osalSysUnlockFromISR();                                                   \
 } while (false)
-#endif /* !PAL_USE_CALLBACKS && PAL_USE_WAIT */
+#endif /* (PAL_USE_CALLBACKS == FALSE) && (PAL_USE_WAIT == TRUE) */
 
 /** @} */
-#endif /* PAL_USE_CALLBACKS || PAL_USE_WAIT */
+#endif /* (PAL_USE_CALLBACKS == TRUE) || (PAL_USE_WAIT == TRUE) */
 
 /**
  * @name    Macro Functions
@@ -777,7 +781,8 @@ typedef struct {
 #define palSetLineMode(line, mode) pal_lld_setlinemode(line, mode)
 #endif
 
-#if PAL_USE_CALLBACKS || PAL_USE_WAIT || defined(__DOXYGEN__)
+#if (PAL_USE_CALLBACKS == TRUE) || (PAL_USE_WAIT == TRUE) ||                \
+    defined(__DOXYGEN__)
 /**
  * @brief   Pad event enable.
  * @note    Programming an unknown or unsupported mode is silently ignored.
@@ -840,7 +845,7 @@ typedef struct {
 #define palDisablePadEvent(port, pad)                                       \
   do {                                                                      \
     osalSysLock();                                                          \
-    palDisablePadDEventI(port, pad);                                         \
+    palDisablePadEventI(port, pad);                                         \
     osalSysUnlock();                                                        \
   } while (false)
 
@@ -909,14 +914,13 @@ typedef struct {
 
 #endif /* PAL_USE_CALLBACKS || PAL_USE_WAIT */
 
-#if PAL_USE_CALLBACKS || defined(__DOXYGEN__)
+#if (PAL_USE_CALLBACKS == TRUE) || defined(__DOXYGEN__)
 /**
  * @brief   Associates a callback to a pad.
  *
  * @param[in] port      port identifier
  * @param[in] pad       pad number within the port
- * @param[in] mode      pad event mode
- * @param[in] callback  event callback function
+ * @param[in] cb        event callback function
  * @param[in] arg       callback argument
  *
  * @api
@@ -932,7 +936,7 @@ typedef struct {
  * @brief   Associates a callback to a line.
  *
  * @param[in] line      line identifier
- * @param[in] callback  event callback function
+ * @param[in] cb        event callback function
  * @param[in] arg       callback argument
  *
  * @iclass
@@ -943,50 +947,7 @@ typedef struct {
     palSetLineCallbackI(line, cb, arg);                                     \
     osalSysUnlock();                                                        \
   } while (false)
-#endif /* PAL_USE_CALLBACKS */
-
-#if PAL_USE_WAIT || defined(__DOXYGEN__)
-/**
- * @brief   Waits for an edge on the specified port/pad.
- *
- * @param[in] port      port identifier
- * @param[in] pad       pad number within the port
- * @returns             The operation state.
- * @retval MSG_OK       if an edge has been detected.
- * @retval MSG_TIMEOUT  if a timeout occurred before an edge cound be detected.
- * @retval MSG_RESET    if the event has been disabled while the thread was
- *                      waiting for an edge.
- *
- * @api
- */
-#define palWaitPadTimeout(port, pad, timeout)                               \
-  do {                                                                      \
-    osalSysLock();                                                          \
-    palWaitPadTimeoutS(port, pad, timeout);                                 \
-    osalSysUnlock();                                                        \
-  } while (false)
-
-
-/**
- * @brief   Waits for an edge on the specified line.
- *
- * @param[in] line      line identifier
- * @param[in] timeout   operation timeout
- * @returns             The operation state.
- * @retval MSG_OK       if an edge has been detected.
- * @retval MSG_TIMEOUT  if a timeout occurred before an edge cound be detected.
- * @retval MSG_RESET    if the event has been disabled while the thread was
- *                      waiting for an edge.
- *
- * @api
- */
-#define palWaitLineTimeout(line, timeout)                                   \
-  do {                                                                      \
-    osalSysLock();                                                          \
-    palWaitLineTimeoutS(line, timeout);                                     \
-    osalSysUnlock();                                                        \
-  } while (false)
-#endif /* PAL_USE_WAIT */
+#endif /* PAL_USE_CALLBACKS == TRUE */
 
 /** @} */
 
@@ -1000,16 +961,19 @@ extern "C" {
   ioportmask_t palReadBus(IOBus *bus);
   void palWriteBus(IOBus *bus, ioportmask_t bits);
   void palSetBusMode(IOBus *bus, iomode_t mode);
-#if PAL_USE_CALLBACKS || defined(__DOXYGEN__)
+#if (PAL_USE_CALLBACKS == TRUE) || defined(__DOXYGEN__)
   void palSetPadCallbackI(ioportid_t port, iopadid_t pad,
                           palcallback_t cb, void *arg);
   void palSetLineCallbackI(ioline_t line, palcallback_t cb, void *arg);
-#endif /* PAL_USE_CALLBACKS */
-#if PAL_USE_WAIT || defined(__DOXYGEN__)
+#endif /* PAL_USE_CALLBACKS == TRUE */
+#if (PAL_USE_WAIT == TRUE) || defined(__DOXYGEN__)
   msg_t palWaitPadTimeoutS(ioportid_t port, iopadid_t pad,
                            sysinterval_t timeout);
+  msg_t palWaitPadTimeout(ioportid_t port, iopadid_t pad,
+                          sysinterval_t timeout);
   msg_t palWaitLineTimeoutS(ioline_t line, sysinterval_t timeout);
-#endif /* PAL_USE_WAIT */
+  msg_t palWaitLineTimeout(ioline_t line, sysinterval_t timeout);
+#endif /* PAL_USE_WAIT == TRUE */
 #ifdef __cplusplus
 }
 #endif

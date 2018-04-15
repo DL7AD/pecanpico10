@@ -13,13 +13,23 @@ int main(void) {
 	halInit();					// Startup HAL
 	chSysInit();				// Startup RTOS
 
+    /* Setup core IO peripherals. */
+    sysConfigureCoreIO();
+
 	// Init debugging (Serial debug port, LEDs)
 	DEBUG_INIT();
+	 // This won't actually display since USB isn't initialized yet.
 	TRACE_INFO("MAIN > Startup");
 
-	pktSystemInit();
+	/*
+	 * Setup buffers in CCM if available.
+	 * Setup IO device arbitration.
+	 */
+	bool pkt = pktSystemInit();
 
-    /* Start serial channels. */
+    chDbgAssert(pkt == true, "failed to init packet system");
+
+    /* Start serial channels if selected. */
     pktSerialStart();
 
     /* Create packet radio service. */

@@ -29,8 +29,6 @@ const ShellCommand commands[] = {
 	{NULL, NULL}
 };
 
-bool test_gps_enabled = false;
-
 void usb_cmd_set_test_gps(BaseSequentialStream *chp, int argc, char *argv[])
 {
     if(argc < 1)
@@ -38,7 +36,7 @@ void usb_cmd_set_test_gps(BaseSequentialStream *chp, int argc, char *argv[])
         chprintf(chp, "Current test GPS: %s\r\n", test_gps_enabled ? "on" : "off");
         return;
     }
-
+    extern bool test_gps_enabled;
     test_gps_enabled = atoi(argv[0]);
 }
 
@@ -51,17 +49,18 @@ void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
     return;
   }
   n = chHeapStatus(NULL, &total, &largest);
-  chprintf(chp, "Core free memory : %u bytes"SHELL_NEWLINE_STR, chCoreGetStatusX());
-  chprintf(chp, SHELL_NEWLINE_STR"Core Heap"SHELL_NEWLINE_STR, n);
+  chprintf(chp, "Core free memory : %u bytes"SHELL_NEWLINE_STR,
+                                             chCoreGetStatusX());
+  chprintf(chp, SHELL_NEWLINE_STR"Core Heap"SHELL_NEWLINE_STR);
   chprintf(chp, "heap fragments   : %u"SHELL_NEWLINE_STR, n);
   chprintf(chp, "heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
   chprintf(chp, "heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
 
-#if USE_CCM_FOR_PKT_TX == TRUE
+#if USE_CCM_FOR_PKT_HEAP == TRUE
   extern memory_heap_t *ccm_heap;
 
   n = chHeapStatus(ccm_heap, &total, &largest);
-  chprintf(chp, SHELL_NEWLINE_STR"CCM Heap"SHELL_NEWLINE_STR, n);
+  chprintf(chp, SHELL_NEWLINE_STR"CCM Heap"SHELL_NEWLINE_STR);
   chprintf(chp, "heap fragments   : %u"SHELL_NEWLINE_STR, n);
   chprintf(chp, "heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
   chprintf(chp, "heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
@@ -72,13 +71,17 @@ void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
 {
 	if(argc < 1)
 	{
-		chprintf(chp, "Current trace level: %i\r\n", usb_trace_level);
-		chprintf(chp, "Level 0: None\r\n");
-		chprintf(chp, "Level 1: Errors\r\n");
-		chprintf(chp, "Level 2: Errors + Warnings\r\n");
-		chprintf(chp, "Level 3: Errors + Warnings + Info\r\n");
-		chprintf(chp, "Level 4: Errors + Warnings + Info + Debug\r\n");
-		return;
+	  if(atoi(argv[0]) > 5) {
+	      chprintf(chp, "Choose a level from 0 - 5\r\n");
+      }
+      chprintf(chp, "Current trace level: %i\r\n", usb_trace_level);
+      chprintf(chp, "Level 0: None\r\n");
+      chprintf(chp, "Level 1: Errors\r\n");
+      chprintf(chp, "Level 2: Errors + Warnings\r\n");
+      chprintf(chp, "Level 3: Errors + Warnings + Monitor\r\n");
+      chprintf(chp, "Level 4: Errors + Warnings + Monitor + Info\r\n");
+      chprintf(chp, "Level 5: Errors + Warnings + Monitor + Info + Debug\r\n");
+      return;
 	}
 	usb_trace_level = atoi(argv[0]);
 }
@@ -238,7 +241,7 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
 
 	chprintf(chp, "Message: %s\r\n", m);
 
-	/* Send without ack request (last arg false). */
+	/* Send with ack request (last arg false). */
 	packet_t packet = aprs_encode_message(conf_sram.aprs.tx.call,
 	                                      conf_sram.aprs.tx.path,
 	                                      argv[0], m, false);

@@ -14,7 +14,7 @@
           </brief>
           <copyright>
             <value><![CDATA[/*
-    ChibiOS - Copyright (C) 2006..2017 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -328,7 +328,7 @@ test_assert(err == MFS_ERR_NOT_FOUND , "record was already present");]]></value>
                   </step>
                   <step>
                     <description>
-                      <value>Creating the record then retrieving it again, MFS_ERR_NOT_FOUND is expected, record content and size are compared with the original.</value>
+                      <value>Creating the record then retrieving it again, MFS_NO_ERROR is expected, record content and size are compared with the original.</value>
                     </description>
                     <tags>
                       <value />

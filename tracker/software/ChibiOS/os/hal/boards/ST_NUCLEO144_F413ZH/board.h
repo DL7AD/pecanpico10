@@ -41,7 +41,7 @@
  * NOTE: LSE not fitted.
  */
 #if !defined(STM32_LSECLK)
-#define STM32_LSECLK                0U
+#define STM32_LSECLK                32768U
 #endif
 
 #if !defined(STM32_HSECLK)

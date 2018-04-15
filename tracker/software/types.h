@@ -17,7 +17,7 @@
 #define TYPE_STR			3
 
 typedef enum {
-	SLEEP_DISABLED,
+	SLEEP_DISABLED = 0,
 	SLEEP_WHEN_VBAT_BELOW_THRES,
 	SLEEP_WHEN_VSOL_BELOW_THRES,
 	SLEEP_WHEN_VBAT_ABOVE_THRES,
@@ -27,9 +27,9 @@ typedef enum {
 } sleep_type_t;
 
 typedef struct {
-	sleep_type_t type;
-	uint16_t vbat_thres;
-	uint16_t vsol_thres;
+	sleep_type_t    type;
+	uint16_t        vbat_thres;
+	uint16_t        vsol_thres;
 } sleep_conf_t;
 
 typedef enum { // Modulation type
@@ -39,7 +39,7 @@ typedef enum { // Modulation type
 } mod_t;
 
 typedef enum {
-	RES_NONE,
+	RES_NONE = 0,
 	RES_QQVGA,
 	RES_QVGA,
 	RES_VGA,
@@ -100,7 +100,7 @@ typedef struct {
 } thd_img_conf_t;
 
 typedef struct {
-	thread_conf_t thread_conf;
+	thread_conf_t   thread_conf;
 	radio_tx_conf_t radio_conf;
 
 	// Protocol
@@ -121,13 +121,13 @@ typedef struct {
 
 typedef struct {
     radio_tx_conf_t radio_conf;
-    //thread_conf_t thread_conf;
 
     // Protocol
     char            call[AX25_MAX_ADDR_LEN];
     char            path[16];
     uint16_t        symbol;
     uint8_t         rssi;                   // Squelch for CCA check
+    bool            enabled;
 
 } thd_tx_conf_t;
 
@@ -136,6 +136,7 @@ typedef struct {
   thread_conf_t     thread_conf;
     thd_rx_conf_t   rx;
     thd_tx_conf_t   tx;
+    thd_tx_conf_t   base;                   // Base station receiving unsolicited sends
     bool            dig_active;             // Digipeater active flag
 } thd_aprs_conf_t;
 

@@ -4,10 +4,11 @@
 
 ** TARGET **
 
-The demo targets a generic ARM Cortex-A5 device without HAL support.
+The demo runs on an SAMA5D2-XPLAINED board.
 
 ** The Demo **
-Simple echo from terminal
+
+Simple echo from terminal using FLEXCOM0 as serial
 
 ** Build Procedure **
 

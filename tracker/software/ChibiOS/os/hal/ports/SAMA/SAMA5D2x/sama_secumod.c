@@ -113,6 +113,7 @@ OSAL_IRQ_HANDLER(SAMA_SECUMOD_HANDLER) {
 
   /* Read alarm status */
   sr = SECUMOD->SECUMOD_SR;
+  nimpr = SECUMOD->SECUMOD_NIMPR;
 
   if ((sr & SECUMOD_SR_SHLDM) && (nimpr & SECUMOD_NIMPR_SHLDM)) {
     SECD0.secumod_callback(&SECD0, SEC_EVENT_SHLDM);
@@ -147,8 +148,32 @@ OSAL_IRQ_HANDLER(SAMA_SECUMOD_HANDLER) {
   else if ((sr & SECUMOD_SR_VDDCOREH) && (nimpr & SECUMOD_NIMPR_VDDCOREH)) {
     SECD0.secumod_callback(&SECD0, SEC_EVENT_VDDCOREH);
   }
+  else if ((sr & SECUMOD_SR_DET0) && (nimpr & SECUMOD_NIMPR_DET0)) {
+	    SECD0.secumod_callback(&SECD0, SEC_EVENT_PIOBU0);
+  }
+  else if ((sr & SECUMOD_SR_DET1) && (nimpr & SECUMOD_NIMPR_DET1)) {
+	    SECD0.secumod_callback(&SECD0, SEC_EVENT_PIOBU1);
+  }
+  else if ((sr & SECUMOD_SR_DET2) && (nimpr & SECUMOD_NIMPR_DET2)) {
+	    SECD0.secumod_callback(&SECD0, SEC_EVENT_PIOBU2);
+  }
+  else if ((sr & SECUMOD_SR_DET3) && (nimpr & SECUMOD_NIMPR_DET3)) {
+	    SECD0.secumod_callback(&SECD0, SEC_EVENT_PIOBU3);
+  }
+  else if ((sr & SECUMOD_SR_DET4) && (nimpr & SECUMOD_NIMPR_DET4)) {
+	    SECD0.secumod_callback(&SECD0, SEC_EVENT_PIOBU4);
+  }
+  else if ((sr & SECUMOD_SR_DET5) && (nimpr & SECUMOD_NIMPR_DET5)) {
+	    SECD0.secumod_callback(&SECD0, SEC_EVENT_PIOBU5);
+  }
+  else if ((sr & SECUMOD_SR_DET6) && (nimpr & SECUMOD_NIMPR_DET6)) {
+	    SECD0.secumod_callback(&SECD0, SEC_EVENT_PIOBU6);
+  }
+  else if ((sr & SECUMOD_SR_DET7) && (nimpr & SECUMOD_NIMPR_DET7)) {
+	    SECD0.secumod_callback(&SECD0, SEC_EVENT_PIOBU7);
+  }
   else {
-    SECD0.secumod_callback(&SECD0, SEC_EVENT_PIOBU);
+	  (void) 0;
   }
 
   /* wait at least one slow clock */
@@ -391,7 +416,7 @@ void secSetCallback(SECDriver *secp, uint32_t sources, secumod_callback_t callba
     /* IRQ sources enabled only after setting up the callback.*/
     secp->secumod_callback = callback;
     secp->sec->SECUMOD_NIEPR = sources;
-    if (SECUMOD->SECUMOD_NMPR != sources) {
+    if (SECUMOD->SECUMOD_NIMPR != sources) {
       secumodToggleProtectionReg();
       secp->sec->SECUMOD_NIEPR = sources;
     }
@@ -509,6 +534,8 @@ uint32_t secumodReadInternalMemory(uint8_t *data, uint32_t addr, uint32_t size) 
   if (addr >= ((uint32_t)SECURAM))
     addr -= ((uint32_t)SECURAM);
 
+  secumodMemReady();
+
   for (i = 0; i < size; i += count) {
     region = (addr + i) >> 10;
     if ((SECUMOD_RAMACC_RWx_NO_ACCESS(region) ==
@@ -545,6 +572,8 @@ uint32_t secumodWriteInternalMemory(uint8_t *data, uint32_t addr, uint32_t size)
 
   if (addr >= ((uint32_t)SECURAM))
     addr -= ((uint32_t)SECURAM);
+
+  secumodMemReady();
 
   for (i = 0; i < size; i += count) {
     region = (addr + i) >> 10;

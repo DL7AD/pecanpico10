@@ -141,7 +141,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         /* TODO: If decoder is not running error out. */
 
         pktStartDecoder(radio);
-        handler->rx_active = true;
+        //handler->rx_active = true;
         /* Allow transmit requests. */
         pktReleaseRadio(radio);
         break;
@@ -158,8 +158,10 @@ THD_FUNCTION(pktRadioManager, arg) {
     case PKT_RADIO_RX_STOP: {
       switch(task_object->type) {
             case MOD_AFSK: {
+              pktAcquireRadio(radio, TIME_INFINITE);
               pktStopDecoder(handler->radio);
-              handler->rx_active = false;
+              //handler->rx_active = false;
+              pktReleaseRadio(radio);
               break;
               } /* End case. */
 
@@ -179,7 +181,7 @@ THD_FUNCTION(pktRadioManager, arg) {
 
       /* Give each send a sequence number. */
       ++handler->radio_tx_config.tx_seq_num;
-
+      pktPauseReception(radio);
       if(pktLLDsendPacket(task_object)) {
         /*
          * Keep count of active sends.
@@ -197,9 +199,10 @@ THD_FUNCTION(pktRadioManager, arg) {
          */
         continue;
       }
-      /* Send failed so release send packet object(s). */
+      /* Send failed so release send packet object(s) and task object. */
       packet_t pp = task_object->packet_out;
       pktReleaseBufferChain(pp);
+      pktResumeReception(radio);
       break;
     } /* End case PKT_RADIO_TX. */
 
@@ -209,12 +212,16 @@ THD_FUNCTION(pktRadioManager, arg) {
       thread_t *decoder = NULL;
       switch(task_object->type) {
       case MOD_AFSK: {
+        /* TODO: Implement LLD function for this. */
         Si446x_disableReceive(radio);
+        /* TODO: This should be a function back in pktservice or pktradio. */
         esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
         decoder = ((AFSKDemodDriver *)(handler->link_controller))->decoder_thd;
 
-        /* Send event to release AFSK resources and terminate thread. */
+        /* TODO: Check that decoder will release in WAIT state.
+         * Send event to release AFSK resources and terminate thread.
+         */
         chEvtSignal(decoder, DEC_COMMAND_CLOSE);
 
         /* Then release common services and thread heap. */
@@ -265,14 +272,13 @@ THD_FUNCTION(pktRadioManager, arg) {
       bool rxok = true;
       /* If no transmissions pending then enable RX or shutdown. */
       if(--handler->tx_count == 0) {
-        if(handler->rx_active) {
+        if(pktIsReceivePaused(radio)) {
           rxok = pktLLDresumeReceive(radio);
+          pktResumeReception(radio);
         } else {
           Si446x_shutdown(radio);
         }
       }
-      /* Unlock radio. */
-      pktReleaseRadio(radio);
 
       if(send_msg != MSG_OK) {
         if(send_msg == MSG_TIMEOUT) {
@@ -291,7 +297,10 @@ THD_FUNCTION(pktRadioManager, arg) {
     } /* End switch on command. */
     /* Perform radio task callback if specified. */
     if(task_object->callback != NULL)
-      /* Perform the callback. */
+      /*
+       * Perform the callback.
+       * The callback should be brief and non-blocking.
+       */
       task_object->callback(task_object);
     /* Return radio task object to free list. */
     chFifoReturnObject(radio_queue, (radio_task_object_t *)task_object);
@@ -501,6 +510,20 @@ radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
 }
 
 /**
+ * @brief   Check if requested frequency is in bad for the radio.
+ *
+ * @param[in] radio   radio unit ID.
+ * @param[in] freq    Radio frequency.
+ *
+ * @api
+ */
+bool pktIsRadioInBand(radio_unit_t radio, radio_freq_t freq) {
+  /* TODO: Mapping of radio ID to radio device/capabilities. */
+  (void)radio;
+  return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
+}
+
+/**
  * @brief   Send on radio.
  * @notes   This is the API interface to the radio LLD.
  * @notes   Currently just map directly to 446x driver.
@@ -511,19 +534,20 @@ radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
  * @notapi
  */
 bool pktLLDsendPacket(radio_task_object_t *rto) {
+  bool status;
   switch(rto->type) {
   case MOD_2FSK:
-    Si446x_blocSend2FSK(rto);
+    status = Si446x_blocSend2FSK(rto);
     break;
 
   case MOD_AFSK:
-    Si446x_blocSendAFSK(rto);
+    status = Si446x_blocSendAFSK(rto);
     break;
 
   case MOD_NONE:
-    return false;
+    status = false;
   } /* End switch on task_object->type. */
-  return true;
+  return status;
 }
 
 /**

@@ -28,7 +28,7 @@ guarded_memory_pool_t *ccm_pool = NULL;
 /* Module local variables.                                                   */
 /*===========================================================================*/
 
-#if USE_CCM_FOR_PKT_TX == TRUE
+#if USE_CCM_FOR_PKT_HEAP == TRUE
 static memory_heap_t _ccm_heap;
 #elif USE_CCM_FOR_PKT_POOL == TRUE
 static guarded_memory_pool_t _ccm_pool;
@@ -56,27 +56,78 @@ bool pktSystemInit(void) {
 
   //#define intoCCM  __attribute__((section(".ram4")))  __attribute__((aligned(4)))
 
-#if USE_CCM_FOR_PKT_TX == TRUE
+#if USE_CCM_FOR_PKT_HEAP == TRUE
+  chDbgAssert(ccm_heap == NULL, "CCM heap already exists");
   /* Create heap in CCM. */
   if(ccm_heap == NULL) {
     ccm_heap = &_ccm_heap;
     chHeapObjectInit(ccm_heap, (void *)0x10000000, 0x10000);
   }
+
+  /*
+   * Create common packet buffer control.
+   */
+  if(pktInitBufferControl() == NULL) {
+    ccm_heap = NULL;
+    return false;
+  }
+  return true;
 #elif USE_CCM_FOR_PKT_POOL == TRUE
+  chDbgAssert(ccm_pool == NULL, "CCM guarded pool already exists");
   if(ccm_pool == NULL) {
     ccm_pool = &_ccm_pool;
     chGuardedPoolObjectInitAligned(ccm_pool, sizeof(packet_gen_t), 4);
     chGuardedPoolLoadArray(ccm_pool, (void *)0x10000000,
                            NUMBER_COMMON_PKT_BUFFERS);
+    return true;
   }
+  return false;
+#else
+  return true;
+#endif
+}
+
+/**
+ * @brief   Deinits the packet system.
+ *
+ *@return   result of operation.
+ *@retval   true    deinit success.
+ *@retval   false   deinit failed.
+ *
+ * @api
+ */
+bool pktSystemDeinit(void) {
+
+  //#define intoCCM  __attribute__((section(".ram4")))  __attribute__((aligned(4)))
+
+#if USE_CCM_FOR_PKT_HEAP == TRUE
+  /*
+   * Remove common packet buffer control.
+   */
+  chDbgAssert(ccm_heap != NULL, "CCM heap does not exist");
+  chSysLock();
+
+  pktDeinitBufferControl();
+
+  /* Remove reference to heap in CCM. */
+  ccm_heap = NULL;
+  return true;
+#elif USE_CCM_FOR_PKT_POOL == TRUE
+  chDbgAssert(ccm_pool != NULL, "CCM guarded pool does not exist");
+  if(ccm_pool == NULL) {
+    return false;
+  }
+  chSysLock();
+  chSemWaitTimeoutS(&ccm_pool->sem, TIME_INFINITE);
+  /*
+   *  Kick everyone off and set available buffers to zero.
+   *  Users need to look for MSG_RESET from wait.
+   */
+  chSemResetI(&ccm_pool->sem, 0);
+  chSchRescheduleS();
+  chSysUnlock();
   return true;
 #else
-
-  /*
-   * Create common packet buffer control.
-   */
-  if(pktInitBufferControl() == NULL)
-    return false;
   return true;
 #endif
 }
@@ -115,7 +166,7 @@ bool pktServiceCreate(radio_unit_t radio) {
   memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
 
   /* Set flags and radio ID. */
-  handler->rx_active = false;
+  //handler->rx_active = false;
   handler->radio_init = false;
   handler->radio = radio;
 
@@ -165,16 +216,16 @@ bool pktServiceRelease(radio_unit_t radio) {
 }
 
 /**
- * @brief   Initializes packet handlers and starts the radio manager.
+ * @brief   Hibernate a packet service on a radio.
  * @note    The option to manage multiple radios is not yet implemented.
- * @note    Once initialized the transmit service is available.
- * @note    To activate receive requires an open to be made.
+ * @note    In hibernation the receive and transmit services are unavailable.
+ * @note    This is an empty function - may not be needed ever.
  *
  * @param[in]   radio unit ID.
  *
  *@return   result of operation.
- *@retval   true    service was created.
- *@retval   false   service creation failed or state was not idle.
+ *@retval   true    service was put into hibernation state.
+ *@retval   false   hibernation request failed.
  *
  * @api
  */
@@ -186,45 +237,20 @@ bool pktServiceHibernate(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   if(handler == NULL)
     return false;
-
-  if(handler->state != PACKET_IDLE)
-    return false;
-  /*
-   * Initialize the packet common event object.
-   */
-  chEvtObjectInit(pktGetEventSource(handler));
-
-  memset(&handler->radio_rx_config, 0, sizeof(radio_task_object_t));
-  memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
-
-  /* Set flags and radio ID. */
-  handler->rx_active = false;
-  handler->radio_init = false;
-  handler->radio = radio;
-
-  /* Set service semaphore to idle state. */
-  chBSemObjectInit(&handler->close_sem, false);
-
-  /* Set radio semaphore to free state. */
-  chBSemObjectInit(&handler->radio_sem, false);
-
-  /* Send request to create radio manager. */
-  if (pktRadioManagerCreate(radio) == NULL)
-    return false;
-  handler->state = PACKET_READY;
-  return true;
+  return false;
 }
 
 /**
- * @brief   Releases packet service.
+ * @brief   Wake up a packet service on a radio from hibernation state.
  * @note    The option to manage multiple radios is not yet implemented.
- * @post    The packet service is no longer available for transmit or receive.
+ * @note    Once woken up the prior services become available.
+ * @note    This is an empty function - may not be needed ever.
  *
- * @param[in] radio unit ID
+ * @param[in]   radio unit ID.
  *
  *@return   result of operation.
- *@retval   true    service was released.
- *@retval   false   service state is incorrect or invalid radio ID.
+ *@retval   true    service was woken up.
+ *@retval   false   wake up request failed.
  *
  * @api
  */
@@ -236,12 +262,7 @@ bool pktServiceWakeup(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   if(handler == NULL)
     return false;
-
-  if(handler->state != PACKET_READY)
-    return false;
-  pktRadioManagerRelease(radio);
-  handler->state = PACKET_IDLE;
-  return true;
+  return false;
 }
 
 /**
@@ -325,7 +346,7 @@ msg_t pktOpenRadioReceive(radio_unit_t radio,
  *
  * @api
  */
-msg_t pktStartDataReception(radio_unit_t radio,
+msg_t pktEnableDataReception(radio_unit_t radio,
                             radio_ch_t channel,
                             radio_squelch_t sq,
                             pkt_buffer_cb_t cb) {
@@ -350,13 +371,14 @@ msg_t pktStartDataReception(radio_unit_t radio,
   if(msg != MSG_OK)
     return MSG_TIMEOUT;
 
-  handler->state = PACKET_RUN;
+  /* Wait in PAUSE state for a decoder start. */
+  handler->state = PACKET_PAUSE;
   pktAddEventFlags(handler, EVT_PKT_DECODER_START);
   return MSG_OK;
 }
 
 /**
- * @brief   Starts a packet decoder.
+ * @brief   Enables a packet decoder.
  * @pre     The packet channel must have been opened.
  * @post    The packet decoder is running.
  *
@@ -369,6 +391,10 @@ void pktStartDecoder(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   chDbgAssert(handler != NULL, "invalid radio ID");
+
+  if(!pktIsReceivePaused(radio))
+    /* Wrong state. */
+    return;
 
   event_listener_t el;
   event_source_t *esp;
@@ -405,6 +431,7 @@ void pktStartDecoder(radio_unit_t radio) {
     evt = chEvtGetAndClearFlags(&el);
   } while (evt != DEC_START_EXEC);
   pktUnregisterEventListener(esp, &el);
+  handler->state = PACKET_DECODE;
 }
 
 /**
@@ -423,7 +450,7 @@ void pktStartDecoder(radio_unit_t radio) {
  *
  * @api
  */
-msg_t pktStopDataReception(radio_unit_t radio) {
+msg_t pktDisableDataReception(radio_unit_t radio) {
 
 
   packet_svc_t *handler = pktGetServiceObject(radio);
@@ -431,7 +458,7 @@ msg_t pktStopDataReception(radio_unit_t radio) {
   if(handler == NULL)
     return MSG_RESET;
 
-  if(handler->state != PACKET_RUN)
+  if(handler->state != PACKET_DECODE || handler->state != PACKET_PAUSE)
     return MSG_RESET;
 
   /* Stop the radio processing. */
@@ -450,7 +477,7 @@ msg_t pktStopDataReception(radio_unit_t radio) {
 }
 
 /**
- * @brief   Stops a packet decoder.
+ * @brief   Disables a packet decoder.
  * @pre     The packet channel must be running.
  * @post    The packet decoder is stopped.
  *
@@ -464,6 +491,9 @@ void pktStopDecoder(radio_unit_t radio) {
 
   if(handler == NULL)
     chDbgAssert(false, "invalid radio ID");
+
+  if(!pktIsReceiveActive(radio))
+    return;
 
   event_listener_t el;
   event_source_t *esp;
@@ -498,6 +528,7 @@ void pktStopDecoder(radio_unit_t radio) {
     evt = chEvtGetAndClearFlags(&el);
   } while (evt != DEC_STOP_EXEC);
   pktUnregisterEventListener(esp, &el);
+  handler->state = PACKET_PAUSE;
 }
 
 /**
@@ -872,9 +903,39 @@ dyn_semaphore_t *pktInitBufferControl() {
                                        NUMBER_COMMON_PKT_BUFFERS);
 
     chDbgAssert(dyn_sem != NULL, "failed to create common packet semaphore");
-    return NULL;
+    if(dyn_sem == NULL)
+      return NULL;
+    return dyn_sem;
+  } else {
+    chDbgAssert(false, "common packet semaphore already created");
+    return dyn_sem;
   }
-  return dyn_sem;
+}
+
+/*
+ * Send and packet analysis share a common pool of buffers.
+ */
+void pktDeinitBufferControl() {
+
+  /* Check if the transmit packet buffer semaphore already exists.
+   * If so we get a pointer to it and just return that.
+   * Otherwise create the semaphore and return result.
+   */
+  dyn_semaphore_t *dyn_sem =
+      chFactoryFindSemaphore(PKT_SEND_BUFFER_SEM_NAME);
+  chDbgAssert(dyn_sem != NULL, "common packet semaphore does not exist");
+  if(dyn_sem == NULL)
+    return;
+  chSysLock();
+  chSemWaitTimeoutS(chFactoryGetSemaphore(dyn_sem), TIME_INFINITE);
+  /*
+   *  Kick everyone off and set available buffers to zero.
+   *  Users need to look for MSG_RESET from wait.
+   */
+  chSemResetI(&dyn_sem->sem, 0);
+  chSchRescheduleS();
+  chSysUnlock();
+  chFactoryReleaseSemaphore(dyn_sem);
 }
 
 /*

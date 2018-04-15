@@ -18,7 +18,7 @@ ifeq ($(USE_CPPOPT),)
   USE_CPPOPT = -fno-rtti
 endif
 
-# Enable this if you want the linker to remove unused code and data
+# Enable this if you want the linker to remove unused code and data.
 ifeq ($(USE_LINK_GC),)
   USE_LINK_GC = yes
 endif
@@ -28,7 +28,7 @@ ifeq ($(USE_LDOPT),)
   USE_LDOPT = 
 endif
 
-# Enable this if you want link time optimizations (LTO)
+# Enable this if you want link time optimizations (LTO).
 ifeq ($(USE_LTO),)
   USE_LTO = yes
 endif
@@ -91,8 +91,8 @@ endif
 PROJECT = ch
 
 # Imported source files and paths
-CHIBIOS  := ../../..
-CONFDIR  := .
+CHIBIOS = ../../..
+CONFDIR  := ./cfg
 BUILDDIR := ./build
 DEPDIR   := ./.dep
 
@@ -126,7 +126,7 @@ CSRC = $(ALLCSRC) \
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CPPSRC = $(AllCPPSRC)
+CPPSRC = $(ALLCPPSRC)
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler
@@ -148,11 +148,11 @@ TCSRC =
 #       option that results in lower performance and larger code size.
 TCPPSRC =
 
-# List ASM source files here
+# List ASM source files here.
 ASMSRC = $(ALLASMSRC)
 ASMXSRC = $(ALLXASMSRC)
 
-INCDIR = $(ALLINC) $(TESTINC) $(CONFDIR)
+INCDIR = $(CONFDIR) $(ALLINC) $(TESTINC)
 
 #
 # Project, sources and paths

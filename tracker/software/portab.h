@@ -119,13 +119,14 @@ extern "C" {
 #endif
   void pktConfigSerialDiag(void);
   void pktConfigSerialPkt(void);
+  void sysConfigureCoreIO(void);
   void pktSetLineModeICU(void);
   void pktSerialStart(void);
   void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
   int dbgPrintf(uint8_t level, const char *format, ...);
   void pktWrite(uint8_t *buf, uint32_t len);
-  void pktConfigureRadioGPIO(radio_unit_t radio);
-  void pktDeconfigureRadioGPIO(radio_unit_t radio);
+  void pktPowerUpRadio(radio_unit_t radio);
+  void pktPowerDownRadio(radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif

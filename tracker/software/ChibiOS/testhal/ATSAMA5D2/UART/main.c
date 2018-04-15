@@ -17,11 +17,11 @@
 #include "ch.h"
 #include "hal.h"
 
-#define BUFFER_SIZE 5
+#define BUFFER 5
 
 static virtual_timer_t vt3, vt4, vt5;
-static const uint8_t message[] = "ABCDE";
-static uint8_t buffer[BUFFER_SIZE];
+static const uint8_t message[] =  {'a','b','c','d','e','f'};
+static uint8_t buffer[BUFFER];
 
 static void led3off(void *p) {
 
@@ -114,9 +114,9 @@ static UARTConfig uart_cfg_1 = {
   rxerr,
   NULL,
   0,
-  38400,
-  0,
-  US_MR_CHRL_8_BIT | US_MR_PAR_NO
+  38400,                             /* Baud rate   */
+  0,                                 /* CR register */
+  US_MR_CHRL_8_BIT | US_MR_PAR_NO    /* MR register */
 };
 
 /*
@@ -136,18 +136,10 @@ int main(void) {
   chSysInit();
 
   /*
-   * Activates the flexcom uart driver 0, PB28(RX) and PB29(RX) are routed to FLEXCOM0.
+   * Activates the flexcom uart driver 0.
+   * PB28 and PB29 are routed to FLEXCOM0.
    */
   uartStart(&FUARTD0, &uart_cfg_1);
-
-  /*
-   * Activates the serial driver 0 using the driver default configuration.
-   */
-  sdStart(&SD0, NULL);
-
-  /* Redirecting  SERIAL RX on PB26 and UART0 TX on PB27. */
-  palSetGroupMode(PIOB, PAL_PORT_BIT(26) | PAL_PORT_BIT(27), 0U,
-                  PAL_SAMA_FUNC_PERIPH_C | PAL_MODE_SECURE);
 
   /* Redirecting  UART FLEXCOM0 RX on PB28 and UART FLEXCOM0 TX on PB29. */
   palSetGroupMode(PIOB, PAL_PORT_BIT(28) | PAL_PORT_BIT(29), 0U,
@@ -159,14 +151,14 @@ int main(void) {
    */
   while (true) {
     if (!palReadPad(PIOB, PIOB_USER_PB)) {
-  /*
-   * Starts both a transmission and a receive operations, both will be
-   * handled entirely in background.
-   */
+    /*
+     * Starts both a transmission and a receive operations, both will be
+     * handled entirely in background.
+     */
       uartStopReceive(&FUARTD0);
       uartStopSend(&FUARTD0);
-      uartStartReceive(&FUARTD0, BUFFER_SIZE, buffer);
-      uartStartSend(&FUARTD0, BUFFER_SIZE, message);
+      uartStartReceive(&FUARTD0, BUFFER, buffer);
+      uartStartSend(&FUARTD0, BUFFER+1, message);
     }
     chThdSleepMilliseconds(500);
   }

@@ -56,6 +56,7 @@
  * @brief   BaseSensor specific methods with inherited ones.
  */
 #define _base_sensor_methods                                                \
+  _base_object_methods                                                      \
   _base_sensor_methods_alone
 
 /**
@@ -71,15 +72,18 @@ struct BaseSensorVMT {
  *          without implementation.
  */
 #define _base_sensor_data
+  _base_object_data                                                         \
 
 /**
+ * @extends BaseObject
+ *
  * @brief   Base stream class.
  * @details This class represents a generic blocking unbuffered sequential
  *          data stream.
  */
 typedef struct {
   /** @brief Virtual Methods Table.*/
-  const struct BaseSensorVMT *vmt_basesensor;
+  const struct BaseSensorVMT *vmt;
   _base_sensor_data
 } BaseSensor;
 
@@ -99,7 +103,7 @@ typedef struct {
  *
  * @api
  */
-#define sensorGetChannelNumber(ip) (ip)->vmt_basesensor->get_channels_number(ip)
+#define sensorGetChannelNumber(ip) (ip)->vmt->get_channels_number(ip)
 
 /**
  * @brief   Sensors read raw data.
@@ -113,7 +117,7 @@ typedef struct {
  *
  * @api
  */
-#define sensorReadRaw(ip, dp) (ip)->vmt_basesensor->read_raw(ip, dp)
+#define sensorReadRaw(ip, dp) (ip)->vmt->read_raw(ip, dp)
 
 /**
  * @brief   Sensors read cooked data.
@@ -127,7 +131,7 @@ typedef struct {
  *
  * @api
  */
-#define sensorReadCooked(ip, dp) (ip)->vmt_basesensor->read_cooked(ip, dp)
+#define sensorReadCooked(ip, dp) (ip)->vmt->read_cooked(ip, dp)
 /** @} */
 
 /*===========================================================================*/

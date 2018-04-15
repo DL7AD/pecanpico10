@@ -2,11 +2,13 @@
 #include "hal.h"
 #include "debug.h"
 
+#ifndef DISABLE_HW_WATCHDOG
 // Hardware Watchdog configuration
 static const WDGConfig wdgcfg = {
 	.pr =	STM32_IWDG_PR_256,
 	.rlr =	STM32_IWDG_RL(10000)
 };
+#endif
 
 static void flash_led(void) {
 	palSetLine(LINE_IO_GREEN);
@@ -37,8 +39,9 @@ THD_FUNCTION(wdgThread, arg) {
 		}*/
 
 		if(healthy)
+#ifndef DISABLE_HW_WATCHDOG
 			wdgReset(&WDGD1);	// Reset hardware watchdog at no error
-
+#endif
 		// Switch LEDs
 		if(counter++ % (4*healthy) == 0)
 		{
@@ -49,11 +52,15 @@ THD_FUNCTION(wdgThread, arg) {
 
 void init_watchdog(void)
 {
+#ifndef DISABLE_HW_WATCHDOG
 	// Initialize Watchdog
 	TRACE_INFO("WDG  > Initialize Watchdog");
 	wdgStart(&WDGD1, &wdgcfg);
 	wdgReset(&WDGD1);
-
+#else
+#warning "Hardware Watchdog is disabled"
+    TRACE_INFO("WDG  > Watchdog disabled");
+#endif
 	flash_led();
 
 	TRACE_INFO("WDG  > Startup Watchdog thread");

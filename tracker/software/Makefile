@@ -66,7 +66,7 @@ endif
 # Stack size to the allocated to the Cortex-M main/exceptions stack. This
 # stack is used for processing interrupts and exceptions.
 ifeq ($(USE_EXCEPTIONS_STACKSIZE),)
-  USE_EXCEPTIONS_STACKSIZE = 0x4000
+  USE_EXCEPTIONS_STACKSIZE = 0x5000
 endif
 
 # Enables the use of FPU (no, softfp, hard).
@@ -89,6 +89,8 @@ PROJECT = ch
 # Imported source files and paths
 CHIBIOS = ChibiOS
 #CHIBIOS = C:\ChibiStudio\chibios_trunk
+# Licensing files.
+include $(CHIBIOS)/os/license/license.mk
 # Startup files.
 include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32f4xx.mk
 # HAL-OSAL files (optional).
@@ -111,17 +113,8 @@ LDSCRIPT= board/STM32F413xH.ld
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CSRC = $(STARTUPSRC) \
-       $(KERNSRC) \
-       $(PORTSRC) \
-       $(OSALSRC) \
-       $(HALSRC) \
-       $(PLATFORMSRC) \
-       $(BOARDSRC) \
+CSRC = $(ALLCSRC) \
        $(TESTSRC) \
-       $(SHELLSRC) \
-       $(CHIBIOS)/os/hal/lib/streams/memstreams.c \
-       $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
        $(CHIBIOS)/os/various/fatfs_bindings/fatfs_diskio.c \
        threads/collector.c \
        threads/rxtx/position.c \
@@ -183,7 +176,7 @@ CSRC = $(STARTUPSRC) \
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CPPSRC =
+CPPSRC = $(ALLCPPSRC)
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler
@@ -206,14 +199,10 @@ TCSRC =
 TCPPSRC =
 
 # List ASM source files here
-ASMSRC =
-ASMXSRC = $(STARTUPASM) $(PORTASM) $(OSALASM)
+ASMSRC = $(ALLASMSRC)
+ASMXSRC = $(ALLXASMSRC)
 
-INCDIR = $(CHIBIOS)/os/license \
-         $(STARTUPINC) $(KERNINC) $(PORTINC) $(OSALINC) \
-         $(HALINC) $(PLATFORMINC) $(BOARDINC) $(TESTINC) \
-         $(CHIBIOS)/os/hal/lib/streams $(CHIBIOS)/os/various \
-         $(SHELLINC)
+INCDIR = $(ALLINC) $(TESTINC)
 
 #
 # Project, sources and paths
@@ -263,9 +252,10 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4 -DSHELL_CMD_TEST_ENABLED=1 \
+UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4 -DSHELL_CMD_TEST_ENABLED=0 \
 		-DSHELL_CMD_EXIT_ENABLED=1 -DUSB_TRACE_LEVEL=4 \
 		-DSHELL_CMD_MEM_ENABLED=0
+		# -DDISABLE_HW_WATCHDOG=1
 
 # Define ASM defines here
 UADEFS =

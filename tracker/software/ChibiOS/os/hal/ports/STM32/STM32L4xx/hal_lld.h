@@ -26,8 +26,9 @@
  *          - STM32_HSE_BYPASS (optionally).
  *          .
  *          One of the following macros must also be defined:
- *          - STM32L471xx, STM32L475xx, STM32L476xx.
- *          - STM32L485xx, STM32L486xx.
+ *          - STM32L432xx, STM32L443xx.
+ *          - STM32L471xx, STM32L475xx, STM32L476xx, STM32L496xx.
+ *          - STM32L485xx, STM32L486xx, STM32L4A6xx.
  *          .
  *
  * @addtogroup HAL
@@ -47,9 +48,9 @@
  * @name    Platform identification
  * @{
  */
-#if defined(STM32L432xx) || defined(STM32L471xx) ||                         \
-    defined(STM32L475xx) || defined(STM32L476xx) ||                         \
-    defined(STM32L496xx) || defined(__DOXYGEN__)
+#if defined(STM32L432xx) || defined(STM32L443xx) ||                         \
+    defined(STM32L471xx) || defined(STM32L475xx) ||                         \
+    defined(STM32L476xx) || defined(STM32L496xx) || defined(__DOXYGEN__)
 #define PLATFORM_NAME           "STM32L4xx Ultra Low Power"
 
 #elif defined(STM32L485xx) || defined(STM32L486xx) || defined(STM32L4A6xx)
@@ -484,6 +485,14 @@
  */
 #if !defined(STM32_PLLN_VALUE) || defined(__DOXYGEN__)
 #define STM32_PLLN_VALUE                    80
+#endif
+
+/**
+ * @brief   STM32_PLLPDIV_VALUE divider value or zero if disabled.
+ * @note    The allowed values are 0, 2..31.
+ */
+#if !defined(STM32_PLLPDIV_VALUE) || defined(__DOXYGEN__)
+#define STM32_PLLPDIV_VALUE                 0
 #endif
 
 /**
@@ -1182,7 +1191,7 @@
 /*
  * PLL enable check.
  */
-#if (STM32_CLK48SEL == STM32_CLK48SEL_PLL) ||                               \
+#if (STM32_HSI48_ENABLED && (STM32_CLK48SEL == STM32_CLK48SEL_PLL)) ||      \
     (STM32_SW == STM32_SW_PLL) ||                                           \
     (STM32_MCOSEL == STM32_MCOSEL_PLL) ||                                   \
     (STM32_SAI1SEL == STM32_SAI1SEL_PLL) ||                                 \
@@ -1266,7 +1275,8 @@
 /**
  * @brief   STM32_PLLPDIV field. (Only for STM32L496xx/4A6xx)
  */
-#if ((STM32_PLLPDIV_VALUE != 1) && (STM32_PLLPDIV_VALUE <= 31)) ||          \
+#if (STM32_PLLPDIV_VALUE == 0) ||                                           \
+    ((STM32_PLLPDIV_VALUE >= 2) && (STM32_PLLPDIV_VALUE <= 31)) ||          \
     defined(__DOXYGEN__)
 #define STM32_PLLPDIV               (STM32_PLLPDIV_VALUE << 27)
 #else

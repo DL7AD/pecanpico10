@@ -331,7 +331,7 @@ extern "C" {
  * @details Converts from seconds to system ticks number.
  * @note    The result is rounded upward to the next tick boundary.
  *
- * @param[in] sec       number of seconds
+ * @param[in] secs      number of seconds
  * @return              The number of ticks.
  *
  * @special
@@ -472,7 +472,9 @@ static inline time_usecs_t chTimeI2US(sysinterval_t interval) {
 static inline systime_t chTimeAddX(systime_t systime,
                                    sysinterval_t interval) {
 
+#if CH_CFG_ST_RESOLUTION != CH_CFG_INTERVALS_SIZE
   chDbgCheck(interval <= (sysinterval_t)((systime_t)-1));
+#endif
 
   return systime + (systime_t)interval;
 }
@@ -488,7 +490,10 @@ static inline systime_t chTimeAddX(systime_t systime,
  */
 static inline sysinterval_t chTimeDiffX(systime_t start, systime_t end) {
 
+  /*lint -save -e9033 [10.8] This cast is required by the operation, it is
+    known that the destination type can be wider.*/
   return (sysinterval_t)((systime_t)(end - start));
+  /*lint -restore*/
 }
 
 /**

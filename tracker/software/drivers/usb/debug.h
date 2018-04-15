@@ -37,8 +37,9 @@ extern uint8_t usb_trace_level;
 	} \
 }
 
-#define TRACE_DEBUG(format, args...) if(usb_trace_level > 3) { TRACE_BASE(format, "DEBUG", ##args) }
-#define TRACE_INFO(format, args...)  if(usb_trace_level > 2) { TRACE_BASE(format, "     ", ##args) }
+#define TRACE_DEBUG(format, args...) if(usb_trace_level > 4) { TRACE_BASE(format, "DEBUG", ##args) }
+#define TRACE_INFO(format, args...)  if(usb_trace_level > 3) { TRACE_BASE(format, "     ", ##args) }
+#define TRACE_MON(format, args...)  if(usb_trace_level > 2) { TRACE_BASE(format, "     ", ##args) }
 #define TRACE_WARN(format, args...)  if(usb_trace_level > 1) { TRACE_BASE(format, "WARN ", ##args) }
 #define TRACE_ERROR(format, args...) if(usb_trace_level > 0) { TRACE_BASE(format, "ERROR", ##args) }
 
@@ -72,5 +73,24 @@ extern uint8_t usb_trace_level;
 	chMtxUnlock(&trace_mtx); \
 }
 
+
+#if USE_CCM_FOR_PKT_POOL == TRUE
+/*
+ * Memory pool integrity checking...
+ */
+static inline struct pool_header *pktSystemCheck(void) {
+  extern guarded_memory_pool_t *ccm_pool;
+  return ((struct pool_header *)(ccm_pool->pool.next))->next;
+}
+#elif USE_CCM_FOR_PKT_HEAP ==  TRUE
+/*
+ * Memory heap integrity checking...
+ */
+static inline heap_header_t *pktSystemCheck(void) {
+  extern memory_heap_t *ccm_heap;
+  return (heap_header_t *)(ccm_heap->header.free).next;
+}
 #endif
+
+#endif /* __TRACE_H__ */
 

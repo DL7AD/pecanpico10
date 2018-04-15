@@ -642,7 +642,7 @@ void uart_lld_init(void) {
   UARTD0.uart      = UART0;
   UARTD0.clock     = SAMA_UART0CLK;
   UARTD0.rxdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                     XDMAC_CC_MBSIZE_SINGLE |
+                     XDMAC_CC_MBSIZE_SIXTEEN |
                      XDMAC_CC_DSYNC_PER2MEM |
                      XDMAC_CC_PROT_SEC |
                      XDMAC_CC_CSIZE_CHK_1 |
@@ -653,7 +653,7 @@ void uart_lld_init(void) {
                      XDMAC_CC_DAM_INCREMENTED_AM |
                      XDMAC_CC_PERID(PERID_UART0_RX);
   UARTD0.txdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                     XDMAC_CC_MBSIZE_SINGLE |
+                     XDMAC_CC_MBSIZE_SIXTEEN |
                      XDMAC_CC_DSYNC_MEM2PER |
                      XDMAC_CC_PROT_SEC |
                      XDMAC_CC_CSIZE_CHK_1 |
@@ -675,7 +675,7 @@ void uart_lld_init(void) {
   UARTD1.uart      = UART1;
   UARTD1.clock     = SAMA_UART1CLK;
   UARTD1.rxdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                     XDMAC_CC_MBSIZE_SINGLE |
+                     XDMAC_CC_MBSIZE_SIXTEEN |
                      XDMAC_CC_DSYNC_PER2MEM |
                      XDMAC_CC_PROT_SEC |
                      XDMAC_CC_CSIZE_CHK_1 |
@@ -686,7 +686,7 @@ void uart_lld_init(void) {
                      XDMAC_CC_DAM_INCREMENTED_AM |
                      XDMAC_CC_PERID(PERID_UART1_RX);
   UARTD1.txdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                     XDMAC_CC_MBSIZE_SINGLE |
+                     XDMAC_CC_MBSIZE_SIXTEEN |
                      XDMAC_CC_DSYNC_MEM2PER |
                      XDMAC_CC_PROT_SEC |
                      XDMAC_CC_CSIZE_CHK_1 |
@@ -708,7 +708,7 @@ void uart_lld_init(void) {
   UARTD2.uart      = UART2;
   UARTD2.clock     = SAMA_UART2CLK;
   UARTD2.rxdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                     XDMAC_CC_MBSIZE_SINGLE |
+                     XDMAC_CC_MBSIZE_SIXTEEN |
                      XDMAC_CC_DSYNC_PER2MEM |
                      XDMAC_CC_PROT_SEC |
                      XDMAC_CC_CSIZE_CHK_1 |
@@ -719,7 +719,7 @@ void uart_lld_init(void) {
                      XDMAC_CC_DAM_INCREMENTED_AM |
                      XDMAC_CC_PERID(PERID_UART2_RX);
   UARTD2.txdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                     XDMAC_CC_MBSIZE_SINGLE |
+                     XDMAC_CC_MBSIZE_SIXTEEN |
                      XDMAC_CC_DSYNC_MEM2PER |
                      XDMAC_CC_PROT_SEC |
                      XDMAC_CC_CSIZE_CHK_1 |
@@ -741,7 +741,7 @@ void uart_lld_init(void) {
   UARTD3.uart      = UART3;
   UARTD3.clock     = SAMA_UART3CLK;
   UARTD3.rxdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                     XDMAC_CC_MBSIZE_SINGLE |
+                     XDMAC_CC_MBSIZE_SIXTEEN |
                      XDMAC_CC_DSYNC_PER2MEM |
                      XDMAC_CC_PROT_SEC |
                      XDMAC_CC_CSIZE_CHK_1 |
@@ -752,7 +752,7 @@ void uart_lld_init(void) {
                      XDMAC_CC_DAM_INCREMENTED_AM |
                      XDMAC_CC_PERID(PERID_UART3_RX);
   UARTD3.txdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                     XDMAC_CC_MBSIZE_SINGLE |
+                     XDMAC_CC_MBSIZE_SIXTEEN |
                      XDMAC_CC_DSYNC_MEM2PER |
                      XDMAC_CC_PROT_SEC |
                      XDMAC_CC_CSIZE_CHK_1 |
@@ -774,7 +774,7 @@ void uart_lld_init(void) {
   UARTD4.uart      = UART4;
   UARTD4.clock     = SAMA_UART4CLK;
   UARTD4.rxdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                     XDMAC_CC_MBSIZE_SINGLE |
+                     XDMAC_CC_MBSIZE_SIXTEEN |
                      XDMAC_CC_DSYNC_PER2MEM |
                      XDMAC_CC_PROT_SEC |
                      XDMAC_CC_CSIZE_CHK_1 |
@@ -785,7 +785,7 @@ void uart_lld_init(void) {
                      XDMAC_CC_DAM_INCREMENTED_AM |
                      XDMAC_CC_PERID(PERID_UART4_RX);
   UARTD4.txdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                     XDMAC_CC_MBSIZE_SINGLE |
+                     XDMAC_CC_MBSIZE_SIXTEEN |
                      XDMAC_CC_DSYNC_MEM2PER |
                      XDMAC_CC_PROT_SEC |
                      XDMAC_CC_CSIZE_CHK_1 |
@@ -808,7 +808,7 @@ void uart_lld_init(void) {
   FUARTD0.usart     = USART0;
   FUARTD0.clock     = SAMA_FLEXCOM0CLK;
   FUARTD0.rxdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                      XDMAC_CC_MBSIZE_SINGLE |
+                      XDMAC_CC_MBSIZE_SIXTEEN |
                       XDMAC_CC_DSYNC_PER2MEM |
                       XDMAC_CC_PROT_SEC |
                       XDMAC_CC_CSIZE_CHK_1 |
@@ -819,7 +819,7 @@ void uart_lld_init(void) {
                       XDMAC_CC_DAM_INCREMENTED_AM |
                       XDMAC_CC_PERID(PERID_FLEXCOM0_RX);
   FUARTD0.txdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                      XDMAC_CC_MBSIZE_SINGLE |
+                      XDMAC_CC_MBSIZE_SIXTEEN |
                       XDMAC_CC_DSYNC_MEM2PER |
                       XDMAC_CC_PROT_SEC |
                       XDMAC_CC_CSIZE_CHK_1 |
@@ -842,7 +842,7 @@ void uart_lld_init(void) {
   FUARTD1.usart     = USART1;
   FUARTD1.clock     = SAMA_FLEXCOM1CLK;
   FUARTD1.rxdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                      XDMAC_CC_MBSIZE_SINGLE |
+                      XDMAC_CC_MBSIZE_SIXTEEN |
                       XDMAC_CC_DSYNC_PER2MEM |
                       XDMAC_CC_PROT_SEC |
                       XDMAC_CC_CSIZE_CHK_1 |
@@ -853,7 +853,7 @@ void uart_lld_init(void) {
                       XDMAC_CC_DAM_INCREMENTED_AM |
                       XDMAC_CC_PERID(PERID_FLEXCOM1_RX);
   FUARTD1.txdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                      XDMAC_CC_MBSIZE_SINGLE |
+                      XDMAC_CC_MBSIZE_SIXTEEN |
                       XDMAC_CC_DSYNC_MEM2PER |
                       XDMAC_CC_PROT_SEC |
                       XDMAC_CC_CSIZE_CHK_1 |
@@ -876,7 +876,7 @@ void uart_lld_init(void) {
   FUARTD2.usart     = USART2;
   FUARTD2.clock     = SAMA_FLEXCOM2CLK;
   FUARTD2.rxdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                      XDMAC_CC_MBSIZE_SINGLE |
+                      XDMAC_CC_MBSIZE_SIXTEEN |
                       XDMAC_CC_DSYNC_PER2MEM |
                       XDMAC_CC_PROT_SEC |
                       XDMAC_CC_CSIZE_CHK_1 |
@@ -887,7 +887,7 @@ void uart_lld_init(void) {
                       XDMAC_CC_DAM_INCREMENTED_AM |
                       XDMAC_CC_PERID(PERID_FLEXCOM2_RX);
   FUARTD2.txdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                      XDMAC_CC_MBSIZE_SINGLE |
+                      XDMAC_CC_MBSIZE_SIXTEEN |
                       XDMAC_CC_DSYNC_MEM2PER |
                       XDMAC_CC_PROT_SEC |
                       XDMAC_CC_CSIZE_CHK_1 |
@@ -910,7 +910,7 @@ void uart_lld_init(void) {
   FUARTD3.usart     = USART3;
   FUARTD3.clock     = SAMA_FLEXCOM3CLK;
   FUARTD3.rxdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                      XDMAC_CC_MBSIZE_SINGLE |
+                      XDMAC_CC_MBSIZE_SIXTEEN |
                       XDMAC_CC_DSYNC_PER2MEM |
                       XDMAC_CC_PROT_SEC |
                       XDMAC_CC_CSIZE_CHK_1 |
@@ -921,7 +921,7 @@ void uart_lld_init(void) {
                       XDMAC_CC_DAM_INCREMENTED_AM |
                       XDMAC_CC_PERID(PERID_FLEXCOM3_RX);
   FUARTD3.txdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                      XDMAC_CC_MBSIZE_SINGLE |
+                      XDMAC_CC_MBSIZE_SIXTEEN |
                       XDMAC_CC_DSYNC_MEM2PER |
                       XDMAC_CC_PROT_SEC |
                       XDMAC_CC_CSIZE_CHK_1 |
@@ -944,7 +944,7 @@ void uart_lld_init(void) {
   FUARTD4.usart     = USART4;
   FUARTD4.clock     = SAMA_FLEXCOM4CLK;
   FUARTD4.rxdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                      XDMAC_CC_MBSIZE_SINGLE |
+                      XDMAC_CC_MBSIZE_SIXTEEN |
                       XDMAC_CC_DSYNC_PER2MEM |
                       XDMAC_CC_PROT_SEC |
                       XDMAC_CC_CSIZE_CHK_1 |
@@ -955,7 +955,7 @@ void uart_lld_init(void) {
                       XDMAC_CC_DAM_INCREMENTED_AM |
                       XDMAC_CC_PERID(PERID_FLEXCOM4_RX);
   FUARTD4.txdmamode = XDMAC_CC_TYPE_PER_TRAN |
-                      XDMAC_CC_MBSIZE_SINGLE |
+                      XDMAC_CC_MBSIZE_SIXTEEN |
                       XDMAC_CC_DSYNC_MEM2PER |
                       XDMAC_CC_PROT_SEC |
                       XDMAC_CC_CSIZE_CHK_1 |
@@ -1343,6 +1343,13 @@ void uart_lld_stop(UARTDriver *uartp) {
  */
 void uart_lld_start_send(UARTDriver *uartp, size_t n, const void *txbuf) {
 
+  /* TX DMA channel preparation.*/
+  dmaChannelSetSource(uartp->dmatx, txbuf);
+  dmaChannelSetTransactionSize(uartp->dmatx, n);
+
+  /* Starting transfer.*/
+  dmaChannelEnable(uartp->dmatx);
+
   /* Only enable TC interrupt if there's a callback attached to it.
      Also we need to clear TC flag which could be set before. */
   if (uartp->config->txend2_cb != NULL) {
@@ -1355,13 +1362,6 @@ void uart_lld_start_send(UARTDriver *uartp, size_t n, const void *txbuf) {
       uartp->usart->US_IER = US_IER_TXEMPTY;
 #endif
   }
-
-  /* TX DMA channel preparation.*/
-  dmaChannelSetSource(uartp->dmatx, txbuf);
-  dmaChannelSetTransactionSize(uartp->dmatx, n);
-
-  /* Starting transfer.*/
-  dmaChannelEnable(uartp->dmatx);
 }
 
 /**
@@ -1378,8 +1378,8 @@ void uart_lld_start_send(UARTDriver *uartp, size_t n, const void *txbuf) {
 size_t uart_lld_stop_send(UARTDriver *uartp) {
 
   dmaChannelDisable(uartp->dmatx);
-  /* number of data frames not transmitted is always zero */
-  return 0;
+
+  return dmaChannelGetTransactionSize(uartp->dmatx);
 }
 
 /**
@@ -1400,7 +1400,7 @@ void uart_lld_start_receive(UARTDriver *uartp, size_t n, void *rxbuf) {
 
   /* Enabling BIE interrupt if disabled */
   if ((uartp->dmarx->xdmac->XDMAC_CHID[uartp->dmarx->chid].XDMAC_CIM & XDMAC_CIM_BIM) == 0) {
-  uartp->dmarx->xdmac->XDMAC_CHID[uartp->dmarx->chid].XDMAC_CIE =  XDMAC_CIE_BIE;
+    uartp->dmarx->xdmac->XDMAC_CHID[uartp->dmarx->chid].XDMAC_CIE =  XDMAC_CIE_BIE;
   }
 
   /* Resetting the XDMAC_CNCDAx */
@@ -1440,7 +1440,7 @@ size_t uart_lld_stop_receive(UARTDriver *uartp) {
   size_t n;
 
   dmaChannelDisable(uartp->dmarx);
-  n = 0;
+  n = dmaChannelGetTransactionSize(uartp->dmarx);
   uart_enter_rx_idle_loop(uartp);
 
   return n;

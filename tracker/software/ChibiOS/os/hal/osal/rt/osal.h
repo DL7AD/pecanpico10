@@ -44,7 +44,7 @@
 #endif
 
 #if !defined(TRUE) || defined(__DOXYGEN__)
-#define TRUE                                (!FALSE)
+#define TRUE                                1
 #endif
 
 #define OSAL_SUCCESS                        false
@@ -150,7 +150,7 @@ typedef uint32_t systime_t;
 
 #if 0
 /**
- * @brief   Type of system time counter.
+ * @brief   Type of system time interval.
  */
 typedef uint32_t sysinterval_t;
 #endif
@@ -870,7 +870,7 @@ static inline void osalEventObjectInit(event_source_t *esp) {
   chEvtObjectInit(esp);
 }
 #else
-static inline void osalEventObjectInit(osal_event_source_t *esp) {
+static inline void osalEventObjectInit(event_source_t *esp) {
 
   osalDbgCheck(esp != NULL);
 
@@ -923,7 +923,7 @@ static inline void osalEventBroadcastFlags(event_source_t *esp,
 }
 #else
 static inline void osalEventBroadcastFlags(event_source_t *esp,
-                                            eventflags_t flags) {
+                                           eventflags_t flags) {
 
   osalDbgCheck(esp != NULL);
 
@@ -931,6 +931,7 @@ static inline void osalEventBroadcastFlags(event_source_t *esp,
   esp->flags |= flags;
   if (esp->cb != NULL) {
     esp->cb(esp);
+  }
   osalSysUnlock();
 }
 #endif

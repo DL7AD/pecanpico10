@@ -16,6 +16,10 @@
 #include "pflash.h"
 #include "pkttypes.h"
 
+/*===========================================================================*/
+/* Module local variables.                                                   */
+/*===========================================================================*/
+
 static dataPoint_t dataPoints[2];
 static dataPoint_t* lastDataPoint;
 static bool threadStarted = false;
@@ -28,6 +32,9 @@ dataPoint_t* getLastDataPoint(void)
 	return lastDataPoint;
 }
 
+/*
+ *
+ */
 void waitForNewDataPoint(void)
 {
 	uint32_t old_id = getLastDataPoint()->id;
@@ -35,7 +42,9 @@ void waitForNewDataPoint(void)
 		chThdSleep(TIME_S2I(1));
 }
 
-
+/*
+ *
+ */
 static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp, sysinterval_t timeout)
 {
 	sysinterval_t start = chVTGetSystemTime();
@@ -128,6 +137,9 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp, sysinterval_t time
 	}
 }
 
+/*
+ *
+ */
 static void measureVoltage(dataPoint_t* tp)
 {
 	tp->adc_vbat = stm32_get_vbat();
@@ -138,6 +150,9 @@ static void measureVoltage(dataPoint_t* tp)
 
 static uint8_t bme280_error;
 
+/*
+ *
+ */
 static void getSensors(dataPoint_t* tp)
 {
 	// Measure BME280
@@ -166,7 +181,7 @@ static void getSensors(dataPoint_t* tp)
 		tp->sen_e1_hum = BME280_getHumidity(&handle);
 		tp->sen_e1_temp = BME280_getTemperature(&handle);
 	} else { // No external BME280 found
-		TRACE_ERROR("COLL > External BME280 E1 not found");
+		TRACE_WARN("COLL > External BME280 E1 not found");
 		tp->sen_e1_press = 0;
 		tp->sen_e1_hum = 0;
 		tp->sen_e1_temp = 0;
@@ -180,7 +195,7 @@ static void getSensors(dataPoint_t* tp)
 		tp->sen_e2_hum = BME280_getHumidity(&handle);
 		tp->sen_e2_temp = BME280_getTemperature(&handle);
 	} else { // No external BME280 found
-		TRACE_ERROR("COLL > External BME280 E2 not found");
+		TRACE_WARN("COLL > External BME280 E2 not found");
 		tp->sen_e2_press = 0;
 		tp->sen_e2_hum = 0;
 		tp->sen_e2_temp = 0;
@@ -195,6 +210,9 @@ static void getSensors(dataPoint_t* tp)
 	tp->light_intensity = OV5640_getLastLightIntensity() & 0xFFFF;
 }
 
+/*
+ *
+ */
 static void setSystemStatus(dataPoint_t* tp) {
 	// Set system errors
 	tp->sys_error = 0;
@@ -322,6 +340,9 @@ THD_FUNCTION(collectorThread, arg) {
 	}
 }
 
+/*
+ *
+ */
 void init_data_collector(void)
 {
 	if(!threadStarted)
@@ -329,10 +350,14 @@ void init_data_collector(void)
 		threadStarted = true;
 
 		TRACE_INFO("COLL > Startup data collector thread");
-		thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(10*1024), "TRA", LOWPRIO, collectorThread, NULL);
+		thread_t *th = chThdCreateFromHeap(NULL,
+		                                   THD_WORKING_AREA_SIZE(10*1024),
+		                                   "TRA", LOWPRIO,
+		                                   collectorThread, NULL);
 		if(!th) {
 			// Print startup error, do not start watchdog for this thread
-			TRACE_ERROR("COLL > Could not startup thread (not enough memory available)");
+			TRACE_ERROR("COLL > Could not start"
+			    " thread (not enough memory available)");
 		} else {
 			chThdSleep(TIME_MS2I(300)); // Wait a little bit until data collector has initialized first dataset
 		}

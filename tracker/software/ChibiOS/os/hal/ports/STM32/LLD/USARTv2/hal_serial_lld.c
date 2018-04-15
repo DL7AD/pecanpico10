@@ -158,7 +158,7 @@ static uint8_t sd_out_buf3[STM32_SERIAL_USART3_OUT_BUF_SIZE];
 static uint8_t sd_in_buf4[STM32_SERIAL_UART4_IN_BUF_SIZE];
 
 /** @brief Output buffer for SD4.*/
-static uint8_t sd_out_buf4[STM32_SERIAL_UART4_IN_BUF_SIZE];
+static uint8_t sd_out_buf4[STM32_SERIAL_UART4_OUT_BUF_SIZE];
 #endif
 
 #if STM32_SERIAL_USE_UART5 || defined(__DOXYGEN__)
@@ -166,7 +166,7 @@ static uint8_t sd_out_buf4[STM32_SERIAL_UART4_IN_BUF_SIZE];
 static uint8_t sd_in_buf5[STM32_SERIAL_UART5_IN_BUF_SIZE];
 
 /** @brief Output buffer for SD5.*/
-static uint8_t sd_out_buf5[STM32_SERIAL_UART5_IN_BUF_SIZE];
+static uint8_t sd_out_buf5[STM32_SERIAL_UART5_OUT_BUF_SIZE];
 #endif
 
 #if STM32_SERIAL_USE_USART6 || defined(__DOXYGEN__)
@@ -334,11 +334,12 @@ static void serve_interrupt(SerialDriver *sdp) {
   }
 
   /* Physical transmission end.*/
-  if (isr & USART_ISR_TC) {
+  if ((cr1 & USART_CR1_TCIE) && (isr & USART_ISR_TC)) {
     osalSysLockFromISR();
-    if (oqIsEmptyI(&sdp->oqueue))
+    if (oqIsEmptyI(&sdp->oqueue)) {
       chnAddFlagsI(sdp, CHN_TRANSMISSION_END);
-    u->CR1 = cr1 & ~USART_CR1_TCIE;
+      u->CR1 = cr1 & ~USART_CR1_TCIE;
+    }
     osalSysUnlockFromISR();
   }
 }

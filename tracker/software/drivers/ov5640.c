@@ -687,32 +687,26 @@ static const struct regval_list OV5640_QSXGA2XGA[]  =
 	{0xffff, 0xff},	
 };
 
-
-// TODO: Implement a state machine instead of multiple flags
-static bool capture_finished;
-static bool dma_error;
-static uint8_t *buff_ptr;
-static uint32_t dma_flags;
-
-static uint8_t* dma_buffer;
-
 static resolution_t last_res = RES_NONE;
 
-/*
- * Memory pool integrity checking... will expand to be that
- */
-static struct pool_header *pktSystemCheck(void) {
-  extern guarded_memory_pool_t *ccm_pool;
-  return ((struct pool_header *)(ccm_pool->pool.next))->next;
-}
+typedef struct dmaControl {
+  const stm32_dma_stream_t  *dmastp;
+  TIM_TypeDef               *timer;
+  uint8_t                   *capture_buffer;
+  uint16_t                  dbm_index;
+  volatile bool             capture;
+  uint32_t                  dma_flags;
+  volatile bool             dma_error;
+  uint16_t                  dma_count;
+} dma_capture_t;
 
 /**
   * Captures an image from the camera.
   * @buffer Buffer in which the image can be sampled
   * @size Size of buffer
   * @res Resolution of the image
-  * If resolution MAX_RES has been chosen, a highest resolution will be chosen
-  * which it suitable for the amount of buffer. Due to the JPEG compression
+  * If resolution MAX_RES has been chosen, the maximum resolution will be
+  * chosen for the available buffer. Due to the JPEG compression
   * that could lead to different resolutions on different method calls.
   * The method returns the size of the image.
   */
@@ -732,11 +726,9 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
 	}
 
 	// Capture image until we get a good image or reach max retries.
-	TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
     TRACE_INFO("CAM  > Capture image into buffer @ 0x%08x size 0x%08x",
                buffer, size);
 	do {
-		TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
 		size_sampled = OV5640_Capture(buffer, size);
 		if(size_sampled > 0) {
 		  TRACE_INFO("CAM  > Image size: %d bytes", size_sampled);
@@ -747,13 +739,9 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
 	return 0;
 }
 
-const stm32_dma_stream_t *dmastp;
+//const stm32_dma_stream_t *dmastp;
 
 #if OV5640_USE_DMA_DBM == TRUE
-uint16_t dma_index;
-uint16_t dma_buffers;
-uint16_t dma_count;
-
 
 #if !defined(dmaStreamGetCurrentTarget)
 /**
@@ -773,19 +761,18 @@ uint16_t dma_count;
 #endif /* !defined(dmaStreamGetCurrentTarget) */
 #endif /* OV5640_USE_DMA_DBM == TRUE */
 
-inline int32_t dma_start(void) {
+inline void dma_start(const stm32_dma_stream_t *dmastp) {
   /* Clear any pending interrupts. */
   dmaStreamClearInterrupt(dmastp);
   dmaStreamEnable(dmastp);
-  return 0;
 }
 
 /*
  * Stop DMA release stream and return count remaining.
- * Note that any DMA FIFO transfer will complete.
+ * Note that any DMA FIFO transfer in progress will complete.
  * The Chibios DMAV2 driver waits for EN to clear before proceeding.
  */
-inline uint16_t dma_stop(void) {
+inline uint16_t dma_stop(const stm32_dma_stream_t *dmastp) {
 	dmaStreamDisable(dmastp);
 	uint16_t transfer = dmaStreamGetTransactionSize(dmastp);
 	dmaStreamRelease(dmastp);
@@ -794,207 +781,227 @@ inline uint16_t dma_stop(void) {
 
 #if OV5640_USE_DMA_DBM == TRUE
 
+/*
+ *
+ */
 static void dma_interrupt(void *p, uint32_t flags) {
-	/* No parameter passed. */
-	(void)p;
+  dma_capture_t *dma_control = p;
 
-	if(flags & (STM32_DMA_ISR_FEIF | STM32_DMA_ISR_TEIF)) {
-		/*
-		 * DMA transfer error or FIFO error.
-		 * See 9.34.19 of RM0430.
-		 *
-		 * Disable timer DMA request and flag fault.
-		 */
-		TIM8->DIER &= ~TIM_DIER_CC1DE;
-		dma_count = dma_stop();
-		dma_error = true;
-		dmaStreamClearInterrupt(dmastp);
-		return;
-	}
+  const stm32_dma_stream_t *dmastp = dma_control->dmastp;
 
-	if(flags & STM32_DMA_ISR_HTIF) {
-		/*
-		 * Half transfer complete.
-		 * Check if DMA is writing to the last buffer.
-		 */
-		if(++dma_index == (dma_buffers)) {
-			/*
-			 * This is the last buffer so we have to terminate DMA.
-			 * The DBM switch is done in h/w.
-			 * DMA could write beyond total buffer if not stopped.
-			 *
-			 * Since this is the last DMA buffer this is treated as an error.
-			 * The DMA should normally be terminated by VSYNC before last buffer.
-			 * Stop DMA and TIM DMA trigger and flag error.
-			 */
+  if(flags & (STM32_DMA_ISR_FEIF | STM32_DMA_ISR_TEIF)) {
+    /*
+     * DMA transfer error or FIFO error.
+     * See 9.34.19 of RM0430.
+     *
+     * Disable DMA and flag fault.
+     */
+    dma_control->dma_count = dma_stop(dmastp);
+    dma_control->dma_error = true;
+    dmaStreamClearInterrupt(dmastp);
+    return;
+  }
 
-			TIM8->DIER &= ~TIM_DIER_CC1DE;
-			dma_stop();
-			dma_error = true;
-			dmaStreamClearInterrupt(dmastp);
-			return;
-		}
-		/*
-		 * Else Safe to allow buffer to fill.
-		 * DMA DBM will switch buffers in h/w when this one is full.
-		 * Just clear the interrupt and wait for TCIF.
-		 */
-		dmaStreamClearInterrupt(dmastp);
-		return;
-	}
-	if (flags & STM32_DMA_ISR_TCIF) {
-		/*
-		 * Full buffer transfer complete.
-		 * Update non-active memory address register.
-		 * DMA will use new address at h/w DBM switch.
-		 */
+  if(flags & STM32_DMA_ISR_HTIF) {
+    /*
+     * Half transfer complete.
+     * Check if DMA is writing to the last buffer.
+     */
+    if(--dma_control->dbm_index == 0) {
+      /*
+       * This is the last buffer so we have to terminate DMA.
+       * The DBM switch is done in h/w.
+       * DMA could write beyond total buffer if not stopped.
+       *
+       * Since this is the last DMA buffer this is treated as an error.
+       * The DMA should normally be terminated by VSYNC before last buffer.
+       * Stop DMA and flag error.
+       */
 
-        buff_ptr += DMA_SEGMENT_SIZE;
-		if (dmaStreamGetCurrentTarget(dmastp) == 1) {
-			dmaStreamSetMemory0(dmastp, buff_ptr);
-		} else {
-			dmaStreamSetMemory1(dmastp, buff_ptr);
-		}
-		dmaStreamClearInterrupt(dmastp);
-		return;
-	}
+      dma_control->dma_count = dma_stop(dmastp);
+      dma_control->dma_error = true;
+      dmaStreamClearInterrupt(dmastp);
+      return;
+    }
+    /*
+     * Else Safe to allow buffer to fill.
+     * DMA DBM will switch buffers in h/w when this one is full.
+     * Update non-active memory address register now.
+     * This is done at TCIF so that CT is known to be valid.
+     * Checking CT at TCIF is not good because of IRQ latency.
+     * i.e. the DMA controller may have already changed CT before IRQ is serviced.
+     */
+    dma_control->capture_buffer += DMA_SEGMENT_SIZE;
+    if (dmaStreamGetCurrentTarget(dmastp) == 1) {
+      dmaStreamSetMemory0(dmastp, dma_control->capture_buffer);
+    } else {
+      dmaStreamSetMemory1(dmastp, dma_control->capture_buffer);
+    }
+    dmaStreamClearInterrupt(dmastp);
+    return;
+  }
+  if (flags & STM32_DMA_ISR_TCIF) {
+    /*
+     * Nothing to do here.
+     */
+    dmaStreamClearInterrupt(dmastp);
+    return;
+  }
+  /* Unknown IRQ. */
+  dmaStreamClearInterrupt(dmastp);
+  return;
 }
 
 #else
 
 static void dma_interrupt(void *p, uint32_t flags) {
-	(void)p;
+  dma_capture_t *dma_control = p;
 
-	dma_flags = flags;
-	if(flags & (STM32_DMA_ISR_FEIF | STM32_DMA_ISR_TEIF | STM32_DMA_ISR_DMEIF)) {
-		/*
-		 * DMA transfer error, FIFO error or Direct mode error.
-		 * See 9.34.19 of RM0430.
-		 */
+  const stm32_dma_stream_t *dmastp = dma_control->dmastp;
+  TIM_TypeDef *timer = dma_control->timer;
 
-		dmaStreamClearInterrupt(dmastp);
-		TIM8->DIER &= ~TIM_DIER_CC1DE;
-		dma_stop();
-		dma_error = true;
-		return;
-	}
+  dma_control->dma_flags = flags;
+  if(flags & (STM32_DMA_ISR_FEIF | STM32_DMA_ISR_TEIF | STM32_DMA_ISR_DMEIF)) {
+    /*
+     * DMA transfer error, FIFO error or Direct mode error.
+     * See 9.34.19 of RM0430.
+     */
 
-	if((flags & STM32_DMA_ISR_TCIF) != 0) {
-		/*
-		 * If DMA has run to end within a frame then this is an error.
-		 * In single buffer mode DMA should always be terminated by VSYNC.
-		 *
-		 * Disable TIM8 and DMA trigger.
-		 * Dont stop the DMA here. Its going to be stopped by the  leading edge of VSYNC.
-		 */
-		TIM8->DIER &= ~TIM_DIER_CC1DE;
-		dma_stop();
-		dma_error = true;
-		return;
-	}
-	dmaStreamClearInterrupt(dmastp);
+    dmaStreamClearInterrupt(dma_control->dmastp);
+    dma_stop(dma_control->dmastp);
+    dma_control->dma_error = true;
+    return;
+  }
+
+  if((flags & STM32_DMA_ISR_TCIF) != 0) {
+    /*
+     * If DMA has run to end within a frame then this is an error.
+     * In single buffer mode DMA should always be terminated by VSYNC.
+     *
+     * Disable DMA
+     */
+    dma_stop(dma_control->dmastp);
+    dma_control->dma_error = true;
+    return;
+  }
+  dmaStreamClearInterrupt(dma_control->dmastp);
 }
 
 #endif /* USE_OV5640_DMA_DBM */
 
-static uint8_t vsync_cntr;
-void new_vsync_cb(void *arg) {
-  (void)arg;
+/*
+ * This interrupt handler is for OV5640 compression mode 3.
+ * A VSYNC pulse proceeds the JPEG data.
+ *
+ */
+void mode3_vsync_cb(void *arg) {
+  dma_capture_t *dma_control = arg;
+
+  const stm32_dma_stream_t *dmastp = dma_control->dmastp;
+  TIM_TypeDef *timer = dma_control->timer;
 
   chSysLockFromISR();
-
-  // VSYNC handling
   if(palReadLine(LINE_CAM_VSYNC)) {
     /* VSYNC leading edge. */
-
-    if((TIM8->DIER & TIM_DIER_CC1DE) != 0) {
-      /* Capture already running. */
-      dma_count = dma_stop();
-      TIM8->DIER &= ~TIM_DIER_CC1DE;
+    if((timer->DIER & TIM_DIER_CC1DE) != 0) {
+      /* Capture running so terminate. */
+      dma_control->dma_count = dma_stop(dmastp);
+      timer->DIER &= ~TIM_DIER_CC1DE;
       /*
        * Disable VSYNC edge interrupts.
        * Flag image capture complete.
        */
       palDisableLineEventI(LINE_CAM_VSYNC);
-      capture_finished = true;
-    } else {
-      /* Wait. Start DMA on trailing edge. */
-      chSysUnlockFromISR();
-      return;
-    } /* VSYNC trailing edge. */
-  }
-  /*
-   * Trailing edge of VSYNC after TIM8 has been initialised.
-   * Start DMA channel.
-   * Enable TIM8 trigger of DMA.
-   */
-  dma_start();
-  TIM8->DIER |= TIM_DIER_CC1DE;
+      dma_control->capture = true;
+    } /* Else wait to arm timer on trailing edge. */
+    chSysUnlockFromISR();
+    return;
+  } /* VSYNC trailing edge. */
+  if((timer->DIER & TIM_DIER_CC1DE) == 0) {
+    /*
+     * Timer not running.
+     * Start DMA channel.
+     * Enable timer trigger of DMA.
+     */
+    dma_start(dma_control->dmastp);
+    timer->DIER |= TIM_DIER_CC1DE;
+  } /* Else wait to stop timer on leading edge. */
   chSysUnlockFromISR();
 }
 
 /*
  * VSYNC is asserted to signal frame start.
- * See OV5640 datasheet for details.
+ * See OV5640 data sheet for details.
  */
 static uint8_t vsync_cntr;
 void vsync_cb(void *arg) {
-  TIM_TypeDef *timer = arg;
+  dma_capture_t *dma_control = arg;
 
-	chSysLockFromISR();
+  const stm32_dma_stream_t *dmastp = dma_control->dmastp;
+  TIM_TypeDef *timer = dma_control->timer;
 
-	// VSYNC handling
-	if(!vsync_cntr) {
-		/*
-		 * Rising edge of VSYNC after TIM8 has been initialised.
-		 * Start DMA channel.
-		 * Enable TIM8 trigger of DMA.
-		 */
-		dma_start();
-		timer->DIER |= TIM_DIER_CC1DE;
-		vsync_cntr++;
-	} else {
-		/* VSYNC leading with vsync true.
-		 * This means end of capture for the frame.
-		 * Stop & release the DMA channel.
-		 * Disable TIM8 trigger of DMA.
-		 * If buffer was filled in DMA then that is an error.
-		 * We check that here.
-		 */
-		dma_stop();
-		timer->DIER &= ~TIM_DIER_CC1DE;
+  chSysLockFromISR();
 
-		/*
-		 * Disable VSYNC edge interrupts.
-		 * Flag image capture complete.
-		 */
-		palDisableLineEventI(LINE_CAM_VSYNC);
-		capture_finished = true;
-	}
+  // VSYNC handling
+  if(!vsync_cntr) {
+      /*
+       * Rising edge of VSYNC after TIM8 has been initialised.
+       * Start DMA channel.
+       * Enable TIM8 trigger of DMA.
+       */
+      dma_start(dmastp);
+      timer->DIER |= TIM_DIER_CC1DE;
+      vsync_cntr++;
+  } else {
+      /* VSYNC leading with vsync true.
+       * This means end of capture for the frame.
+       * Stop & release the DMA channel.
+       * Disable TIM8 trigger of DMA.
+       * If buffer was filled in DMA then that is an error.
+       * We check that here.
+       */
+      dma_stop(dmastp);
+      timer->DIER &= ~TIM_DIER_CC1DE;
 
-	chSysUnlockFromISR();
+      /*
+       * Disable VSYNC edge interrupts.
+       * Flag image capture complete.
+       */
+      palDisableLineEventI(LINE_CAM_VSYNC);
+      dma_control->capture = true;
+  }
+
+  chSysUnlockFromISR();
 }
 
 /*
  * Other drivers using resources that can cause DMA competition are locked.
  */
-void OV5640_lockResourcesForCapture(void) {
+msg_t OV5640_LockResourcesForCapture(void) {
   I2C_Lock();
-  pktAcquireRadio(PKT_RADIO_1, TIME_INFINITE);
-  /* FIXME: USB has to be locked. */
+
+  msg_t msg = pktAcquireRadio(PKT_RADIO_1, TIME_INFINITE);
+  if(msg != MSG_OK) {
+    return msg;
+  }
+  pktPauseReception(PKT_RADIO_1);
+  //chMtxLock(&trace_mtx);
+  return MSG_OK;
+  /* FIXME: USB has to be locked? */
 }
 
 /*
  * Unlock competing drivers.
  */
-void OV5640_unlockResourcesForCapture(void) {
+void OV5640_UnlockResourcesForCapture(void) {
+  /* FIXME: USB has to be unlocked? */
+  //chMtxUnlock(&trace_mtx);
   I2C_Unlock();
+  pktResumeReception(PKT_RADIO_1);
   pktReleaseRadio(PKT_RADIO_1);
-  /* FIXME: USB has to be unlocked. */
 }
 
 uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
-  TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
 
 	/*
 	 * Note:
@@ -1002,10 +1009,20 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	 *  In makefile add entry to UDEFS:
 	 *   UDEFS = -DSTM32_DMA_REQUIRED
 	 */
-	OV5640_lockResourcesForCapture();
 
-	/* Setup DMA for transfer on TIM8_CH1 - DMA2 stream 2, channel 7 */
-	dmastp  = STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 2));
+    /* WARNING: Do not use TRACE between locking and unlocking. */
+	if(OV5640_LockResourcesForCapture() != MSG_OK) {
+	  /* Unable to lock resources. */
+	  return 0;
+	}
+
+	dma_capture_t dma_control = {0};
+
+	/* Setup DMA for transfer on timer CC tigger.
+	 * For TIM8 this DMA2 stream 2, channel 7.
+	 * Use PL 3 as PCLCK rate is high.
+	 */
+	dma_control.dmastp  = STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 2));
 	uint32_t dmamode = STM32_DMA_CR_CHSEL(7) |
 	STM32_DMA_CR_PL(3) |
 	STM32_DMA_CR_DIR_P2M |
@@ -1021,24 +1038,28 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 #endif
 	STM32_DMA_CR_TCIE;
 
-	dmaStreamAllocate(dmastp, 3, (stm32_dmaisr_t)dma_interrupt, NULL);
+	/* Set stream, IRQ priority, IRQ handler & parameter. */
+	dmaStreamAllocate(dma_control.dmastp, 7,
+	                  (stm32_dmaisr_t)dma_interrupt, &dma_control);
 
-	dmaStreamSetPeripheral(dmastp, &GPIOA->IDR); // We want to read the data from here
+	dmaStreamSetPeripheral(dma_control.dmastp, &GPIOA->IDR); // We want to read the data from here
 
 #if OV5640_USE_DMA_DBM == TRUE
-	dma_buffer = buffer;
+	//dma_buffer = buffer;
+	dma_control.capture_buffer = buffer;
 
     /*
      * Buffer address must be word aligned.
      * Also note requirement for burst transfers from FIFO.
-     * Bursts from FIFO to memory must not cross a 1K address boundary.
+     * A burst write from DMA FIFO to memory must not cross a 1K address boundary.
      * See RM0430 9.3.12
      *
      * TODO: To use DMA_FIFO_BURST_ALIGN in setting of ssdv buffer alignment.
-     * Currently this is set to 16 manually in image.c.
+     * Currently this is set to 32 manually in image.c.
      */
 
     if (((uint32_t)buffer % DMA_FIFO_BURST_ALIGN) != 0) {
+      OV5640_UnlockResourcesForCapture();
       TRACE_ERROR("CAM  > Buffer not allocated on DMA burst boundary");
       return 0;
     }
@@ -1046,60 +1067,64 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
      * Set the initial buffer addresses.
      * The updating of DMA:MxAR is done in the the DMA interrupt function.
      */
-    dmaStreamSetMemory0(dmastp, &buffer[0]);
-    dmaStreamSetMemory1(dmastp, &buffer[DMA_SEGMENT_SIZE]);
-    dmaStreamSetTransactionSize(dmastp, DMA_SEGMENT_SIZE);
+    dmaStreamSetMemory0(dma_control.dmastp, &buffer[0]);
+    dmaStreamSetMemory1(dma_control.dmastp, &buffer[DMA_SEGMENT_SIZE]);
+    dmaStreamSetTransactionSize(dma_control.dmastp, DMA_SEGMENT_SIZE);
 
     /*
      * Calculate the number of whole buffers.
      * TODO: Make this include remainder memory as partial buffer?
      */
-    dma_buffers = (size / DMA_SEGMENT_SIZE);
-    if (dma_buffers == 0) {
-      TRACE_ERROR("CAM  > Capture buffer less than minimum DMA segment size");
+    dma_control.dbm_index = (size / DMA_SEGMENT_SIZE);
+    if(dma_control.dbm_index < 2) {
+      OV5640_UnlockResourcesForCapture();
+      TRACE_ERROR("CAM  > Capture buffer less than 2 DMA segment segments");
       return 0;
     }
-    /* Start with buffer page 0. */
-    dma_index = 0;
-    buff_ptr = buffer;
-    dma_count = 0;
 #else
     dmaStreamSetMemory0(dmastp, buffer);
-    dmaStreamSetTransactionSize(dmastp, size);
+    dmaStreamSetTransactionSize(dma_control.dmastp, size);
 
 #endif
-    dmaStreamSetMode(dmastp, dmamode); // Setup DMA
-    dmaStreamSetFIFO(dmastp, STM32_DMA_FCR_DMDIS | STM32_DMA_FCR_FTH_FULL | STM32_DMA_FCR_FEIE);
-    dmaStreamClearInterrupt(dmastp);
+    dmaStreamSetMode(dma_control.dmastp, dmamode); // Setup DMA
+    dmaStreamSetFIFO(dma_control.dmastp, STM32_DMA_FCR_DMDIS
+                             | STM32_DMA_FCR_FTH_FULL
+                             | STM32_DMA_FCR_FEIE);
+    dmaStreamClearInterrupt(dma_control.dmastp);
 
-    dma_error = false;
-    dma_flags = 0;
+    dma_control.dma_error = false;
+    dma_control.dma_flags = 0;
 
 	/*
 	 * Setup timer for PCLK
-	 * Setup timer to trigger DMA in capture mode. On rising edge, we will
-	 * reach the match and on the falling edge, the timer will be reloaded.
 	 */
-	rccResetTIM8();
+
+    dma_control.timer = TIM8;
 	rccEnableTIM8(FALSE);
+    rccResetTIM8();
+
 
 	/* TODO: deprecate ARR as not used for Input Capture mode. */
-	TIM8->ARR = 1;
-	TIM8->CCR1 = 0;
-	TIM8->CCER = 0;
-	TIM8->CCMR1 = TIM_CCMR1_CC1S_0;
-	TIM8->CCER = TIM_CCER_CC1E;
+	//TIM8->ARR = 1;
+	//dma_control.timer->CCR1 = 0;
+	//dma_control.timer->CCER = 0;
+    /*
+     * Setup capture mode triggered from TI1.
+     * What is captured isn't used just the DMA trigger.
+     */
+	dma_control.timer->CCMR1 = TIM_CCMR1_CC1S_0;
+	dma_control.timer->CCER = TIM_CCER_CC1E;
 
-	capture_finished = false;
+	dma_control.capture = false;
 	vsync_cntr = 0;
 
-//#define NEW_CAPTURE_VSYNC
+#define NEW_CAPTURE_VSYNC
 #ifdef NEW_CAPTURE_VSYNC
-    palSetLineCallback(LINE_CAM_VSYNC, (palcallback_t)new_vsync_cb, TIM8);
+    palSetLineCallback(LINE_CAM_VSYNC, (palcallback_t)mode3_vsync_cb, &dma_control);
     palEnableLineEvent(LINE_CAM_VSYNC, PAL_EVENT_MODE_BOTH_EDGES);
 #else
 	// Enable VSYNC interrupt
-	palSetLineCallback(LINE_CAM_VSYNC, (palcallback_t)vsync_cb, TIM8);
+	palSetLineCallback(LINE_CAM_VSYNC, (palcallback_t)vsync_cb, &dma_control);
 	palEnableLineEvent(LINE_CAM_VSYNC, PAL_EVENT_MODE_RISING_EDGE);
 #endif
 
@@ -1107,49 +1132,43 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	uint8_t timout = 50; // 500ms max
 	do {
 		chThdSleep(TIME_MS2I(10));
-	} while(!capture_finished && !dma_error && --timout);
+	} while(!dma_control.capture && !dma_control.dma_error && --timout);
+
+    palDisableLineEvent(LINE_CAM_VSYNC);
+    OV5640_UnlockResourcesForCapture();
 
 	if(!timout) {
-		TRACE_ERROR("CAM  > Image sampling timeout");
-
-		dma_count = dma_stop();
-		TIM8->DIER &= ~TIM_DIER_CC1DE;
-		palDisableLineEvent(LINE_CAM_VSYNC);
-		dma_error = true;
+      TRACE_ERROR("CAM  > Image sampling timeout");
+      dma_control.dma_count = dma_stop(dma_control.dmastp);
+      dma_control.timer->DIER &= ~TIM_DIER_CC1DE;
+      dma_control.dma_error = true;
 	}
 
-    // Capture done, unlock competing processes.
-	OV5640_unlockResourcesForCapture();
-
-	if(dma_error)
-	{
-		if(dma_flags & STM32_DMA_ISR_HTIF) {
+	if(dma_control.dma_error) {
+		if(dma_control.dma_flags & STM32_DMA_ISR_HTIF) {
 			TRACE_ERROR("CAM  > DMA abort - last buffer segment");
 			error = 0x2;
-			return (buff_ptr - buffer);
+			return (dma_control.capture_buffer - buffer);
 		}
-		if(dma_flags & STM32_DMA_ISR_FEIF) {
+		if(dma_control.dma_flags & STM32_DMA_ISR_FEIF) {
 			TRACE_ERROR("CAM  > DMA FIFO error");
 			error = 0x3;
 		}
-		if(dma_flags & STM32_DMA_ISR_TEIF) {
+		if(dma_control.dma_flags & STM32_DMA_ISR_TEIF) {
 			TRACE_ERROR("CAM  > DMA stream transfer error");
 			error = 0x4;
 		}
-		if(dma_flags & STM32_DMA_ISR_DMEIF) {
+		if(dma_control.dma_flags & STM32_DMA_ISR_DMEIF) {
 			TRACE_ERROR("CAM  > DMA direct mode error");
 			error = 0x5;
 		}
-		TRACE_ERROR("CAM  > Timeout error capturing image");
 		return 0;
 	}
-	  TRACE_DEBUG("CAM  > Pool link 0x%x", pktSystemCheck());
-
     TRACE_INFO("CAM  > Capture success");
 
 	error = 0x0;
 #if OV5640_USE_DMA_DBM == TRUE
-	return (buff_ptr - buffer + (DMA_SEGMENT_SIZE - dma_count));
+	return (dma_control.capture_buffer - buffer + (DMA_SEGMENT_SIZE - dma_control.dma_count));
 #else
 	return size;
 #endif
@@ -1160,6 +1179,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
   */
 void OV5640_InitGPIO(void)
 {
+  /* Route to trigger input of timer. */
 	palSetLineMode(LINE_CAM_PCLK, PAL_MODE_ALTERNATE(3));
 	palSetLineMode(LINE_CAM_VSYNC, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
 	palSetLineMode(LINE_CAM_XCLK, PAL_MODE_ALTERNATE(0));
@@ -1171,10 +1191,11 @@ void OV5640_InitGPIO(void)
 	palSetLineMode(LINE_CAM_D7, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
 	palSetLineMode(LINE_CAM_D8, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
 	palSetLineMode(LINE_CAM_D9, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
-	//palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
-
 	palSetLineMode(LINE_CAM_EN, PAL_MODE_OUTPUT_PUSHPULL);
 	palSetLineMode(LINE_CAM_RESET, PAL_MODE_OUTPUT_PUSHPULL);
+	/* Force reset low prior to power up. */
+	palClearLine(LINE_CAM_RESET);
+	chThdSleep(TIME_MS2I(10));
 }
 
 void OV5640_TransmitConfig(void)
@@ -1277,18 +1298,23 @@ void OV5640_SetResolution(resolution_t res)
 	}
 }
 
+void OV5640_powerup(void) {
+  // Configure pins
+    OV5640_InitGPIO();
+
+    // Switch on camera
+    palSetLine(LINE_CAM_EN);        // Switch on camera
+    chThdSleep(TIME_MS2I(5));       // Spec is >= 1ms delay after DOVDD stable
+    palSetLine(LINE_CAM_RESET);     // Assert reset
+
+    chThdSleep(TIME_MS2I(50));     // Spec is >= 20ms delay after reset high
+}
+
+
 void OV5640_init(void)
 {
 	TRACE_INFO("CAM  > Init pins");
-	OV5640_InitGPIO();
-
-	// Power on OV5640
-	TRACE_INFO("CAM  > Switch on");
-	palSetLine(LINE_CAM_EN); 		// Switch on camera
-	palSetLine(LINE_CAM_RESET); 	// Toggle reset
-
-	chThdSleep(TIME_MS2I(100));
-
+	OV5640_powerup();
 	OV5640_setLightIntensity();
 
 	// Send settings to OV5640
@@ -1322,30 +1348,24 @@ void OV5640_deinit(void)
 	last_res = RES_NONE;
 }
 
-bool OV5640_isAvailable(void)
-{
-	// Configure pins
-	OV5640_InitGPIO();
+bool OV5640_isAvailable(void) {
 
-	// Switch on camera
-	palSetLine(LINE_CAM_EN); 	// Switch on camera
-	palSetLine(LINE_CAM_RESET); // Toggle reset
+  OV5640_powerup();
 
-	chThdSleep(TIME_MS2I(100));
+  uint8_t val, val2;
+  bool ret;
+  if(I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300A, &val)
+      && I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300B, &val2)) {
+      ret = val == 0x56 && val2 == 0x40;
+  } else {
+      error = 0x1;
+      ret = false;
+  }
 
-	uint8_t val, val2;
-	bool ret;
-	if(I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300A, &val) && I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300B, &val2)) {
-		ret = val == 0x56 && val2 == 0x40;
-	} else {
-		error = 0x1;
-		ret = false;
-	}
+  // Switch off camera
+  OV5640_deinit();
 
-	// Switch off camera
-	OV5640_deinit();
-
-	return ret;
+  return ret;
 }
 
 void OV5640_setLightIntensity(void)

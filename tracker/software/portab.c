@@ -115,37 +115,49 @@ void pktWrite(uint8_t *buf, uint32_t len) {
   chnWrite((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, buf, len);
 }
 
-void pktConfigureRadioGPIO(radio_unit_t radio) {
+void pktPowerUpRadio(radio_unit_t radio) {
   /* TODO: Implement hardware mapping. */
   (void)radio;
-  // Configure Radio pins
-  palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);     // SCK
-  palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);    // MISO
-  palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);    // MOSI
-  palSetLineMode(LINE_RADIO_CS, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST); // RADIO CS
-  palSetLineMode(LINE_RADIO_SDN, PAL_MODE_OUTPUT_PUSHPULL);                           // RADIO SDN
-
-  // Pull CS HIGH
-  palSetLine(LINE_RADIO_CS);
-
-  // Reset radio
-  palSetLine(LINE_RADIO_SDN);
-  chThdSleep(TIME_MS2I(10));
+  /*
+   * NOTE: RADIO_CS and RADIO_SDN pins are configured in board.h
+   * RADIO_SDN is configured to open drain as it is pulled up on PCB by 100K.
+   * The radio powers up in SDN mode.
+   *
+   * CS is set as pushpull and initialized to HIGH.
+   */
 
   // Power up transceiver
   palClearLine(LINE_RADIO_SDN);   // Radio SDN low (power up transceiver)
   chThdSleep(TIME_MS2I(10));      // Wait for transceiver to power up
 }
 
-void pktDeconfigureRadioGPIO(radio_unit_t radio) {
+void pktPowerDownRadio(radio_unit_t radio) {
   /* TODO: Implement hardware mapping. */
   (void)radio;
-  palSetLineMode(LINE_SPI_SCK, PAL_MODE_INPUT_PULLDOWN);      // SCK
-  palSetLineMode(LINE_SPI_MISO, PAL_MODE_INPUT_PULLDOWN);     // MISO
-  palSetLineMode(LINE_SPI_MOSI, PAL_MODE_INPUT_PULLDOWN);     // MOSI
-  palSetLineMode(LINE_RADIO_CS, PAL_MODE_INPUT_PULLDOWN);     // RADIO CS
-  palSetLineMode(LINE_RADIO_SDN, PAL_MODE_INPUT_PULLDOWN);    // RADIO SDN
 
+  /*
+   * Put radio in shutdown mode.
+   * All registers are lost.
+   */
+  palSetLine(LINE_RADIO_SDN);
+}
+
+void sysConfigureCoreIO(void) {
+  /* Setup SPI3. */
+  palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6)
+                 | PAL_STM32_OSPEED_HIGHEST);     // SCK
+  palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6)
+                 | PAL_STM32_OSPEED_HIGHEST);    // MISO
+  palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6)
+                 | PAL_STM32_OSPEED_HIGHEST);    // MOSI
+
+  /* Setup I2C1. */
+  palSetLineMode(LINE_I2C_SDA, PAL_MODE_ALTERNATE(4)
+                 | PAL_STM32_OSPEED_HIGHEST
+                 | PAL_STM32_OTYPE_OPENDRAIN); // SDA
+  palSetLineMode(LINE_I2C_SCL, PAL_MODE_ALTERNATE(4)
+                 | PAL_STM32_OSPEED_HIGHEST
+                 | PAL_STM32_OTYPE_OPENDRAIN); // SCL
 }
 
 /** @} */

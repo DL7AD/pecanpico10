@@ -64,6 +64,9 @@
 #elif defined(SAMA5D27)
 #define PLATFORM_NAME           "500Mhz processor with TrustZone, 16/32-bit DDR, CAN, Enhanced Security, BGA289"
 
+#elif defined(SAMA5D28)
+#define PLATFORM_NAME           "500Mhz processor with TrustZone, 16/32-bit DDR, CAN, Enhanced Security, BGA289, 'internal DDR"
+
 #else
 #error "SAMA5D2x device unsupported or not specified"
 #endif
@@ -76,7 +79,7 @@
 /**
  * @brief   Maximum processor clock frequency.
  */
-#define SAMA_PCK_MAX            500000000
+#define SAMA_PCK_MAX            504000000
 
 /**
  * @brief   Minimum processor clock frequency.
@@ -86,7 +89,7 @@
 /**
  * @brief   Maximum master clock frequency.
  */
-#define SAMA_MCK_MAX            166000000
+#define SAMA_MCK_MAX            168000000
 
 /**
  * @brief   Minimum master clock frequency.
@@ -433,6 +436,10 @@
 /* Checks on Master Clock crystal range. */
 #if (SAMA_MCK > SAMA_MCK_MAX) || (SAMA_MCK < SAMA_MCK_MIN)
 #error "Master clock frequency out of range."
+#define VALUE(x) #x
+#define VAR_NAME_VALUE(var) #var "="  VALUE(var)
+#pragma message(VAR_NAME_VALUE(SAMA_MCK))
+
 #endif
 
 /**

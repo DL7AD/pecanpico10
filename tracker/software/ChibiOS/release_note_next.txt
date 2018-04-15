@@ -36,7 +36,7 @@ received a series of important improvements, new features have been added.
 *** What's new in OS Library ***
 
 - OS library now has its own test suite.
-- Mailbox API changed by adding "Timeout" to those function that have
+- Mailbox API names changed by adding "Timeout" to those function that have
   timeout capability, for consistency with the rest of the system.
 - Added an "Objects Factory" to the OS Library, it allows to dynamically
   allocate reference-counted kernel objects/buffers or to register
@@ -113,12 +113,18 @@ received a series of important improvements, new features have been added.
     callbacks in place of classic events.
 - Improved USB driver.
   - Added a usbWakeupHost() function for standby exit.
-- ImprovedHAL queues to improve performance. Added new functions: iqGetI(),
+- Improved HAL queues to increase performance. Added new functions: iqGetI(),
   iqReadI(), oqPutI() and oqWriteI().
 
 *** What's new in EX 1.0.0 ***
 
 - No changes.
+
+*** What's new in AVR HAL support ***
+
+- Added initial ATtiny167 support.
+- Added initial ATXmega128a4u support.
+- Improvement of SPI, EXT, PAL low level drivers.
 
 *** What's new in STM32 HAL support ***
 
