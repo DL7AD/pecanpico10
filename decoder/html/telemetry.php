@@ -94,16 +94,16 @@ function loadRecentData() {
 
 					case 'gps_lat':
 						s  = d < 0 ? "S" : "N";
-						s += d < 100000000 ? "0" : "";
-						s += number_format(d/10000000, 5);
+						s += Math.abs(d) < 100000000 ? "0" : "";
+						s += number_format(Math.abs(d)/10000000, 5);
 						$('#' + key).text(s);
 						break;
 
 					case 'gps_lon':
 						s  = d < 0 ? "W" : "E";
-						s += d < 100000000 ? "0" : "";
-						s += d < 1000000000 ? "0" : "";
-						s += number_format(d/10000000, 5);
+						s += Math.abs(d) < 100000000 ? "0" : "";
+						s += Math.abs(d) < 1000000000 ? "0" : "";
+						s += number_format(Math.abs(d)/10000000, 5);
 						$('#' + key).text(s);
 						break;
 
