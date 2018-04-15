@@ -434,7 +434,7 @@ include "sidebar.inc.php";
 							<b><span id="gps_lock"></span></b><br>
 							<span id="gps_sats"></span> Sats, TTFF <span id="gps_ttff"></span>s, pDOP <span id="gps_pdop"></span><br>
 							Time: <span id="gps_time"></span><br>
-							<span id="gps_lat"></span>° <span id="gps_lon"></span>°
+							<span id="gps_lat"></span> <span id="gps_lon"></span> <span id="gps_alt"></span>m
 						</td>
 					</tr>
 					<tr height="5"></tr>
