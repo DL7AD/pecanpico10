@@ -63,7 +63,7 @@ db.cursor().execute("""
 
 		`sys_time` INTEGER,
 		`sys_error` INTEGER,
-		PRIMARY KEY (`call`,`reset`,`id`,`time`)
+		PRIMARY KEY (`call`,`reset`,`id`,`rxtime`)
 	)
 """)
 db.cursor().execute("""
