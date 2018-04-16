@@ -80,6 +80,7 @@ LIBS:Xicor
 LIBS:xilinx
 LIBS:Zilog
 LIBS:pecanpico
+LIBS:pecanpico10-cache
 EELAYER 25 0
 EELAYER END
 $Descr A2 23386 16535
@@ -128,21 +129,21 @@ F 3 "" H 15400 6600 50  0000 C CNN
 	1    15400 6600
 	1    0    0    -1  
 $EndComp
-Text Label 8650 4450 0    60   ~ 0
+Text Label 7950 4450 0    60   ~ 0
 SWD_SWCLK
-Text Label 8650 4250 0    60   ~ 0
+Text Label 7950 4250 0    60   ~ 0
 SWD_SWDIO
-Text Label 8650 4150 0    60   ~ 0
+Text Label 7950 4150 0    60   ~ 0
 SWD_NRST
 $Comp
 L GND #PWR03
 U 1 1 578F95A2
-P 9250 5250
-F 0 "#PWR03" H 9250 5000 50  0001 C CNN
-F 1 "GND" H 9250 5100 50  0000 C CNN
-F 2 "" H 9250 5250 50  0000 C CNN
-F 3 "" H 9250 5250 50  0000 C CNN
-	1    9250 5250
+P 8550 5250
+F 0 "#PWR03" H 8550 5000 50  0001 C CNN
+F 1 "GND" H 8550 5100 50  0000 C CNN
+F 2 "" H 8550 5250 50  0000 C CNN
+F 3 "" H 8550 5250 50  0000 C CNN
+	1    8550 5250
 	1    0    0    -1  
 $EndComp
 Text Label 15800 5200 0    60   ~ 0
@@ -343,10 +344,10 @@ F 4 "10V" H 14450 3500 60  0001 C CNN "Specs"
 $EndComp
 Text Label 19300 5700 2    60   ~ 0
 I2C_SCL
-Text Label 8650 3950 0    60   ~ 0
-IO_TXD
+Text Label 7950 3950 0    60   ~ 0
+IO_TXD_SCL
 Text Label 19300 5900 2    60   ~ 0
-IO_TXD
+IO_TXD_SCL
 $Comp
 L R R10
 U 1 1 57A50B73
@@ -1570,68 +1571,64 @@ ADC_VSOL
 $Comp
 L TEST_1P W11
 U 1 1 57B00448
-P 7150 4700
-F 0 "W11" H 7150 4970 50  0000 C CNN
-F 1 "Pad" H 7150 4900 50  0000 C CNN
-F 2 "pecanpico:PAD_3x3" H 7350 4700 50  0001 C CNN
-F 3 "" H 7350 4700 50  0000 C CNN
-F 4 "do not assemble" H 7150 4700 60  0001 C CNN "Notes"
-	1    7150 4700
-	0    1    1    0   
+P 6650 4700
+F 0 "W11" H 6650 4970 50  0000 C CNN
+F 1 "Pad" H 6650 4900 50  0000 C CNN
+F 2 "pecanpico:PAD_3x3" H 6850 4700 50  0001 C CNN
+F 3 "" H 6850 4700 50  0000 C CNN
+F 4 "do not assemble" H 6650 4700 60  0001 C CNN "Notes"
+	1    6650 4700
+	1    0    0    -1  
 $EndComp
 $Comp
 L GND #PWR045
 U 1 1 57B012BC
-P 6850 4600
-F 0 "#PWR045" H 6850 4350 50  0001 C CNN
-F 1 "GND" H 6850 4450 50  0000 C CNN
-F 2 "" H 6850 4600 50  0000 C CNN
-F 3 "" H 6850 4600 50  0000 C CNN
-	1    6850 4600
-	-1   0    0    1   
+P 6250 5000
+F 0 "#PWR045" H 6250 4750 50  0001 C CNN
+F 1 "GND" H 6250 4850 50  0000 C CNN
+F 2 "" H 6250 5000 50  0000 C CNN
+F 3 "" H 6250 5000 50  0000 C CNN
+	1    6250 5000
+	1    0    0    -1  
 $EndComp
 $Comp
 L TEST_1P W10
 U 1 1 57B02397
-P 6750 4700
-F 0 "W10" H 6750 4970 50  0000 C CNN
-F 1 "Pad" H 6750 4900 50  0000 C CNN
-F 2 "pecanpico:PAD_6x3" H 6950 4700 50  0001 C CNN
-F 3 "" H 6950 4700 50  0000 C CNN
-F 4 "do not assemble" H 6750 4700 60  0001 C CNN "Notes"
-	1    6750 4700
-	0    -1   -1   0   
+P 6250 4700
+F 0 "W10" H 6250 4970 50  0000 C CNN
+F 1 "Pad" H 6250 4900 50  0000 C CNN
+F 2 "pecanpico:PAD_6x3" H 6450 4700 50  0001 C CNN
+F 3 "" H 6450 4700 50  0000 C CNN
+F 4 "do not assemble" H 6250 4700 60  0001 C CNN "Notes"
+	1    6250 4700
+	1    0    0    -1  
 $EndComp
 Text Label 15800 5100 0    60   ~ 0
 BOOT0
-Text Label 8650 4650 0    60   ~ 0
+Text Label 7950 4650 0    60   ~ 0
 BOOT0
 $Comp
 L +SOL #PWR046
 U 1 1 5811EB97
-P 8900 3450
-F 0 "#PWR046" H 8900 3300 50  0001 C CNN
-F 1 "+SOL" H 8900 3590 50  0000 C CNN
-F 2 "" H 8900 3450 50  0000 C CNN
-F 3 "" H 8900 3450 50  0000 C CNN
-	1    8900 3450
+P 8200 3450
+F 0 "#PWR046" H 8200 3300 50  0001 C CNN
+F 1 "+SOL" H 8200 3590 50  0000 C CNN
+F 2 "" H 8200 3450 50  0000 C CNN
+F 3 "" H 8200 3450 50  0000 C CNN
+	1    8200 3450
 	1    0    0    -1  
 $EndComp
 $Comp
 L +BATT #PWR047
 U 1 1 5811FC66
-P 9150 3450
-F 0 "#PWR047" H 9150 3300 50  0001 C CNN
-F 1 "+BATT" H 9150 3590 50  0000 C CNN
-F 2 "" H 9150 3450 50  0000 C CNN
-F 3 "" H 9150 3450 50  0000 C CNN
-	1    9150 3450
+P 8450 3450
+F 0 "#PWR047" H 8450 3300 50  0001 C CNN
+F 1 "+BATT" H 8450 3590 50  0000 C CNN
+F 2 "" H 8450 3450 50  0000 C CNN
+F 3 "" H 8450 3450 50  0000 C CNN
+	1    8450 3450
 	1    0    0    -1  
 $EndComp
-Text Label 7050 4200 3    60   ~ 0
-BATT_CONN
-Text Label 8650 3650 0    60   ~ 0
-BATT_CONN
 $Comp
 L R R35
 U 1 1 57B6BE78
@@ -1659,24 +1656,24 @@ $EndComp
 $Comp
 L R R31
 U 1 1 586D5B81
-P 9050 5000
-F 0 "R31" V 9130 5000 50  0000 C CNN
-F 1 "100k" V 9050 5000 50  0000 C CNN
-F 2 "pecanpico:R_0402" V 8980 5000 50  0001 C CNN
-F 3 "" H 9050 5000 50  0000 C CNN
-F 4 "1%" H 9050 5000 60  0001 C CNN "Specs"
-	1    9050 5000
+P 8350 5000
+F 0 "R31" V 8430 5000 50  0000 C CNN
+F 1 "100k" V 8350 5000 50  0000 C CNN
+F 2 "pecanpico:R_0402" V 8280 5000 50  0001 C CNN
+F 3 "" H 8350 5000 50  0000 C CNN
+F 4 "1%" H 8350 5000 60  0001 C CNN "Specs"
+	1    8350 5000
 	-1   0    0    -1  
 $EndComp
 $Comp
 L GND #PWR048
 U 1 1 586D6A66
-P 9050 5250
-F 0 "#PWR048" H 9050 5000 50  0001 C CNN
-F 1 "GND" H 9050 5100 50  0000 C CNN
-F 2 "" H 9050 5250 50  0000 C CNN
-F 3 "" H 9050 5250 50  0000 C CNN
-	1    9050 5250
+P 8350 5250
+F 0 "#PWR048" H 8350 5000 50  0001 C CNN
+F 1 "GND" H 8350 5100 50  0000 C CNN
+F 2 "" H 8350 5250 50  0000 C CNN
+F 3 "" H 8350 5250 50  0000 C CNN
+	1    8350 5250
 	-1   0    0    -1  
 $EndComp
 $Comp
@@ -2106,24 +2103,24 @@ $EndComp
 $Comp
 L VDD #PWR072
 U 1 1 5A28A1CA
-P 6900 1950
-F 0 "#PWR072" H 6900 1800 50  0001 C CNN
-F 1 "VDD" H 6900 2100 50  0000 C CNN
-F 2 "" H 6900 1950 50  0000 C CNN
-F 3 "" H 6900 1950 50  0000 C CNN
-	1    6900 1950
+P 6900 1750
+F 0 "#PWR072" H 6900 1600 50  0001 C CNN
+F 1 "VDD" H 6900 1900 50  0000 C CNN
+F 2 "" H 6900 1750 50  0000 C CNN
+F 3 "" H 6900 1750 50  0000 C CNN
+	1    6900 1750
 	1    0    0    -1  
 $EndComp
 $Comp
 L D_Schottky D1
 U 1 1 5A28C364
-P 6900 2300
-F 0 "D1" H 6900 2400 50  0000 C CNN
-F 1 "SDM100K30L-7" H 6800 2200 50  0000 C CNN
-F 2 "Diodes_SMD:D_SOD-323" H 6900 2300 50  0001 C CNN
-F 3 "" H 6900 2300 50  0001 C CNN
-F 4 "621-SDM100K30L-7" H 6900 2300 60  0001 C CNN "Mouser"
-	1    6900 2300
+P 6900 2100
+F 0 "D1" H 6900 2200 50  0000 C CNN
+F 1 "SDM100K30L-7" H 6800 2000 50  0000 C CNN
+F 2 "Diodes_SMD:D_SOD-323" H 6900 2100 50  0001 C CNN
+F 3 "" H 6900 2100 50  0001 C CNN
+F 4 "621-SDM100K30L-7" H 6900 2100 60  0001 C CNN "Mouser"
+	1    6900 2100
 	0    1    1    0   
 $EndComp
 $Comp
@@ -2547,37 +2544,25 @@ RADIO_TX
 $Comp
 L GND #PWR088
 U 1 1 5A2F4526
-P 6400 2550
-F 0 "#PWR088" H 6400 2300 50  0001 C CNN
-F 1 "GND" H 6400 2400 50  0000 C CNN
-F 2 "" H 6400 2550 50  0000 C CNN
-F 3 "" H 6400 2550 50  0000 C CNN
-	1    6400 2550
+P 6400 2350
+F 0 "#PWR088" H 6400 2100 50  0001 C CNN
+F 1 "GND" H 6400 2200 50  0000 C CNN
+F 2 "" H 6400 2350 50  0000 C CNN
+F 3 "" H 6400 2350 50  0000 C CNN
+	1    6400 2350
 	0    1    1    0   
 $EndComp
 $Comp
 L R R16
 U 1 1 5A2F49BA
-P 6650 2550
-F 0 "R16" V 6575 2550 50  0000 C CNN
-F 1 "10k" V 6650 2550 50  0000 C CNN
-F 2 "pecanpico:R_0402" V 6580 2550 50  0001 C CNN
-F 3 "" H 6650 2550 50  0000 C CNN
-F 4 "1%" H 6650 2550 60  0001 C CNN "Specs"
-	1    6650 2550
+P 6650 2350
+F 0 "R16" V 6575 2350 50  0000 C CNN
+F 1 "10k" V 6650 2350 50  0000 C CNN
+F 2 "pecanpico:R_0402" V 6580 2350 50  0001 C CNN
+F 3 "" H 6650 2350 50  0000 C CNN
+F 4 "1%" H 6650 2350 60  0001 C CNN "Specs"
+	1    6650 2350
 	0    -1   -1   0   
-$EndComp
-$Comp
-L MOSFET-P Q1
-U 1 1 5A2F676B
-P 7200 2500
-F 0 "Q1" H 7400 2575 50  0000 L CNN
-F 1 "FDN306P" H 7400 2500 50  0000 L CNN
-F 2 "TO_SOT_Packages_SMD:SOT-23" H 7400 2425 50  0001 L CIN
-F 3 "https://www.mouser.com/ds/2/308/FDN306P-1123107.pdf" H 7200 2500 50  0001 L CNN
-F 4 "512-FDN306P" H 7200 2500 60  0001 C CNN "Mouser"
-	1    7200 2500
-	1    0    0    1   
 $EndComp
 Text Label 6400 2950 0    60   ~ 0
 USB_VUSB
@@ -2647,19 +2632,19 @@ Text Label 19300 6100 2    60   ~ 0
 GPS_TXD
 Text Label 19300 6000 2    60   ~ 0
 GPS_RXD
-Text Label 8650 4050 0    60   ~ 0
-IO_RXD
+Text Label 7950 4050 0    60   ~ 0
+IO_RXD_SDA
 Text Label 19300 7550 2    60   ~ 0
-IO_RXD
+IO_RXD_SDA
 $Comp
 L +3V3 #PWR092
 U 1 1 5A355FE3
-P 9050 3850
-F 0 "#PWR092" H 9050 3700 50  0001 C CNN
-F 1 "+3V3" H 9050 3990 50  0000 C CNN
-F 2 "" H 9050 3850 50  0001 C CNN
-F 3 "" H 9050 3850 50  0001 C CNN
-	1    9050 3850
+P 8350 3850
+F 0 "#PWR092" H 8350 3700 50  0001 C CNN
+F 1 "+3V3" H 8350 3990 50  0000 C CNN
+F 2 "" H 8350 3850 50  0001 C CNN
+F 3 "" H 8350 3850 50  0001 C CNN
+	1    8350 3850
 	0    -1   -1   0   
 $EndComp
 Text Label 19300 7250 2    60   ~ 0
@@ -2667,16 +2652,16 @@ SD_DET
 $Comp
 L TEST_1P W1
 U 1 1 5A2D116F
-P 7150 4850
-F 0 "W1" H 7150 5120 50  0000 C CNN
-F 1 "Pad" H 7150 5050 50  0000 C CNN
-F 2 "pecanpico:PAD_3x3" H 7350 4850 50  0001 C CNN
-F 3 "" H 7350 4850 50  0000 C CNN
-F 4 "do not assemble" H 7150 4850 60  0001 C CNN "Notes"
-	1    7150 4850
-	0    1    1    0   
+P 6450 4700
+F 0 "W1" H 6450 4970 50  0000 C CNN
+F 1 "Pad" H 6450 4900 50  0000 C CNN
+F 2 "pecanpico:PAD_3x3" H 6650 4700 50  0001 C CNN
+F 3 "" H 6650 4700 50  0000 C CNN
+F 4 "do not assemble" H 6450 4700 60  0001 C CNN "Notes"
+	1    6450 4700
+	1    0    0    -1  
 $EndComp
-Text Label 6600 4850 0    60   ~ 0
+Text Label 6450 5200 1    60   ~ 0
 USB_VUSB
 $Comp
 L Antenna AE1
@@ -2827,12 +2812,12 @@ $EndComp
 $Comp
 L VCC #PWR0102
 U 1 1 5A304A3C
-P 8650 4750
-F 0 "#PWR0102" H 8650 4600 50  0001 C CNN
-F 1 "VCC" H 8650 4900 50  0000 C CNN
-F 2 "" H 8650 4750 50  0001 C CNN
-F 3 "" H 8650 4750 50  0001 C CNN
-	1    8650 4750
+P 7950 4750
+F 0 "#PWR0102" H 7950 4600 50  0001 C CNN
+F 1 "VCC" H 7950 4900 50  0000 C CNN
+F 2 "" H 7950 4750 50  0001 C CNN
+F 3 "" H 7950 4750 50  0001 C CNN
+	1    7950 4750
 	0    -1   -1   0   
 $EndComp
 Text Notes 1300 8050 0    60   ~ 0
@@ -2870,17 +2855,17 @@ F 3 "" H 8300 6450 50  0001 C CNN
 	1    8300 6450
 	1    0    0    -1  
 $EndComp
-Text Notes 11100 11900 0    60   ~ 0
+Text Notes 11300 11900 0    60   ~ 0
 The solar cells are connected here\n\nThe battery is connected here\n\nConnection between solar charger and voltage regulators.\nVDD and +BATT is almost the same but there is a 0.1R  current\nsense resistor in between.\n\nCore bus. This Bus is connected to the STM32, BME280 and KT2016\nThe voltage of the bus may vary between 1.8V and 3.0V, which is\nset by R7 and R8.\nIn order to save power, you should use 1.8V. If you want to use\nThe USB-Interface you must use 3.0V.\n\nThis Bus has actually 3.4V and poweres the transceiver in order\nto get 20 dBm. It is also connected to the PAC1720 and SD card\nbecause they needs at least 3.0V.\n\nGPS power bus including the LED\n\nAnalog voltage for the camera\n\nCore and I/O voltage for the camera
-Text Notes 10500 11900 0    60   ~ 0
+Text Notes 10700 11900 0    60   ~ 0
 +SOL\n\n+BATT\n\nVDD\n\n\n\nVCC\n\n\n\n\n\n+3V3\n\n\n\n+VCC_GPS\n\n+VDDA\n\n+1V8
-Text Notes 10500 9250 0    60   ~ 0
+Text Notes 10700 9250 0    60   ~ 0
 GREEN\nRED\nGREEN\nYELLOW\nRED (GPS)\nBLUE
-Text Notes 11100 9250 0    60   ~ 0
+Text Notes 11300 9250 0    60   ~ 0
 Watchdog normally flashing every 3 seconds\nTransceiver transmitting\nTransceiver receiving\nCamera actived LED\nGPS active LED, blinking if GPS locked\nAPRS packet received
-Text Notes 10500 8600 0    60   ~ 12
+Text Notes 10700 8600 0    60   ~ 12
 LED STATES
-Text Notes 10500 9600 0    60   ~ 12
+Text Notes 10700 9600 0    60   ~ 12
 POWER BUSSES
 $Comp
 L VCC #PWR0106
@@ -2981,15 +2966,15 @@ IO_PA8
 $Comp
 L CONN_01X15 J2
 U 1 1 5A33D488
-P 9550 4150
-F 0 "J2" H 9550 4950 50  0000 C CNN
-F 1 "CONN_01X15" V 9650 4150 50  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x15_Pitch2.54mm" H 9550 4150 50  0001 C CNN
-F 3 "" H 9550 4150 50  0001 C CNN
-	1    9550 4150
+P 8850 4150
+F 0 "J2" H 8850 4950 50  0000 C CNN
+F 1 "CONN_01X15" H 8850 3350 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x15_Pitch2.54mm" H 8850 4150 50  0001 C CNN
+F 3 "" H 8850 4150 50  0001 C CNN
+	1    8850 4150
 	1    0    0    -1  
 $EndComp
-Text Label 8650 4550 0    60   ~ 0
+Text Label 7950 4550 0    60   ~ 0
 IO_PA8
 Text Label 19300 7750 2    60   ~ 0
 TCXO_EN
@@ -3050,19 +3035,17 @@ Wire Wire Line
 Wire Wire Line
 	11900 12900 12900 12900
 Wire Wire Line
-	8650 4750 9350 4750
+	7950 4750 8650 4750
 Wire Wire Line
-	9150 3750 9350 3750
+	8450 3750 8650 3750
 Wire Wire Line
-	9150 3450 9150 3750
+	8450 3450 8450 3750
 Wire Wire Line
-	9350 3650 8650 3650
+	8200 3550 8650 3550
 Wire Wire Line
-	8900 3550 9350 3550
+	8200 3450 8200 3550
 Wire Wire Line
-	8900 3450 8900 3550
-Wire Wire Line
-	9250 3450 9350 3450
+	8550 3450 8650 3450
 Wire Wire Line
 	2400 14700 1700 14700
 Wire Wire Line
@@ -3125,7 +3108,7 @@ Wire Wire Line
 	7800 10600 7950 10600
 Connection ~ 6900 2950
 Wire Wire Line
-	6900 2450 6900 2950
+	6900 2250 6900 2950
 Wire Wire Line
 	7800 9500 8850 9500
 Connection ~ 1700 9100
@@ -3313,17 +3296,9 @@ Connection ~ 3800 2550
 Wire Wire Line
 	3800 2550 3800 2650
 Wire Notes Line
-	10300 1500 4800 1500
-Wire Notes Line
-	4800 5600 10300 5600
-Wire Notes Line
-	10300 5750 10300 11950
-Wire Notes Line
-	800  5750 10300 5750
+	10500 5750 10500 11950
 Wire Notes Line
 	800  11950 800  5750
-Wire Notes Line
-	10300 11950 800  11950
 Wire Notes Line
 	800  12100 800  15900
 Wire Notes Line
@@ -3374,7 +3349,7 @@ Wire Wire Line
 Wire Wire Line
 	18600 6200 19300 6200
 Wire Wire Line
-	8650 4450 9350 4450
+	7950 4450 8650 4450
 Wire Wire Line
 	1150 4250 1150 4100
 Wire Wire Line
@@ -3640,9 +3615,9 @@ Wire Wire Line
 Wire Wire Line
 	15400 6500 15400 6600
 Wire Wire Line
-	8650 4150 9350 4150
+	7950 4150 8650 4150
 Wire Wire Line
-	8650 3950 9350 3950
+	7950 3950 8650 3950
 Wire Wire Line
 	16400 5200 15800 5200
 Wire Wire Line
@@ -3725,7 +3700,7 @@ Wire Wire Line
 Wire Wire Line
 	18600 6950 19300 6950
 Wire Wire Line
-	8650 4250 9350 4250
+	7950 4250 8650 4250
 Wire Wire Line
 	3750 6850 3250 6850
 Wire Wire Line
@@ -3793,19 +3768,11 @@ Wire Wire Line
 Wire Wire Line
 	18600 6850 19300 6850
 Wire Wire Line
-	6750 4700 6850 4700
-Wire Wire Line
-	6850 4700 6850 4600
-Wire Wire Line
-	7050 4200 7050 4700
-Wire Wire Line
-	7050 4700 7150 4700
-Wire Wire Line
 	2150 6650 2250 6650
 Wire Wire Line
 	18600 6750 19800 6750
 Wire Wire Line
-	8650 4650 9350 4650
+	7950 4650 8650 4650
 Wire Wire Line
 	6000 3150 5900 3150
 Wire Wire Line
@@ -3813,32 +3780,28 @@ Wire Wire Line
 Wire Wire Line
 	2800 12900 3500 12900
 Wire Wire Line
-	9050 4850 9050 4650
-Connection ~ 9050 4650
+	8350 4850 8350 4650
+Connection ~ 8350 4650
 Wire Wire Line
-	9050 5250 9050 5150
+	8350 5250 8350 5150
 Connection ~ 11400 14800
 Wire Wire Line
 	7000 10700 7000 10600
 Connection ~ 7000 10600
 Wire Wire Line
-	6900 1950 6900 2150
+	6900 1750 6900 1950
 Wire Wire Line
-	6800 2550 7000 2550
-Connection ~ 6900 2550
+	6800 2350 7000 2350
+Connection ~ 6900 2350
 Wire Wire Line
-	7300 2700 7300 2800
+	7300 2500 7300 2700
 Wire Wire Line
-	7300 2800 8650 2800
+	7300 2100 7300 1850
 Wire Wire Line
-	8650 2800 8650 3650
+	7300 1850 6900 1850
+Connection ~ 6900 1850
 Wire Wire Line
-	7300 2300 7300 2050
-Wire Wire Line
-	7300 2050 6900 2050
-Connection ~ 6900 2050
-Wire Wire Line
-	6400 2550 6500 2550
+	6400 2350 6500 2350
 Wire Wire Line
 	1500 15150 1500 15050
 Wire Wire Line
@@ -3870,15 +3833,13 @@ Wire Wire Line
 Wire Wire Line
 	18600 6000 19300 6000
 Wire Wire Line
-	9350 4050 8650 4050
+	8650 4050 7950 4050
 Wire Wire Line
 	19300 7550 18600 7550
 Wire Wire Line
-	9350 3850 9050 3850
+	8650 3850 8350 3850
 Wire Wire Line
 	18600 7350 19300 7350
-Wire Wire Line
-	6600 4850 7150 4850
 Wire Notes Line
 	10900 12100 800  12100
 Wire Notes Line
@@ -3939,7 +3900,7 @@ Wire Notes Line
 Wire Notes Line
 	800  1500 800  5600
 Wire Notes Line
-	10300 5600 10300 1500
+	10500 1500 10500 5600
 Wire Notes Line
 	1250 6100 1250 8100
 Wire Notes Line
@@ -3949,13 +3910,13 @@ Wire Notes Line
 Wire Notes Line
 	4050 6100 1250 6100
 Wire Notes Line
-	10450 9450 14400 9450
+	10650 9450 14600 9450
 Wire Notes Line
-	14400 11950 10450 11950
+	14600 11950 10650 11950
 Wire Notes Line
-	10450 8450 14400 8450
+	10650 8450 14600 8450
 Wire Notes Line
-	14400 9300 10450 9300
+	14600 9300 10650 9300
 Wire Wire Line
 	4250 14300 4250 14600
 Wire Wire Line
@@ -4004,25 +3965,25 @@ Wire Wire Line
 Wire Wire Line
 	20100 6550 18600 6550
 Wire Notes Line
-	14400 8450 14400 9300
+	14600 8450 14600 9300
 Wire Notes Line
-	10450 9300 10450 8450
+	10650 9300 10650 8450
 Wire Notes Line
-	14400 9450 14400 11950
+	14600 9450 14600 11950
 Wire Notes Line
-	10450 11950 10450 9450
+	10650 11950 10650 9450
 Wire Wire Line
 	18600 4750 19300 4750
 Wire Wire Line
-	9250 3450 9250 5250
+	8550 3450 8550 5250
 Wire Wire Line
-	9350 4550 8650 4550
+	8650 4550 7950 4550
 Wire Wire Line
-	9350 4350 9250 4350
-Connection ~ 9250 4350
+	8650 4350 8550 4350
+Connection ~ 8550 4350
 Wire Wire Line
-	9350 4850 9250 4850
-Connection ~ 9250 4850
+	8650 4850 8550 4850
+Connection ~ 8550 4850
 Wire Wire Line
 	18600 7750 19300 7750
 Wire Wire Line
@@ -4040,4 +4001,71 @@ Wire Wire Line
 	6550 14300 7050 14300
 Wire Wire Line
 	7050 14600 6400 14600
+$Comp
+L MOSFET-P Q1
+U 1 1 5A2F676B
+P 7200 2300
+F 0 "Q1" H 7400 2300 50  0000 L CNN
+F 1 "FDN306P" H 7400 2200 50  0000 L CNN
+F 2 "TO_SOT_Packages_SMD:SOT-23" H 7400 2225 50  0001 L CIN
+F 3 "https://www.mouser.com/ds/2/308/FDN306P-1123107.pdf" H 7200 2300 50  0001 L CNN
+F 4 "512-FDN306P" H 7200 2300 60  0001 C CNN "Mouser"
+	1    7200 2300
+	1    0    0    1   
+$EndComp
+$Comp
+L +BATT #PWR?
+U 1 1 5AD41EDF
+P 7500 2600
+F 0 "#PWR?" H 7500 2450 50  0001 C CNN
+F 1 "+BATT" H 7500 2740 50  0000 C CNN
+F 2 "" H 7500 2600 50  0000 C CNN
+F 3 "" H 7500 2600 50  0000 C CNN
+	1    7500 2600
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	7500 2600 7500 2700
+Wire Wire Line
+	7500 2700 7300 2700
+Wire Wire Line
+	7650 4800 7650 3650
+Wire Wire Line
+	6650 4700 6650 4800
+Wire Wire Line
+	6650 4800 7650 4800
+Wire Wire Line
+	6450 4700 6450 5200
+Wire Wire Line
+	6250 4700 6250 5000
+Wire Notes Line
+	6650 4350 6650 4250
+Wire Notes Line
+	6650 4250 6250 4250
+Wire Notes Line
+	6250 4250 6250 4350
+Text Notes 6100 4200 0    60   ~ 0
+Solder the battery\nto those pads\n(either LiPO or\n3x L92 batteries)
+Wire Wire Line
+	7650 3650 8650 3650
+Text Notes 8950 3550 0    60   ~ 0
+Conect solar cells\nbetween pin 1 and 2
+Text Notes 8950 3900 0    60   ~ 0
+Connect pin 3 and 4 with a\njumper in order to connect\nthe battery with the circuit
+Text Notes 8950 4150 0    60   ~ 0
+Pin 6 and 7 can be either\nused for UART or I2C
+Text Notes 8950 4300 0    60   ~ 0
+Pin 8-11: SWD interface
+Text Notes 8950 4450 0    60   ~ 0
+Pin 12: Pin for general purpose
+Text Notes 8950 4700 0    60   ~ 0
+Connect pin 13 and 14 to get\ninto the STM bootloader
+Wire Notes Line
+	10500 11950 800  11950
+Wire Notes Line
+	800  5750 10500 5750
+Wire Notes Line
+	10500 5600 4800 5600
+Wire Notes Line
+	4800 1500 10500 1500
 $EndSCHEMATC
