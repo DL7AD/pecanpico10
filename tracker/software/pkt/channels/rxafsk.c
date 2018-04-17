@@ -906,7 +906,13 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         radio_cca_fifo_t *myFIFO = myDriver->active_demod_object;
         if(myFIFO != NULL) {
 
-          /* Wait for queue object to be released by PWM. */
+          /*
+           * Wait for queue object to be released by PWM.
+           * Normally this is the case.
+           * If can be a forced release by semaphore reset.
+           * TODO: This may happen if the watchdog system forces reset.
+           * TBD.
+           */
           (void)chBSemWait(&myFIFO->sem);
 
 #if USE_HEAP_PWM_BUFFER == TRUE

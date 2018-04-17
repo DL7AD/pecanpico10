@@ -189,7 +189,10 @@ const APRSCommand aprs_commands[] = {
 };
 
 /*
- * Parse command arguments from aprs message.
+ * @brief       parse arguments from a command string.
+ *
+ * @return      pointer to next element in string.
+ * @retval      NULL if end.
  */
 static char *aprs_parse_arguments(char *str, char **saveptr) {
   char *p;
@@ -225,9 +228,14 @@ static char *aprs_parse_arguments(char *str, char **saveptr) {
 }
 
 /*
- * Execute a command found in an aprs message.
- * Return result of command.
- * False means either command failed or does not exist.
+ * @brief       Execute a command in an APRS message.
+ * @notes       Known commands are in APRS command table.
+ * @notes       Commands themselves return only MSG_OK or MSG_ERROR.
+ *
+ * @return      result of command.
+ * @retval      MSG_OK if the command completed.
+ * @retval      MSG_ERROR if there was an error in command execution.
+ * @retval      MSG_TIMEOUT if the command was not found in known commands.
  */
 static msg_t aprs_cmd_exec(const APRSCommand *acp,
                           char *name,
@@ -502,7 +510,7 @@ msg_t aprs_send_aprsh_message(aprs_identity_t *id,
       }
       if(out == 0) {
         out = chsnprintf(buf, sizeof(buf),
-                         "%s not heard", heard_list[i].call);
+                         "%s not heard", argv[0]);
       }
   }
   packet_t pp = aprs_encode_message(id->call, id->path, id->src, buf, false);

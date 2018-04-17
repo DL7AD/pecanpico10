@@ -55,7 +55,7 @@ const conf_t conf_flash_default = {
 	// Primary image transmission thread
 	.img_pri = {
 		.thread_conf = {
-			.active			= true,
+			.active			= false,
 			.cycle			= TIME_S2I(60*5),
 			.init_delay		= TIME_S2I(60*5),
 			.send_spacing	= TIME_S2I(5)
@@ -79,10 +79,10 @@ const conf_t conf_flash_default = {
 	// Secondary image transmission thread
 	.img_sec = {
 		.thread_conf = {
-			.active			= false,
-            .cycle          = TIME_S2I(600),
-            .init_delay     = TIME_S2I(20),
-            .send_spacing   = TIME_MS2I(100)
+			.active			= true,
+            .cycle          = TIME_S2I(300),
+            .init_delay     = TIME_S2I(60),
+            .send_spacing   = TIME_S2I(30)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -94,7 +94,7 @@ const conf_t conf_flash_default = {
 		.call				= "VK2GJ-15",
         .path               = "",
 
-		.res				= RES_VGA,
+		.res				= RES_QVGA,
 		.quality			= 4,
 		.buf_size			= 64*1024
 	},
