@@ -5,7 +5,7 @@ import sys
 import argparse
 import telnetlib
 import time
-import sqlite3
+import mysql.connector as mariadb
 import image
 import position
 
@@ -18,64 +18,64 @@ parser.add_argument('-v', '--verbose', help='Activates more debug messages', act
 args = parser.parse_args()
 
 # Open SQLite database
-sqlite = sqlite3.connect("decoder.sqlite")
-sqlite.cursor().execute("""
-	CREATE TABLE IF NOT EXISTS position
+db = mariadb.connect(user='decoder', password='decoder', database='decoder')
+db.cursor().execute("""
+	CREATE TABLE IF NOT EXISTS `position`
 	(
-		call TEXT,
-		rxtime INTEGER,
-		org TEXT,
+		`call` VARCHAR(10),
+		`rxtime` INTEGER,
+		`org` VARCHAR(3),
 
-		reset INTEGER,
-		id INTEGER,
-		time INTEGER,
+		`reset` INTEGER,
+		`id` INTEGER,
+		`time` INTEGER,
 
-		adc_vsol INTEGER,
-		adc_vbat INTEGER,
-		pac_vsol INTEGER,
-		pac_vbat INTEGER,
-		pac_pbat INTEGER,
-		pac_psol INTEGER,
+		`adc_vsol` INTEGER,
+		`adc_vbat` INTEGER,
+		`pac_vsol` INTEGER,
+		`pac_vbat` INTEGER,
+		`pac_pbat` INTEGER,
+		`pac_psol` INTEGER,
 
-		light_intensity INTEGER,
+		`light_intensity` INTEGER,
 
-		gps_time INTEGER,
-		gps_lock INTEGER,
-		gps_sats INTEGER,
-		gps_ttff INTEGER,
-		gps_pdop INTEGER,
-		gps_alt INTEGER,
-		gps_lat INTEGER,
-		gps_lon INTEGER,
+		`gps_time` INTEGER,
+		`gps_lock` INTEGER,
+		`gps_sats` INTEGER,
+		`gps_ttff` INTEGER,
+		`gps_pdop` INTEGER,
+		`gps_alt` INTEGER,
+		`gps_lat` INTEGER,
+		`gps_lon` INTEGER,
 
-		sen_i1_press INTEGER,
-		sen_e1_press INTEGER,
-		sen_e2_press INTEGER,
-		sen_i1_temp INTEGER,
-		sen_e1_temp INTEGER,
-		sen_e2_temp INTEGER,
-		sen_i1_hum INTEGER,
-		sen_e1_hum INTEGER,
-		sen_e2_hum INTEGER,
+		`sen_i1_press` INTEGER,
+		`sen_e1_press` INTEGER,
+		`sen_e2_press` INTEGER,
+		`sen_i1_temp` INTEGER,
+		`sen_e1_temp` INTEGER,
+		`sen_e2_temp` INTEGER,
+		`sen_i1_hum` INTEGER,
+		`sen_e1_hum` INTEGER,
+		`sen_e2_hum` INTEGER,
 
-		stm32_temp INTEGER,
-		si4464_temp INTEGER,
+		`stm32_temp` INTEGER,
+		`si4464_temp` INTEGER,
 
-		sys_time INTEGER,
-		sys_error INTEGER,
-		PRIMARY KEY (call,reset,id,time)
+		`sys_time` INTEGER,
+		`sys_error` INTEGER,
+		PRIMARY KEY (`call`,`reset`,`id`,`rxtime`)
 	)
 """)
-sqlite.cursor().execute("""
-	CREATE TABLE IF NOT EXISTS image
+db.cursor().execute("""
+	CREATE TABLE IF NOT EXISTS `image`
 	(
-		id INTEGER,
-		call TEXT,
-		rxtime INTEGER,
-		imageID INTEGER,
-		packetID INTEGER,
-		data TEXT,
-		PRIMARY KEY (call,id,packetID)
+		`id` INTEGER,
+		`call` VARCHAR(10),
+		`rxtime` INTEGER,
+		`imageID` INTEGER,
+		`packetID` INTEGER,
+		`data` VARCHAR(1024),
+		PRIMARY KEY (`call`,`id`,`packetID`)
 	)
 """)
 
@@ -105,7 +105,7 @@ def received_data(data):
 		if pos: # Position packet (with comment and telementry)
 
 			comm = pos.group(4)
-			position.insert_position(sqlite, call, comm, 'pos')
+			position.insert_position(db, call, comm, 'pos')
 
 		elif dat: # Data packet
 
@@ -113,9 +113,9 @@ def received_data(data):
 			data = dat.group(4)
 
 			if typ is 'I': # Image packet
-				image.insert_image(sqlite, rxer, call, data)
+				image.insert_image(db, rxer, call, data)
 			elif typ is 'L': # Log packet
-				position.insert_position(sqlite, call, data, 'log')
+				position.insert_position(db, call, data, 'log')
 
 if args.device == 'I': # Source APRS-IS
 

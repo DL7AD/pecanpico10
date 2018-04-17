@@ -94,16 +94,16 @@ function loadRecentData() {
 
 					case 'gps_lat':
 						s  = d < 0 ? "S" : "N";
-						s += d < 100000000 ? "0" : "";
-						s += number_format(d/10000000, 5);
+						s += Math.abs(d) < 100000000 ? "0" : "";
+						s += number_format(Math.abs(d)/10000000, 5);
 						$('#' + key).text(s);
 						break;
 
 					case 'gps_lon':
 						s  = d < 0 ? "W" : "E";
-						s += d < 100000000 ? "0" : "";
-						s += d < 1000000000 ? "0" : "";
-						s += number_format(d/10000000, 5);
+						s += Math.abs(d) < 100000000 ? "0" : "";
+						s += Math.abs(d) < 1000000000 ? "0" : "";
+						s += number_format(Math.abs(d)/10000000, 5);
 						$('#' + key).text(s);
 						break;
 
@@ -210,7 +210,7 @@ function loadRecentData() {
 
 				var time = new Date(data['org'] == 'pos' ? data['rxtime']*1000 : data['gps_time']*1000);
 
-				if(last != null && time - last > 1210000) {
+				if(last != null && time - last > 1810000) {
 					dataBattery.addRow([null, null, null, null]);
 					dataSolar.addRow([null, null, null, null]);
 					dataTemp.addRow([null,null,null,null,null,null]);
@@ -429,16 +429,6 @@ include "sidebar.inc.php";
 					</tr>
 					<tr height="5"></tr>
 					<tr>
-						<th>GPS:</th>
-						<td colspan="5">
-							<b><span id="gps_lock"></span></b><br>
-							<span id="gps_sats"></span> Sats, TTFF <span id="gps_ttff"></span>s, pDOP <span id="gps_pdop"></span><br>
-							Time: <span id="gps_time"></span><br>
-							<span id="gps_lat"></span>° <span id="gps_lon"></span>°
-						</td>
-					</tr>
-					<tr height="5"></tr>
-					<tr>
 						<th>Packets:</th>
 						<td></td>
 						<td>5m</td>
@@ -489,6 +479,17 @@ include "sidebar.inc.php";
 						<th>Solar:</th>
 						<td></td>
 						<td><span id="adc_vsol"></span>mV<sub>STM</sub>, <span id="pac_vsol"></span>mV<sub>PAC</sub>, <span id="pac_psol"></span>mW<sub>PAC</sub></td>
+					</tr>
+					<tr height="5"></tr>
+					<tr>
+						<th>GPS:</th>
+						<td></td>
+						<td>
+							<b><span id="gps_lock"></span></b><br>
+							<span id="gps_sats"></span> Sats, TTFF <span id="gps_ttff"></span>s, pDOP <span id="gps_pdop"></span><br>
+							Time: <span id="gps_time"></span><br>
+							<span id="gps_lat"></span> <span id="gps_lon"></span> <span id="gps_alt"></span>m
+						</td>
 					</tr>
 					<tr height="5"></tr>
 					<tr>

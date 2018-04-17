@@ -1,51 +1,50 @@
 <?php
 require_once "Tracker.class.php";
 
-class Database extends SQLite3 {
+class Database extends mysqli {
 	private static $instance = null;
 
-	function __construct() {
-		$this->open("/src/pecanpico10/decoder/decoder.sqlite");
-
-		if($this->lastErrorCode())
-			echo $this->lastErrorMsg();
+	private function __construct() {
+		$this->con = parent::__construct("localhost", "decoder", "decoder", "decoder");
+		if(mysqli_connect_errno())
+			die(mysql_error());
 	}
 
-	static function getInstance() {
+	public function __destruct() {
+		$this->close();
+	}
+
+	public static function getInstance() {
 		if(self::$instance == null)
 			self::$instance = new Database();
 		return self::$instance;
 	}
 
-	function close() {
+	public function close() {
+		if(is_null($this->con))
+			return;
 		parent::close();
+		$this->con = null;
 	}
 
-	function getTracker() {
+	public function getTracker() {
 		$tracker = array();
 
 		$query = $this->query("
-			SELECT call,MAX(rxtime)
+			SELECT `call`,MAX(`rxtime`)
 			FROM (
-				SELECT call,rxtime FROM position
+				SELECT `call`,`rxtime` FROM `position`
 				UNION ALL
-				SELECT call,rxtime FROM image
-			)
-			GROUP BY call
-			ORDER BY rxtime DESC
+				SELECT `call`,`rxtime` FROM `image`
+			) AS d
+			GROUP BY `call`
+			ORDER BY `rxtime` DESC
 		");
-		while($row = $query->fetchArray(SQLITE3_ASSOC))
+		while($row = $query->fetch_assoc())
 			$tracker[] = new Tracker($row['call']);
 
 		return $tracker;
 	}
 }
 ?>
-
-
-
-
-
-
-
 
