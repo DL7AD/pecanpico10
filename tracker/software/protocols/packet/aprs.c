@@ -39,7 +39,7 @@ static uint16_t msg_id;
 char alias_re[] = "WIDE[4-7]-[1-7]|CITYD";
 char wide_re[] = "WIDE[1-7]-[1-7]";
 enum preempt_e preempt = PREEMPT_OFF;
-static heard_t heard_list[20];
+static heard_t heard_list[APRS_HEARD_LIST_SIZE];
 static bool dedupe_initialized;
 
 const conf_command_t command_list[] = {
@@ -172,6 +172,81 @@ const conf_command_t command_list[] = {
 	{TYPE_NULL}
 };
 
+/*
+ * Table of commands that can be embedded in a message.
+ */
+const APRSCommand aprs_commands[] = {
+    {"?aprsd", aprs_send_aprsd_message},
+    {"?aprsh", aprs_send_aprsh_message},
+    {"?aprsp", aprs_send_position_beacon},
+    {"?gpio", aprs_handle_gpio_command},
+    {"?gps", aprs_handle_gps_command},
+    {"?reset", aprs_execute_system_reset},
+    {"?save", aprs_execute_config_save},
+    {"?img", aprs_execute_img_command},
+    {"?config", aprs_execute_config_command},
+    {NULL, NULL}
+};
+
+/*
+ * Parse command arguments from aprs message.
+ */
+static char *aprs_parse_arguments(char *str, char **saveptr) {
+  char *p;
+
+  if (str != NULL)
+    *saveptr = str;
+
+  p = *saveptr;
+  if (!p) {
+    return NULL;
+  }
+
+  /* Skipping white space.*/
+  p += strspn(p, " \t");
+
+  if (*p == '"') {
+    /* If an argument starts with a double quote then its delimiter is another
+       quote.*/
+    p++;
+    *saveptr = strpbrk(p, "\"");
+  }
+  else {
+    /* The delimiter is white space.*/
+    *saveptr = strpbrk(p, " \t");
+  }
+
+  /* Replacing the delimiter with a zero.*/
+  if (*saveptr != NULL) {
+    *(*saveptr)++ = '\0';
+  }
+
+  return *p != '\0' ? p : NULL;
+}
+
+/*
+ * Execute a command found in an aprs message.
+ * Return result of command.
+ * False means either command failed or does not exist.
+ */
+static msg_t aprs_cmd_exec(const APRSCommand *acp,
+                          char *name,
+                          aprs_identity_t *id,
+                          int argc,
+                          char *argv[]) {
+
+  while (acp->ac_name != NULL) {
+    if (strcmp(acp->ac_name, name) == 0) {
+      return acp->ac_function(id, argc, argv);
+    }
+    acp++;
+  }
+  return MSG_TIMEOUT;
+}
+
+/*
+ *
+ */
 void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 {
 	// Decode packet
@@ -193,19 +268,27 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 }
 
 /**
- * Transmit APRS position packet. The comments are filled with:
- * - Static comment (can be set in config.h)
- * - Battery voltage in mV
- * - Solar voltage in mW (if tracker is solar-enabled)
- * - Temperature in Celcius
- * - Air pressure in Pascal
- * - Number of satellites being used
- * - Number of cycles where GPS has been lost (if applicable in cycle)
+ * @brief  Transmit APRS position packet.
+ * @notes  The comments are filled with:
+ * @notes  - Static comment (can be set in config.h)
+ * @notes  - Battery voltage in mV
+ * @notes  - Solar voltage in mW (if tracker is solar-enabled)
+ * @notes  - Temperature in Celcius
+ * @notes  - Air pressure in Pascal
+ * @notes  - Number of satellites being used
+ * @notes  - Number of cycles where GPS has been lost (if applicable in cycle)
+ *
+ * @param[in] callsign  originator calls sign
+ * @param[in] path      path to use
+ * @param[in] symbol    symbol for originator
+ * @param[in] dataPoint position data object
+ *
+ * @return    encoded packet object pointer
+ * @retval    NULL if encoding failed
  */
 packet_t aprs_encode_position(const char *callsign,
                               const char *path, uint16_t symbol,
-                              dataPoint_t *dataPoint)
-{
+                              dataPoint_t *dataPoint) {
 	// Latitude
 	uint32_t y = 380926 * (90 - dataPoint->gps_lat/10000000.0);
 	uint32_t y3  = y   / 753571;
@@ -236,7 +319,7 @@ packet_t aprs_encode_position(const char *callsign,
 
 	char xmit[256];
 	uint32_t len = chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:!",
-	                          callsign, APRS_DEST_CALLSIGN, path);
+	                          callsign, APRS_DEVICE_CALLSIGN, path);
 
 	xmit[len+0]  = (symbol >> 8) & 0xFF;
 	xmit[len+1]  = y3+33;
@@ -289,39 +372,61 @@ packet_t aprs_encode_data_packet(const char *callsign, const char *path,
 {
 	char xmit[256];
 	chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:{{%c%s", callsign,
-	           APRS_DEST_CALLSIGN, path, packetType, data);
+	           APRS_DEVICE_CALLSIGN, path, packetType, data);
 
 	return ax25_from_text(xmit, true);
 }
 
 /**
- * Transmit message packet
+ * @brief       Transmit message packet
+ *
+ * @param[in]   originator  call sign of originator of this message
+ * @param[in    path        path for message
+ * @param[in]   recipient   call sign of recipient
+ * @param[in    text        text of the message
+ * @param[in]   ack         true if message acknowledgment requested
  */
-packet_t aprs_encode_message(const char *callsign, const char *path,
-                             const char *receiver, const char *text,
-                             const bool noCounter) {
+packet_t aprs_encode_message(const char *originator, const char *path,
+                             const char *recipient, const char *text,
+                             const bool ack) {
 	char xmit[256];
 	if((strlen(text) > AX25_MAX_APRS_MSG_LEN)
 	    || (strpbrk(text, "|~{") != NULL))
 	  /* Invalid message. */
 	  return NULL;
-	if(noCounter)
-		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s", callsign,
-		           APRS_DEST_CALLSIGN, path, receiver, text);
+	if(!ack)
+		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s",
+		                               originator,
+                                       APRS_DEVICE_CALLSIGN,
+                                       path,
+                                       recipient,
+                                       text);
 	else
-		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s{%d", callsign,
-		           APRS_DEST_CALLSIGN, path, receiver, text, ++msg_id);
+		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s{%d",
+		                               originator,
+                                       APRS_DEVICE_CALLSIGN,
+                                       path,
+                                       recipient,
+                                       text,
+                                       ++msg_id);
 
 	return ax25_from_text(xmit, true);
 }
 
-packet_t aprs_encode_query_answer_aprsd(const char *callsign,
-                                        const char *path,
-                                        const char *receiver)
-{
+/*
+ * @brief       Compose an APRSD message
+ * @notes       Used by position service.
+ *
+ * @param[in]   originator  originator of this message
+ * @param[in]   path        path to use
+ * @param[in]   recipient   identity that requested the message
+ */
+packet_t aprs_compose_aprsd_message(const char *originator,
+                                    const char *path,
+                                    const char *recipient) {
 	char buf[256] = "Directs=";
-	uint32_t out = 8;
-	for(uint8_t i=0; i<20; i++) {
+	uint32_t out = strlen(buf);
+	for(uint8_t i = 0; i < APRS_HEARD_LIST_SIZE; i++) {
 		if(heard_list[i].time
 		    && heard_list[i].time + TIME_S2I(600) >= chVTGetSystemTime()
 		    && heard_list[i].time <= chVTGetSystemTime())
@@ -330,267 +435,606 @@ packet_t aprs_encode_query_answer_aprsd(const char *callsign,
 	}
 	buf[out-1] = 0; // Remove last space
 
-	return aprs_encode_message(callsign, path, receiver, buf, true);
+	return aprs_encode_message(originator, path, recipient, buf, false);
 }
 
+/*
+ * @brief       Encode and send an APRSD message
+ *
+ * @param[in]   id      aprs node identity
+ * @param[in]   argc    number of parameters
+ * @param[in]   argv    array of pointers to parameter strings
+ *
+ * @return      result of command
+ * @retval      MSG_OK if the command completed.
+ * @retval      MSG_ERROR if there was an error.
+ */
+msg_t aprs_send_aprsd_message(aprs_identity_t *id,
+                                     int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
+
+  packet_t pp = aprs_compose_aprsd_message(id->call, id->path, id->src);
+  if(pp == NULL) {
+    TRACE_WARN("RX   > No free packet objects or badly formed message");
+    return MSG_ERROR;
+  }
+  if(!transmitOnRadio(pp,
+                  id->freq,
+                  0,
+                  0,
+                  id->pwr,
+                  id->mod,
+                  id->rssi)) {
+    TRACE_ERROR("RX   > Transmit of APRSD failed");
+    return MSG_ERROR;
+  }
+  return MSG_OK;
+}
+
+/*
+ * @brief       Encode and send an APRSH message
+ *
+ * @param[in]   id      aprs node identity
+ * @param[in]   argc    number of parameters
+ * @param[in]   argv    array of pointers to parameter strings
+ *
+ * @return      result of command
+ * @retval      MSG_OK if the command completed.
+ * @retval      MSG_ERROR if there was an error.
+ */
+msg_t aprs_send_aprsh_message(aprs_identity_t *id,
+                                 int argc, char *argv[]) {
+  if(argc != 1)
+    return MSG_ERROR;
+  char buf[AX25_MAX_APRS_MSG_LEN + 1];
+  uint32_t out = 0;
+  strupr(argv[0]);
+  for(uint8_t i = 0; i < APRS_HEARD_LIST_SIZE; i++) {
+      if(heard_list[i].time && (strncmp(heard_list[i].call, argv[0],
+                                        strlen(argv[0])) == 0)) {
+        /* Convert time to human readable form. */
+        time_secs_t diff = chTimeI2S(chVTTimeElapsedSinceX(heard_list[i].time));
+        out = chsnprintf(buf, sizeof(buf),
+                         "%s heard %02i:%02i ago",
+                          heard_list[i].call, diff/60, diff % 60);
+        break;
+      }
+      if(out == 0) {
+        out = chsnprintf(buf, sizeof(buf),
+                         "%s not heard", heard_list[i].call);
+      }
+  }
+  packet_t pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
+  if(pp == NULL) {
+    TRACE_WARN("RX   > No free packet objects or badly formed message");
+    return MSG_ERROR;
+  }
+  if(!transmitOnRadio(pp,
+                  id->freq,
+                  0,
+                  0,
+                  id->pwr,
+                  id->mod,
+                  id->rssi)) {
+    TRACE_ERROR("RX   > Transmit of APRSH failed");
+    return MSG_ERROR;
+  }
+  return MSG_OK;
+}
+
+/*
+ * @brief       Handle GPIO set/clear/query
+ *
+ * @param[in]   id      aprs node identity
+ * @param[in]   argc    number of parameters
+ * @param[in]   argv    array of pointers to parameter strings
+ *
+ * @return      result of command
+ * @retval      MSG_OK if the command completed.
+ * @retval      MSG_ERROR if there was an error.
+ */
+msg_t aprs_handle_gpio_command(aprs_identity_t *id,
+                                 int argc, char *argv[]) {
+  if(argc != 1)
+    return MSG_ERROR;
+
+  if(!strcmp(argv[0], "pa8:1")) {
+    TRACE_INFO("RX   > Message: GPIO query PA8 HIGH");
+    palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
+    palSetPad(GPIOA, 8);
+    return MSG_OK;
+  }
+
+  if(!strcmp(argv[0], "pa8:0")) {
+    TRACE_INFO("RX   > Message: GPIO query PA8 LOW");
+    palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
+    palClearPad(GPIOA, 8);
+    return MSG_OK;
+  }
+
+  if(!strcmp(argv[0], "pa8:?")) {
+    char buf[AX25_MAX_APRS_MSG_LEN + 1];
+    /* TODO: Need to read mode and if not output then report as "input" etc. */
+    chsnprintf(buf, sizeof(buf),
+                   "PA8 is %s ",
+                   (palReadPad(GPIOA, 8) == PAL_HIGH) ? "HIGH" : "LOW");
+
+    packet_t pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
+    if(pp == NULL) {
+      TRACE_WARN("RX   > No free packet objects or badly formed message");
+      return MSG_ERROR;
+    }
+    if(!transmitOnRadio(pp,
+                id->freq,
+                0,
+                0,
+                id->pwr,
+                id->mod,
+                id->rssi)) {
+      TRACE_ERROR("RX   > Transmit of GPIO status failed");
+      return MSG_ERROR;
+    }
+    return MSG_OK;
+  }
+  return MSG_ERROR;
+}
+
+/*
+ * @brief       Handle GPS command
+ *
+ * @param[in]   id      aprs node identity
+ * @param[in]   argc    number of parameters
+ * @param[in]   argv    array of pointers to parameter strings
+ *
+ * @return      result of command
+ * @retval      MSG_OK if the command completed.
+ * @retval      MSG_ERROR if there was an error.
+ */
+msg_t aprs_handle_gps_command(aprs_identity_t *id,
+                                 int argc, char *argv[]) {
+  if(argc != 1)
+    return MSG_ERROR;
+
+  if(!strcmp(argv[0], "fixed")) {
+    TRACE_INFO("RX   > Message: GPS set to fixed location");
+    test_gps_enabled = true;
+    return MSG_OK;
+  }
+
+  if(!strcmp(argv[0], "normal")) {
+    TRACE_INFO("RX   > Message: GPS set to normal operation");
+    test_gps_enabled = false;
+    return MSG_OK;
+  }
+
+  if(!strcmp(argv[0], "status")) {
+    char buf[AX25_MAX_APRS_MSG_LEN + 1];
+    /* TODO: Need to read mode and if not output then report as "input" etc. */
+    chsnprintf(buf, sizeof(buf),
+                   "GPS is %s",
+                   test_gps_enabled ? "fixed" : "normal");
+
+    packet_t pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
+    if(pp == NULL) {
+      TRACE_WARN("RX   > No free packet objects or badly formed message");
+      return MSG_ERROR;
+    }
+    if(!transmitOnRadio(pp,
+                id->freq,
+                0,
+                0,
+                id->pwr,
+                id->mod,
+                id->rssi)) {
+      TRACE_ERROR("RX   > Transmit of GPS status failed");
+      return MSG_ERROR;
+    }
+    return MSG_OK;
+  }
+  return MSG_ERROR;
+}
+
+/**
+* @brief       Request for position beacon to be sent
+*
+* @param[in]   id      aprs node identity
+* @param[in]   argc    number of parameters
+* @param[in]   argv    array of pointers to parameter strings
+*
+* @return      result of command
+* @retval      MSG_OK if the command completed.
+* @retval      MSG_ERROR if there was an error.
+*/
+msg_t aprs_send_position_beacon(aprs_identity_t *id,
+                                int argc, char *argv[]) {
+  (void)argv;
+
+  if(argc != 0)
+    return MSG_ERROR;
+
+  TRACE_INFO("RX   > Message: Position query");
+  dataPoint_t* dataPoint = getLastDataPoint();
+  packet_t pp = aprs_encode_position(id->call,
+                                     id->path,
+                                     id->symbol,
+                                     dataPoint);
+  if(pp == NULL) {
+    TRACE_WARN("RX   > No free packet objects or badly formed message");
+    return MSG_ERROR;
+  }
+  if(!transmitOnRadio(pp,
+                      id->freq,
+                      0,
+                      0,
+                      id->pwr,
+                      id->mod,
+                      id->rssi)) {
+    TRACE_ERROR("RX   > Transmit of APRSD failed");
+    return MSG_ERROR;
+  }
+  return MSG_OK;
+}
+
+/**
+* @brief       Request for system reset
+*
+* @param[in]   id      aprs node identity
+* @param[in]   argc    number of parameters
+* @param[in]   argv    array of pointers to parameter strings
+*
+* @return      result of command
+* @retval      MSG_ERROR if there was an error.
+*/
+msg_t aprs_execute_system_reset(aprs_identity_t *id,
+                                int argc, char *argv[]) {
+  (void)argv;
+
+  if(argc != 0)
+    return MSG_ERROR;
+
+  TRACE_INFO("RX   > Message: System Reset");
+  char buf[16];
+  chsnprintf(buf, sizeof(buf), "ack%s", id->num);
+  packet_t pp = aprs_encode_message(id->call,
+                                    id->path,
+                                    id->src, buf, false);
+  if(pp == NULL) {
+    TRACE_WARN("RX   > No free packet objects");
+    return MSG_ERROR;
+  }
+  transmitOnRadio(pp,
+                  id->freq,
+                  0,
+                  0,
+                  id->pwr,
+                  id->mod,
+                  id->rssi);
+
+  chThdSleep(TIME_S2I(10));
+
+  NVIC_SystemReset();
+  /* We don't arrive here. */
+  return MSG_OK;
+}
+
+/*
+ * @brief       Handle config command
+ *
+ * @param[in]   id      aprs node identity
+ * @param[in]   argc    number of parameters
+ * @param[in]   argv    array of pointers to parameter strings
+ *
+ * @return      result of command
+ * @retval      MSG_OK if the command completed.
+ * @retval      MSG_ERROR if there was an error.
+ */
+msg_t aprs_execute_config_command(aprs_identity_t *id,
+                                 int argc, char *argv[]) {
+  (void)id;
+
+  if(argc != 2)
+    return MSG_ERROR;
+
+  for(uint8_t i=0; command_list[i].type != TYPE_NULL; i++) {
+    if(!strncmp(argv[1], command_list[i].name,
+                strlen(command_list[i].name))) {
+
+      /* Parameter being changed is in argv[0], new value is in argv[1]. */
+      TRACE_INFO("RX   > Message: Configuration Command");
+      TRACE_INFO("RX   > %s => %s", argv[1], argv[1]);
+
+      if(command_list[i].type == TYPE_INT
+          && command_list[i].size == 1) {
+        *((uint8_t*)command_list[i].ptr) = atoi(argv[1]);
+      } else if(command_list[i].type == TYPE_INT
+          && command_list[i].size == 2) {
+        *((uint16_t*)command_list[i].ptr) = atoi(argv[1]);
+      } else if(command_list[i].type == TYPE_INT
+          && command_list[i].size == 4) {
+        *((uint32_t*)command_list[i].ptr) = atoi(argv[1]);
+      } else if(command_list[i].type == TYPE_TIME) {
+        *((sysinterval_t*)command_list[i].ptr) =
+            TIME_MS2I(atoi(argv[2]));
+      } else if(command_list[i].type == TYPE_STR) {
+        strncpy((char*)command_list[i].ptr, argv[1],
+                sizeof(command_list[i].size)-1);
+      }
+      return MSG_OK;
+    } /* Next parameter. */
+  } /* Parameter not found. */
+  return MSG_ERROR;
+}
+
+/**
+* @brief       Request configuration save to flash
+*
+* @param[in]   id      aprs node identity
+* @param[in]   argc    number of parameters
+* @param[in]   argv    array of pointers to parameter strings
+*
+* @return      result of command
+* @retval      MSG_ERROR if there was an error.
+*/
+msg_t aprs_execute_config_save(aprs_identity_t *id,
+                                int argc, char *argv[]) {
+  (void)id;
+  (void)argc;
+  (void)argv;
+
+  TRACE_INFO("RX   > Message: Config Save");
+  conf_sram.magic = CONFIG_MAGIC_UPDATED;
+  flashSectorBegin(flashSectorAt(0x08060000));
+  flashErase(0x08060000, 0x20000);
+  flashWrite(0x08060000, (char*)&conf_sram, sizeof(conf_t));
+  flashSectorEnd(flashSectorAt(0x08060000));
+  return MSG_OK;
+}
+
+/*
+ * @brief       Handle Image command
+ *
+ * @param[in]   id      aprs node identity
+ * @param[in]   argc    number of parameters
+ * @param[in]   argv    array of pointers to parameter strings
+ *
+ * @return      result of command
+ * @retval      MSG_OK if the command completed.
+ * @retval      MSG_ERROR if there was an error.
+ */
+msg_t aprs_execute_img_command(aprs_identity_t *id,
+                                 int argc, char *argv[]) {
+  (void)id;
+  if(argc < 2)
+    return MSG_ERROR;
+
+  if(!strcmp(argv[0], "reject") && argc == 2) {
+    if(!strcmp(argv[1], "pri")) {
+      reject_pri = true;
+      TRACE_INFO("RX   > Message: Image reject pri");
+      return MSG_OK;
+    }
+    if(!strcmp(argv[1], "sec")) {
+      reject_sec = true;
+      TRACE_INFO("RX   > Message: Image reject sec");
+      return MSG_OK;
+    }
+    return MSG_ERROR;
+  }
+
+  if(!strcmp(argv[0], "repeat")) {
+    TRACE_INFO("RX   > Message: Image packet repeat request");
+
+    /* Start at arg 2. */
+    int c = 2;
+    while(c <= argc) {
+      uint32_t req = strtol(argv[c++], NULL, 16);
+      for(uint8_t i = 0; i < 16; i++) {
+        /* Find an empty repeat slot. */
+        if(!packetRepeats[i].n_done) {
+          packetRepeats[i].image_id = (req >> 16) & 0xFF;
+          packetRepeats[i].packet_id = req & 0xFFFF;
+          packetRepeats[i].n_done = true;
+
+          TRACE_INFO("RX   > ... Image %3d Packet %3d",
+                     packetRepeats[i].image_id,
+                     packetRepeats[i].packet_id);
+          break;
+        } /* Not an empty slot. */
+      } /* No more slots. */
+    } /* No more image IDs. */
+    return MSG_OK;
+  }
+  /* Unknown parameter. */
+  return MSG_ERROR;
+}
+
+/*
+ * @brief       Decode APRS content and check for message
+ *
+ * @param[in]   pp    an APRS packet object
+ *
+ * @return      result of command
+ * @retval      true if not a message or not addressed to any node on this device.
+ *              in that case the APRS content can be digipeated.
+ * @retval      false if this was a message for a node on this device.
+ *              in that case the APRS content should not be digipeated.
+ */
 static bool aprs_decode_message(packet_t pp) {
-	// Get Info field
-	char src[127];
-	unsigned char *pinfo;
-	if(ax25_get_info(pp, &pinfo) == 0)
-	  return false;
-	ax25_format_addrs(pp, src, sizeof(src));
+  // Get Info field
+  char src[127];
+  unsigned char *pinfo;
+  if(ax25_get_info(pp, &pinfo) == 0)
+    return false;
 
-	// Decode destination callsign
-	char dest[AX25_MAX_ADDR_LEN];
-	uint8_t i=0;
+  ax25_format_addrs(pp, src, sizeof(src));
 
-	while(i < sizeof(dest)-1) {
-		if(pinfo[i+1] == ':' || pinfo[i+1] == ' ') {
-			dest[i++] = 0;
-			break;
-		}
-		dest[i] = pinfo[i+1];
-		i++;
-	}
+  /* Decode destination call sign. */
+  char dest[AX25_MAX_ADDR_LEN];
+  uint8_t i = 0;
 
-	// Decode source callsign
-	for(uint32_t i=0; i < sizeof(src); i++) {
-		if(src[i] == '>') {
-			src[i] = 0;
-			break;
-		}
-	}
+  while(i < sizeof(dest) - 1) {
+    if(pinfo[i+1] == ':' || pinfo[i+1] == ' ') {
+      dest[i++] = 0;
+      break;
+    }
+    dest[i] = pinfo[i+1];
+    i++;
+  }
+  /* Convert destination call sign to upper case. */
+  strupr(dest);
 
-	/* Check if this message is meant for us. */
-	bool pos_pri = !strcmp(conf_sram.pos_pri.call, dest)
-	    && (conf_sram.pos_pri.aprs_msg)
-	    && (conf_sram.pos_pri.thread_conf.active);
-    bool pos_sec = !strcmp(conf_sram.pos_sec.call, dest)
-        && (conf_sram.pos_sec.aprs_msg)
-        && (conf_sram.pos_sec.thread_conf.active);
-    bool aprs_rx = !strcmp(conf_sram.aprs.rx.call, dest)
-        && (conf_sram.aprs.thread_conf.active);
-    bool aprs_tx = !strcmp(conf_sram.aprs.tx.call, dest)
-        && (conf_sram.aprs.thread_conf.active)
-        && (conf_sram.aprs.dig_active);
+  /* Decode source call sign. */
+  for(uint32_t i = 0; i < sizeof(src); i++) {
+    if(src[i] == '>') {
+      src[i] = 0;
+      break;
+    }
+  }
+  /* Convert source call sign to upper case. */
+  strupr(src);
 
-	if((pinfo[10] == ':') && (pos_pri || pos_sec || aprs_rx || aprs_tx)) {
-		char msg_id_rx[8];
-		memset(msg_id_rx, 0, sizeof(msg_id_rx));
+  /*
+   *  Setup default responding node identity.
+   *  Default identity id set to tx.
+   */
 
-		// Cut off control chars
-		for(uint16_t i = 11; pinfo[i] != 0 && i < AX25_MAX_APRS_MSG_LEN + 11; i++) {
-		  /* FIXME: Trim trailing spaces before {. */
-			if(pinfo[i] == '{') {
-				// Copy ACK ID
-				memcpy(msg_id_rx, &pinfo[i+1], sizeof(msg_id_rx)-1);
-				// Cut off non-printable chars
-				for(uint8_t j=0; j<sizeof(msg_id_rx); j++) {
-					if(msg_id_rx[j] < 32 || msg_id_rx[j] > 126) {
-						msg_id_rx[j] = 0;
-						break;
-					}
-				}
-				pinfo[i] = 0; // Mark end of message
-			}
-			if(pinfo[i] == '\r' || pinfo[i] == '\n') {
-				pinfo[i] = 0;
-			}
-		}
+  aprs_identity_t identity = {0};
 
-        char *command = strlwr((char*)&pinfo[11]);
+  strcpy(identity.src, src);
+  strcpy(identity.call, conf_sram.aprs.tx.call);
+  /* TODO: define a length for path. */
+  strcpy(identity.path, conf_sram.aprs.tx.path);
+  identity.symbol = conf_sram.aprs.tx.symbol;
+  identity.freq = conf_sram.aprs.tx.radio_conf.freq;
+  identity.pwr = conf_sram.aprs.tx.radio_conf.pwr;
+  identity.mod = conf_sram.aprs.tx.radio_conf.mod;
+  identity.rssi = conf_sram.aprs.tx.radio_conf.rssi;
 
-		// Trace
-		TRACE_INFO("RX   > Received message from %s (ID=%s): %s [%s]",
-		           src, msg_id_rx, &pinfo[11], command);
+  /* Check which nodes are enabled to accept aprs messages. */
+  bool pos_pri = !strcmp(conf_sram.pos_pri.call, dest)
+	        && (conf_sram.pos_pri.aprs_msg)
+	        && (conf_sram.pos_pri.thread_conf.active);
 
-		// Do control actions
-		if(!strcmp(command, "?gpio pa8:1")) { // Switch on pin
+  if(pos_pri) {
+    strcpy(identity.call, conf_sram.pos_pri.call);
+    strcpy(identity.path, conf_sram.pos_pri.path);
+    identity.symbol = conf_sram.pos_pri.symbol;
+  }
 
-			TRACE_INFO("RX   > Message: GPIO query PA8 HIGH");
-			palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
-			palSetPad(GPIOA, 8);
+  bool pos_sec = !strcmp(conf_sram.pos_sec.call, dest)
+            && (conf_sram.pos_sec.aprs_msg)
+            && (conf_sram.pos_sec.thread_conf.active);
+  if(pos_sec) {
+    strcpy(identity.call, conf_sram.pos_sec.call);
+    strcpy(identity.path, conf_sram.pos_sec.path);
+    identity.symbol = conf_sram.pos_sec.symbol;
+  }
 
-		} else if(!strcmp(command, "?gpio pa8:0")) { // Switch off pin
+  bool aprs_rx = !strcmp(conf_sram.aprs.rx.call, dest)
+            && (conf_sram.aprs.thread_conf.active);
+  if(aprs_rx) {
+    /* Parameters come from tx. */
+  }
 
-			TRACE_INFO("RX   > Message: GPIO query PA8 LOW");
-			palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
-			palClearPad(GPIOA, 8);
+  bool aprs_tx = !strcmp(conf_sram.aprs.tx.call, dest)
+            && (conf_sram.aprs.thread_conf.active)
+            && (conf_sram.aprs.dig_active);
+  /* Default already set for tx. */
 
-        } else if(!strcmp(command, "?gps fixed")) { // Use fixed gps coordinates
+  /* Check if this is message and address is one of the nodes on this device. */
+  if(!((pinfo[10] == ':') && (pos_pri || pos_sec || aprs_rx || aprs_tx))) {
+    /*
+     * Not a command or not addressed to one of the active nodes on this device.
+     * Flag that message should be digipeated.
+     */
+    return true;
+  }
 
-            TRACE_INFO("RX   > Message: GPS fixed location");
-            test_gps_enabled = true;
+  /* Proceed with command analysis. */
+  char msg_id_rx[8] = {0};
+  //memset(msg_id_rx, 0, sizeof(msg_id_rx));
 
-        } else if(!strcmp(command, "?gps normal")) { // Use fixed gps coordinates
+  // Cut off control chars
+  for(uint16_t i = 11; pinfo[i] != 0
+  && i < (AX25_MAX_APRS_MSG_LEN + 11); i++) {
+    /* FIXME: Trim trailing spaces before {. */
+    if(pinfo[i] == '{') {
+      // Copy ACK ID
+      memcpy(msg_id_rx, &pinfo[i+1], sizeof(msg_id_rx)-1);
+      // Cut off non-printable chars
+      for(uint8_t j=0; j<sizeof(msg_id_rx); j++) {
+        if(msg_id_rx[j] < 32 || msg_id_rx[j] > 126) {
+          msg_id_rx[j] = 0;
+          break;
+        }
+      }
+      pinfo[i] = 0; // Mark end of message
+    }
+    if(pinfo[i] == '\r' || pinfo[i] == '\n') {
+      pinfo[i] = 0;
+    }
+  }
 
-            TRACE_INFO("RX   > Message: GPS acquire location");
-            test_gps_enabled = false;
+  strcpy(identity.num, msg_id_rx);
 
-		} else if(!strcmp(command, "?aprsp")) { // Transmit position
-		    /*
-		     * There is no reply sent to the src (ack can be sent).
-		     * Just a position sent from the APRS TX identity.
-		     * The identity could be the same as one of the POS identities.
-		     */
-			TRACE_INFO("RX   > Message: Position query");
-			dataPoint_t* dataPoint = getLastDataPoint();
-			packet_t pp = aprs_encode_position(conf_sram.aprs.tx.call,
-			                                   conf_sram.aprs.tx.path,
-			                                   conf_sram.aprs.tx.symbol,
-			                                   dataPoint);
-            if(pp == NULL) {
-              TRACE_WARN("RX   > No free packet objects");
-              return false;
-            }
-            transmitOnRadio(pp,
-                            conf_sram.aprs.tx.radio_conf.freq,
-                            0,
-                            0,
-                            conf_sram.aprs.tx.radio_conf.pwr,
-                            conf_sram.aprs.tx.radio_conf.mod,
-                            conf_sram.aprs.tx.radio_conf.rssi);
+  /* Convert command string to lower case. */
+  char *astrng = strlwr((char*)&pinfo[11]);
 
-		} else if(!strcmp(command, "?aprsd")) { // Transmit position
+  // Trace
+  TRACE_INFO("RX   > Received message from %s (ID=%s): %s [%s]",
+             src, msg_id_rx, &pinfo[11], astrng);
 
-			TRACE_INFO("RX   > Message: Directs query");
-			packet_t pp =
-			    aprs_encode_query_answer_aprsd(conf_sram.aprs.tx.call,
-			                                   conf_sram.aprs.tx.path, src);
-            if(pp == NULL) {
-              TRACE_WARN("RX   > No free packet objects or badly formed message");
-              return false;
-            }
-            transmitOnRadio(pp,
-                            conf_sram.aprs.tx.radio_conf.freq,
-                            0,
-                            0,
-                            conf_sram.aprs.tx.radio_conf.pwr,
-                            conf_sram.aprs.tx.radio_conf.mod,
-                            conf_sram.aprs.tx.radio_conf.rssi);
+  /* Parse arguments. */
+  char *lp, *cmd, *tokp;
+  char *args[APRS_MAX_MSG_ARGUMENTS];
+  lp = aprs_parse_arguments(astrng, &tokp);
+  /* The command itself. */
+  cmd = lp;
+  int n = 0;
+  while ((lp = aprs_parse_arguments(NULL, &tokp)) != NULL) {
+    if (n >= APRS_MAX_MSG_ARGUMENTS) {
+      TRACE_INFO("RX   > Too many APRS command arguments");
+      cmd = NULL;
+      break;
+    }
+    args[n++] = lp;
+  }
 
-		} else if(!strcmp(command, "?reset")) { // Transmit position
+  /* Parse and execute command. */
+  msg_t msg = aprs_cmd_exec(aprs_commands, cmd, &identity, n, args);
 
-			TRACE_INFO("RX   > Message: System Reset");
-			char buf[16];
-			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
-			packet_t pp = aprs_encode_message(conf_sram.aprs.tx.call,
-			                                  conf_sram.aprs.tx.path,
-			                                  src, buf, true);
-            if(pp == NULL) {
-              TRACE_WARN("RX   > No free packet objects");
-              return false;
-            }
-            transmitOnRadio(pp,
-                            conf_sram.aprs.tx.radio_conf.freq,
-                            0,
-                            0,
-                            conf_sram.aprs.tx.radio_conf.pwr,
-                            conf_sram.aprs.tx.radio_conf.mod,
-                            conf_sram.aprs.tx.radio_conf.rssi);
-			chThdSleep(TIME_S2I(5)); // Give some time to send the message
+  if(msg == MSG_TIMEOUT) {
+    TRACE_INFO("RX   > Command not found by parser");
+  }
 
-			NVIC_SystemReset();
+  if(msg_id_rx[0]) {
+    /* Incoming message ID exists so an ACK or REJ has to be sent. */
+    char buf[16];
+    chsnprintf(buf, sizeof(buf), "%s%s",
+               (msg == MSG_OK) ? "ack" : "rej", msg_id_rx);
 
-		} else if(!strcmp(command, "?save")) { // Transmit position
-
-			TRACE_INFO("RX   > Message: Save");
-			conf_sram.magic = CONFIG_MAGIC_UPDATED;
-			flashSectorBegin(flashSectorAt(0x08060000));
-			flashErase(0x08060000, 0x20000);
-			flashWrite(0x08060000, (char*)&conf_sram, sizeof(conf_t));
-			flashSectorEnd(flashSectorAt(0x08060000));
-
-		} else if(!strcmp(command, "?img reject pri")) { // Reject image
-
-			reject_pri = true;
-
-		} else if(!strcmp(command, "?img reject sec")) { // Reject image
-
-			reject_sec = true;
-
-		} else if(!strncmp(command, "?img ", 5)) { // Repeat packets
-
-			TRACE_INFO("RX   > Message: Image packet repeat request");
-
-			char *pt;
-			pt = strtok(&command[5], " ");
-			while(pt != NULL) {
-				uint32_t req = strtol(pt, NULL, 16);
-
-				for(uint8_t i=0; i<16; i++) {
-					if(!packetRepeats[i].n_done) {
-						packetRepeats[i].image_id = (req >> 16) & 0xFF;
-						packetRepeats[i].packet_id = req & 0xFFFF;
-						packetRepeats[i].n_done = true;
-
-						TRACE_INFO("RX   > ... Image %3d Packet %3d",
-						           packetRepeats[i].image_id,
-						           packetRepeats[i].packet_id);
-						break;
-					}
-				}
-
-				pt = strtok(NULL, " ");
-			}
-
-		} else if(!strncmp(command, "?conf ", 6)) { // Modify configuration
-
-			for(uint8_t i=0; command_list[i].type != TYPE_NULL; i++)
-			{
-				if(!strncmp(&command[6], command_list[i].name,
-				            strlen(command_list[i].name))) {
-
-					char *value = &command[strlen(command_list[i].name) + 6];
-					TRACE_INFO("RX   > Message: Configuration Command");
-					TRACE_INFO("RX   > %s => %s", &command[6], value);
-
-					if(command_list[i].type == TYPE_INT
-					    && command_list[i].size == 1) {
-						*((uint8_t*)command_list[i].ptr) = atoi(value);
-					} else if(command_list[i].type == TYPE_INT
-					    && command_list[i].size == 2) {
-						*((uint16_t*)command_list[i].ptr) = atoi(value);
-					} else if(command_list[i].type == TYPE_INT
-					    && command_list[i].size == 4) {
-						*((uint32_t*)command_list[i].ptr) = atoi(value);
-					} else if(command_list[i].type == TYPE_TIME) {
-						*((sysinterval_t*)command_list[i].ptr) =
-						    TIME_MS2I(atoi(value));
-					} else if(command_list[i].type == TYPE_STR) {
-						strncpy((char*)command_list[i].ptr, value,
-						        sizeof(command_list[i].size)-1);
-					}
-				}
-			}
-
-		} else {
-			TRACE_INFO("RX   > No command found in message");
-		}
-
-		if(msg_id_rx[0]) { // Message ID has been sent which has to be acknowledged
-			char buf[16];
-			chsnprintf(buf, sizeof(buf), "ack%s", msg_id_rx);
-
-			packet_t pp = aprs_encode_message(conf_sram.aprs.tx.call,
-			                                  conf_sram.aprs.tx.path,
-			                                  src, buf, true);
-            if(pp == NULL) {
-              TRACE_WARN("RX   > No free packet objects");
-              return false;
-            }
-            transmitOnRadio(pp,
-                            conf_sram.aprs.tx.radio_conf.freq,
-                            0,
-                            0,
-                            conf_sram.aprs.tx.radio_conf.pwr,
-                            conf_sram.aprs.tx.radio_conf.mod,
-                            conf_sram.aprs.tx.radio_conf.rssi);
-		}
-		return false; // Mark that message should not be digipeated
-	}
-	return true; // Mark that message has to be digipeated
+    /*
+     * Use the receiving node identity as sender.
+     *  Don't request acknowledgment.
+     */
+    packet_t pp = aprs_encode_message(identity.call,
+                                      identity.path,
+                                      identity.src, buf, false);
+    if(pp == NULL) {
+      TRACE_WARN("RX   > No free packet objects");
+      return false;
+    }
+    transmitOnRadio(pp,
+                    identity.freq,
+                    0,
+                    0,
+                    identity.pwr,
+                    identity.mod,
+                    identity.rssi);
+  }
+  /* Flag that the APRS content should not be digipeated. */
+  return false;
 }
 
 /*
@@ -624,18 +1068,17 @@ static void aprs_digipeat(packet_t pp) {
  * Transmit APRS telemetry configuration
  */
 packet_t aprs_encode_telemetry_configuration(const char *callsign,
-                                             const char *path, uint8_t type)
-{
-	switch(type)
-	{
+                                             const char *path,
+                                             uint8_t type) {
+	switch(type) {
 		case 0:	return aprs_encode_message(callsign, path, callsign,
-		       	        "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure", true);
+		       	        "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure", false);
 		case 1: return aprs_encode_message(callsign, path, callsign,
-		                "UNIT.V,V,W,degC,Pa", true);
+		                "UNIT.V,V,W,degC,Pa", false);
 		case 2: return aprs_encode_message(callsign, path, callsign,
-		                 "EQNS.0,.001,0,0,.001,0,0,.001,-4.096,0,.1,-100,0,12.5,500", true);
+		                 "EQNS.0,.001,0,0,.001,0,0,.001,-4.096,0,.1,-100,0,12.5,500", false);
 		case 3: return aprs_encode_message(callsign, path, callsign,
-		                  "BITS.11111111,", true);
+		                  "BITS.11111111,", false);
 		default: return NULL;
 	}
 }
@@ -656,8 +1099,8 @@ void aprs_decode_packet(packet_t pp) {
   sysinterval_t first_time = 0xFFFFFFFF;	// Timestamp of oldest heard list entry
   uint8_t first_id = 0;					// ID of oldest heard list entry
 
-  for(uint8_t i=0; i<=20; i++) {
-    if(i < 20) {
+  for(uint8_t i=0; i <= APRS_HEARD_LIST_SIZE; i++) {
+    if(i < APRS_HEARD_LIST_SIZE) {
       // Search for callsign in list
       if(!strcmp(heard_list[i].call, call)) { // Callsign found in list
         heard_list[i].time = chVTGetSystemTime(); // Update time the callsign was last heard

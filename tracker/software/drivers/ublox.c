@@ -26,21 +26,20 @@ const SerialConfig gps_config =
 /**
   * Transmits a string of bytes to the GPS
   */
-void gps_transmit_string(uint8_t *cmd, uint8_t length)
-{
-	#if defined(UBLOX_USE_I2C)
-	I2C_writeN(UBLOX_MAX_ADDRESS, cmd, length);
-	#elif defined(UBLOX_USE_UART)
-	sdWrite(&SD5, cmd, length);
-	#endif
+void gps_transmit_string(uint8_t *cmd, uint8_t length) {
+  gps_calc_ubx_csum(cmd, length);
+#if defined(UBLOX_USE_I2C)
+  I2C_writeN(UBLOX_MAX_ADDRESS, cmd, length);
+#elif defined(UBLOX_USE_UART)
+  sdWrite(&SD5, cmd, length);
+#endif
 }
 
 /**
   * Receives a single byte from the GPS and assigns to supplied pointer.
   * Returns false is there is no byte available else true
   */
-bool gps_receive_byte(uint8_t *data)
-{
+bool gps_receive_byte(uint8_t *data) {
 	#if defined(UBLOX_USE_I2C)
 	uint16_t len;
 	I2C_read16(UBLOX_MAX_ADDRESS, 0xFD, &len);
@@ -190,7 +189,7 @@ bool gps_get_fix(gpsFix_t *fix) {
 	static uint8_t navstatus[32];
 
 	// Transmit request
-	uint8_t navpvt_req[] = {0xB5, 0x62, 0x01, 0x07, 0x00, 0x00, 0x08, 0x19};
+	uint8_t navpvt_req[] = {0xB5, 0x62, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00};
 	gps_transmit_string(navpvt_req, sizeof(navpvt_req));
 
 	if(!gps_receive_payload(0x01, 0x07, navpvt, 3000)) { // Receive request
@@ -198,7 +197,7 @@ bool gps_get_fix(gpsFix_t *fix) {
 		return false;
 	}
 
-	uint8_t navstatus_req[] = {0xB5, 0x62, 0x01, 0x03, 0x00, 0x00, 0x04, 0x0D};
+	uint8_t navstatus_req[] = {0xB5, 0x62, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00};
 	gps_transmit_string(navstatus_req, sizeof(navstatus_req));
 
 	if(!gps_receive_payload(0x01, 0x03, navstatus, 3000)) { // Receive request
@@ -250,13 +249,22 @@ bool gps_get_fix(gpsFix_t *fix) {
       fix->time.second = navpvt[10];
 
       fix->lat = (int32_t) (
-              (uint32_t)(navpvt[28]) + ((uint32_t)(navpvt[29]) << 8) + ((uint32_t)(navpvt[30]) << 16) + ((uint32_t)(navpvt[31]) << 24)
+              (uint32_t)(navpvt[28])
+              + ((uint32_t)(navpvt[29]) << 8)
+              + ((uint32_t)(navpvt[30]) << 16)
+              + ((uint32_t)(navpvt[31]) << 24)
               );
       fix->lon = (int32_t) (
-              (uint32_t)(navpvt[24]) + ((uint32_t)(navpvt[25]) << 8) + ((uint32_t)(navpvt[26]) << 16) + ((uint32_t)(navpvt[27]) << 24)
+              (uint32_t)(navpvt[24])
+              + ((uint32_t)(navpvt[25]) << 8)
+              + ((uint32_t)(navpvt[26]) << 16)
+              + ((uint32_t)(navpvt[27]) << 24)
               );
       int32_t alt_tmp = (((int32_t)
-              ((uint32_t)(navpvt[36]) + ((uint32_t)(navpvt[37]) << 8) + ((uint32_t)(navpvt[38]) << 16) + ((uint32_t)(navpvt[39]) << 24))
+              ((uint32_t)(navpvt[36])
+                  + ((uint32_t)(navpvt[37]) << 8)
+                  + ((uint32_t)(navpvt[38]) << 16)
+                  + ((uint32_t)(navpvt[39]) << 24))
               ) / 1000);
       if (alt_tmp <= 0) {
           fix->alt = 1;
@@ -298,7 +306,6 @@ uint8_t gps_disable_nmea_output(void) {
 		0x00, 0x00		                    // CRC place holders
 	};
 
-	gps_calc_ubx_csum(nonmea, sizeof(nonmea));
 	gps_transmit_string(nonmea, sizeof(nonmea));
 	return gps_receive_ack(0x06, 0x00, 1000);
 }
@@ -338,7 +345,6 @@ uint8_t gps_set_airborne_model(void) {
 		0x00, 0x00								// CRC place holders
 	};
 
-    gps_calc_ubx_csum(model6, sizeof(model6));
 	gps_transmit_string(model6, sizeof(model6));
 	return gps_receive_ack(0x06, 0x24, 1000);
 }
@@ -369,7 +375,6 @@ uint8_t gps_set_power_save(void) {
 		0x00, 0x00                          // CRC place holders
 	};
 
-    gps_calc_ubx_csum(powersave, sizeof(powersave));
 	gps_transmit_string(powersave, sizeof(powersave));
 	return gps_receive_ack(0x06, 0x3B, 1000);
 }
@@ -386,7 +391,6 @@ uint8_t gps_power_save(int on) {
 		0x00, 0x00                      // CRC place holders
 	};
 
-    gps_calc_ubx_csum(recvmgmt, sizeof(recvmgmt));
 	gps_transmit_string(recvmgmt, sizeof(recvmgmt));
 	return gps_receive_ack(0x06, 0x11, 1000);
 }
@@ -448,14 +452,15 @@ void GPS_Deinit(void)
 
 /*
  * Calculate checksum and inserts into buffer.
+ * Calling function must allocate space in message buff for csum.
  *
  */
 bool gps_calc_ubx_csum(uint8_t *mbuf, uint16_t mlen) {
 
   uint16_t i;
   uint8_t ck_a = 0, ck_b = 0;
+  /* Counting sync bytes there must be at least one byte to checksum. */
   if(mlen < 5)
-    /* Counting sync bytes there must be at least one byte to checksum. */
     return false;
 
   for (i = 2; i < mlen - 2; i++) {

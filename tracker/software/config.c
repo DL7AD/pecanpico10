@@ -13,7 +13,7 @@ const conf_t conf_flash_default = {
 		.thread_conf = {
 			.active			= true,
 			.cycle			= TIME_S2I(60*30),
-			.init_delay		= TIME_S2I(10)
+			.init_delay		= TIME_S2I(30)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -56,9 +56,9 @@ const conf_t conf_flash_default = {
 	.img_pri = {
 		.thread_conf = {
 			.active			= true,
-			.cycle			= TIME_S2I(60*30),
-			.init_delay		= TIME_S2I(60*1),
-			.send_spacing	= TIME_S2I(10)
+			.cycle			= TIME_S2I(60*5),
+			.init_delay		= TIME_S2I(60*5),
+			.send_spacing	= TIME_S2I(5)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -141,7 +141,11 @@ const conf_t conf_flash_default = {
           },
             .call           = "VK2GJ-5",
             .path           = "WIDE2-1",
-            .symbol         = SYM_DIGIPEATER
+            .symbol         = SYM_DIGIPEATER,
+            .fixed          = true,
+            .lat            = -337331175,
+            .lon            = 1511143478,
+            .alt            = 144
       },
       .base = { // The base station parameters - how and where tracker originated messages are sent
              .enabled       = true,
