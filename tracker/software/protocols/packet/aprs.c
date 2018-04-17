@@ -434,6 +434,7 @@ packet_t aprs_compose_aprsd_message(const char *originator,
                                     const char *recipient) {
 	char buf[256] = "Directs=";
 	uint32_t out = strlen(buf);
+	uint32_t empty = out;
 	for(uint8_t i = 0; i < APRS_HEARD_LIST_SIZE; i++) {
 		if(heard_list[i].time
 		    && heard_list[i].time + TIME_S2I(600) >= chVTGetSystemTime()
@@ -441,7 +442,11 @@ packet_t aprs_compose_aprsd_message(const char *originator,
 			out += chsnprintf(&buf[out], sizeof(buf)-out, "%s ",
 			                  heard_list[i].call);
 	}
-	buf[out-1] = 0; // Remove last space
+	if(out == empty) {
+      out += chsnprintf(&buf[out], sizeof(buf)-out, "[none]");
+	} else {
+	  buf[out-1] = 0; // Remove last space
+	}
 
 	return aprs_encode_message(originator, path, recipient, buf, false);
 }
