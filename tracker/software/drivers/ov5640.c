@@ -978,24 +978,26 @@ void vsync_cb(void *arg) {
  * Other drivers using resources that can cause DMA competition are locked.
  */
 msg_t OV5640_LockResourcesForCapture(void) {
-  I2C_Lock();
 
   msg_t msg = pktAcquireRadio(PKT_RADIO_1, TIME_INFINITE);
   if(msg != MSG_OK) {
     return msg;
   }
+  I2C_Lock();
   pktPauseReception(PKT_RADIO_1);
-  //chMtxLock(&trace_mtx);
+  /* Hold TRACE output on USB. */
+  if(isUSBactive())
+    chMtxLock(&trace_mtx);
   return MSG_OK;
-  /* FIXME: USB has to be locked? */
 }
 
 /*
  * Unlock competing drivers.
  */
 void OV5640_UnlockResourcesForCapture(void) {
-  /* FIXME: USB has to be unlocked? */
-  //chMtxUnlock(&trace_mtx);
+  /* Re-enable TRACE output on USB. */
+  if(isUSBactive())
+    chMtxUnlock(&trace_mtx);
   I2C_Unlock();
   pktResumeReception(PKT_RADIO_1);
   pktReleaseRadio(PKT_RADIO_1);

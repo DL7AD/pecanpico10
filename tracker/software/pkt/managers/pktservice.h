@@ -21,8 +21,8 @@
 #define PKT_SEND_BUFFER_SEM_NAME        "pbsem"
 
 
-#define PKT_CALLBACK_WA_SIZE             8192
-#define PKT_TERMINATOR_WA_SIZE           1024
+#define PKT_CALLBACK_WA_SIZE             (1024 * 10)
+#define PKT_TERMINATOR_WA_SIZE           (1024 * 1)
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */

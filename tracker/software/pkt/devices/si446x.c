@@ -589,7 +589,7 @@ static bool Si446x_transmit(radio_unit_t radio,
     }
 
     /* Try to get clear channel. */
-    TRACE_INFO( "SI   > Wait maximum of %.1f seconds for clear channel on"
+    TRACE_INFO( "SI   > Run CCA for %.1f seconds on"
         " %d.%03d MHz",
         (float32_t)(TIME_I2MS(cca_timeout) / 1000),
         op_freq/1000000, (op_freq%1000000)/1000);
@@ -601,7 +601,7 @@ static bool Si446x_transmit(radio_unit_t radio,
       chThdSleep(TIME_MS2I(1));
     }
     /* Clear channel timing. */
-    TRACE_INFO( "SI   > CCA time = %d milliseconds",
+    TRACE_INFO( "SI   > CCA completed in %d milliseconds",
                 chTimeI2MS(chVTTimeElapsedSinceX(t0)));
   }
 

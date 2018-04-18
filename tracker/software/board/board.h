@@ -297,7 +297,7 @@
 
 // USB
 #define LINE_USB_ID                 PAL_LINE(GPIOA, 10U)
-#define LINE_USB_VUSB               PAL_LINE(GPIOA, 9U)
+#define LINE_USB_VUSB               PAL_LINE(GPIOA,  9U)
 #define LINE_USB_DM                 PAL_LINE(GPIOA, 11U)
 #define LINE_USB_DP                 PAL_LINE(GPIOA, 12U)
 

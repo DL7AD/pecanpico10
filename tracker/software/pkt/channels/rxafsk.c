@@ -642,11 +642,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   /* Activity LED blink rate scaling variable. */
   uint16_t led_count = 0;
 
-#define DECODER_WAIT_TIME            200U    /* 200mS. */
-#define DECODER_IDLE_TIME           2000U    /* 2000uS. */
+#define DECODER_WAIT_TIME            100U    /* 100mS. */
+//#define DECODER_IDLE_TIME           2000U    /* 2000uS. */
 #define DECODER_POLL_TIME             10U    /* 10mS. */
-#define DECODER_LED_RATE_POLL        100U    /* 1000uS. */
-#define DECODER_ACTIVE_TIMEOUT         5U    /* 5mS. */
+//#define DECODER_LED_RATE_POLL        100U    /* 1000uS. */
+//#define DECODER_ACTIVE_TIMEOUT         5U    /* 5mS. */
 #define DECODER_SUSPEND_TIME        2000U    /* 2000uS. */
 #define DECODER_LED_RATE_SUSPEND     250U    /* Blink at 250mS during suspend. */
 
@@ -693,6 +693,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /* Something went wrong if we arrive here. */
           chSysHalt("ThdExit");
         }
+        /* Toggle decoder LED in wait state. */
         pktWriteDecoderLED(PAL_TOGGLE);
         continue;
       }
@@ -723,12 +724,15 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                              TIME_MS2I(DECODER_POLL_TIME));
         if(fifo_msg != MSG_OK) {
 
-          if(++led_count >= DECODER_LED_RATE_POLL) {
-            /* Toggle decoder LED. */
+/*          if(++led_count >= DECODER_LED_RATE_POLL) {
+             Toggle decoder LED.
             pktWriteDecoderLED(PAL_TOGGLE);
             led_count = 0;
-          }
-          /* No FIFO object posted so loop again. */
+          }*/
+          /*
+           * No FIFO object posted so loop.
+           * Go back through IDLE and check for STOP event.
+           */
           myDriver->decoder_state = DECODER_IDLE;
           break;
         }
@@ -796,8 +800,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         byte_packed_pwm_t data;
         size_t n = iqReadTimeout(myQueue, data.bytes,
                                  sizeof(packed_pwm_counts_t),
-                                 TIME_MS2I(DECODER_ACTIVE_TIMEOUT));
-        /* TODO: Timeout to be calculated from SYMBOL time x (8?). */
+                                 chTimeUS2I(833 * 8)
+                                 /*TIME_MS2I(DECODER_ACTIVE_TIMEOUT)*/);
+        /* Timeout calculated as SYMBOL time x 8. */
 
         if(n == sizeof(packed_pwm_counts_t)) {
           array_min_pwm_counts_t radio;
@@ -901,7 +906,13 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         radio_cca_fifo_t *myFIFO = myDriver->active_demod_object;
         if(myFIFO != NULL) {
 
-          /* Wait for queue object to be released by PWM. */
+          /*
+           * Wait for queue object to be released by PWM.
+           * Normally this is the case.
+           * If can be a forced release by semaphore reset.
+           * TODO: This may happen if the watchdog system forces reset.
+           * TBD.
+           */
           (void)chBSemWait(&myFIFO->sem);
 
 #if USE_HEAP_PWM_BUFFER == TRUE

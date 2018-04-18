@@ -61,17 +61,23 @@ THD_FUNCTION(posThread, arg)
               chThdSleep(TIME_S2I(5));
             }
 
-			// Encode/Transmit APRSD packet
             /*
-             * This is a tracker originated message (not a reply to an incoming).
-             * The message will be sent to the base station if set.
+             * Encode/Transmit APRSD packet.
+             * This is a tracker originated message (not a reply to a request).
+             * The message will be sent to the base station set in path.
              */
 			if(conf_sram.aprs.base.enabled) {
-              packet = aprs_encode_query_answer_aprsd(conf->call, /* from */
-                                       conf_sram.aprs.base.path,  /* via */
-                                       conf_sram.aprs.base.call); /* to */
+			  /*
+			   * Send message from this device.
+			   * Use call sign and path as specified in base config.
+			   * There is no acknowledgment requested.
+			   */
+              packet = aprs_compose_aprsd_message(
+                                APRS_DEVICE_CALLSIGN,
+                                conf_sram.aprs.base.path,
+                                conf_sram.aprs.base.call);
               if(packet == NULL) {
-                TRACE_WARN("POS  > No free packet objects for "
+                TRACE_WARN("POS  > No free packet objects "
                     "or badly formed APRSD message");
               } else {
                 if(!transmitOnRadio(packet,
@@ -87,6 +93,7 @@ THD_FUNCTION(posThread, arg)
                 chThdSleep(TIME_S2I(5));
               }
 			} else {
+			  /* TODO: Implement a fallback destination if no base station set? */
               TRACE_INFO("POS  > APRSD data not sent - no base station specified");
 			}
 

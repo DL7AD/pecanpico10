@@ -18,12 +18,10 @@ int main(void) {
 
 	// Init debugging (Serial debug port, LEDs)
 	DEBUG_INIT();
-	 // This won't actually display since USB isn't initialized yet.
-	TRACE_INFO("MAIN > Startup");
 
 	/*
 	 * Setup buffers in CCM if available.
-	 * Setup IO device arbitration.
+	 * Setup packet primary data.
 	 */
 	bool pkt = pktSystemInit();
 
@@ -42,6 +40,8 @@ int main(void) {
 	#if ACTIVATE_USB
 	startUSB();
 	#endif
+
+   TRACE_INFO("MAIN > Startup");
 
 	// Startup threads
 	start_essential_threads();	// Startup required modules (tracking manager, watchdog)

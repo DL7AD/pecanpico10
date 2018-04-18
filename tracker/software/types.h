@@ -128,6 +128,10 @@ typedef struct {
     uint16_t        symbol;
     uint8_t         rssi;                   // Squelch for CCA check
     bool            enabled;
+    bool            fixed;
+    int32_t         lat;
+    int32_t         lon;
+    int32_t         alt;
 
 } thd_tx_conf_t;
 
