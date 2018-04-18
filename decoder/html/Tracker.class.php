@@ -38,8 +38,8 @@ class Tracker {
 		if($from > $to)
 			return array(); // Error $from is larger than $to
 
-		if($from - $to > 64281600)
-			$from = $from + 64281600; // Max. 744 days (2 non leap years + 14 weeks)
+		if($to - $from > 64281600)
+			$from = $to - 64281600; // Max. 744 days (2 non leap years + 14 weeks)
 
 		$query = Database::getInstance()->query("
 			SELECT t.`id`,`call`,MIN(`rxtime`) as `time_first`,MAX(`rxtime`) as `time_last`,
@@ -74,8 +74,8 @@ class Tracker {
 		if($from > $to)
 			return array(); // Error $from is larger than $to
 
-		if($from - $to > 64281600)
-			$from = $from + 64281600; // Max. 744 days (2 non leap years + 14 weeks)
+		if($to - $from > 64281600)
+			$from = $to - 64281600; // Max. 744 days (2 non leap years + 14 weeks)
 
 		$query = Database::getInstance()->query("
 			SELECT *,
@@ -99,7 +99,6 @@ class Tracker {
 			ORDER BY `ordertime` ASC
 		");
 
-		$datasets = array();
 		while($row = $query->fetch_assoc()) {
 			$datasets[] = new Telemetry($row);
 		}
