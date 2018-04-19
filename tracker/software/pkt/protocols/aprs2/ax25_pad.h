@@ -37,6 +37,9 @@
 /* to be safe. */
 #define AX25_MAX_ADDR_LEN 12
 
+/* The length of an address field in an AX25 header. */
+#define AX25_ADDR_LEN     7
+
 /* Previously 1 when considering only APRS. */
 #define AX25_MIN_INFO_LEN 0U
 				
@@ -61,9 +64,9 @@
 /* The more general case. */
 /* An AX.25 frame can have a control byte and no protocol. */
 
-#define AX25_MIN_PACKET_LEN ( 2 * 7 + 1 )
+#define AX25_MIN_PACKET_LEN ( 2 * AX25_ADDR_LEN + 1 )
 
-#define AX25_MAX_PACKET_LEN ( AX25_MAX_ADDRS * 7 + 2 + 3 + AX25_MAX_INFO_LEN)
+#define AX25_MAX_PACKET_LEN ( AX25_MAX_ADDRS * AX25_ADDR_LEN + 2 + 3 + AX25_MAX_INFO_LEN)
 
 #define AX25_UI_FRAME 3		/* Control field value. */
 

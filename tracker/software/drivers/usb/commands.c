@@ -241,10 +241,10 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
 
 	chprintf(chp, "Message: %s\r\n", m);
 
-	/* Send with ack request (last arg false). */
+	/* Send with ack request (last arg true). */
 	packet_t packet = aprs_encode_message(conf_sram.aprs.tx.call,
 	                                      conf_sram.aprs.tx.path,
-	                                      argv[0], m, false);
+	                                      argv[0], m, true);
     if(packet == NULL) {
       TRACE_WARN("CMD  > No free packet objects");
       return;
@@ -258,9 +258,5 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
                     conf_sram.aprs.tx.radio_conf.rssi);
 
 	chprintf(chp, "Message sent!\r\n");
-/*
-  (void)argc;
-    (void)argv;
-    chprintf(chp, "TODO: Not implemented\r\n");*/
 }
 

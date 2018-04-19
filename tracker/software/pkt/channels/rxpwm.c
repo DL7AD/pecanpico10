@@ -206,7 +206,7 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
   icuDisableNotificationsI(myICU);
   if(myDemod->active_radio_object != NULL) {
     myDemod->active_radio_object->status |= (EVT_PWM_QUEUE_LOCK | evt);
-    pktAddEventFlagsI(myHandler, (EVT_PWM_QUEUE_LOCK | evt));
+    pktAddEventFlagsI(myHandler, evt);
     input_queue_t *myQueue = &myDemod->active_radio_object->radio_pwm_queue;
     /* End of data flag. */
 #if USE_12_BIT_PWM == TRUE

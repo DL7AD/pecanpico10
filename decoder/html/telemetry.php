@@ -216,14 +216,29 @@ function loadRecentData() {
 					dataTemp.addRow([null,null,null,null,null,null]);
 					dataGPS.addRow([null,null,null,null]);
 					dataLight.addRow([null,null]);
+					dataAlt.addRow([null,null,null,null,null]);
 				}
 
 
 				dataBattery.addRow([time, data['adc_vbat'], data['pac_vbat'], data['pac_pbat']/10]);
 				dataSolar.addRow([time, data['adc_vsol'], data['pac_vsol'], data['pac_psol']/10]);
-				dataTemp.addRow([time, data['sen_i1_temp']/100, data['sen_e1_temp']/100, data['sen_e2_temp']/100, data['stm32_temp']/100, data['si4464_temp']/100]);
+				dataTemp.addRow([
+					time,
+					data['sen_i1_temp'] && data['sen_i1_temp'] > -10000 && data['sen_i1_temp'] < 10000 ? data['sen_i1_temp']/100 : null,
+					data['sen_e1_temp'] && data['sen_e1_temp'] > -10000 && data['sen_e1_temp'] < 10000 ? data['sen_e1_temp']/100 : null,
+					data['sen_e2_temp'] && data['sen_e2_temp'] > -10000 && data['sen_e2_temp'] < 10000 ? data['sen_e2_temp']/100 : null,
+					data['stm32_temp'] && data['stm32_temp'] > -10000 && data['stm32_temp'] < 10000 ? data['stm32_temp']/100 : null,
+					data['si4464_temp'] && data['si4464_temp'] > -10000 && data['si4464_temp'] < 10000 ? data['si4464_temp']/100 : null
+				]);
 				dataGPS.addRow([time, data['gps_sats'], data['gps_ttff'], data['gps_pdop']/20]);
 				dataLight.addRow([time, data['light_intensity']]);
+				dataAlt.addRow([
+					time,
+					data['gps_alt'],
+					data['sen_i1_press'] && data['sen_i1_press'] < 1100000 ? data['sen_i1_press']/10 : null,
+					data['sen_e1_press'] && data['sen_e1_press'] < 1100000 ? data['sen_e1_press']/10 : null,
+					data['sen_e2_press'] && data['sen_e2_press'] < 1100000 ? data['sen_e2_press']/10 : null
+				]);
 
 				last = time;
 			});
@@ -237,6 +252,7 @@ function loadRecentData() {
 					dataTemp.removeRow(c);
 					dataGPS.removeRow(c);
 					dataLight.removeRow(c);
+					dataAlt.removeRow(c);
 				}
 			}
 
@@ -246,6 +262,7 @@ function loadRecentData() {
 			tempChart.draw(dataTemp, tempOptions);
 			gpsChart.draw(dataGPS, gpsOptions);
 			lightChart.draw(dataLight, lightOptions);
+			altChart.draw(dataAlt, altOptions);
 
 			lastChartUpdate = json['time'];
 		}
@@ -335,6 +352,30 @@ var gpsOptions = {
 };
 
 // Chart 5
+var altChart;
+var dataAlt;
+var altOptions = {
+	explorer: scroll,
+	width: 1285,
+	height: 300,
+	series: {
+		0: {targetAxisIndex: 0},
+		1: {targetAxisIndex: 1},
+		2: {targetAxisIndex: 1},
+		3: {targetAxisIndex: 1}
+	},
+	vAxes: {
+		0: {title: 'Altitude'},
+		1: {title: 'Airpressure'},
+	},
+	legend: {
+		position: 'top'
+	},
+	hAxis: xAxis,
+	chartArea: area
+};
+
+// Chart 6
 var lightChart;
 var dataLight;
 var lightOptions = {
@@ -390,6 +431,15 @@ function drawChart() {
 	gpsChart = new google.visualization.LineChart(document.getElementById('gpsDiv'));
 
 	// Chart 5
+	dataAlt = new google.visualization.DataTable();
+	dataAlt.addColumn('date', 'Time');
+	dataAlt.addColumn('number', "GPS_ALT");
+	dataAlt.addColumn('number', "PRESS_BME_I1");
+	dataAlt.addColumn('number', "PRESS_BME_E1");
+	dataAlt.addColumn('number', "PRESS_BME_E2");
+	altChart = new google.visualization.LineChart(document.getElementById('altDiv'));
+
+	// Chart 6
 	dataLight = new google.visualization.DataTable();
 	dataLight.addColumn('date', 'Time');
 	dataLight.addColumn('number', "LIGHT");
@@ -447,6 +497,14 @@ include "sidebar.inc.php";
 						<td width="70"><span id="pos_cnt3600"></span></td>
 						<td width="70"><span id="pos_cnt86400"></span></td>
 						<td><span id="act_pos"></span></td>
+					</tr>
+					<tr>
+						<td></td>
+						<td width="40">DIR:</td>
+						<td width="50"><span id="dir_cnt300"></span></td>
+						<td width="70"><span id="dir_cnt3600"></span></td>
+						<td width="70"><span id="dir_cnt86400"></span></td>
+						<td><span id="act_dir"></span></td>
 					</tr>
 					<tr>
 						<td></td>
@@ -599,6 +657,9 @@ include "sidebar.inc.php";
 	</tr>
 	<tr>
 		<td colspan="3" height="315"><div id="gpsDiv" class="inner"></div></td>
+	</tr>
+	<tr>
+		<td colspan="3" height="315"><div id="altDiv" class="inner"></div></td>
 	</tr>
 	<tr>
 		<td colspan="3" height="315"><div id="lightDiv" class="inner"></div></td>

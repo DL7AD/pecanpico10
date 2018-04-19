@@ -21,7 +21,7 @@
 
 
 #define USE_SPI_ATTACHED_RADIO      TRUE
-#define DUMP_PACKET_TO_SERIAL       TRUE
+#define DUMP_PACKET_TO_SERIAL       FALSE
 
 /*
  * TODO: Need to use radio unit ID to set assigned GPIO & SPI.
@@ -67,6 +67,7 @@
 #endif
 
 //#define LINE_PWM_MIRROR             PAL_LINE(GPIOA, 8U)
+#define LINE_GPIO_PIN               PAL_LINE(GPIOA, 8U)
 
 /**
  *  ICU related definitions.
@@ -123,7 +124,7 @@ extern "C" {
   void pktSetLineModeICU(void);
   void pktSerialStart(void);
   void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
-  int dbgPrintf(uint8_t level, const char *format, ...);
+  int  dbgPrintf(uint8_t level, const char *format, ...);
   void pktWrite(uint8_t *buf, uint32_t len);
   void pktPowerUpRadio(radio_unit_t radio);
   void pktPowerDownRadio(radio_unit_t radio);

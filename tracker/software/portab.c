@@ -18,6 +18,7 @@
 #include "hal.h"
 #include "chprintf.h"
 #include "portab.h"
+#include "usb.h"
 #include <stdarg.h>
 
 /*===========================================================================*/
@@ -158,6 +159,10 @@ void sysConfigureCoreIO(void) {
   palSetLineMode(LINE_I2C_SCL, PAL_MODE_ALTERNATE(4)
                  | PAL_STM32_OSPEED_HIGHEST
                  | PAL_STM32_OTYPE_OPENDRAIN); // SCL
+
+  #if ACTIVATE_USB
+  startUSB();
+  #endif
 }
 
 /** @} */

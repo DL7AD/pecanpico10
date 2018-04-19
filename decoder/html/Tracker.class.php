@@ -16,14 +16,12 @@ class Tracker {
 
 		$query = Database::getInstance()->query("
 			SELECT * FROM (
-				SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'pos' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'pos'
+				(SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'pos' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'pos' ORDER BY `rxtime` DESC LIMIT 1)
 				UNION ALL
-				SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'img' as `type` FROM `image` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "'
+				(SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'img' as `type` FROM `image` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' ORDER BY `rxtime` DESC LIMIT 1)
 				UNION ALL
-				SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'log' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'log'
+				(SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'log' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'log' ORDER BY `rxtime` DESC LIMIT 1)
 			) AS d
-			GROUP BY `type`
-			ORDER BY `lasttime` DESC
 		");
 
 		while($row = $query->fetch_assoc())
@@ -38,8 +36,8 @@ class Tracker {
 		if($from > $to)
 			return array(); // Error $from is larger than $to
 
-		if($from - $to > 64281600)
-			$from = $from + 64281600; // Max. 744 days (2 non leap years + 14 weeks)
+		if($to - $from > 64281600)
+			$from = $to - 64281600; // Max. 744 days (2 non leap years + 14 weeks)
 
 		$query = Database::getInstance()->query("
 			SELECT t.`id`,`call`,MIN(`rxtime`) as `time_first`,MAX(`rxtime`) as `time_last`,
@@ -74,8 +72,8 @@ class Tracker {
 		if($from > $to)
 			return array(); // Error $from is larger than $to
 
-		if($from - $to > 64281600)
-			$from = $from + 64281600; // Max. 744 days (2 non leap years + 14 weeks)
+		if($to - $from > 64281600)
+			$from = $to - 64281600; // Max. 744 days (2 non leap years + 14 weeks)
 
 		$query = Database::getInstance()->query("
 			SELECT *,

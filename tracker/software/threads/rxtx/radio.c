@@ -69,11 +69,12 @@ void mapCallback(pkt_data_object_t *pkt_buff) {
   pktDiagnosticOutput(pkt_buff->handler, pkt_buff);
 #endif
 */
-if(pktIsBufferValidAX25Frame(pkt_buff)) {
+if(pktGetAX25FrameStatus(pkt_buff)) {
+
   /* Perform the callback. */
   processPacket(frame_buffer, frame_size);
   } else {
-    TRACE_INFO("RX   > Invalid frame - dropped");
+    TRACE_INFO("RX   > Frame has bad CRC - dropped");
   }
 }
 

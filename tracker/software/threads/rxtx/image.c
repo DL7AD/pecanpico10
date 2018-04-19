@@ -648,14 +648,14 @@ THD_FUNCTION(imgThread, arg) {
       chThdSleep(TIME_S2I(60));
       continue;
     }
-
+    uint32_t my_image_id = gimage_id++;
     /* Create image capture buffer. */
     uint8_t *buffer = chHeapAllocAligned(NULL, conf->buf_size,
                                          DMA_FIFO_BURST_ALIGN);
     if(buffer == NULL) {
       /* Could not get a capture buffer. */
       TRACE_WARN("IMG  > Unable to get capture buffer for image %i",
-                 gimage_id);
+                 my_image_id);
       /* Allow time for other threads. */
       chThdSleep(TIME_MS2I(10));
       /* Try again at next run time. */
@@ -668,11 +668,11 @@ THD_FUNCTION(imgThread, arg) {
     /* Nothing captured? */
     if(size_sampled == 0) {
       TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d",
-                 gimage_id);
+                 my_image_id);
       if(!transmit_image_packets(noCameraFound, sizeof(noCameraFound),
-                                 conf, (uint8_t)(gimage_id))) {
+                                 conf, (uint8_t)(my_image_id))) {
         TRACE_ERROR("IMG  > Error in encoding dummy image %i"
-            " - discarded", gimage_id);
+            " - discarded", my_image_id);
       }
       /* Return the buffer to the heap. */
       chHeapFree(buffer);
@@ -699,7 +699,7 @@ THD_FUNCTION(imgThread, arg) {
 
           chsnprintf(filename, sizeof(filename), "r%02xi%04x.jpg",
                      getLastDataPoint()->reset % 0xFF,
-                     (gimage_id - 1) % 0xFFFF);
+                     (my_image_id) % 0xFFFF);
 
           writeBufferToFile(filename, &buffer[soi], size_sampled - soi);
         } /* End initSD() */
@@ -710,13 +710,12 @@ THD_FUNCTION(imgThread, arg) {
         }
 
         /* Encode and transmit picture. */
-        TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", gimage_id);
+        TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", my_image_id);
         if(!transmit_image_packets(buffer, size_sampled, conf,
-                                   (uint8_t)(gimage_id))) {
+                                   (uint8_t)(my_image_id))) {
           TRACE_ERROR("IMG  > Error in encoding snapshot image"
-              " %i - discarded", gimage_id);
+              " %i - discarded", my_image_id);
         }
-      gimage_id++;
       break;
       } /* End if SOI in buffer. */
     } /* End while soi < size_sampled - 1. */

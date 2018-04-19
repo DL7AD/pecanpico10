@@ -40,8 +40,8 @@
 #define ORIGIN_OTHER_TRACKER			0x6
 #define ORIGIN_DIGIPEATER_CONVERSION	0x7
 
-#define APRS_DEST_CALLSIGN				"APECAN" // APExxx = Pecan device
-#define APRS_DEST_SSID					0
+#define APRS_DEVICE_CALLSIGN	    	"APECAN" // APExxx = Pecan device
+//#define APRS_DEST_SSID					0
 
 #define SYM_BALLOON						0x2F4F
 #define SYM_SMALLAIRCRAFT				0x2F27
@@ -49,18 +49,76 @@
 #define SYM_CAR							0x2F3E
 #define SYM_SHIP						0x2F73
 #define SYM_DIGIPEATER					0x2F23
+#define SYM_ANTENNA                     0x2F72
 
+#define APRS_HEARD_LIST_SIZE            20
+
+#define APRS_MAX_MSG_ARGUMENTS          10
+
+typedef struct APRSIdentity {
+  char      num[8];
+  char      src[AX25_MAX_ADDR_LEN];
+  char      call[AX25_MAX_ADDR_LEN];
+  char      path[16];
+  uint16_t  symbol;
+  uint32_t  freq;
+  uint8_t   pwr;
+  mod_t     mod;
+  uint8_t   rssi;
+} aprs_identity_t;
+
+/**
+ * @brief   Command handler function type.
+ */
+typedef msg_t (*aprscmd_t)(aprs_identity_t *id, int argc, char *argv[]);
+
+/**
+ * @brief   APRS command entry type.
+ */
+typedef struct {
+  const char            *ac_name;           /**< @brief Command name.       */
+  aprscmd_t             ac_function;        /**< @brief Command function.   */
+} APRSCommand;
+
+/* Temporary. Will be deprecated when fixed station feature is implemented. */
 extern bool test_gps_enabled;
 
-void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len);
-
-packet_t aprs_encode_position(const char *callsign, const char *path, uint16_t symbol, dataPoint_t *dataPoint);
-packet_t aprs_encode_telemetry_configuration(const char *callsign, const char *path, uint8_t type);
-packet_t aprs_encode_message(const char *callsign, const char *path, const char *receiver, const char *text, const bool noCounter);
-packet_t aprs_encode_data_packet(const char *callsign, const char *path, char packetType, uint8_t *data);
-packet_t aprs_encode_query_answer_aprsd(const char *callsign, const char *path, const char *receiver);
-
-void aprs_decode_packet(packet_t pp);
-
+#ifdef __cplusplus
+extern "C" {
+#endif
+  void      aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len);
+  packet_t  aprs_encode_position(const char *callsign, const char *path,
+                                uint16_t symbol, dataPoint_t *dataPoint);
+  packet_t  aprs_encode_telemetry_configuration(const char *callsign,
+                                               const char *path, uint8_t type);
+  packet_t  aprs_encode_message(const char *callsign, const char *path,
+                               const char *receiver, const char *text,
+                               const bool ack);
+  packet_t  aprs_encode_data_packet(const char *callsign, const char *path,
+                                   char packetType, uint8_t *data);
+  packet_t  aprs_compose_aprsd_message(const char *callsign, const char *path,
+                                   const char *receiver);
+  void      aprs_decode_packet(packet_t pp);
+  msg_t     aprs_send_position_beacon(aprs_identity_t *id,
+                                  int argc, char *argv[]);
+  msg_t     aprs_send_aprsd_message(aprs_identity_t *id,
+                                        int argc, char *argv[]);
+  msg_t     aprs_send_aprsh_message(aprs_identity_t *id,
+                                   int argc, char *argv[]);
+  msg_t     aprs_execute_gpio_command(aprs_identity_t *id,
+                                   int argc, char *argv[]);
+  msg_t     aprs_handle_gps_command(aprs_identity_t *id,
+                                   int argc, char *argv[]);
+  msg_t     aprs_execute_config_command(aprs_identity_t *id,
+                                   int argc, char *argv[]);
+  msg_t     aprs_execute_config_save(aprs_identity_t *id,
+                                  int argc, char *argv[]);
+  msg_t     aprs_execute_img_command(aprs_identity_t *id,
+                                   int argc, char *argv[]);
+  msg_t aprs_execute_system_reset(aprs_identity_t *id,
+                                  int argc, char *argv[]);
+#ifdef __cplusplus
+}
+#endif
 #endif
 

@@ -27,16 +27,14 @@ static bool threadStarted = false;
 /**
   * Returns most recent data point which is complete.
   */
-dataPoint_t* getLastDataPoint(void)
-{
+dataPoint_t* getLastDataPoint(void) {
 	return lastDataPoint;
 }
 
 /*
  *
  */
-void waitForNewDataPoint(void)
-{
+void waitForNewDataPoint(void) {
 	uint32_t old_id = getLastDataPoint()->id;
 	while(old_id == getLastDataPoint()->id)
 		chThdSleep(TIME_S2I(1));
@@ -45,8 +43,8 @@ void waitForNewDataPoint(void)
 /*
  *
  */
-static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp, sysinterval_t timeout)
-{
+static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
+                           sysinterval_t timeout) {
 	sysinterval_t start = chVTGetSystemTime();
 
 	gpsFix_t gpsFix;
@@ -62,7 +60,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp, sysinterval_t time
 		bool status = GPS_Init();
 
 		if(status) {
-			// Search for lock as long enough power is available
+			// Search for lock as long as enough power is available
 			do {
 				batt = stm32_get_vbat();
 				gps_get_fix(&gpsFix);
@@ -185,7 +183,7 @@ static void getSensors(dataPoint_t* tp)
 		tp->sen_e1_press = 0;
 		tp->sen_e1_hum = 0;
 		tp->sen_e1_temp = 0;
-		bme280_error |= 0x2;
+		bme280_error |= 0x4;
 	}
 
 	// External BME280 Sensor 2
@@ -199,8 +197,11 @@ static void getSensors(dataPoint_t* tp)
 		tp->sen_e2_press = 0;
 		tp->sen_e2_hum = 0;
 		tp->sen_e2_temp = 0;
-		bme280_error |= 0x4;
+		bme280_error |= 0x10;
 	}
+#else
+	/* Set status to "not installed". */
+	bme280_error |= 0x28;
 #endif
 	// Measure various temperature sensors
 	tp->stm32_temp = stm32_get_temp();
@@ -214,7 +215,19 @@ static void getSensors(dataPoint_t* tp)
  *
  */
 static void setSystemStatus(dataPoint_t* tp) {
-	// Set system errors
+
+  /*
+   * Set system errors.
+   *
+   * Bit usage:
+   * -  0:1  I2C status
+   * -  2:2  GPS status
+   * -  3:4  pac1720 status
+   * -  5:7  OV5640 status
+   * -  8:9  BMEi1 status (0 = OK, 1 = Fail, 2 = Not fitted)
+   * -  9:10 BMEe1 status (0 = OK, 1 = Fail, 2 = Not fitted)
+   * - 10:11 BMEe2 status (0 = OK, 1 = Fail, 2 = Not fitted)
+   */
 	tp->sys_error = 0;
 
 	tp->sys_error |= (I2C_hasError()     & 0x1)   << 0;
@@ -222,7 +235,7 @@ static void setSystemStatus(dataPoint_t* tp) {
 	tp->sys_error |= (pac1720_hasError() & 0x3)   << 3;
 	tp->sys_error |= (OV5640_hasError()  & 0x7)   << 5;
 
-	tp->sys_error |= (bme280_error & 0x7)         << 8;
+	tp->sys_error |= (bme280_error & 0x3F)        << 8;
 
 	// Set system time
 	tp->sys_time = TIME_I2S(chVTGetSystemTime());
@@ -320,7 +333,7 @@ THD_FUNCTION(collectorThread, arg) {
 					"%s Pos  %d.%05d %d.%05d Alt %dm\r\n"
 					"%s Sats %d TTFF %dsec\r\n"
 					"%s ADC Vbat=%d.%03dV Vsol=%d.%03dV Pbat=%dmW\r\n"
-					"%s AIR p=%6d.%01dPa T=%2d.%02ddegC phi=%2d.%01d%%",
+					"%s AIR p=%d.%01dPa T=%d.%02ddegC phi=%d.%01d%%",
 					tp->id,
 					TRACE_TAB, time.year, time.month, time.day, time.hour, time.minute, time.day,
 					TRACE_TAB, tp->gps_lat/10000000, (tp->gps_lat > 0 ? 1:-1)*(tp->gps_lat/100)%100000, tp->gps_lon/10000000, (tp->gps_lon > 0 ? 1:-1)*(tp->gps_lon/100)%100000, tp->gps_alt,
@@ -345,9 +358,9 @@ THD_FUNCTION(collectorThread, arg) {
  */
 void init_data_collector(void)
 {
-	if(!threadStarted)
-	{
-		threadStarted = true;
+	if(!threadStarted) {
+
+	  threadStarted = true;
 
 		TRACE_INFO("COLL > Startup data collector thread");
 		thread_t *th = chThdCreateFromHeap(NULL,
