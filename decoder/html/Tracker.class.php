@@ -16,14 +16,12 @@ class Tracker {
 
 		$query = Database::getInstance()->query("
 			SELECT * FROM (
-				SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'pos' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'pos'
+				(SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'pos' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'pos' ORDER BY `rxtime` DESC LIMIT 1)
 				UNION ALL
-				SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'img' as `type` FROM `image` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "'
+				(SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'img' as `type` FROM `image` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' ORDER BY `rxtime` DESC LIMIT 1)
 				UNION ALL
-				SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'log' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'log'
+				(SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'log' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'log' ORDER BY `rxtime` DESC LIMIT 1)
 			) AS d
-			GROUP BY `type`
-			ORDER BY `lasttime` DESC
 		");
 
 		while($row = $query->fetch_assoc())
@@ -99,6 +97,7 @@ class Tracker {
 			ORDER BY `ordertime` ASC
 		");
 
+		$datasets = array();
 		while($row = $query->fetch_assoc()) {
 			$datasets[] = new Telemetry($row);
 		}
