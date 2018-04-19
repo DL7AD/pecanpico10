@@ -4,7 +4,6 @@
 
 #include "debug.h"
 #include "threads.h"
-#include "padc.h"
 
 /**
   * Main routine is starting up system, runs the software watchdog (module monitoring), controls LEDs
@@ -27,6 +26,9 @@ int main(void) {
 
     chDbgAssert(pkt == true, "failed to init packet system");
 
+    /* Start Serial Over USB. */
+    startSDU();
+
     /* Start serial channels if selected. */
     pktSerialStart();
 
@@ -37,10 +39,6 @@ int main(void) {
       pktEnableEventTrace();
     }
 
-	#if ACTIVATE_USB
-	startUSB();
-	#endif
-
    TRACE_INFO("MAIN > Startup");
 
 	// Startup threads
@@ -48,15 +46,12 @@ int main(void) {
 	start_user_threads();		// Startup optional modules (eg. POSITION, LOG, ...)
 
 	while(true) {
-        #if ACTIVATE_USB
-		if(isUSBactive()) {
-			manageShell();
-			pktTraceEvents();
-			continue;
-		}
-        #endif /* ACTIVATE_USB */
-		/* Wait in a loop if nothing to do. */
-        chThdSleep(TIME_S2I(1));
+      #if ACTIVATE_USB
+          manageTraceAndShell();
+          pktTraceEvents();
+      #endif /* ACTIVATE_USB */
+      /* Wait in a loop if nothing to do. */
+      chThdSleep(TIME_MS2I(200));
 	}
 }
 

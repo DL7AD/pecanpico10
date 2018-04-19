@@ -477,6 +477,23 @@ static inline bool pktIsBufferValidAX25Frame(pkt_data_object_t *object) {
     && (frame_size >= PKT_MIN_FRAME));
 }
 
+/**
+ * @brief   Gets status of frame.
+ * @note    This returns validity (size) and CRC result.
+ * @details This function is called from thread level.
+ *
+ * @param[in] object    pointer to a @p objects FIFO.
+ *
+ * @return              The operation status.
+ * @retval true         if the frame is valid and has good CRC.
+ * @retval false        if the frame is valid and has bad CRC.
+ *
+ * @api
+ */
+static inline bool pktGetAX25FrameStatus(pkt_data_object_t *object) {
+  chDbgAssert(object != NULL, "no pointer to packet object buffer");
+  return !(object->status & (EVT_PKT_INVALID_FRAME | EVT_AX25_CRC_ERROR));
+}
 
 /**
  * @brief   Gets service object associated with radio.

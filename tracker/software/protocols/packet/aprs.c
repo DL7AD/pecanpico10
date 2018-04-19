@@ -45,7 +45,6 @@ static bool dedupe_initialized;
 const conf_command_t command_list[] = {
 	{TYPE_INT,  "pos_pri.active",                sizeof(conf_sram.pos_pri.thread_conf.active),                &conf_sram.pos_pri.thread_conf.active               },
 	{TYPE_TIME, "pos_pri.init_delay",            sizeof(conf_sram.pos_pri.thread_conf.init_delay),            &conf_sram.pos_pri.thread_conf.init_delay           },
-/*	{TYPE_TIME, "pos_pri.send_spacing",          sizeof(conf_sram.pos_pri.thread_conf.send_spacing),          &conf_sram.pos_pri.thread_conf.send_spacing       },*/
 	{TYPE_INT,  "pos_pri.sleep_conf.type",       sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.type),       &conf_sram.pos_pri.thread_conf.sleep_conf.type      },
 	{TYPE_INT,  "pos_pri.sleep_conf.vbat_thres", sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.vbat_thres), &conf_sram.pos_pri.thread_conf.sleep_conf.vbat_thres},
 	{TYPE_INT,  "pos_pri.sleep_conf.vsol_thres", sizeof(conf_sram.pos_pri.thread_conf.sleep_conf.vsol_thres), &conf_sram.pos_pri.thread_conf.sleep_conf.vsol_thres},
@@ -54,8 +53,6 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "pos_pri.freq",                  sizeof(conf_sram.pos_pri.radio_conf.freq),                   &conf_sram.pos_pri.radio_conf.freq                  },
     {TYPE_INT,  "pos_pri.mod",                   sizeof(conf_sram.pos_pri.radio_conf.mod),                    &conf_sram.pos_pri.radio_conf.mod                   },
     {TYPE_INT,  "pos_pri.rssi",                  sizeof(conf_sram.pos_pri.radio_conf.rssi),                   &conf_sram.pos_pri.radio_conf.rssi                  },
-/*    {TYPE_INT,  "pos_pri.speed",                 sizeof(conf_sram.pos_pri.radio_conf.speed),                  &conf_sram.pos_pri.radio_conf.speed                 },*/
-/*	{TYPE_INT,  "pos_pri.redundantTx",           sizeof(conf_sram.pos_pri.radio_conf.redundantTx),            &conf_sram.pos_pri.radio_conf.redundantTx           },*/
 	{TYPE_STR,  "pos_pri.call",                  sizeof(conf_sram.pos_pri.call),                              &conf_sram.pos_pri.call                             },
 	{TYPE_STR,  "pos_pri.path",                  sizeof(conf_sram.pos_pri.path),                              &conf_sram.pos_pri.path                             },
 	{TYPE_INT,  "pos_pri.symbol",                sizeof(conf_sram.pos_pri.symbol),                            &conf_sram.pos_pri.symbol                           },
@@ -64,7 +61,6 @@ const conf_command_t command_list[] = {
 
 	{TYPE_INT,  "pos_sec.active",                sizeof(conf_sram.pos_sec.thread_conf.active),                &conf_sram.pos_sec.thread_conf.active               },
 	{TYPE_TIME, "pos_sec.init_delay",            sizeof(conf_sram.pos_sec.thread_conf.init_delay),            &conf_sram.pos_sec.thread_conf.init_delay           },
-/*	{TYPE_TIME, "pos_sec.send_spacing",          sizeof(conf_sram.pos_sec.thread_conf.send_spacing),          &conf_sram.pos_sec.thread_conf.send_spacing       },*/
 	{TYPE_INT,  "pos_sec.sleep_conf.type",       sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.type),       &conf_sram.pos_sec.thread_conf.sleep_conf.type      },
 	{TYPE_INT,  "pos_sec.sleep_conf.vbat_thres", sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.vbat_thres), &conf_sram.pos_sec.thread_conf.sleep_conf.vbat_thres},
 	{TYPE_INT,  "pos_sec.sleep_conf.vsol_thres", sizeof(conf_sram.pos_sec.thread_conf.sleep_conf.vsol_thres), &conf_sram.pos_sec.thread_conf.sleep_conf.vsol_thres},
@@ -73,8 +69,6 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "pos_sec.freq",                  sizeof(conf_sram.pos_sec.radio_conf.freq),                   &conf_sram.pos_sec.radio_conf.freq                  },
 	{TYPE_INT,  "pos_sec.mod",                   sizeof(conf_sram.pos_sec.radio_conf.mod),                    &conf_sram.pos_sec.radio_conf.mod                   },
     {TYPE_INT,  "pos_sec.rssi",                  sizeof(conf_sram.pos_sec.radio_conf.rssi),                   &conf_sram.pos_sec.radio_conf.rssi                  },
-/*	{TYPE_INT,  "pos_sec.speed",                 sizeof(conf_sram.pos_sec.radio_conf.speed),                  &conf_sram.pos_sec.radio_conf.speed                 },*/
-/*	{TYPE_INT,  "pos_sec.redundantTx",           sizeof(conf_sram.pos_sec.radio_conf.redundantTx),            &conf_sram.pos_sec.radio_conf.redundantTx           },*/
 	{TYPE_STR,  "pos_sec.call",                  sizeof(conf_sram.pos_sec.call),                              &conf_sram.pos_sec.call                             },
 	{TYPE_STR,  "pos_sec.path",                  sizeof(conf_sram.pos_sec.path),                              &conf_sram.pos_sec.path                             },
 	{TYPE_INT,  "pos_sec.symbol",                sizeof(conf_sram.pos_sec.symbol),                            &conf_sram.pos_sec.symbol                           },
@@ -138,13 +132,7 @@ const conf_command_t command_list[] = {
 
 	{TYPE_INT,  "aprs.active",                   sizeof(conf_sram.aprs.thread_conf.active),                   &conf_sram.aprs.thread_conf.active                  },
 	{TYPE_TIME, "aprs.init_delay",               sizeof(conf_sram.aprs.thread_conf.init_delay),               &conf_sram.aprs.thread_conf.init_delay              },
-	/*
-	{TYPE_TIME, "aprs.packet_spacing",           sizeof(conf_sram.aprs.rx.thread_conf.packet_spacing),        &conf_sram.aprs.rx.thread_conf.packet_spacing       },
-	{TYPE_INT,  "aprs.sleep_conf.type",          sizeof(conf_sram.aprs.rx.thread_conf.sleep_conf.type),       &conf_sram.aprs.rx.thread_conf.sleep_conf.type      },
-	{TYPE_INT,  "aprs.sleep_conf.vbat_thres",    sizeof(conf_sram.aprs.rx.thread_conf.sleep_conf.vbat_thres), &conf_sram.aprs.rx.thread_conf.sleep_conf.vbat_thres},
-	{TYPE_INT,  "aprs.sleep_conf.vsol_thres",    sizeof(conf_sram.aprs.rx.thread_conf.sleep_conf.vsol_thres), &conf_sram.aprs.rx.thread_conf.sleep_conf.vsol_thres},
-	{TYPE_TIME, "aprs.rx.cycle",                 sizeof(conf_sram.aprs.rx.thread_conf.cycle),                 &conf_sram.aprs.rx.thread_conf.cycle                },
-    */
+
 	{TYPE_INT,  "aprs.rx.freq",                  sizeof(conf_sram.aprs.rx.radio_conf.freq),                   &conf_sram.aprs.rx.radio_conf.freq                  },
 	{TYPE_INT,  "aprs.rx.mod",                   sizeof(conf_sram.aprs.rx.radio_conf.mod),                    &conf_sram.aprs.rx.radio_conf.mod                   },
 	{TYPE_INT,  "aprs.rx.speed",                 sizeof(conf_sram.aprs.rx.radio_conf.speed),                  &conf_sram.aprs.tx.radio_conf.speed                 },
@@ -179,7 +167,7 @@ const APRSCommand aprs_commands[] = {
     {"?aprsd", aprs_send_aprsd_message},
     {"?aprsh", aprs_send_aprsh_message},
     {"?aprsp", aprs_send_position_beacon},
-    {"?gpio", aprs_handle_gpio_command},
+    {"?gpio", aprs_execute_gpio_command},
     {"?gps", aprs_handle_gps_command},
     {"?reset", aprs_execute_system_reset},
     {"?save", aprs_execute_config_save},
@@ -188,7 +176,7 @@ const APRSCommand aprs_commands[] = {
     {NULL, NULL}
 };
 
-/*
+/**
  * @brief       parse arguments from a command string.
  *
  * @return      pointer to next element in string.
@@ -227,7 +215,7 @@ static char *aprs_parse_arguments(char *str, char **saveptr) {
   return *p != '\0' ? p : NULL;
 }
 
-/*
+/**
  * @brief       Execute a command in an APRS message.
  * @notes       Known commands are in APRS command table.
  * @notes       Commands themselves return only MSG_OK or MSG_ERROR.
@@ -252,7 +240,7 @@ static msg_t aprs_cmd_exec(const APRSCommand *acp,
   return MSG_TIMEOUT;
 }
 
-/*
+/**
  *
  */
 void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
@@ -286,7 +274,7 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
  * @notes  - Number of satellites being used
  * @notes  - Number of cycles where GPS has been lost (if applicable in cycle)
  *
- * @param[in] callsign  originator calls sign
+ * @param[in] callsign  origination call sign
  * @param[in] path      path to use
  * @param[in] symbol    symbol for originator
  * @param[in] dataPoint position data object
@@ -547,7 +535,7 @@ msg_t aprs_send_aprsh_message(aprs_identity_t *id,
  * @retval      MSG_OK if the command completed.
  * @retval      MSG_ERROR if there was an error.
  */
-msg_t aprs_handle_gpio_command(aprs_identity_t *id,
+msg_t aprs_execute_gpio_command(aprs_identity_t *id,
                                  int argc, char *argv[]) {
   if(argc != 1)
     return MSG_ERROR;
@@ -1018,14 +1006,15 @@ static bool aprs_decode_message(packet_t pp) {
   msg_t msg = aprs_cmd_exec(aprs_commands, cmd, &identity, n, args);
 
   if(msg == MSG_TIMEOUT) {
-    TRACE_INFO("RX   > Command not found by parser");
+    TRACE_INFO("RX   > No command found in message");
   }
 
   if(msg_id_rx[0]) {
     /* Incoming message ID exists so an ACK or REJ has to be sent. */
     char buf[16];
     chsnprintf(buf, sizeof(buf), "%s%s",
-               (msg == MSG_OK) ? "ack" : "rej", msg_id_rx);
+               (msg == MSG_OK || msg == MSG_TIMEOUT) ?
+                   "ack" : "rej", msg_id_rx);
 
     /*
      * Use the receiving node identity as sender.
@@ -1050,31 +1039,33 @@ static bool aprs_decode_message(packet_t pp) {
   return false;
 }
 
-/*
+/**
  * Transmit failure will release the packet memory.
  */
 static void aprs_digipeat(packet_t pp) {
-	if(!dedupe_initialized) {
-		dedupe_init(TIME_S2I(10));
-		dedupe_initialized = true;
-	}
+  if(!dedupe_initialized) {
+    dedupe_init(TIME_S2I(10));
+    dedupe_initialized = true;
+  }
 
-	if(!dedupe_check(pp, 0)) { // Last identical packet older than 10 seconds
-		packet_t result = digipeat_match(0, pp, conf_sram.aprs.rx.call,
-		                                 conf_sram.aprs.tx.call, alias_re,
-		                                 wide_re, 0, preempt, NULL);
-		if(result != NULL) { // Should be digipeated
-			dedupe_remember(result, 0);
-			/* If transmit fails the packet is freed. */
-			transmitOnRadio(result,
-			                conf_sram.aprs.tx.radio_conf.freq,
-		                    0,
-		                    0,
-                            conf_sram.aprs.tx.radio_conf.pwr,
-                            conf_sram.aprs.tx.radio_conf.mod,
-                            conf_sram.aprs.tx.radio_conf.rssi);
-		}
-	}
+  if(!dedupe_check(pp, 0)) { // Last identical packet older than 10 seconds
+    packet_t result = digipeat_match(0, pp, conf_sram.aprs.rx.call,
+                                     conf_sram.aprs.tx.call, alias_re,
+                                     wide_re, 0, preempt, NULL);
+    if(result != NULL) { // Should be digipeated
+      dedupe_remember(result, 0);
+      /* If transmit fails the packet buffer is released. */
+      if(!transmitOnRadio(result,
+                      conf_sram.aprs.tx.radio_conf.freq,
+                      0,
+                      0,
+                      conf_sram.aprs.tx.radio_conf.pwr,
+                      conf_sram.aprs.tx.radio_conf.mod,
+                      conf_sram.aprs.tx.radio_conf.rssi)) {
+        TRACE_INFO("RX   > Failed to digipeat packet");
+      } /* TX failed. */
+    } /* Should be digipteated. */
+  } /* Duplicate check. */
 }
 
 /**
@@ -1106,7 +1097,8 @@ void aprs_decode_packet(packet_t pp) {
   do {
     v++;
     ax25_get_addr_with_ssid(pp, ax25_get_heard(pp)-v, call);
-  } while(ax25_get_heard(pp) - v >= AX25_SOURCE && (!strncmp("WIDE", call, 4) || !strncmp("TRACE", call, 5)));
+  } while(((ax25_get_heard(pp) - v) >= AX25_SOURCE)
+      && (!strncmp("WIDE", call, 4) || !strncmp("TRACE", call, 5)));
 
   // Fill/Update direct list
   sysinterval_t first_time = 0xFFFFFFFF;	// Timestamp of oldest heard list entry
@@ -1142,7 +1134,9 @@ void aprs_decode_packet(packet_t pp) {
    * Execute any command found in the message.
    * If not then digipeat it.
    */
-  if(pinfo[0] == ':') digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
+  if(pinfo[0] == ':') {
+    digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
+  }
 
   // Digipeat packet
   if(conf_sram.aprs.dig_active && digipeat) {

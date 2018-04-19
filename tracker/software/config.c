@@ -8,10 +8,10 @@
 conf_t conf_sram;
 
 const conf_t conf_flash_default = {
-	// Primary position transmission thread
+	// Primary position node
 	.pos_pri = {
 		.thread_conf = {
-			.active			= true,
+			.active			= false,
 			.cycle			= TIME_S2I(60*30),
 			.init_delay		= TIME_S2I(30)
 		},
@@ -21,16 +21,16 @@ const conf_t conf_flash_default = {
 			.mod			= MOD_AFSK,
             .rssi           = 0x4F,
 		},
-
+		// Node identity
 		.call				= "VK2GJ-12",
 		.path				= "WIDE2-1",
-		.symbol				= SYM_DIGIPEATER,
+		.symbol				= SYM_ANTENNA,
 		.aprs_msg           = true,
 
 		.tel_enc_cycle		= TIME_S2I(10800)
 	},
 
-	// Secondary position transmission thread
+	// Secondary position node
 	.pos_sec = {
 		.thread_conf = {
 			.active			= false,
@@ -43,7 +43,7 @@ const conf_t conf_flash_default = {
 			.mod			= MOD_AFSK,
             .rssi           = 0x4F
 		},
-
+        // Node identity
 		.call				= "DL7AD-14",
 		.path				= "WIDE1-1",
 		.symbol				= SYM_BALLOON,
@@ -52,11 +52,11 @@ const conf_t conf_flash_default = {
 		.tel_enc_cycle		= TIME_S2I(10800)
 	},
 
-	// Primary image transmission thread
+	// Primary image node
 	.img_pri = {
 		.thread_conf = {
 			.active			= false,
-			.cycle			= TIME_S2I(60*5),
+			.cycle			= TIME_S2I(60*10),
 			.init_delay		= TIME_S2I(60*5),
 			.send_spacing	= TIME_S2I(5)
 		},
@@ -67,21 +67,21 @@ const conf_t conf_flash_default = {
 			.rssi           = 0x4F,
 			.redundantTx	= false
 		},
-
+        // Node identity
 		.call				= "VK2GJ-15",
 		.path				= "",
 
 		.res				= RES_VGA,
 		.quality			= 4,
-		.buf_size			= 64*1024
+		.buf_size			= 40*1024
 	},
 
-	// Secondary image transmission thread
+	// Secondary image node
 	.img_sec = {
 		.thread_conf = {
-			.active			= true,
-            .cycle          = TIME_S2I(300),
-            .init_delay     = TIME_S2I(60),
+			.active			= false,
+            .cycle          = TIME_S2I(60*5),
+            .init_delay     = TIME_S2I(60*1),
             .send_spacing   = TIME_S2I(30)
 		},
 		.radio_conf = {
@@ -90,16 +90,16 @@ const conf_t conf_flash_default = {
 			.mod			= MOD_AFSK,
             .rssi           = 0x4F
 		},
-
-		.call				= "VK2GJ-15",
+        // Node identity
+		.call				= "VK2GJ-14",
         .path               = "",
 
 		.res				= RES_QVGA,
 		.quality			= 4,
-		.buf_size			= 64*1024
+		.buf_size			= 15*1024
 	},
 
-	// Log transmission thread
+	// Log node
 	.log = {
 		.thread_conf = {
 			.active			= false,
@@ -112,13 +112,13 @@ const conf_t conf_flash_default = {
 			.mod			= MOD_AFSK,
             .rssi           = 0x4F
 		},
-
+        // Node identity
 		.call				= "VK2GJ-13",
 		.path				= "WIDE1-1",
 		.density			= 10
 	},
 
-	// APRS system control
+	// APRS node
 	.aprs = {
       .thread_conf = {
           .active       = true,
@@ -130,6 +130,7 @@ const conf_t conf_flash_default = {
               .mod			= MOD_AFSK,
               .rssi         = 0x3F
           },
+          // Node rx identity
            .call            = "VK2GJ-4"
       },
       .tx = { // The transmit identity for digipeat transmit and messages responses
@@ -139,6 +140,7 @@ const conf_t conf_flash_default = {
                .mod         = MOD_AFSK,
                .rssi        = 0x4F
           },
+          // Node tx identity
             .call           = "VK2GJ-5",
             .path           = "WIDE2-1",
             .symbol         = SYM_DIGIPEATER,
@@ -147,7 +149,8 @@ const conf_t conf_flash_default = {
             .lon            = 1511143478,
             .alt            = 144
       },
-      .base = { // The base station parameters - how and where tracker originated messages are sent
+      .base = {
+             // The base station identity - how and where tracker originated messages are sent
              .enabled       = true,
              .call          = "VK2GJ-7",
              .path          = "WIDE2-1",

@@ -761,8 +761,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                                                             TIME_MS2I(100));
 
         if(myPktBuffer == NULL) {
+          /* Decrease ref count on AX25 FIFO and stop PWM. */
+          chFactoryReleaseObjectsFIFO(pkt_fifo);
           pktAddEventFlags(myHandler, EVT_AX25_NO_BUFFER);
-          myDriver->active_demod_object->status |= EVT_AX25_NO_BUFFER;
+          myDriver->active_demod_object->status |=
+              EVT_AX25_NO_BUFFER | EVT_PWM_QUEUE_LOCK;
           myDriver->decoder_state = DECODER_ERROR;
           break;
         }

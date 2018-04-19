@@ -49,6 +49,7 @@
 #define SYM_CAR							0x2F3E
 #define SYM_SHIP						0x2F73
 #define SYM_DIGIPEATER					0x2F23
+#define SYM_ANTENNA                     0x2F72
 
 #define APRS_HEARD_LIST_SIZE            20
 
@@ -104,7 +105,7 @@ extern "C" {
                                         int argc, char *argv[]);
   msg_t     aprs_send_aprsh_message(aprs_identity_t *id,
                                    int argc, char *argv[]);
-  msg_t     aprs_handle_gpio_command(aprs_identity_t *id,
+  msg_t     aprs_execute_gpio_command(aprs_identity_t *id,
                                    int argc, char *argv[]);
   msg_t     aprs_handle_gps_command(aprs_identity_t *id,
                                    int argc, char *argv[]);

@@ -1180,43 +1180,54 @@ void ax25_remove_addr (packet_t this_p, int n)
  *
  *------------------------------------------------------------------------------*/
 
-int ax25_get_num_addr (packet_t this_p)
-{
-	//unsigned char *pf;
-	int a;
-	int addr_bytes;
+int ax25_get_num_addr (packet_t this_p) {
+  int a;
+  //int addr_bytes;
 
 
-	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
-		TRACE_ERROR("PKT  > Buffer overflow");
-		return 0;
-	}
+  if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
+    TRACE_ERROR("PKT  > Buffer overflow");
+    return 0;
+  }
 
-/* Use cached value if already set. */
+  /* Use cached value if already set. */
 
-	if (this_p->num_addr >= 0) {
-	  return (this_p->num_addr);
-	}
+  if (this_p->num_addr >= 0) {
+    return (this_p->num_addr);
+  }
 
-/* Otherwise, determine the number of addresses. */
+  /*
+   * Otherwise, determine the number of addresses.
+   * Start with assumption of zero.
+   */
 
-	this_p->num_addr = 0;		/* Number of addresses extracted. */
-	
-	addr_bytes = 0;
-	for (a = 0; a < this_p->frame_len && addr_bytes == 0; a++) {
-	  if (this_p->frame_data[a] & SSID_LAST_MASK) {
-	    addr_bytes = a + 1;
-	  }
-	}
+  this_p->num_addr = 0;
 
-	if (addr_bytes % 7 == 0) {
-	  int addrs = addr_bytes / 7;
-	  if (addrs >= AX25_MIN_ADDRS && addrs <= AX25_MAX_ADDRS) {
-	    this_p->num_addr = addrs;
-	  }
-	}
-	
-	return (this_p->num_addr);
+  /* Check that address characters are valid. */
+
+  for(a = 0;
+      a < this_p->frame_len && a < (AX25_MAX_ADDRS * AX25_ADDR_LEN);
+      a++) {
+    /*
+     *  Check the call sign characters with isgraph
+     *  Could be more strict and accept upper case alpha & numeric only.
+     */
+    if(a % 7 != 6) {
+      if(isgraph(this_p->frame_data[a] >> 1))
+        continue;
+    }
+    if((this_p->frame_data[a] & SSID_LAST_MASK))
+      break;
+  } /* End for. */
+
+  /* Check if last happened on an address boundary. */
+  if (++a % 7 == 0) {
+    int addrs = a / 7;
+    if (addrs >= AX25_MIN_ADDRS && addrs <= AX25_MAX_ADDRS) {
+      this_p->num_addr = addrs;
+    }
+  }
+  return (this_p->num_addr);
 }
 
 
@@ -1401,7 +1412,7 @@ int ax25_get_ssid (packet_t this_p, int n)
 	}
 	
 	if (n >= 0 && n < this_p->num_addr) {
-	  return ((this_p->frame_data[n*7+6] & SSID_SSID_MASK) >> SSID_SSID_SHIFT);
+	  return ((this_p->frame_data[n * AX25_ADDR_LEN + 6] & SSID_SSID_MASK) >> SSID_SSID_SHIFT);
 	}
 	else {
 	  TRACE_ERROR ("Internal error: ax25_get_ssid(%d), num_addr=%d", n, this_p->num_addr);
@@ -1437,7 +1448,8 @@ void ax25_set_ssid (packet_t this_p, int n, int ssid)
 
 
 	if (n >= 0 && n < this_p->num_addr) {
-	  this_p->frame_data[n*7+6] =   (this_p->frame_data[n*7+6] & ~ SSID_SSID_MASK) |
+	  this_p->frame_data[n * AX25_ADDR_LEN + 6] =
+	      (this_p->frame_data[n * AX25_ADDR_LEN + 6] & ~ SSID_SSID_MASK) |
 		((ssid << SSID_SSID_SHIFT) & SSID_SSID_MASK) ;
 	}
 	else {
@@ -1476,7 +1488,7 @@ int ax25_get_h (packet_t this_p, int n)
 	}
 
 	if (n >= 0 && n < this_p->num_addr) {
-	  return ((this_p->frame_data[n*7+6] & SSID_H_MASK) >> SSID_H_SHIFT);
+	  return ((this_p->frame_data[n * AX25_ADDR_LEN + 6] & SSID_H_MASK) >> SSID_H_SHIFT);
 	}
 	else {
 	  TRACE_ERROR ("PKT  > Internal error: ax25_get_h(%d), num_addr=%d", n, this_p->num_addr);
@@ -1511,7 +1523,7 @@ void ax25_set_h (packet_t this_p, int n)
 	}
 
 	if (n >= 0 && n < this_p->num_addr) {
-	  this_p->frame_data[n*7+6] |= SSID_H_MASK;
+	  this_p->frame_data[n * AX25_ADDR_LEN + 6] |= SSID_H_MASK;
 	}
 	else {
 	  TRACE_ERROR ("PKT  > Internal error: ax25_set_hd(%d), num_addr=%d", n, this_p->num_addr);
@@ -1921,15 +1933,13 @@ void ax25_format_addrs (packet_t this_p, char *result, int8_t size)
 	}
 	*result = '\0';
 
-	/* New in 0.9. */
-	/* Don't get upset if no addresses.  */
-	/* This will allow packets that do not comply to AX.25 format. */
+	/* There must be at least two addresses. */
 
-	if (this_p->num_addr == 0) {
+	if (this_p->num_addr < 2) {
 	  return;
 	}
 
-	/* TODO: Make a safe strcat function. */
+	/* TODO: Refactor this to use a single loop and safe write to buffer. */
 	ax25_get_addr_with_ssid (this_p, AX25_SOURCE, stemp);
 
 	if(size - (strlen(stemp) + 1) < 2)

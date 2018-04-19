@@ -53,7 +53,7 @@
 #define EVT_PRIORITY_BASE       0
 
 /*
- * Decoder global system events.
+ * Decoder global system event masks.
  * The packet channel object holds the global events.
  * Events are broadcast to any listeners.
  */
@@ -98,7 +98,8 @@
 #define EVT_PKT_CBK_MGR_FAIL    EVENT_MASK(EVT_PRIORITY_BASE + 31)
 
 
-/* Decoder thread events (sent from initiator to decoder). */
+/* Decoder thread event IDs (sent from initiator to decoder). */
+/*TODO: These needs to be values and NOT bit shifted masks. */
 
 #define DEC_COMMAND_START       EVENT_MASK(EVT_PRIORITY_BASE + 0)
 #define DEC_COMMAND_STOP        EVENT_MASK(EVT_PRIORITY_BASE + 1)
@@ -107,8 +108,9 @@
 #define DEC_SUSPEND_EXIT        EVENT_MASK(EVT_PRIORITY_BASE + 4)
 
 
-/* Reserved system thread events (in user threads level). */
-#define USB_SHELL_EVT           EVENT_MASK(EVT_PRIORITY_BASE + 0)
+/* Reserved system event broadcast IDs (set mask in user threads level). */
+#define USB_SHELL_EVT           EVT_PRIORITY_BASE + 0
+#define USB_SDU1_EVT            EVT_PRIORITY_BASE + 16
 
 /* Response thread events (from decoder to initiator). */
 #define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 15)

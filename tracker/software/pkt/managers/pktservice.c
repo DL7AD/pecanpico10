@@ -661,7 +661,6 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer) {
       /* Increase outstanding callback count. */
       handler->cb_count++;
     }
-
   }
   return flags;
 }
