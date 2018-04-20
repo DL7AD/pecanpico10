@@ -132,6 +132,7 @@ typedef struct {
     int32_t         lat;
     int32_t         lon;
     int32_t         alt;
+    sysinterval_t   interval;                // Beacon interval (0: continously)
 
 } thd_tx_conf_t;
 

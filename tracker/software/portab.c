@@ -124,7 +124,7 @@ void pktPowerUpRadio(radio_unit_t radio) {
    * RADIO_SDN is configured to open drain as it is pulled up on PCB by 100K.
    * The radio powers up in SDN mode.
    *
-   * CS is set as pushpull and initialized to HIGH.
+   * CS is set as push-pull and initialized to HIGH.
    */
 
   // Power up transceiver

@@ -73,9 +73,9 @@ THD_FUNCTION(posThread, arg)
 			   * There is no acknowledgment requested.
 			   */
               packet = aprs_compose_aprsd_message(
-                                APRS_DEVICE_CALLSIGN,
+                                conf_sram.aprs.base.call,
                                 conf_sram.aprs.base.path,
-                                conf_sram.aprs.base.call);
+                                APRS_DEVICE_CALLSIGN);
               if(packet == NULL) {
                 TRACE_WARN("POS  > No free packet objects "
                     "or badly formed APRSD message");

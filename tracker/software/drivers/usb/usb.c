@@ -51,7 +51,7 @@ void startSDU(void) {
  * @notes   TRACE output is sent to USB serial.
  * @notes   TRACE output is suspended when any key is pressed on terminal.
  * @notes   A new shell is invoked and remains active until logout.
- * @notes   TRACE output is then resotored.
+ * @notes   TRACE output is then resumed.
  *
  * @api
  */

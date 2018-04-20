@@ -11,7 +11,7 @@ const conf_t conf_flash_default = {
 	// Primary position node
 	.pos_pri = {
 		.thread_conf = {
-			.active			= false,
+			.active			= true,
 			.cycle			= TIME_S2I(60*30),
 			.init_delay		= TIME_S2I(30)
 		},
@@ -122,7 +122,7 @@ const conf_t conf_flash_default = {
 	.aprs = {
       .thread_conf = {
           .active       = true,
-          .init_delay   = TIME_S2I(20)
+          .init_delay   = TIME_S2I(20),
       },
       .rx = { // The receive identity for APRS
           .radio_conf = {
@@ -147,7 +147,8 @@ const conf_t conf_flash_default = {
             .fixed          = true,
             .lat            = -337331175,
             .lon            = 1511143478,
-            .alt            = 144
+            .alt            = 144,
+            .interval       = TIME_S2I(60*30)
       },
       .base = {
              // The base station identity - how and where tracker originated messages are sent
