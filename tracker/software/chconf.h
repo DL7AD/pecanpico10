@@ -348,6 +348,14 @@
 /** @} */
 
 /**
+ * @brief   I/O pipes APIs.
+ * @details If enabled then the I/O pipe APIs are included in the kernel.
+ *
+ * @note    The default is @p FALSE.
+ */
+#define CH_CFG_USE_PIPES                    FALSE
+
+/**
  * @brief   Dynamic Threads APIs.
  * @details If enabled then the dynamic threads creation APIs are included
  *          in the kernel.

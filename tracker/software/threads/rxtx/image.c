@@ -409,7 +409,8 @@ static bool transmit_image_packets(const uint8_t *image,
      * Also having a send_spacing > 0 is important.
      * This allows APRS-IS time to forward packets from its buffer.
      */
-    uint8_t buffers = fmin((NUMBER_COMMON_PKT_BUFFERS / 2), 5);
+    uint8_t buffers = fmin((NUMBER_COMMON_PKT_BUFFERS / 2),
+                           MAX_BUFFERS_FOR_BURST_SEND);
     uint8_t chain = (conf->radio_conf.mod == MOD_2FSK
         && !conf->radio_conf.redundantTx) ?
         buffers : 1;

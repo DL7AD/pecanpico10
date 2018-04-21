@@ -208,7 +208,7 @@ bool gps_get_fix(gpsFix_t *fix) {
 	/* FIXME: Temporary hack to enable fixed GPS location to be specified. */
 
 	/* Fake GPS test. */
-	if(test_gps_enabled) {
+/*	if(test_gps_enabled) {
       // Extract data from message
       fix->fixOK = true;
       fix->pdop = 2.0;
@@ -223,17 +223,17 @@ bool gps_get_fix(gpsFix_t *fix) {
       fix->time.minute = 2;
       fix->time.second = 3;
 
-      /*
+
        * VK2GJ QTH in degrees...
        * lat=-33.7331175 lon=151.1143478
        * UBLOX set using degrees expressed as 1e-7 value.
        *
-       */
+
       fix->lat = -337331175;
       fix->lon = 1511143478;
 
       fix->alt = 144;
-	} else {
+	} else {*/
       // Extract data from message
       fix->fixOK = navstatus[5] & 0x1;
       fix->pdop = navpvt[76] + (navpvt[77] << 8);
@@ -273,7 +273,7 @@ bool gps_get_fix(gpsFix_t *fix) {
       } else {
           fix->alt = (uint16_t)alt_tmp;
       }
-    }
+/*    }*/
 	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%d.%02d",
 		fix->time.year, fix->time.month, fix->time.day, fix->time.hour, fix->time.minute, fix->time.second,
 		fix->lat/10000000, (fix->lat > 0 ? 1:-1)*(fix->lat/100)%100000, fix->lon/10000000, (fix->lon > 0 ? 1:-1)*(fix->lon/100)%100000,

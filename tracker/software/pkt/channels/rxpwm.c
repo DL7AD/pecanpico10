@@ -573,7 +573,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
   chSysLockFromISR();
   /*
    * On period clear the ICU activity watchdog timer.
-   * i.e. Once radio data appears then a "no data" error is invalidated.
+   * i.e. Once radio data appears a "no data" timeout is invalidated.
    */
   chVTResetI(&myICU->pwm_timer);
 
@@ -590,7 +590,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    * The decoder terminates a frame on the first trailing HDLC flag.
    * If CPU is fast (FPU enabled) it might finish decode before ICU stops.
    * A long sequence of trailing HDLC flags or junk after a frame close
-   * but before squelch close could cause lingering ICU activity.
+   * but before squelch close could cause trailing ICU activity.
    *
    */
   if((myDemod->active_radio_object->status & EVT_AFSK_DECODE_DONE) != 0) {

@@ -133,7 +133,7 @@ typedef struct {
     int32_t         lon;
     int32_t         alt;
     sysinterval_t   interval;                // Beacon interval (0: continously)
-
+    sysinterval_t   tel_enc_cycle;
 } thd_tx_conf_t;
 
 /* APRS configuration. */
@@ -143,6 +143,7 @@ typedef struct {
     thd_tx_conf_t   tx;
     thd_tx_conf_t   base;                   // Base station receiving unsolicited sends
     bool            dig_active;             // Digipeater active flag
+
 } thd_aprs_conf_t;
 
 typedef struct {

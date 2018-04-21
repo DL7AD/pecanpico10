@@ -168,7 +168,7 @@ const APRSCommand aprs_commands[] = {
     {"?aprsh", aprs_send_aprsh_message},
     {"?aprsp", aprs_send_position_beacon},
     {"?gpio", aprs_execute_gpio_command},
-    {"?gps", aprs_handle_gps_command},
+/*    {"?gps", aprs_handle_gps_command},*/
     {"?reset", aprs_execute_system_reset},
     {"?save", aprs_execute_config_save},
     {"?img", aprs_execute_img_command},
@@ -309,7 +309,8 @@ packet_t aprs_encode_position(const char *callsign,
 	uint32_t a1r = a % 91;
 
 	uint8_t gpsFix = dataPoint->gps_state == GPS_LOCKED1
-	    || dataPoint->gps_state == GPS_LOCKED2 ? GSP_FIX_CURRENT : GSP_FIX_OLD;
+	    || dataPoint->gps_state == GPS_LOCKED2
+	    || dataPoint->gps_state == GPS_FIXED ? GSP_FIX_CURRENT : GSP_FIX_OLD;
 	uint8_t src = NMEA_SRC_GGA;
 	uint8_t origin = ORIGIN_PICO;
 
@@ -393,14 +394,14 @@ packet_t aprs_encode_message(const char *originator, const char *path,
 	if(!ack)
 		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s",
 		                               originator,
-                                       APRS_DEVICE_CALLSIGN,
+		                               recipient,
                                        path,
                                        recipient,
                                        text);
 	else
 		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s{%d",
-		                               originator,
-                                       APRS_DEVICE_CALLSIGN,
+                                       originator,
+                                       recipient,
                                        path,
                                        recipient,
                                        text,
@@ -592,7 +593,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
  * @retval      MSG_OK if the command completed.
  * @retval      MSG_ERROR if there was an error.
  */
-msg_t aprs_handle_gps_command(aprs_identity_t *id,
+/*msg_t aprs_handle_gps_command(aprs_identity_t *id,
                                  int argc, char *argv[]) {
   if(argc != 1)
     return MSG_ERROR;
@@ -611,7 +612,7 @@ msg_t aprs_handle_gps_command(aprs_identity_t *id,
 
   if(!strcmp(argv[0], "status")) {
     char buf[AX25_MAX_APRS_MSG_LEN + 1];
-    /* TODO: Need to read mode and if not output then report as "input" etc. */
+
     chsnprintf(buf, sizeof(buf),
                    "GPS is %s",
                    test_gps_enabled ? "fixed" : "normal");
@@ -634,7 +635,7 @@ msg_t aprs_handle_gps_command(aprs_identity_t *id,
     return MSG_OK;
   }
   return MSG_ERROR;
-}
+}*/
 
 /**
 * @brief       Request for position beacon to be sent
@@ -1071,17 +1072,18 @@ static void aprs_digipeat(packet_t pp) {
 /**
  * Transmit APRS telemetry configuration
  */
-packet_t aprs_encode_telemetry_configuration(const char *callsign,
+packet_t aprs_encode_telemetry_configuration(const char *originator,
                                              const char *path,
+                                             const char *destination,
                                              uint8_t type) {
 	switch(type) {
-		case 0:	return aprs_encode_message(callsign, path, callsign,
+		case 0:	return aprs_encode_message(originator, path, destination,
 		       	        "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure", false);
-		case 1: return aprs_encode_message(callsign, path, callsign,
+		case 1: return aprs_encode_message(originator, path, destination,
 		                "UNIT.V,V,W,degC,Pa", false);
-		case 2: return aprs_encode_message(callsign, path, callsign,
+		case 2: return aprs_encode_message(originator, path, destination,
 		                 "EQNS.0,.001,0,0,.001,0,0,.001,-4.096,0,.1,-100,0,12.5,500", false);
-		case 3: return aprs_encode_message(callsign, path, callsign,
+		case 3: return aprs_encode_message(originator, path, destination,
 		                  "BITS.11111111,", false);
 		default: return NULL;
 	}

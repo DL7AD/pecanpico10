@@ -110,7 +110,7 @@
 
 
 #define PKT_PWM_QUEUE_PREFIX        "pwmx_"
-
+#define PKT_PWM_MBOX_PREFIX         "pwmd_"
 #define PKT_AFSK_THREAD_NAME_PREFIX "afsk_"
 
 /*===========================================================================*/

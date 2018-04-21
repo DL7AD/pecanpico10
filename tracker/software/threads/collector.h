@@ -8,12 +8,13 @@
 typedef enum {
 	GPS_LOCKED1,	// The GPS is locked, the GPS has been switched off
 	GPS_LOCKED2,	// The GPS is locked, the GPS has been kept switched on
-	GPS_LOSS,		// The GPS was switched on all time but it couln't aquire a fix
-	GPS_LOWBATT1,	// The GPS wasnt switched on because the battery has not enough energy
+	GPS_LOSS,		// The GPS was switched on all time but it couln't acquire a fix
+	GPS_LOWBATT1,	// The GPS wasn't switched on because the battery has not enough energy
 	GPS_LOWBATT2,	// The GPS was switched on but has been switched off prematurely while the battery has not enough energy (or is too cold)
 	GPS_LOG,		// The tracker has been just switched on and the position has been taken from the log
 	GPS_OFF,		// There is no active position thread so the GPS was never switched on (in oder to save power)
-	GPS_ERROR		// The GPS has a communication error
+	GPS_ERROR,		// The GPS has a communication error
+    GPS_FIXED       // Fixed location data used from APRS location
 } gpsState_t;
 
 typedef struct {
@@ -60,14 +61,18 @@ typedef struct {
 
 	uint32_t sys_time;		// System time (in seconds)
 	uint32_t sys_error;			// System error flags
-								// Bit 0: I2C_I EVA7M
-								// Bit 1: I2C_I PAC1720
-								// Bit 2: I2C_I OV5640
-								// Bit 3: I2C_I BME280_I1
-								// Bit 4: I2C_E BME280_E1
-								// Bit 5: I2C_E BME280_E2
-								// Bit 6: UART EVA7M
-								// Bit 7: <reserved>
+                      /*
+                       * Set system errors.
+                       *
+                       * Bit usage:
+                       * -  0:1  I2C status
+                       * -  2:2  GPS status
+                       * -  3:4  pac1720 status
+                       * -  5:7  OV5640 status
+                       * -  8:9  BMEi1 status (0 = OK, 1 = Fail, 2 = Not fitted)
+                       * -  9:10 BMEe1 status (0 = OK, 1 = Fail, 2 = Not fitted)
+                       * - 10:11 BMEe2 status (0 = OK, 1 = Fail, 2 = Not fitted)
+                       */
 } dataPoint_t;
 
 void waitForNewDataPoint(void);

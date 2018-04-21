@@ -78,7 +78,7 @@ typedef struct qTone {
  *
  */
 typedef struct qCorrFilter {
-  AFSKDemodDriver   *demod_driver;
+  //AFSKDemodDriver   *demod_driver;
   qfir_filter_t     *input_filter;
   uint16_t          decode_length;
   uint32_t          current_n;

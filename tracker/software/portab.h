@@ -75,7 +75,7 @@
 #define PWM_ICU                     ICUD4
 #define PWM_TIMER_CHANNEL           0
 
-/* ICU counter frequency (2.88MHz). */
+/* ICU counter frequency. */
 /*
  * TODO: This should be calculated using SYSTEM CLOCK.
  * ICU has to run at an integer divide from SYSTEM CLOCK.
@@ -84,6 +84,12 @@
 #define ICU_COUNT_FREQUENCY         6000000U
 
 #define USE_12_BIT_PWM              FALSE
+
+/*
+ * TODO: This will save a lot of system heap as PWM buffers are large
+ * Stratgey: Allocate PWM buffers from a CCM heap/pool.
+ * Requires some special handling in PWM and AFSK decoder.
+ */
 #define USE_HEAP_PWM_BUFFER         FALSE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
@@ -92,8 +98,17 @@
 
 /* Number of frame receive buffers. */
 #define NUMBER_RX_PKT_BUFFERS        3U
+
 /* Number of general AX25/APRS processing & frame send buffers. */
-#define NUMBER_COMMON_PKT_BUFFERS    20U
+#define NUMBER_COMMON_PKT_BUFFERS       10U
+#define RESERVE_BUFFERS_FOR_INTERNAL    2U
+#define MAX_BUFFERS_FOR_BURST_SEND      3U
+#if (MAX_BUFFERS_FOR_BURST_SEND >                                            \
+    (NUMBER_COMMON_PKT_BUFFERS - RESERVE_BUFFERS_FOR_INTERNAL))
+#warning "Can not allocate requested buffers for burst send - set to 50%"
+#undef MAX_BUFFERS_FOR_BURST_SEND
+#define MAX_BUFFERS_FOR_BURST_SEND   (NUMBER_COMMON_PKT_BUFFERS / 2)
+#endif
 
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */

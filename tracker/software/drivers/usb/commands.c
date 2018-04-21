@@ -20,7 +20,7 @@ const ShellCommand commands[] = {
 	{"config", usb_cmd_printConfig},
 	{"aprs_message", usb_cmd_send_aprs_message},
 	{"msg", usb_cmd_send_aprs_message}, /* Short form alias. */
-    {"test_gps", usb_cmd_set_test_gps},
+/*    {"test_gps", usb_cmd_set_test_gps},*/
 #if SHELL_CMD_MEM_ENABLED == TRUE
     {"heap", usb_cmd_ccm_heap},
 #else
@@ -29,7 +29,7 @@ const ShellCommand commands[] = {
 	{NULL, NULL}
 };
 
-void usb_cmd_set_test_gps(BaseSequentialStream *chp, int argc, char *argv[])
+/*void usb_cmd_set_test_gps(BaseSequentialStream *chp, int argc, char *argv[])
 {
     if(argc < 1)
     {
@@ -38,7 +38,7 @@ void usb_cmd_set_test_gps(BaseSequentialStream *chp, int argc, char *argv[])
     }
     extern bool test_gps_enabled;
     test_gps_enabled = atoi(argv[0]);
-}
+}*/
 
 void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
   size_t n, total, largest;

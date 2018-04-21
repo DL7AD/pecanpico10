@@ -8,6 +8,7 @@
 #include "si446x.h"
 #include "image.h"
 #include "position.h"
+#include "beacon.h"
 #include "log.h"
 #include "radio.h"
 #include "ax25_pad.h"
@@ -47,6 +48,9 @@ void start_user_threads(void)
 	if(conf_sram.img_sec.thread_conf.active) start_image_thread(&conf_sram.img_sec);
 
 	if(conf_sram.log.thread_conf.active) start_logging_thread(&conf_sram.log);
+
+    if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.tx.fixed)
+      start_beacon_thread(&conf_sram.aprs);
 
 	if(conf_sram.aprs.thread_conf.active) {
 	  chThdSleep(conf_sram.aprs.thread_conf.init_delay);

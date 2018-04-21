@@ -43,7 +43,8 @@ THD_FUNCTION(posThread, arg)
 			TRACE_INFO("POS  > Transmit position");
 
 			// Encode/Transmit position packet
-			packet_t packet = aprs_encode_position(conf->call, conf->path,
+			packet_t packet = aprs_encode_position(conf->call,
+			                                       conf->path,
 			                                       conf->symbol, dataPoint);
             if(packet == NULL) {
               TRACE_WARN("POS  > No free packet objects"
@@ -73,9 +74,9 @@ THD_FUNCTION(posThread, arg)
 			   * There is no acknowledgment requested.
 			   */
               packet = aprs_compose_aprsd_message(
-                                conf_sram.aprs.base.call,
-                                conf_sram.aprs.base.path,
-                                APRS_DEVICE_CALLSIGN);
+                                conf->call,
+                                conf->path,
+                                conf_sram.aprs.base.call);
               if(packet == NULL) {
                 TRACE_WARN("POS  > No free packet objects "
                     "or badly formed APRSD message");
@@ -107,7 +108,9 @@ THD_FUNCTION(posThread, arg)
 				// Encode and transmit telemetry config packet
 				for(uint8_t type = 0; type < 4; type++) {
 					packet = aprs_encode_telemetry_configuration(conf->call,
-					                           conf->path, type);
+					                           conf->path,
+					                           APRS_DEVICE_CALLSIGN,
+					                           type);
 		            if(packet == NULL) {
 		              TRACE_WARN("POS  > No free packet objects for"
 		                  " telemetry transmission");
