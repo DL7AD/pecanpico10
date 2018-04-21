@@ -394,14 +394,14 @@ packet_t aprs_encode_message(const char *originator, const char *path,
 	if(!ack)
 		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s",
 		                               originator,
-		                               recipient,
+		                               APRS_DEVICE_CALLSIGN,
                                        path,
                                        recipient,
                                        text);
 	else
 		chsnprintf(xmit, sizeof(xmit), "%s>%s,%s::%-9s:%s{%d",
                                        originator,
-                                       recipient,
+                                       APRS_DEVICE_CALLSIGN,
                                        path,
                                        recipient,
                                        text,
