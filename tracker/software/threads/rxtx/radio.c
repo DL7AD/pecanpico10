@@ -82,12 +82,12 @@ void start_aprs_threads(radio_unit_t radio, radio_freq_t base_freq,
                      channel_hz_t step,
                      radio_ch_t chan, radio_squelch_t rssi) {
 
-	if(base_freq == FREQ_APRS_DYNAMIC) {
+/*	if(base_freq == FREQ_APRS_DYNAMIC) {
 		base_freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
-		/* If using geofence ignore channel and step for now. */
+		// If using geofence ignore channel and step.
 		chan = 0;
 		step = 0;
-	}
+	}*/
 
     if(base_freq == FREQ_APRS_RECEIVE) {
       TRACE_ERROR("RX   > Cannot specify FREQ_APRS_RECEIVE for receiver");

@@ -6,6 +6,7 @@
 #include "hal.h"
 #include "geofence.h"
 #include "collector.h"
+#include "config.h"
 
 static const coord_t america[] = {
 	// Latitude  Longitude (in deg*10000000)
@@ -657,7 +658,7 @@ uint32_t getAPRSRegionFrequency(void) {
 
 	// Position unknown
 	if(point == NULL || (point->gps_lat == 0 && point->gps_lon == 0))
-		return 144800000;
+		return conf_sram.aprs.freq;
 	
 	// America 144.390 MHz
 	if(isPointInAmerica(point->gps_lat, point->gps_lon))

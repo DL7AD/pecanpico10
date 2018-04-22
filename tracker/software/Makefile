@@ -116,9 +116,9 @@ LDSCRIPT= board/STM32F413xH.ld
 CSRC = $(ALLCSRC) \
        $(TESTSRC) \
        $(CHIBIOS)/os/various/fatfs_bindings/fatfs_diskio.c \
+       threads/rxtx/beacon.c \
        threads/collector.c \
        threads/rxtx/position.c \
-       threads/rxtx/beacon.c \
        threads/rxtx/image.c \
        threads/rxtx/log.c \
        threads/rxtx/radio.c \

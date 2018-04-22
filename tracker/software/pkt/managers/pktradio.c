@@ -20,6 +20,7 @@
 #endif
 #include "si446x.h"
 #include "debug.h"
+#include "geofence.h"
 
 /**
  * @brief   Process radio task requests.
@@ -506,6 +507,14 @@ void pktReleaseRadio(radio_unit_t radio) {
 radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
                                           channel_hz_t step,
                                           radio_ch_t chan) {
+
+  if(base_freq == FREQ_APRS_DYNAMIC) {
+          base_freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
+          // If using geofence ignore channel and step.
+          chan = 0;
+          step = 0;
+  }
+
   return base_freq + (step * chan);
 }
 

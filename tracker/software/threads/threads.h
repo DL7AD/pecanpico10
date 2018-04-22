@@ -1,5 +1,5 @@
-#ifndef __MODULES_H__
-#define __MODULES_H__
+#ifndef __THREADS_H__
+#define __THREADS_H__
 
 #include "ch.h"
 
@@ -8,5 +8,4 @@ void start_user_threads(void);
 
 extern sysinterval_t watchdog_tracking; // Last update time for module TRACKING
 
-#endif
-
+#endif /* __THREADS_H__ */

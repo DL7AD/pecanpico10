@@ -13,6 +13,8 @@
 #include "radio.h"
 #endif
 
+#include "geofence.h"
+
 // Si446x variables
 static int16_t lastTemp = 0x7FFF;
 
@@ -259,6 +261,11 @@ bool Si446x_setBandParameters(radio_unit_t radio,
                               radio_freq_t freq,
                               channel_hz_t step) {
 
+  if(freq == FREQ_APRS_DYNAMIC) {
+      freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
+      /* If using geofence ignore channel and step for now. */
+      step = 0;
+  }
   /* Check band is in range. */
   if(freq < 144000000UL || freq > 900000000UL)
     return false;
@@ -695,6 +702,7 @@ bool Si4464_resumeReceive(radio_unit_t radio,
   radio_freq_t op_freq = pktComputeOperatingFrequency(rx_frequency,
                                                         rx_step,
                                                         rx_chan);
+
 
   TRACE_INFO( "SI   > Enable reception %d.%03d MHz (ch %d),"
               " RSSI %d, %s",

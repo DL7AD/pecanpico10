@@ -128,7 +128,7 @@ typedef struct {
     uint16_t        symbol;
     uint8_t         rssi;                   // Squelch for CCA check
     bool            enabled;
-    bool            fixed;
+    bool            beacon;
     int32_t         lat;
     int32_t         lon;
     int32_t         alt;
@@ -143,6 +143,7 @@ typedef struct {
     thd_tx_conf_t   tx;
     thd_tx_conf_t   base;                   // Base station receiving unsolicited sends
     bool            dig_active;             // Digipeater active flag
+    uint32_t        freq;                   // Default APRS frequency if no GPS
 
 } thd_aprs_conf_t;
 

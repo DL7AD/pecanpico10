@@ -312,7 +312,7 @@ THD_FUNCTION(collectorThread, arg) {
 			data_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
 		} else if(conf_sram.pos_sec.thread_conf.active) { // Only secondary position thread is active
 			data_cycle_time = conf_sram.pos_sec.thread_conf.cycle;
-        } else if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.tx.fixed) { // APRS fixed location is active
+        } else if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.tx.beacon) { // APRS beacon is active
             data_cycle_time = conf_sram.pos_sec.thread_conf.cycle;
 		} else { // There must be an error
 			TRACE_ERROR("COLL > Data collector started but no position thread is active");
