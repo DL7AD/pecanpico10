@@ -121,7 +121,7 @@ void start_aprs_threads(radio_unit_t radio, radio_freq_t base_freq,
  */
 bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
                      channel_hz_t step, radio_ch_t chan,
-                     radio_pwr_t pwr, mod_t mod, radio_squelch_t rssi) {
+                     radio_pwr_t pwr, mod_t mod, radio_squelch_t cca) {
   /* TODO: This should select a radio by frequency. For now just use 1. */
   radio_unit_t radio = PKT_RADIO_1;
 
@@ -135,46 +135,33 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
     return false;
   }
 
-  if(base_freq == FREQ_APRS_RECEIVE) {
-    /* Get current RX frequency (if valid) and use that. */
-    packet_svc_t *handler = pktGetServiceObject(radio);
-    if(pktIsReceiveActive(radio)) {
-      base_freq = handler->radio_rx_config.base_frequency;
-      step = handler->radio_rx_config.step_hz;
-      chan = handler->radio_rx_config.channel;
-    } else
-      base_freq = FREQ_APRS_DYNAMIC;
-  }
-
-  if(base_freq == FREQ_APRS_DYNAMIC) {
-    base_freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
-    step = 0;
-    chan = 0;
-  }
-
   uint16_t len = ax25_get_info(pp, NULL);
 
-  /* Check information size. */
-  if(AX25_MIN_INFO_LEN < len && len <= AX25_MAX_INFO_LEN) {
-    /* Check frequency. */
-    if(!Si446x_isFrequencyInBand(radio, base_freq, step, chan)) {
-      TRACE_ERROR("RAD  > Transmit base frequency of %d.%03d MHz is invalid",
-                  base_freq/1000000, (base_freq%1000000)/1000);
+  radio_freq_t op_freq = pktComputeOperatingFrequency(radio,
+                                                      base_freq,
+                                                      step,
+                                                      chan);
+  if(op_freq == FREQ_RADIO_INVALID) {
+    TRACE_ERROR("RAD  > Transmit operating frequency of %d.%03d MHz is invalid",
+                op_freq/1000000, (op_freq%1000000)/1000);
 #if USE_NEW_PKT_TX_ALLOC == TRUE
       pktReleaseBufferChain(pp);
 #else
       ax25_delete (pp);
 #endif
       return false;
-    }
+  }
 
-    radio_freq_t op_freq = pktComputeOperatingFrequency(base_freq, step, chan);
-    TRACE_INFO(	"RAD  > %s transmit on %d.%03d MHz (ch %d),"
-        " Pwr %d, %s, rssi %d, data %d",
-        (pp->nextp != NULL) ? "Burst" : "Packet",
-            op_freq/1000000, (op_freq%1000000)/1000,
-            chan, pwr, getModulation(mod), rssi, len
-    );
+  TRACE_INFO( "RAD  > %s transmit on %d.%03d MHz (ch %d),"
+      " Pwr %d, %s, cca %d, data %d",
+      (pp->nextp != NULL) ? "Burst" : "Packet",
+          op_freq/1000000, (op_freq%1000000)/1000,
+          chan, pwr, getModulation(mod), cca, len
+  );
+
+
+  /* Check information size. */
+  if(AX25_MIN_INFO_LEN < len && len <= AX25_MAX_INFO_LEN) {
 
     /* TODO: Check size of buf. */
     char buf[1024];
@@ -184,7 +171,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
     /* The service object. */
     packet_svc_t *handler = pktGetServiceObject(radio);
 
-    /* Update  the saved radio data with this new request. */
+    /* Get  the saved radio data for this new request. */
     radio_task_object_t rt = handler->radio_tx_config;
 
     rt.handler = handler;
@@ -195,7 +182,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
     rt.channel = chan;
     rt.tx_power = pwr;
     rt.tx_speed = (mod == MOD_2FSK ? 9600 : 1200);
-    rt.squelch = rssi;
+    rt.squelch = cca;
     rt.packet_out = pp;
 
     /* Update the task mirror. */

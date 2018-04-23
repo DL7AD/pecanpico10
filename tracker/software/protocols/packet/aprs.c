@@ -52,7 +52,7 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "pos_pri.pwr",                   sizeof(conf_sram.pos_pri.radio_conf.pwr),                    &conf_sram.pos_pri.radio_conf.pwr                   },
 	{TYPE_INT,  "pos_pri.freq",                  sizeof(conf_sram.pos_pri.radio_conf.freq),                   &conf_sram.pos_pri.radio_conf.freq                  },
     {TYPE_INT,  "pos_pri.mod",                   sizeof(conf_sram.pos_pri.radio_conf.mod),                    &conf_sram.pos_pri.radio_conf.mod                   },
-    {TYPE_INT,  "pos_pri.rssi",                  sizeof(conf_sram.pos_pri.radio_conf.rssi),                   &conf_sram.pos_pri.radio_conf.rssi                  },
+    {TYPE_INT,  "pos_pri.cca",                   sizeof(conf_sram.pos_pri.radio_conf.cca),                    &conf_sram.pos_pri.radio_conf.cca                   },
 	{TYPE_STR,  "pos_pri.call",                  sizeof(conf_sram.pos_pri.call),                              &conf_sram.pos_pri.call                             },
 	{TYPE_STR,  "pos_pri.path",                  sizeof(conf_sram.pos_pri.path),                              &conf_sram.pos_pri.path                             },
 	{TYPE_INT,  "pos_pri.symbol",                sizeof(conf_sram.pos_pri.symbol),                            &conf_sram.pos_pri.symbol                           },
@@ -68,7 +68,7 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "pos_sec.pwr",                   sizeof(conf_sram.pos_sec.radio_conf.pwr),                    &conf_sram.pos_sec.radio_conf.pwr                   },
 	{TYPE_INT,  "pos_sec.freq",                  sizeof(conf_sram.pos_sec.radio_conf.freq),                   &conf_sram.pos_sec.radio_conf.freq                  },
 	{TYPE_INT,  "pos_sec.mod",                   sizeof(conf_sram.pos_sec.radio_conf.mod),                    &conf_sram.pos_sec.radio_conf.mod                   },
-    {TYPE_INT,  "pos_sec.rssi",                  sizeof(conf_sram.pos_sec.radio_conf.rssi),                   &conf_sram.pos_sec.radio_conf.rssi                  },
+    {TYPE_INT,  "pos_sec.cca",                   sizeof(conf_sram.pos_sec.radio_conf.cca),                    &conf_sram.pos_sec.radio_conf.cca                   },
 	{TYPE_STR,  "pos_sec.call",                  sizeof(conf_sram.pos_sec.call),                              &conf_sram.pos_sec.call                             },
 	{TYPE_STR,  "pos_sec.path",                  sizeof(conf_sram.pos_sec.path),                              &conf_sram.pos_sec.path                             },
 	{TYPE_INT,  "pos_sec.symbol",                sizeof(conf_sram.pos_sec.symbol),                            &conf_sram.pos_sec.symbol                           },
@@ -85,7 +85,7 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "img_pri.pwr",                   sizeof(conf_sram.img_pri.radio_conf.pwr),                    &conf_sram.img_pri.radio_conf.pwr                   },
     {TYPE_INT,  "img_pri.freq",                  sizeof(conf_sram.img_pri.radio_conf.freq),                   &conf_sram.img_pri.radio_conf.freq                  },
 	{TYPE_INT,  "img_pri.mod",                   sizeof(conf_sram.img_pri.radio_conf.mod),                    &conf_sram.img_pri.radio_conf.mod                   },
-    {TYPE_INT,  "img_pri.rssi",                  sizeof(conf_sram.img_pri.radio_conf.rssi),                   &conf_sram.img_pri.radio_conf.rssi                  },
+    {TYPE_INT,  "img_pri.cca",                   sizeof(conf_sram.img_pri.radio_conf.cca),                    &conf_sram.img_pri.radio_conf.cca                   },
 	{TYPE_INT,  "img_pri.speed",                 sizeof(conf_sram.img_pri.radio_conf.speed),                  &conf_sram.img_pri.radio_conf.speed                 },
 	{TYPE_INT,  "img_pri.redundantTx",           sizeof(conf_sram.img_pri.radio_conf.redundantTx),            &conf_sram.img_pri.radio_conf.redundantTx           },
 	{TYPE_STR,  "img_pri.call",                  sizeof(conf_sram.img_pri.call),                              &conf_sram.img_pri.call                             },
@@ -104,7 +104,7 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "img_sec.pwr",                   sizeof(conf_sram.img_sec.radio_conf.pwr),                    &conf_sram.img_sec.radio_conf.pwr                   },
 	{TYPE_INT,  "img_sec.freq",                  sizeof(conf_sram.img_sec.radio_conf.freq),                   &conf_sram.img_sec.radio_conf.freq                  },
 	{TYPE_INT,  "img_sec.mod",                   sizeof(conf_sram.img_sec.radio_conf.mod),                    &conf_sram.img_sec.radio_conf.mod                   },
-    {TYPE_INT,  "img_sec.rssi",                  sizeof(conf_sram.img_sec.radio_conf.rssi),                   &conf_sram.img_sec.radio_conf.rssi                  },
+    {TYPE_INT,  "img_sec.cca",                  sizeof(conf_sram.img_sec.radio_conf.cca),                     &conf_sram.img_sec.radio_conf.cca                   },
 	{TYPE_INT,  "img_sec.speed",                 sizeof(conf_sram.img_sec.radio_conf.speed),                  &conf_sram.img_sec.radio_conf.speed                 },
 	{TYPE_INT,  "img_sec.redundantTx",           sizeof(conf_sram.img_sec.radio_conf.redundantTx),            &conf_sram.img_sec.radio_conf.redundantTx           },
 	{TYPE_STR,  "img_sec.call",                  sizeof(conf_sram.img_sec.call),                              &conf_sram.img_sec.call                             },
@@ -123,7 +123,7 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "log.pwr",                       sizeof(conf_sram.log.radio_conf.pwr),                        &conf_sram.log.radio_conf.pwr                       },
 	{TYPE_INT,  "log.freq",                      sizeof(conf_sram.log.radio_conf.freq),                       &conf_sram.log.radio_conf.freq                      },
 	{TYPE_INT,  "log.mod",                       sizeof(conf_sram.log.radio_conf.mod),                        &conf_sram.log.radio_conf.mod                       },
-    {TYPE_INT,  "log.rssi",                      sizeof(conf_sram.log.radio_conf.rssi),                       &conf_sram.log.radio_conf.rssi                      },
+    {TYPE_INT,  "log.cca",                       sizeof(conf_sram.log.radio_conf.cca),                        &conf_sram.log.radio_conf.cca                       },
 	{TYPE_INT,  "log.speed",                     sizeof(conf_sram.log.radio_conf.speed),                      &conf_sram.log.radio_conf.speed                     },
 	{TYPE_INT,  "log.redundantTx",               sizeof(conf_sram.log.radio_conf.redundantTx),                &conf_sram.log.radio_conf.redundantTx               },
 	{TYPE_STR,  "log.call",                      sizeof(conf_sram.log.call),                                  &conf_sram.log.call                                 },
@@ -141,13 +141,13 @@ const conf_command_t command_list[] = {
     {TYPE_INT,  "aprs.base.freq",                sizeof(conf_sram.aprs.base.radio_conf.freq),                 &conf_sram.aprs.base.radio_conf.freq                },
     {TYPE_INT,  "aprs.base.pwr",                 sizeof(conf_sram.aprs.base.radio_conf.pwr),                  &conf_sram.aprs.base.radio_conf.pwr                 },
     {TYPE_INT,  "aprs.base.mod",                 sizeof(conf_sram.aprs.base.radio_conf.mod),                  &conf_sram.aprs.base.radio_conf.mod                 },
-    {TYPE_INT,  "aprs.base.rssi",                sizeof(conf_sram.aprs.base.radio_conf.rssi),                 &conf_sram.aprs.base.radio_conf.rssi                },
+    {TYPE_INT,  "aprs.base.cca",                 sizeof(conf_sram.aprs.base.radio_conf.cca),                  &conf_sram.aprs.base.radio_conf.cca                 },
     {TYPE_STR,  "aprs.base.call",                sizeof(conf_sram.aprs.base.call),                            &conf_sram.aprs.base.call                           },
 
 	{TYPE_INT,  "aprs.tx.freq",                  sizeof(conf_sram.aprs.tx.radio_conf.freq),                   &conf_sram.aprs.tx.radio_conf.freq                  },
     {TYPE_INT,  "aprs.tx.pwr",                   sizeof(conf_sram.aprs.tx.radio_conf.pwr),                    &conf_sram.aprs.tx.radio_conf.pwr                   },
     {TYPE_INT,  "aprs.tx.mod",                   sizeof(conf_sram.aprs.tx.radio_conf.mod),                    &conf_sram.aprs.tx.radio_conf.mod                   },
-	{TYPE_INT,  "aprs.tx.rssi",                  sizeof(conf_sram.aprs.tx.radio_conf.rssi),                   &conf_sram.aprs.tx.radio_conf.rssi                  },
+	{TYPE_INT,  "aprs.tx.cca",                   sizeof(conf_sram.aprs.tx.radio_conf.cca),                    &conf_sram.aprs.tx.radio_conf.cca                   },
     {TYPE_STR,  "aprs.tx.call",                  sizeof(conf_sram.aprs.tx.call),                              &conf_sram.aprs.tx.call                             },
     {TYPE_STR,  "aprs.tx.path",                  sizeof(conf_sram.aprs.tx.path),                              &conf_sram.aprs.tx.path                             },
     {TYPE_INT,  "aprs.tx.symbol",                sizeof(conf_sram.aprs.tx.symbol),                            &conf_sram.aprs.tx.symbol                           },
@@ -467,7 +467,7 @@ msg_t aprs_send_aprsd_message(aprs_identity_t *id,
                   0,
                   id->pwr,
                   id->mod,
-                  id->rssi)) {
+                  id->cca)) {
     TRACE_ERROR("RX   > Transmit of APRSD failed");
     return MSG_ERROR;
   }
@@ -518,7 +518,7 @@ msg_t aprs_send_aprsh_message(aprs_identity_t *id,
                   0,
                   id->pwr,
                   id->mod,
-                  id->rssi)) {
+                  id->cca)) {
     TRACE_ERROR("RX   > Transmit of APRSH failed");
     return MSG_ERROR;
   }
@@ -573,7 +573,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
                 0,
                 id->pwr,
                 id->mod,
-                id->rssi)) {
+                id->cca)) {
       TRACE_ERROR("RX   > Transmit of GPIO status failed");
       return MSG_ERROR;
     }
@@ -671,7 +671,7 @@ msg_t aprs_send_position_beacon(aprs_identity_t *id,
                       0,
                       id->pwr,
                       id->mod,
-                      id->rssi)) {
+                      id->cca)) {
     TRACE_ERROR("RX   > Transmit of APRSD failed");
     return MSG_ERROR;
   }
@@ -711,7 +711,7 @@ msg_t aprs_execute_system_reset(aprs_identity_t *id,
                   0,
                   id->pwr,
                   id->mod,
-                  id->rssi);
+                  id->cca);
 
   chThdSleep(TIME_S2I(10));
 
@@ -911,7 +911,7 @@ static bool aprs_decode_message(packet_t pp) {
   identity.freq = conf_sram.aprs.tx.radio_conf.freq;
   identity.pwr = conf_sram.aprs.tx.radio_conf.pwr;
   identity.mod = conf_sram.aprs.tx.radio_conf.mod;
-  identity.rssi = conf_sram.aprs.tx.radio_conf.rssi;
+  identity.cca = conf_sram.aprs.tx.radio_conf.cca;
 
   /* Check which nodes are enabled to accept aprs messages. */
   bool pos_pri = !strcmp(conf_sram.pos_pri.call, dest)
@@ -1034,7 +1034,7 @@ static bool aprs_decode_message(packet_t pp) {
                     0,
                     identity.pwr,
                     identity.mod,
-                    identity.rssi);
+                    identity.cca);
   }
   /* Flag that the APRS content should not be digipeated. */
   return false;
@@ -1062,10 +1062,10 @@ static void aprs_digipeat(packet_t pp) {
                       0,
                       conf_sram.aprs.tx.radio_conf.pwr,
                       conf_sram.aprs.tx.radio_conf.mod,
-                      conf_sram.aprs.tx.radio_conf.rssi)) {
+                      conf_sram.aprs.tx.radio_conf.cca)) {
         TRACE_INFO("RX   > Failed to digipeat packet");
       } /* TX failed. */
-    } /* Should be digipteated. */
+    } /* Should be digipeated. */
   } /* Duplicate check. */
 }
 

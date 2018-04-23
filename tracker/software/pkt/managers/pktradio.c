@@ -497,6 +497,7 @@ void pktReleaseRadio(radio_unit_t radio) {
 
 /**
  * @brief   Compute an operating frequency.
+ * @notes   All special frequency parameters are handled.
  *
  * @param[in] base_freq    Radio base frequency.
  * @param[in] step         Radio channel step frequency.
@@ -504,22 +505,40 @@ void pktReleaseRadio(radio_unit_t radio) {
  *
  * @api
  */
-radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
+radio_freq_t pktComputeOperatingFrequency(radio_unit_t radio,
+                                          radio_freq_t base_freq,
                                           channel_hz_t step,
                                           radio_ch_t chan) {
 
-  if(base_freq == FREQ_APRS_DYNAMIC) {
-          base_freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
-          // If using geofence ignore channel and step.
-          chan = 0;
-          step = 0;
+  if(base_freq == FREQ_APRS_RECEIVE) {
+    /* Get current RX frequency (if valid) and use that. */
+    packet_svc_t *handler = pktGetServiceObject(radio);
+    if(pktIsReceiveActive(radio)) {
+      base_freq = handler->radio_rx_config.base_frequency;
+      step = handler->radio_rx_config.step_hz;
+      chan = handler->radio_rx_config.channel;
+    } else
+      base_freq = FREQ_APRS_DYNAMIC;
   }
 
-  return base_freq + (step * chan);
+  if(base_freq == FREQ_APRS_DYNAMIC) {
+    /* Get frequency by geofencing. */
+    base_freq = getAPRSRegionFrequency();
+    /*
+     *  If using geofence ignore channel and step for now.
+     *  TODO: Could compute base + step + channel and update PKT object?
+     */
+    chan = 0;
+    step = 0;
+  }
+
+  /* Calculate operating frequency. */
+  uint32_t op_freq = base_freq + (step * chan);
+  return pktIsRadioInBand(radio, op_freq) ? op_freq : FREQ_RADIO_INVALID;
 }
 
 /**
- * @brief   Check if requested frequency is in bad for the radio.
+ * @brief   Check if requested frequency is in band for the radio.
  *
  * @param[in] radio   radio unit ID.
  * @param[in] freq    Radio frequency.

@@ -4,10 +4,11 @@
 #include "ch.h"
 #include "ax25_pad.h"
 
-#define FREQ_APRS_DYNAMIC	0 /* Geofencing frequency (144.8 default). */
-#define FREQ_APRS_SCAN      1 /* Frequency last found in RX scan. - TBI */
-#define FREQ_APRS_RECEIVE   2 /* Active RX frequency - fall back to DYNAMIC. */
-#define FREQ_CMDC_RECEIVE   3 /* Frequency used for command and control. TBI */
+#define FREQ_RADIO_INVALID  0
+#define FREQ_APRS_DYNAMIC	1 /* Geofencing frequency (144.8 default). */
+#define FREQ_APRS_SCAN      2 /* Frequency last found in RX scan. - TBI */
+#define FREQ_APRS_RECEIVE   3 /* Active RX frequency - fall back to DYNAMIC. */
+#define FREQ_CMDC_RECEIVE   4 /* Frequency used for command and control. TBI */
 
 #define CYCLE_CONTINUOUSLY	0
 
@@ -54,7 +55,7 @@ typedef struct {
 	uint32_t			freq;	// 0: APRS region frequency (determined by geofencing), f>0 static frequency
 	mod_t				mod;
 	uint32_t			speed;
-	uint8_t             rssi;
+	uint8_t             cca;
 	bool                redundantTx;
 } radio_tx_conf_t; // Radio / Modulation
 

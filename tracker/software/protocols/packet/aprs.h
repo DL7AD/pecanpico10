@@ -64,7 +64,7 @@ typedef struct APRSIdentity {
   uint32_t  freq;
   uint8_t   pwr;
   mod_t     mod;
-  uint8_t   rssi;
+  uint8_t   cca;
 } aprs_identity_t;
 
 /**

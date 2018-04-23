@@ -19,7 +19,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_RECEIVE,
 			.mod			= MOD_AFSK,
-            .rssi           = 0x4F,
+            .cca            = 0x4F,
 		},
 		// Node identity
 		.call				= "VK2GJ-12",
@@ -41,7 +41,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
 			.mod			= MOD_AFSK,
-            .rssi           = 0x4F
+            .cca            = 0x4F
 		},
         // Node identity
 		.call				= "DL7AD-14",
@@ -64,7 +64,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
             .freq           = 144800000,
 			.mod			= MOD_2FSK,
-			.rssi           = 0x4F,
+			.cca            = 0x4F,
 			.redundantTx	= false
 		},
         // Node identity
@@ -88,7 +88,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
 			.freq			= 145175000,
 			.mod			= MOD_AFSK,
-            .rssi           = 0x4F
+            .cca            = 0x4F
 		},
         // Node identity
 		.call				= "VK2GJ-14",
@@ -110,7 +110,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
 			.mod			= MOD_AFSK,
-            .rssi           = 0x4F
+            .cca            = 0x4F
 		},
         // Node identity
 		.call				= "VK2GJ-13",
@@ -138,7 +138,7 @@ const conf_t conf_flash_default = {
                .freq        = FREQ_APRS_RECEIVE,
                .pwr         = 0x7F,
                .mod         = MOD_AFSK,
-               .rssi        = 0x4F
+               .cca         = 0x4F
           },
           // Node tx identity
             .call           = "VK2GJ-5",
@@ -155,7 +155,7 @@ const conf_t conf_flash_default = {
       .base = {
              // The base station identity
              // Tracker originated messages can be sent to this call sign sent
-             .enabled       = false,
+             .enabled       = true,
              .call          = "VK2GJ-7",
              .path          = "WIDE2-1",
       },

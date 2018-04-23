@@ -249,24 +249,7 @@ bool Si446x_setBandParameters(radio_unit_t radio,
                               radio_freq_t freq,
                               channel_hz_t step);
 
-/* TODO: Forward need for declaration. */
-radio_freq_t pktComputeOperatingFrequency(radio_freq_t base_freq,
-                                          channel_hz_t step,
-                                          radio_ch_t chan);
 
-static inline bool Si446x_isFrequencyInBand(radio_unit_t radio,
-                                            radio_freq_t base_freq,
-                                            channel_hz_t step,
-                                            radio_ch_t chan) {
-  (void)radio;
-
-  radio_freq_t freq = pktComputeOperatingFrequency(base_freq,
-                                            step,
-                                            chan);
-
-  /* TODO: Lookup frequency band table for radio. */
-  return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
-}
 
 extern void pktReleasePacketBuffer(packet_t pp);
 

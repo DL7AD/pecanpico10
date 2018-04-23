@@ -561,7 +561,7 @@ static bool Si446x_transmit(radio_unit_t radio,
                             radio_squelch_t rssi,
                             sysinterval_t cca_timeout) {
 
-  radio_freq_t op_freq = pktComputeOperatingFrequency(freq, step, chan);
+  radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq, step, chan);
 
   if(!pktIsRadioInBand(radio, op_freq)) {
     TRACE_ERROR("SI   > Frequency out of range");
@@ -640,7 +640,7 @@ bool Si446x_receiveNoLock(radio_unit_t radio,
                           radio_ch_t channel,
                           radio_squelch_t rssi,
                           mod_t mod) {
-  radio_freq_t op_freq = pktComputeOperatingFrequency(freq, step, channel);
+  radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq, step, channel);
   /* TODO: compute f + s*c. */
   if(!pktIsRadioInBand(radio, op_freq)) {
     TRACE_ERROR("SI   > Frequency out of range");
@@ -699,7 +699,8 @@ bool Si4464_resumeReceive(radio_unit_t radio,
   (void)radio;
   bool ret = true;
 
-  radio_freq_t op_freq = pktComputeOperatingFrequency(rx_frequency,
+  radio_freq_t op_freq = pktComputeOperatingFrequency(radio,
+                                                      rx_frequency,
                                                         rx_step,
                                                         rx_chan);
 
@@ -825,7 +826,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   /*
    * Use the specified CCA RSSI level.
-   * RSSI will be set to blind send after first packet.
+   * CCA level will be set to blind send after first packet.
    */
   radio_squelch_t rssi = rto->squelch;
 
@@ -1081,7 +1082,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
   /*
    * Use the specified CCA RSSI level.
-   * RSSI will be set to blind send after first packet.
+   * CCA will be set to blind send after first packet.
    */
   radio_squelch_t rssi = rto->squelch;
 

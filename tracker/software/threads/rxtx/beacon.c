@@ -63,7 +63,7 @@ THD_FUNCTION(bcnThread, arg) {
                             0,
                             conf->tx.radio_conf.pwr,
                             conf->tx.radio_conf.mod,
-                            conf->tx.radio_conf.rssi)) {
+                            conf->tx.radio_conf.cca)) {
           TRACE_ERROR("BCN  > failed to transmit beacon data");
         }
         chThdSleep(TIME_S2I(5));
@@ -72,37 +72,36 @@ THD_FUNCTION(bcnThread, arg) {
       /*
        * Encode/Transmit APRSD packet.
        * This is a tracker originated message (not a reply to a request).
-       * The message will be sent to the base station set in path.
+       * The message will be sent to the base station set in path if set.
+       * Else send it to device identity.
        */
-      if(conf_sram.aprs.base.enabled) {
-        /*
-         * Send message from this device.
-         * Use call sign and path as specified in base config.
-         * There is no acknowledgment requested.
-         */
-        packet = aprs_compose_aprsd_message(
-            conf->tx.call,
-            conf->base.path,
-            conf->base.call);
-        if(packet == NULL) {
-          TRACE_WARN("BCN  > No free packet objects "
-              "or badly formed APRSD message");
-        } else {
-          if(!transmitOnRadio(packet,
-                              conf->tx.radio_conf.freq,
-                              0,
-                              0,
-                              conf->tx.radio_conf.pwr,
-                              conf->tx.radio_conf.mod,
-                              conf->tx.radio_conf.rssi
-          )) {
-            TRACE_ERROR("BCN  > Failed to transmit APRSD data");
-          }
-          chThdSleep(TIME_S2I(5));
-        }
+      char *call = conf_sram.aprs.base.enabled
+          ? conf_sram.aprs.base.call : APRS_DEVICE_CALLSIGN;
+
+      /*
+       * Send message from this device.
+       * Use call sign and path as specified in base config.
+       * There is no acknowledgment requested.
+       */
+      packet = aprs_compose_aprsd_message(
+          conf->tx.call,
+          conf->base.path,
+          call);
+      if(packet == NULL) {
+        TRACE_WARN("BCN  > No free packet objects "
+            "or badly formed APRSD message");
       } else {
-        /* TODO: Implement a fallback destination if no base station set? */
-        TRACE_INFO("BCN  > APRSD data not sent - no base station specified");
+        if(!transmitOnRadio(packet,
+                            conf->tx.radio_conf.freq,
+                            0,
+                            0,
+                            conf->tx.radio_conf.pwr,
+                            conf->tx.radio_conf.mod,
+                            conf->tx.radio_conf.cca
+        )) {
+          TRACE_ERROR("BCN  > Failed to transmit APRSD data");
+        }
+        chThdSleep(TIME_S2I(5));
       }
 
       // Telemetry encoding parameter transmission
@@ -129,7 +128,7 @@ THD_FUNCTION(bcnThread, arg) {
                                 0,
                                 conf->tx.radio_conf.pwr,
                                 conf->tx.radio_conf.mod,
-                                conf->tx.radio_conf.rssi)) {
+                                conf->tx.radio_conf.cca)) {
               TRACE_ERROR("BCN  > Failed to transmit telemetry data");
             }
             chThdSleep(TIME_S2I(5));

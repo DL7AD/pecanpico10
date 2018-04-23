@@ -67,7 +67,7 @@ THD_FUNCTION(logThread, arg)
                                   0,
                                   conf->radio_conf.pwr,
                                   conf->radio_conf.mod,
-                                  conf->radio_conf.rssi);
+                                  conf->radio_conf.cca);
 	            }
 			} else {
 				TRACE_INFO("LOG  > No log point in memory");

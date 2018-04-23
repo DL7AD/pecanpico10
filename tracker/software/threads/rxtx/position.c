@@ -56,7 +56,7 @@ THD_FUNCTION(posThread, arg)
                               0,
                               conf->radio_conf.pwr,
                               conf->radio_conf.mod,
-                              conf->radio_conf.rssi)) {
+                              conf->radio_conf.cca)) {
                 TRACE_ERROR("POS  > failed to transmit position data");
               }
               chThdSleep(TIME_S2I(5));
@@ -89,7 +89,7 @@ THD_FUNCTION(posThread, arg)
                               0,
                               conf_sram.aprs.base.radio_conf.pwr,
                               conf_sram.aprs.base.radio_conf.mod,
-                              conf_sram.aprs.base.radio_conf.rssi
+                              conf_sram.aprs.base.radio_conf.cca
                               )) {
                 TRACE_ERROR("POS  > Failed to transmit APRSD data");
               }
@@ -119,7 +119,7 @@ THD_FUNCTION(posThread, arg)
                                       0,
                                       conf->radio_conf.pwr,
                                       conf->radio_conf.mod,
-                                      conf->radio_conf.rssi)) {
+                                      conf->radio_conf.cca)) {
                        TRACE_ERROR("POS  > Failed to transmit telemetry data");
                       }
                       chThdSleep(TIME_S2I(5));

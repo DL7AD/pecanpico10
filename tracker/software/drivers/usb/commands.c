@@ -255,7 +255,7 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
                     0,
                     conf_sram.aprs.tx.radio_conf.pwr,
                     conf_sram.aprs.tx.radio_conf.mod,
-                    conf_sram.aprs.tx.radio_conf.rssi);
+                    conf_sram.aprs.tx.radio_conf.cca);
 
 	chprintf(chp, "Message sent!\r\n");
 }

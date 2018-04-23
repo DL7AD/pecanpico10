@@ -339,7 +339,7 @@ static bool transmit_image_packet(const uint8_t *image,
                                 0,
                                 conf->radio_conf.pwr,
                                 conf->radio_conf.mod,
-                                conf->radio_conf.rssi)) {
+                                conf->radio_conf.cca)) {
 
               TRACE_ERROR("IMG  > Unable to send image packet TX on radio");
               return false;
@@ -380,7 +380,7 @@ static bool transmit_image_packets(const uint8_t *image,
                           0,
                           conf->radio_conf.pwr,
                           conf->radio_conf.mod,
-                          conf->radio_conf.rssi)) {
+                          conf->radio_conf.cca)) {
         /* Packet has been released by transmit. */
         TRACE_ERROR("IMG  > Unable to send redundant image on radio");
       }
@@ -479,7 +479,7 @@ static bool transmit_image_packets(const uint8_t *image,
                           0,
                           conf->radio_conf.pwr,
                           conf->radio_conf.mod,
-                          conf->radio_conf.rssi)) {
+                          conf->radio_conf.cca)) {
         TRACE_ERROR("IMG  > Unable to send image on radio");
         /* Transmit on radio will release the packet chain. */
       } else {
