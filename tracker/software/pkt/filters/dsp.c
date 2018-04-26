@@ -39,9 +39,12 @@ static inline double window_T(double n, double x) {
  * @param[in] type of window to be applied
  * @param[in] size of the window
  * @param[in] index within the window
+ *
  * @return  coefficient for window shape at index j
  */
-float32_t dsp_window(td_window_t type, size_t size, size_t j) {
+float32_t dsp_window(const td_window_t type,
+                     const size_t size,
+                     const size_t j) {
   float32_t w;
 
   switch (type) {
@@ -129,10 +132,11 @@ float32_t dsp_window(td_window_t type, size_t size, size_t j) {
  * @param[in] window    window shape to apply to coefficients.
  *
  */
-void gen_fir_iqf(float32_t *pCos, float32_t *pSin,
-                                  uint16_t length,
-                                  float32_t norm_freq,
-                                  td_window_t w_type) {
+void gen_fir_iqf(float32_t *pCos,
+                  float32_t *pSin,
+                  const uint16_t length,
+                  const float32_t norm_freq,
+                  const td_window_t w_type) {
 
   chDbgCheck(pCos != NULL && pSin != NULL);
   chDbgCheck(length > 0);
@@ -164,7 +168,6 @@ void gen_fir_iqf(float32_t *pCos, float32_t *pSin,
   }
 }
 
-
 /**
  * @brief Calculate coefficients for a LPF
  * @post  The coefficient array is populated
@@ -175,8 +178,8 @@ void gen_fir_iqf(float32_t *pCos, float32_t *pSin,
  * @param[in] window    window type to apply to coefficients
  *
  */
-void gen_fir_lpf (float32_t fc, float32_t *coeff,
-                  size_t numTaps, td_window_t window) {
+void gen_fir_lpf (const float32_t fc, float32_t *coeff,
+                  const size_t numTaps, const td_window_t window) {
   size_t j;
   float32_t gain;
 
@@ -217,8 +220,8 @@ void gen_fir_lpf (float32_t fc, float32_t *coeff,
  * @param[in] window    window type to apply to coefficients
  *
  */
-void gen_fir_bpf (float32_t f1, float32_t f2, float32_t *coeff,
-                  size_t numTaps, td_window_t window) {
+void gen_fir_bpf (const float32_t f1, const float32_t f2, float32_t *coeff,
+                  const size_t numTaps, const td_window_t window) {
   float32_t omega;
   float32_t gain;
   float32_t center = 0.5 * (numTaps - 1);

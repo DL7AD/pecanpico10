@@ -27,7 +27,7 @@ const conf_t conf_flash_default = {
 		.symbol				= SYM_ANTENNA,
 		.aprs_msg           = true,
 
-		.tel_enc_cycle		= TIME_S2I(10800)
+        .tel_enc_cycle  = TIME_S2I(60*180) // How often to send telemetry config
 	},
 
 	// Secondary position node
@@ -145,12 +145,14 @@ const conf_t conf_flash_default = {
             .path           = "WIDE2-1",
             .symbol         = SYM_DIGIPEATER,
             .beacon         = true,
-            .lat            = -337331175,
-            .lon            = 1511143478,
-            .alt            = 144,
-            .interval       = TIME_S2I(60*5),
+            .gps            = false,
+            // A set location if GPS not enabled or unable to acquire lock.
+            .lat            = -337331175,       // Degress (1e-7)
+            .lon            = 1511143478,       // Degrees (1e-7)
+            .alt            = 144,              // Alt in metres
+            .cycle          = TIME_S2I(60*30),  // Beacon interval
 
-            .tel_enc_cycle  = TIME_S2I(60*180)
+            .tel_enc_cycle  = TIME_S2I(60*180) // How often to send telemetry config
       },
       .base = {
              // The base station identity
@@ -160,7 +162,7 @@ const conf_t conf_flash_default = {
              .path          = "WIDE2-1",
       },
       .dig_active           = true,
-      .freq                 = 145175000     // Default APRS frequency
+      .freq                 = 145175000     // Default APRS frequency when geofence not resolved
 	},
 
 	// Power control

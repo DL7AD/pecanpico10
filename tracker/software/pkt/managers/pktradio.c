@@ -37,7 +37,7 @@
  */
 THD_FUNCTION(pktRadioManager, arg) {
   /* When no task in queue use this rate. */
-#define PKT_RADIO_TASK_MANAGER_IDLE_RATE_MS     250
+#define PKT_RADIO_TASK_MANAGER_IDLE_RATE_MS     100
 
   /* When a TX task is submitted to radio switch to this rate. */
 #define PKT_RADIO_TASK_MANAGER_TX_RATE_MS       100
@@ -477,7 +477,8 @@ void pktScheduleSendComplete(radio_task_object_t *rto,
  *
  * @api
  */
-msg_t pktAcquireRadio(radio_unit_t radio, sysinterval_t timeout) {
+msg_t pktAcquireRadio(const radio_unit_t radio,
+                      const sysinterval_t timeout) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   return chBSemWaitTimeout(&handler->radio_sem, timeout);
 }
@@ -490,7 +491,7 @@ msg_t pktAcquireRadio(radio_unit_t radio, sysinterval_t timeout) {
  *
  * @api
  */
-void pktReleaseRadio(radio_unit_t radio) {
+void pktReleaseRadio(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   chBSemSignal(&handler->radio_sem);
 }
@@ -505,10 +506,11 @@ void pktReleaseRadio(radio_unit_t radio) {
  *
  * @api
  */
-radio_freq_t pktComputeOperatingFrequency(radio_unit_t radio,
+radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
                                           radio_freq_t base_freq,
                                           channel_hz_t step,
-                                          radio_ch_t chan) {
+                                          radio_ch_t chan,
+                                          const radio_mode_t mode) {
 
   if(base_freq == FREQ_APRS_RECEIVE) {
     /* Get current RX frequency (if valid) and use that. */
@@ -529,7 +531,11 @@ radio_freq_t pktComputeOperatingFrequency(radio_unit_t radio,
      *  TODO: Could compute base + step + channel and update PKT object?
      */
     chan = 0;
-    step = 0;
+    step = Si446x_STEP_HZ;
+    if(base_freq == FREQ_APRS_SCAN && mode == RADIO_RX) {
+      base_freq = Si446x_BASE_FREQ;
+      step = Si446x_STEP_HZ;
+    }
   }
 
   /* Calculate operating frequency. */
@@ -545,7 +551,7 @@ radio_freq_t pktComputeOperatingFrequency(radio_unit_t radio,
  *
  * @api
  */
-bool pktIsRadioInBand(radio_unit_t radio, radio_freq_t freq) {
+bool pktIsRadioInBand(const radio_unit_t radio, const radio_freq_t freq) {
   /* TODO: Mapping of radio ID to radio device/capabilities. */
   (void)radio;
   return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
@@ -557,7 +563,7 @@ bool pktIsRadioInBand(radio_unit_t radio, radio_freq_t freq) {
  * @notes   Currently just map directly to 446x driver.
  * @notes   In future would implement a lookup and VMT to access radio methods.
  *
- * @param[in] radio radio unit ID.
+ * @param[in] rto radio task object pointer.
  *
  * @notapi
  */
@@ -592,7 +598,7 @@ bool pktLLDsendPacket(radio_task_object_t *rto) {
  *
  * @notapi
  */
-bool pktLLDresumeReceive(radio_unit_t radio) {
+bool pktLLDresumeReceive(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   chDbgAssert(handler != NULL, "invalid radio ID");

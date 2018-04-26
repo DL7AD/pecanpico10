@@ -87,7 +87,7 @@ extern bool test_gps_enabled;
 extern "C" {
 #endif
   void      aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len);
-  packet_t  aprs_encode_position(const char *callsign, const char *path,
+  packet_t  aprs_encode_position_and_telemetry(const char *callsign, const char *path,
                                 uint16_t symbol, dataPoint_t *dataPoint);
   packet_t  aprs_encode_telemetry_configuration(const char *originator,
                                                const char *path,

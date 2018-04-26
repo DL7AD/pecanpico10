@@ -35,7 +35,6 @@ THD_FUNCTION(bcnThread, arg) {
   while(true) {
     TRACE_INFO("BCN  > Do module BEACON cycle");
 
-
     dataPoint_t* dataPoint = getLastDataPoint();
     if(dataPoint->gps_state != GPS_LOCKED1
         || dataPoint->gps_state != GPS_LOCKED2) {
@@ -45,13 +44,46 @@ THD_FUNCTION(bcnThread, arg) {
       dataPoint->gps_lon = conf->tx.lon;
       dataPoint->gps_state = GPS_FIXED;
     } else {
-      TRACE_INFO("BCN  > Set location from GPS location data");
+      TRACE_INFO("BCN  > Set location from GPS derived data");
     }
     if(!p_sleep(&conf->thread_conf.sleep_conf)) {
+
+      // Telemetry encoding parameter transmission
+      if(conf->tx.tel_enc_cycle != 0 && last_conf_transmission
+          + conf->tx.tel_enc_cycle < chVTGetSystemTime()) {
+
+        TRACE_INFO("BCN  > Transmit telemetry configuration");
+
+        // Encode and transmit telemetry config packet
+        for(uint8_t type = 0; type < 4; type++) {
+          packet_t packet = aprs_encode_telemetry_configuration(
+              conf->tx.call,
+              conf->tx.path,
+              APRS_DEVICE_CALLSIGN,
+              type);
+          if(packet == NULL) {
+            TRACE_WARN("BCN  > No free packet objects for"
+                       " telemetry config transmission");
+          } else {
+            if(!transmitOnRadio(packet,
+                                conf->tx.radio_conf.freq,
+                                0,
+                                0,
+                                conf->tx.radio_conf.pwr,
+                                conf->tx.radio_conf.mod,
+                                conf->tx.radio_conf.cca)) {
+              TRACE_ERROR("BCN  > Failed to transmit telemetry config");
+            }
+            chThdSleep(TIME_S2I(5));
+          }
+        }
+        last_conf_transmission += conf->tx.tel_enc_cycle;
+      }
+
       TRACE_INFO("BCN  > Transmit position beacon");
 
       // Encode/Transmit position packet
-      packet_t packet = aprs_encode_position(conf->tx.call, conf->tx.path,
+      packet_t packet = aprs_encode_position_and_telemetry(conf->tx.call, conf->tx.path,
                                              conf->tx.symbol, dataPoint);
       if(packet == NULL) {
         TRACE_WARN("BCN  > No free packet objects"
@@ -72,7 +104,7 @@ THD_FUNCTION(bcnThread, arg) {
       /*
        * Encode/Transmit APRSD packet.
        * This is a tracker originated message (not a reply to a request).
-       * The message will be sent to the base station set in path if set.
+       * The message will be sent to the base station if set.
        * Else send it to device identity.
        */
       char *call = conf_sram.aprs.base.enabled
@@ -103,42 +135,8 @@ THD_FUNCTION(bcnThread, arg) {
         }
         chThdSleep(TIME_S2I(5));
       }
-
-      // Telemetry encoding parameter transmission
-      if(conf->tx.tel_enc_cycle != 0 && last_conf_transmission
-          + conf->tx.tel_enc_cycle < chVTGetSystemTime()) {
-
-
-        TRACE_INFO("BCN  > Transmit telemetry configuration");
-
-        // Encode and transmit telemetry config packet
-        for(uint8_t type = 0; type < 4; type++) {
-          packet = aprs_encode_telemetry_configuration(
-              conf->tx.call,
-              conf->tx.path,
-              APRS_DEVICE_CALLSIGN,
-              type);
-          if(packet == NULL) {
-            TRACE_WARN("BCN  > No free packet objects for"
-                       " telemetry transmission");
-          } else {
-            if(!transmitOnRadio(packet,
-                                conf->tx.radio_conf.freq,
-                                0,
-                                0,
-                                conf->tx.radio_conf.pwr,
-                                conf->tx.radio_conf.mod,
-                                conf->tx.radio_conf.cca)) {
-              TRACE_ERROR("BCN  > Failed to transmit telemetry data");
-            }
-            chThdSleep(TIME_S2I(5));
-          }
-        }
-
-        last_conf_transmission += conf->tx.tel_enc_cycle;
-      }
     }
-    time = waitForTrigger(time, conf->tx.interval);
+    time = waitForTrigger(time, conf->tx.cycle);
   }
 }
 
@@ -150,7 +148,7 @@ void start_beacon_thread(thd_aprs_conf_t *conf) {
                                      "BCN", LOWPRIO, bcnThread, conf);
   if(!th) {
     // Print startup error, do not start watchdog for this thread
-    TRACE_ERROR("BCN  > Could not startup thread (not enough memory available)");
+    TRACE_ERROR("BCN  > Could not start thread (not enough memory available)");
   }
 }
 

@@ -135,12 +135,11 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
     return false;
   }
 
-  uint16_t len = ax25_get_info(pp, NULL);
-
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio,
                                                       base_freq,
                                                       step,
-                                                      chan);
+                                                      chan,
+                                                      RADIO_TX);
   if(op_freq == FREQ_RADIO_INVALID) {
     TRACE_ERROR("RAD  > Transmit operating frequency of %d.%03d MHz is invalid",
                 op_freq/1000000, (op_freq%1000000)/1000);
@@ -152,16 +151,17 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
       return false;
   }
 
-  TRACE_INFO( "RAD  > %s transmit on %d.%03d MHz (ch %d),"
-      " Pwr %d, %s, cca %d, data %d",
-      (pp->nextp != NULL) ? "Burst" : "Packet",
-          op_freq/1000000, (op_freq%1000000)/1000,
-          chan, pwr, getModulation(mod), cca, len
-  );
-
+  uint16_t len = ax25_get_info(pp, NULL);
 
   /* Check information size. */
   if(AX25_MIN_INFO_LEN < len && len <= AX25_MAX_INFO_LEN) {
+
+    TRACE_INFO( "RAD  > %s transmit on %d.%03d MHz (ch %d),"
+        " PWR %d, %s, CCA %d, data %d",
+        (pp->nextp != NULL) ? "Burst" : "Packet",
+            op_freq/1000000, (op_freq%1000000)/1000,
+            chan, pwr, getModulation(mod), cca, len
+    );
 
     /* TODO: Check size of buf. */
     char buf[1024];

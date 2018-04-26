@@ -29,8 +29,8 @@ typedef enum {
 
 typedef struct {
 	sleep_type_t    type;
-	uint16_t        vbat_thres;
-	uint16_t        vsol_thres;
+	volt_level_t    vbat_thres;
+	volt_level_t    vsol_thres;
 } sleep_conf_t;
 
 typedef enum { // Modulation type
@@ -51,28 +51,28 @@ typedef enum {
 } resolution_t;
 
 typedef struct {
-	int8_t				pwr;
-	uint32_t			freq;	// 0: APRS region frequency (determined by geofencing), f>0 static frequency
-	mod_t				mod;
-	uint32_t			speed;
-	uint8_t             cca;
-	bool                redundantTx;
+  radio_pwr_t       pwr;
+  radio_freq_t      freq;	// 0: APRS region frequency (determined by geofencing), f>0 static frequency
+  mod_t             mod;
+  link_speed_t      speed;
+  radio_squelch_t   cca;
+  bool              redundantTx;
 } radio_tx_conf_t; // Radio / Modulation
 
 typedef struct {
-    uint32_t            freq;   // 0: APRS region frequency (determined by geofencing), f>0 static frequency
-    mod_t               mod;
-    uint32_t            speed;
-    uint8_t             rssi;
+  radio_freq_t      freq;   // 0: APRS region frequency (determined by geofencing), f>0 static frequency
+    mod_t           mod;
+    link_speed_t    speed;
+    radio_squelch_t rssi;
 } radio_rx_conf_t; // Radio / Modulation
 
 typedef struct {
-	bool				active;
-	sysinterval_t		init_delay;
-	sysinterval_t		send_spacing;
-	sleep_conf_t		sleep_conf;
-	sysinterval_t		cycle;				// Cycle time (0: continously)
-	sysinterval_t       duration;
+	bool            active;
+	sysinterval_t   init_delay;
+	sysinterval_t   send_spacing;
+	sleep_conf_t    sleep_conf;
+	sysinterval_t   cycle;				// Cycle time (0: continously)
+	sysinterval_t   duration;
 } thread_conf_t; // Thread
 
 typedef struct {
@@ -82,22 +82,22 @@ typedef struct {
 	// Protocol
 	char            call[AX25_MAX_ADDR_LEN];
 	char            path[16];
-	uint16_t        symbol;
+	aprs_sym_t      symbol;
     bool            aprs_msg;
-	sysinterval_t tel_enc_cycle;
+	sysinterval_t   tel_enc_cycle;
 } thd_pos_conf_t;
 
 typedef struct {
-	thread_conf_t thread_conf;
+	thread_conf_t   thread_conf;
 	radio_tx_conf_t radio_conf;
 
 	// Protocol
-	char call[AX25_MAX_ADDR_LEN];
-	char path[16];
+	char            call[AX25_MAX_ADDR_LEN];
+	char            path[16];
 
-	resolution_t res;						// Picture resolution
-	uint8_t quality;						// SSDV Quality ranging from 0-7
-	uint32_t buf_size;						// SRAM buffer size for the picture
+	resolution_t    res;					// Picture resolution
+	uint8_t         quality;				// SSDV Quality ranging from 0-7
+	uint32_t        buf_size;		    	// SRAM buffer size for the picture
 } thd_img_conf_t;
 
 typedef struct {
@@ -117,7 +117,7 @@ typedef struct {
 	radio_rx_conf_t radio_conf;
 
 	// Protocol
-	char call[AX25_MAX_ADDR_LEN];
+	char            call[AX25_MAX_ADDR_LEN];
 } thd_rx_conf_t;
 
 typedef struct {
@@ -126,14 +126,15 @@ typedef struct {
     // Protocol
     char            call[AX25_MAX_ADDR_LEN];
     char            path[16];
-    uint16_t        symbol;
-    uint8_t         rssi;                   // Squelch for CCA check
+    aprs_sym_t      symbol;
+    radio_squelch_t rssi;                   // Squelch for CCA check
     bool            enabled;
     bool            beacon;
-    int32_t         lat;
-    int32_t         lon;
-    int32_t         alt;
-    sysinterval_t   interval;                // Beacon interval (0: continously)
+    bool            gps;
+    gps_coord_t     lat;
+    gps_coord_t     lon;
+    gps_alt_t       alt;
+    sysinterval_t   cycle;                 // Beacon interval (0: continously)
     sysinterval_t   tel_enc_cycle;
 } thd_tx_conf_t;
 
@@ -144,7 +145,7 @@ typedef struct {
     thd_tx_conf_t   tx;
     thd_tx_conf_t   base;                   // Base station receiving unsolicited sends
     bool            dig_active;             // Digipeater active flag
-    uint32_t        freq;                   // Default APRS frequency if no GPS
+    radio_freq_t    freq;                   // Default APRS frequency if no GPS
 
 } thd_aprs_conf_t;
 
@@ -160,9 +161,9 @@ typedef struct {
 
 	bool			keep_cam_switched_on;	// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time
 
-	uint16_t		gps_on_vbat;			// Battery voltage threshold at which GPS is switched on
-	uint16_t		gps_off_vbat;			// Battery voltage threshold at which GPS is switched off
-	uint16_t		gps_onper_vbat;			// Battery voltage threshold at which GPS is kept switched on all time. This value must be larger
+	volt_level_t    gps_on_vbat;			// Battery voltage threshold at which GPS is switched on
+	volt_level_t    gps_off_vbat;			// Battery voltage threshold at which GPS is switched off
+	volt_level_t    gps_onper_vbat;			// Battery voltage threshold at which GPS is kept switched on all time. This value must be larger
 											// When gps_on_vbat and gps_off_vbat otherwise this value has no effect. Value 0 disables this feature
 	uint32_t        magic;                  // Key that indicates if the flash is loaded or has been updated
 	uint16_t        crc;                    // CRC to verify content

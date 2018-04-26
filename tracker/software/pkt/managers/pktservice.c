@@ -146,7 +146,7 @@ bool pktSystemDeinit(void) {
  *
  * @api
  */
-bool pktServiceCreate(radio_unit_t radio) {
+bool pktServiceCreate(const radio_unit_t radio) {
 
   /*
    * Get service object maps radio IDs to service objects
@@ -196,7 +196,7 @@ bool pktServiceCreate(radio_unit_t radio) {
  *
  * @api
  */
-bool pktServiceRelease(radio_unit_t radio) {
+bool pktServiceRelease(const radio_unit_t radio) {
 
   /*
    * Lookup radio and assign handler (RPKTDx).
@@ -229,7 +229,7 @@ bool pktServiceRelease(radio_unit_t radio) {
  *
  * @api
  */
-bool pktServiceHibernate(radio_unit_t radio) {
+bool pktServiceHibernate(const radio_unit_t radio) {
 
   /*
    * Get service object maps radio IDs to service objects
@@ -254,7 +254,7 @@ bool pktServiceHibernate(radio_unit_t radio) {
  *
  * @api
  */
-bool pktServiceWakeup(radio_unit_t radio) {
+bool pktServiceWakeup(const radio_unit_t radio) {
 
   /*
    * Lookup radio and assign handler (RPKTDx).
@@ -281,10 +281,10 @@ bool pktServiceWakeup(radio_unit_t radio) {
  *
  * @api
  */
-msg_t pktOpenRadioReceive(radio_unit_t radio,
-                           encoding_type_t encoding,
-                           radio_freq_t frequency,
-                           channel_hz_t ch_step) {
+msg_t pktOpenRadioReceive(const radio_unit_t radio,
+                          const encoding_type_t encoding,
+                          const radio_freq_t frequency,
+                          const channel_hz_t ch_step) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
   if(handler == NULL)
@@ -346,10 +346,10 @@ msg_t pktOpenRadioReceive(radio_unit_t radio,
  *
  * @api
  */
-msg_t pktEnableDataReception(radio_unit_t radio,
-                            radio_ch_t channel,
-                            radio_squelch_t sq,
-                            pkt_buffer_cb_t cb) {
+msg_t pktEnableDataReception(const radio_unit_t radio,
+                             const radio_ch_t channel,
+                             const radio_squelch_t sq,
+                             const pkt_buffer_cb_t cb) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
   if(handler == NULL)
@@ -386,7 +386,7 @@ msg_t pktEnableDataReception(radio_unit_t radio,
  *
  * @api
  */
-void pktStartDecoder(radio_unit_t radio) {
+void pktStartDecoder(const radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 

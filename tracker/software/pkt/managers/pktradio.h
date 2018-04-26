@@ -27,7 +27,7 @@
 #define PKT_RADIO_TASK_QUEUE_PREFIX     "radm_"
 
 /* The number of radio task object the FIFO has. */
-#define RADIO_TASK_QUEUE_MAX                    10
+#define RADIO_TASK_QUEUE_MAX            10
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
@@ -93,30 +93,32 @@ struct radioTask {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  thread_t  *pktRadioManagerCreate(radio_unit_t radio);
-  void      pktRadioManagerRelease(radio_unit_t radio);
+  thread_t  *pktRadioManagerCreate(const radio_unit_t radio);
+  void      pktRadioManagerRelease(const radio_unit_t radio);
   void      pktRadioManager(void *arg);
-  msg_t     pktGetRadioTaskObject(radio_unit_t radio,
-                              sysinterval_t timeout,
+  msg_t     pktGetRadioTaskObject(const radio_unit_t radio,
+                              const sysinterval_t timeout,
                               radio_task_object_t **rt);
-  void      pktSubmitRadioTask(radio_unit_t radio,
+  void      pktSubmitRadioTask(const radio_unit_t radio,
                           radio_task_object_t *object,
                           radio_task_cb_t cb);
   void      pktScheduleThreadRelease(radio_unit_t radio,
                                 thread_t *thread);
   msg_t     pktAcquireRadio(radio_unit_t radio, sysinterval_t timeout);
   void      pktReleaseRadio(radio_unit_t radio);
-  radio_freq_t pktComputeOperatingFrequency(radio_unit_t radio,
+  radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
                                             radio_freq_t base_freq,
                                             channel_hz_t step,
-                                            radio_ch_t chan);
-  bool pktIsRadioInBand(radio_unit_t radio, radio_freq_t freq);
-  bool      pktLLDresumeReceive(radio_unit_t radio);
+                                            radio_ch_t chan,
+                                            const radio_mode_t mode);
+  bool      pktIsRadioInBand(const radio_unit_t radio,
+                             const radio_freq_t freq);
+  bool      pktLLDresumeReceive(const radio_unit_t radio);
   bool      pktLLDsendPacket(radio_task_object_t *rto);
   void      pktScheduleSendComplete(radio_task_object_t *rto,
                                 thread_t *thread);
-  void      pktStartDecoder(radio_unit_t radio);
-  void      pktStopDecoder(radio_unit_t radio);
+  void      pktStartDecoder(const radio_unit_t radio);
+  void      pktStopDecoder(const radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif

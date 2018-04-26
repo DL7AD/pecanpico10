@@ -59,6 +59,8 @@ typedef struct {
 	uint32_t id;			// Serial ID
 	uint32_t gps_time;		// GPS time
 
+	uint8_t  gpio;          // GPIO states
+
 	uint32_t sys_time;		// System time (in seconds)
 	uint32_t sys_error;			// System error flags
                       /*

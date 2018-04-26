@@ -561,7 +561,8 @@ static bool Si446x_transmit(radio_unit_t radio,
                             radio_squelch_t rssi,
                             sysinterval_t cca_timeout) {
 
-  radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq, step, chan);
+  radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
+                                                      step, chan, RADIO_TX);
 
   if(!pktIsRadioInBand(radio, op_freq)) {
     TRACE_ERROR("SI   > Frequency out of range");
@@ -596,7 +597,7 @@ static bool Si446x_transmit(radio_unit_t radio,
     }
 
     /* Try to get clear channel. */
-    TRACE_INFO( "SI   > Run CCA for %.1f seconds on"
+    TRACE_INFO( "SI   > Wait up to %.1f seconds for CCA on"
         " %d.%03d MHz",
         (float32_t)(TIME_I2MS(cca_timeout) / 1000),
         op_freq/1000000, (op_freq%1000000)/1000);
@@ -640,7 +641,8 @@ bool Si446x_receiveNoLock(radio_unit_t radio,
                           radio_ch_t channel,
                           radio_squelch_t rssi,
                           mod_t mod) {
-  radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq, step, channel);
+  radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
+                                                      step, channel, RADIO_RX);
   /* TODO: compute f + s*c. */
   if(!pktIsRadioInBand(radio, op_freq)) {
     TRACE_ERROR("SI   > Frequency out of range");
@@ -702,7 +704,8 @@ bool Si4464_resumeReceive(radio_unit_t radio,
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio,
                                                       rx_frequency,
                                                         rx_step,
-                                                        rx_chan);
+                                                        rx_chan,
+                                                        RADIO_RX);
 
 
   TRACE_INFO( "SI   > Enable reception %d.%03d MHz (ch %d),"

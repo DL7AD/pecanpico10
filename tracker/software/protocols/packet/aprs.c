@@ -151,7 +151,14 @@ const conf_command_t command_list[] = {
     {TYPE_STR,  "aprs.tx.call",                  sizeof(conf_sram.aprs.tx.call),                              &conf_sram.aprs.tx.call                             },
     {TYPE_STR,  "aprs.tx.path",                  sizeof(conf_sram.aprs.tx.path),                              &conf_sram.aprs.tx.path                             },
     {TYPE_INT,  "aprs.tx.symbol",                sizeof(conf_sram.aprs.tx.symbol),                            &conf_sram.aprs.tx.symbol                           },
+    {TYPE_INT,  "aprs.tx.beacon",                sizeof(conf_sram.aprs.tx.beacon),                            &conf_sram.aprs.tx.beacon                           },
+    {TYPE_INT,  "aprs.tx.gps",                   sizeof(conf_sram.aprs.tx.gps),                               &conf_sram.aprs.tx.gps                              },
+    {TYPE_INT,  "aprs.tx.lat",                   sizeof(conf_sram.aprs.tx.lat),                               &conf_sram.aprs.tx.lat                              },
+    {TYPE_INT,  "aprs.tx.lon",                   sizeof(conf_sram.aprs.tx.lon),                               &conf_sram.aprs.tx.lon                              },
+    {TYPE_INT,  "aprs.tx.alt",                   sizeof(conf_sram.aprs.tx.alt),                               &conf_sram.aprs.tx.alt                              },
+    {TYPE_INT,  "aprs.tx.cycle"  ,               sizeof(conf_sram.aprs.tx.cycle),                             &conf_sram.aprs.tx.cycle                            },
     {TYPE_INT,  "aprs.dig_active",               sizeof(conf_sram.aprs.dig_active),                           &conf_sram.aprs.dig_active                          },
+    {TYPE_INT,  "aprs.freq",                     sizeof(conf_sram.aprs.freq),                                 &conf_sram.aprs.freq                                },
     {TYPE_INT,  "keep_cam_switched_on",          sizeof(conf_sram.keep_cam_switched_on),                      &conf_sram.keep_cam_switched_on                     },
 	{TYPE_INT,  "gps_on_vbat",                   sizeof(conf_sram.gps_on_vbat),                               &conf_sram.gps_on_vbat                              },
 	{TYPE_INT,  "gps_off_vbat",                  sizeof(conf_sram.gps_off_vbat),                              &conf_sram.gps_off_vbat                             },
@@ -264,15 +271,16 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 }
 
 /**
- * @brief  Transmit APRS position packet.
+ * @brief  Transmit APRS position and telemetry packet.
+ * @notes  Base 91 telemetry encoding is used.
  * @notes  The comments are filled with:
- * @notes  - Static comment (can be set in config.h)
  * @notes  - Battery voltage in mV
  * @notes  - Solar voltage in mW (if tracker is solar-enabled)
  * @notes  - Temperature in Celcius
  * @notes  - Air pressure in Pascal
  * @notes  - Number of satellites being used
  * @notes  - Number of cycles where GPS has been lost (if applicable in cycle)
+ * @notes  - State of GPIO port(s)
  *
  * @param[in] callsign  origination call sign
  * @param[in] path      path to use
@@ -282,7 +290,7 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
  * @return    encoded packet object pointer
  * @retval    NULL if encoding failed
  */
-packet_t aprs_encode_position(const char *callsign,
+packet_t aprs_encode_position_and_telemetry(const char *callsign,
                               const char *path, uint16_t symbol,
                               dataPoint_t *dataPoint) {
 	// Latitude
@@ -339,12 +347,13 @@ packet_t aprs_encode_position(const char *callsign,
 
 	xmit[len+len2+13] = '|';
 
+	/* APRS base91 encoded telemetry. */
 	// Sequence ID
 	uint32_t t = dataPoint->id & 0x1FFF;
 	xmit[len+len2+14] = t/91 + 33;
 	xmit[len+len2+15] = t%91 + 33;
 
-	// Telemetry parameter
+	// Telemetry analog parameters
 	for(uint8_t i=0; i<5; i++) {
 		switch(i) {
 			case 0: t = dataPoint->adc_vbat;				break;
@@ -358,8 +367,13 @@ packet_t aprs_encode_position(const char *callsign,
 		xmit[len+len2+16+i*2+1] = t%91 + 33;
 	}
 
-	xmit[len+len2+26] = '|';
-	xmit[len+len2+27] = 0;
+    // Telemetry digital parameter
+    xmit[len+len2+26] = dataPoint->gpio + 33;
+
+    /* Digital bits second byte - set zero. */
+    xmit[len+len2+27] = 33;
+    xmit[len+len2+28] = '|';
+	xmit[len+len2+29] = 0;
 
 	return ax25_from_text(xmit, true);
 }
@@ -657,7 +671,7 @@ msg_t aprs_send_position_beacon(aprs_identity_t *id,
 
   TRACE_INFO("RX   > Message: Position query");
   dataPoint_t* dataPoint = getLastDataPoint();
-  packet_t pp = aprs_encode_position(id->call,
+  packet_t pp = aprs_encode_position_and_telemetry(id->call,
                                      id->path,
                                      id->symbol,
                                      dataPoint);
@@ -913,7 +927,7 @@ static bool aprs_decode_message(packet_t pp) {
   identity.mod = conf_sram.aprs.tx.radio_conf.mod;
   identity.cca = conf_sram.aprs.tx.radio_conf.cca;
 
-  /* Check which nodes are enabled to accept aprs messages. */
+  /* Check which nodes are enabled to accept APRS messages. */
   bool pos_pri = !strcmp(conf_sram.pos_pri.call, dest)
 	        && (conf_sram.pos_pri.aprs_msg)
 	        && (conf_sram.pos_pri.thread_conf.active);
@@ -936,13 +950,14 @@ static bool aprs_decode_message(packet_t pp) {
   bool aprs_rx = !strcmp(conf_sram.aprs.rx.call, dest)
             && (conf_sram.aprs.thread_conf.active);
   if(aprs_rx) {
-    /* Parameters come from tx. */
+    strcpy(identity.call, conf_sram.aprs.rx.call);
+    /* Other parameters come from tx identity. */
   }
 
   bool aprs_tx = !strcmp(conf_sram.aprs.tx.call, dest)
             && (conf_sram.aprs.thread_conf.active)
             && (conf_sram.aprs.dig_active);
-  /* Default already set for tx. */
+  /* Default already set tx parameters. */
 
   /* Check if this is message and address is one of the nodes on this device. */
   if(!((pinfo[10] == ':') && (pos_pri || pos_sec || aprs_rx || aprs_tx))) {
@@ -1078,13 +1093,21 @@ packet_t aprs_encode_telemetry_configuration(const char *originator,
                                              uint8_t type) {
 	switch(type) {
 		case 0:	return aprs_encode_message(originator, path, destination,
-		       	        "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure", false);
+#if     ENABLE_EXTERNAL_I2C == TRUE
+		      "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure,IO1", false);
+#else
+              "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure,IO1,IO2,IO3", false);
+#endif
 		case 1: return aprs_encode_message(originator, path, destination,
-		                "UNIT.V,V,W,degC,Pa", false);
+#if     ENABLE_EXTERNAL_I2C == TRUE
+		      "UNIT.V,V,W,degC,Pa,1", false);
+#else
+              "UNIT.V,V,W,degC,Pa,1,1,1", false);
+#endif
 		case 2: return aprs_encode_message(originator, path, destination,
-		                 "EQNS.0,.001,0,0,.001,0,0,.001,-4.096,0,.1,-100,0,12.5,500", false);
+                 "EQNS.0,.001,0,0,.001,0,0,.001,-4.096,0,.1,-100,0,12.5,500", false);
 		case 3: return aprs_encode_message(originator, path, destination,
-		                  "BITS.11111111,", false);
+                 "BITS.11111111,", false);
 		default: return NULL;
 	}
 }

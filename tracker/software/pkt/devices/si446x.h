@@ -202,12 +202,6 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
-typedef enum radioMode {
-  RADIO_RX,
-  RADIO_TX,
-  RADIO_CCA
-} radio_mode_t;
-
 typedef struct {
   uint32_t phase_delta;            // 1200/2200 for standard AX.25
   uint32_t phase;                  // Fixed point 9.7 (2PI = TABLE_SIZE)

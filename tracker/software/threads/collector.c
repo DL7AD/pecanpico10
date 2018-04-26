@@ -23,6 +23,7 @@
 static dataPoint_t dataPoints[2];
 static dataPoint_t* lastDataPoint;
 static bool threadStarted = false;
+static uint8_t attached = 0;
 
 /**
   * Returns most recent data point which is complete.
@@ -200,7 +201,7 @@ static void getSensors(dataPoint_t* tp)
 		bme280_error |= 0x10;
 	}
 #else
-	/* Set status to "not installed". */
+	/* Set status to "not fitted". */
 	bme280_error |= 0x28;
 #endif
 	// Measure various temperature sensors
@@ -209,6 +210,19 @@ static void getSensors(dataPoint_t* tp)
 
 	// Measure light intensity from OV5640
 	tp->light_intensity = OV5640_getLastLightIntensity() & 0xFFFF;
+}
+
+/*
+ * Get the state of GPIOs available on edge connector.
+ */
+static void getGPIO(dataPoint_t* tp) {
+#if     ENABLE_EXTERNAL_I2C == TRUE
+  tp->gpio = palReadLine(LINE_GPIO_PIN);
+#else
+  tp->gpio = palReadLine(LINE_GPIO_PIN)
+      | palReadLine(LINE_IO_TXD) << 1
+      | palReadLine(LINE_IO_RXD) << 2;
+#endif
 }
 
 /*
@@ -245,7 +259,7 @@ static void setSystemStatus(dataPoint_t* tp) {
   * Data Collector (Thread)
   */
 THD_FUNCTION(collectorThread, arg) {
-	(void)arg;
+	uint8_t *attached = arg;
 
 	uint32_t id = 0;
 	lastDataPoint = &dataPoints[0];
@@ -259,7 +273,7 @@ THD_FUNCTION(collectorThread, arg) {
 	TRACE_INFO("COLL > Read last data point from flash memory");
 	dataPoint_t* lastLogPoint = flash_getNewestLogEntry();
 
-	if(lastLogPoint != NULL) { // If there has been stored a data point, then get the last know GPS fix
+	if(lastLogPoint != NULL) { // If there is stored data point, then get the last know GPS fix
 		dataPoints[0].reset     = lastLogPoint->reset+1;
 		dataPoints[1].reset     = lastLogPoint->reset+1;
 		lastDataPoint->gps_lat  = lastLogPoint->gps_lat;
@@ -288,6 +302,7 @@ THD_FUNCTION(collectorThread, arg) {
 	// Measure telemetry
 	measureVoltage(lastDataPoint);
 	getSensors(lastDataPoint);
+	getGPIO(lastDataPoint);
 	setSystemStatus(lastDataPoint);
 
 	// Write data point to Flash memory
@@ -304,28 +319,34 @@ THD_FUNCTION(collectorThread, arg) {
 		dataPoint_t* tp  = &dataPoints[(id+1) % 2]; // Current data point (the one which is processed now)
 		dataPoint_t* ltp = &dataPoints[ id    % 2]; // Last data point
 
-		// Determine cycle time
+		// Determine cycle time and if GPS should be used.
 		sysinterval_t data_cycle_time = TIME_S2I(600);
 		if(conf_sram.pos_pri.thread_conf.active && conf_sram.pos_sec.thread_conf.active) { // Both position threads are active
 			data_cycle_time = conf_sram.pos_pri.thread_conf.cycle < conf_sram.pos_sec.thread_conf.cycle ? conf_sram.pos_pri.thread_conf.cycle : conf_sram.pos_sec.thread_conf.cycle; // Choose the smallest cycle
+			(*attached)++;
 		} else if(conf_sram.pos_pri.thread_conf.active) { // Only primary position thread is active
 			data_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
+            (*attached)++;
 		} else if(conf_sram.pos_sec.thread_conf.active) { // Only secondary position thread is active
 			data_cycle_time = conf_sram.pos_sec.thread_conf.cycle;
+            (*attached)++;
         } else if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.tx.beacon) { // APRS beacon is active
             data_cycle_time = conf_sram.pos_sec.thread_conf.cycle;
+            if(conf_sram.aprs.tx.gps)
+              (*attached)++;
 		} else { // There must be an error
 			TRACE_ERROR("COLL > Data collector started but no position thread is active");
 		}
 
 		// Get GPS position
-		aquirePosition(tp, ltp, data_cycle_time - TIME_S2I(3));
+		if(*attached) aquirePosition(tp, ltp, data_cycle_time - TIME_S2I(3));
 
 		tp->id = ++id; // Serial ID
 
 		// Measure telemetry
 		measureVoltage(tp);
 		getSensors(tp);
+	    getGPIO(tp);
 		setSystemStatus(tp);
 
 		// Trace data
@@ -335,13 +356,24 @@ THD_FUNCTION(collectorThread, arg) {
 					"%s Pos  %d.%05d %d.%05d Alt %dm\r\n"
 					"%s Sats %d TTFF %dsec\r\n"
 					"%s ADC Vbat=%d.%03dV Vsol=%d.%03dV Pbat=%dmW\r\n"
-					"%s AIR p=%d.%01dPa T=%d.%02ddegC phi=%d.%01d%%",
+					"%s AIR p=%d.%01dPa T=%d.%02ddegC phi=%d.%01d%%\r\n"
+#if     ENABLE_EXTERNAL_I2C == TRUE
+                    "%s IO IO1=%d",
+
+#else
+                    "%s IO IO1=%d IO2=%d IO3=%d",
+#endif
 					tp->id,
 					TRACE_TAB, time.year, time.month, time.day, time.hour, time.minute, time.day,
 					TRACE_TAB, tp->gps_lat/10000000, (tp->gps_lat > 0 ? 1:-1)*(tp->gps_lat/100)%100000, tp->gps_lon/10000000, (tp->gps_lon > 0 ? 1:-1)*(tp->gps_lon/100)%100000, tp->gps_alt,
 					TRACE_TAB, tp->gps_sats, tp->gps_ttff,
 					TRACE_TAB, tp->adc_vbat/1000, (tp->adc_vbat%1000), tp->adc_vsol/1000, (tp->adc_vsol%1000), tp->pac_pbat,
-					TRACE_TAB, tp->sen_i1_press/10, tp->sen_i1_press%10, tp->sen_i1_temp/100, tp->sen_i1_temp%100, tp->sen_i1_hum/10, tp->sen_i1_hum%10
+					TRACE_TAB, tp->sen_i1_press/10, tp->sen_i1_press%10, tp->sen_i1_temp/100, tp->sen_i1_temp%100, tp->sen_i1_hum/10, tp->sen_i1_hum%10,
+#if     ENABLE_EXTERNAL_I2C == TRUE
+                    TRACE_TAB, tp->gpio & 1
+#else
+                    TRACE_TAB, tp->gpio & 1, (tp->gpio >> 1) & 1, (tp->gpio >> 2) & 1
+#endif
 		);
 
 		// Write data point to Flash memory
@@ -358,8 +390,7 @@ THD_FUNCTION(collectorThread, arg) {
 /*
  *
  */
-void init_data_collector(void)
-{
+void init_data_collector() {
 	if(!threadStarted) {
 
 	  threadStarted = true;
@@ -368,7 +399,7 @@ void init_data_collector(void)
 		thread_t *th = chThdCreateFromHeap(NULL,
 		                                   THD_WORKING_AREA_SIZE(10*1024),
 		                                   "TRA", LOWPRIO,
-		                                   collectorThread, NULL);
+		                                   collectorThread, &attached);
 		if(!th) {
 			// Print startup error, do not start watchdog for this thread
 			TRACE_ERROR("COLL > Could not start"
