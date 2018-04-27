@@ -57,8 +57,10 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
     tp->gps_state = GPS_LOWBATT1;
   } else {
 
-    // Switch on GPS
-    bool airborne = ltp->sen_i1_press/10 < conf_sram.gps_airborne;
+    /* Switch on GPS
+     * If BMEi1 is OK then use air pressure to decide if airborne mode is set.
+     */
+    bool airborne = !(ltp->sys_error & 0x10) && ltp->sen_i1_press/10 < conf_sram.gps_airborne;
     TRACE_INFO("COLL > GPS %s in airborne mode", airborne ? "is" : "is not");
     bool status = GPS_Init(airborne);
 

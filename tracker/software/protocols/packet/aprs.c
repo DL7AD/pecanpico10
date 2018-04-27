@@ -675,9 +675,9 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
   if(argc != 1)
     return MSG_ERROR;
 
-  char *tok = strtok(argv[0], ":");
+/*  char *tok = strtok(argv[0], ":");
   if(tok == NULL)
-    return MSG_ERROR;
+    return MSG_ERROR;*/
 
   /* TODO: WIP to generalize by parsing out the port # and operation. */
   if(!strcmp(argv[0], "io1:1")) {
