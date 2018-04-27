@@ -30,6 +30,7 @@ typedef struct {
 
 uint8_t gps_set_gps_only(void);
 uint8_t gps_disable_nmea_output(void);
+uint8_t gps_set_portable_model(void);
 uint8_t gps_set_airborne_model(void);
 uint8_t gps_set_power_save(void);
 uint8_t gps_power_save(int on);

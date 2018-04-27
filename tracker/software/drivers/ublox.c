@@ -311,6 +311,44 @@ uint8_t gps_disable_nmea_output(void) {
 }
 
 /**
+  * gps_set_portable_model
+  *
+  * tells the GPS to use the portable positioning model.
+  *
+  * working uBlox MAX-M8Q
+  *
+  * returns if ACKed by GPS
+  *
+  */
+uint8_t gps_set_portable_model(void) {
+    uint8_t model6[] = {
+        0xB5, 0x62, 0x06, 0x24, 0x24, 0x00,     // UBX-CFG-NAV5
+        0xFF, 0xFF,                             // parameter bitmask
+        0x00,                                   // dynamic model
+        0x03,                                   // fix mode
+        0x00, 0x00, 0x00, 0x00,                 // 2D fix altitude
+        0x10, 0x27, 0x00, 0x00,                 // 2D fix altitude variance
+        0x05,                                   // minimum elevation
+        0x00,                                   // reserved
+        0xFA, 0x00,                             // position DOP
+        0xFA, 0x00,                             // time DOP
+        0x64, 0x00,                             // position accuracy
+        0x2C, 0x01,                             // time accuracy
+        0x00,                                   // static hold threshold
+        0x3C,                                   // DGPS timeout
+        0x00,                                   // min. SVs above C/No thresh
+        0x00,                                   // C/No threshold
+        0x00, 0x00,                             // reserved
+        0xc8, 0x00,                             // static hold max. distance
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // reserved
+        0x00, 0x00                              // CRC place holders
+    };
+
+    gps_transmit_string(model6, sizeof(model6));
+    return gps_receive_ack(0x06, 0x24, 1000);
+}
+
+/**
   * gps_set_airborne_model
   *
   * tells the GPS to use the airborne positioning model. Should be used to
@@ -438,6 +476,16 @@ bool GPS_Init(bool airborne) {
           TRACE_INFO("GPS  > ... Set airborne model OK");
       } else {
           TRACE_ERROR("GPS  > Communication Error [set airborne]");
+          return false;
+      }
+    } else {
+      /* Set portable model. */
+      cntr = 3;
+      while((status = gps_set_portable_model()) == false && cntr--);
+      if(status) {
+          TRACE_INFO("GPS  > ... Set portable model OK");
+      } else {
+          TRACE_ERROR("GPS  > Communication Error [set portable]");
           return false;
       }
     }
