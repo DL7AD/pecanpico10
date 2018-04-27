@@ -11,8 +11,8 @@ typedef enum {
 	GPS_LOSS,		// The GPS was switched on all time but it couln't acquire a fix
 	GPS_LOWBATT1,	// The GPS wasn't switched on because the battery has not enough energy
 	GPS_LOWBATT2,	// The GPS was switched on but has been switched off prematurely while the battery has not enough energy (or is too cold)
-	GPS_LOG,		// The tracker has been just switched on and the position has been taken from the log
-	GPS_OFF,		// There is no active position thread so the GPS was never switched on (in oder to save power)
+	GPS_LOG,		// The tracker has just been switched on and the position has been taken from the log
+	GPS_OFF,		// There was no prior acquisition by GPS
 	GPS_ERROR,		// The GPS has a communication error
     GPS_FIXED       // Fixed location data used from APRS location
 } gpsState_t;
@@ -32,19 +32,20 @@ typedef struct {
 	gpsState_t gps_state;	// GPS state
 	uint8_t gps_sats;		// Satellites used for solution
 	uint8_t gps_ttff;		// Time to first fix in seconds
-	uint8_t gps_pdop;		// Position DOP in 0.05 per unit (unitless)
+	uint8_t gps_pdop;		// Position DOP in 0.05 per arbitrary unit
 	uint16_t gps_alt;		// Altitude in meter
-	int32_t gps_lat;		// Latitude in 10^(-7)째 per unit
-	int32_t gps_lon;		// Longitude in 10^(-7)째 per unit
+	int32_t gps_lat;		// Latitude in 10^(-7)� per unit
+	int32_t gps_lon;		// Longitude in 10^(-7)� per unit
 
 	// BME280 (on board)
 	uint32_t sen_i1_press;		// Airpressure in Pa*10 (in 0.1Pa)
 	uint32_t sen_e1_press;		// Airpressure in Pa*10 (in 0.1Pa)
 	uint32_t sen_e2_press;		// Airpressure in Pa*10 (in 0.1Pa)
 
-	int16_t sen_i1_temp;		// Temperature in 0.01째C per unit
-	int16_t sen_e1_temp;		// Temperature in 0.01째C per unit
-	int16_t sen_e2_temp;		// Temperature in 0.01째C per unit
+    // BME280 (off board)
+	int16_t sen_i1_temp;		// Temperature in 0.01캜 per unit
+	int16_t sen_e1_temp;		// Temperature in 0.01캜 per unit
+	int16_t sen_e2_temp;		// Temperature in 0.01캜 per unit
 
 	uint8_t sen_i1_hum;			// Rel. humidity in %
 	uint8_t sen_e1_hum;			// Rel. humidity in %
@@ -72,8 +73,8 @@ typedef struct {
                        * -  3:4  pac1720 status
                        * -  5:7  OV5640 status
                        * -  8:9  BMEi1 status (0 = OK, 1 = Fail, 2 = Not fitted)
-                       * -  9:10 BMEe1 status (0 = OK, 1 = Fail, 2 = Not fitted)
-                       * - 10:11 BMEe2 status (0 = OK, 1 = Fail, 2 = Not fitted)
+                       * - 10:11 BMEe1 status (0 = OK, 1 = Fail, 2 = Not fitted)
+                       * - 12:13 BMEe2 status (0 = OK, 1 = Fail, 2 = Not fitted)
                        */
 } dataPoint_t;
 
@@ -82,5 +83,5 @@ dataPoint_t* getLastDataPoint(void);
 
 void init_data_collector(void);
 
-#endif
+#endif /* __COLLECTOR_H__ */
 

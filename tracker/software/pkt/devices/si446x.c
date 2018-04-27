@@ -609,7 +609,7 @@ static bool Si446x_transmit(radio_unit_t radio,
       chThdSleep(TIME_MS2I(1));
     }
     /* Clear channel timing. */
-    TRACE_INFO( "SI   > CCA completed in %d milliseconds",
+    TRACE_INFO( "SI   > CCA attained in %d milliseconds",
                 chTimeI2MS(chVTTimeElapsedSinceX(t0)));
   }
 
@@ -1298,7 +1298,7 @@ int16_t Si446x_getLastTemperature(radio_unit_t radio) {
       pktAcquireRadio(radio, TIME_INFINITE);
       // Temperature readout
       lastTemp = Si446x_getTemperature(radio);
-      TRACE_INFO("SI   > Transmitter temperature %d degC\r\n", lastTemp/100);
+      TRACE_INFO("SI   > Transmitter temperature %d degC", lastTemp/100);
       pktReleaseRadio(radio);
     } else {
       TRACE_INFO("SI   > Transmitter temperature not available");

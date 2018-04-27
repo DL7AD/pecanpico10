@@ -395,7 +395,7 @@ uint8_t gps_power_save(int on) {
 	return gps_receive_ack(0x06, 0x11, 1000);
 }
 
-bool GPS_Init(void) {
+bool GPS_Init(bool airborne) {
 	// Initialize pins
 	TRACE_INFO("GPS  > Init pins");
 	palSetLineMode(LINE_GPS_RESET, PAL_MODE_OUTPUT_PUSHPULL);	// GPS reset
@@ -431,15 +431,16 @@ bool GPS_Init(void) {
 		return false;
 	}
 
-	cntr = 3;
-	while((status = gps_set_airborne_model()) == false && cntr--);
-	if(status) {
-		TRACE_INFO("GPS  > ... Set airborne model OK");
-	} else {
-		TRACE_ERROR("GPS  > Communication Error [set airborne]");
-		return false;
-	}
-
+    if(airborne) {
+      cntr = 3;
+      while((status = gps_set_airborne_model()) == false && cntr--);
+      if(status) {
+          TRACE_INFO("GPS  > ... Set airborne model OK");
+      } else {
+          TRACE_ERROR("GPS  > Communication Error [set airborne]");
+          return false;
+      }
+    }
 	return true;
 }
 

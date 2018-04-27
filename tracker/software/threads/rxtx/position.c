@@ -77,7 +77,9 @@ THD_FUNCTION(posThread, arg)
 			// Encode/Transmit position packet
 			packet_t packet = aprs_encode_position_and_telemetry(conf->call,
 			                                       conf->path,
-			                                       conf->symbol, dataPoint);
+			                                       conf->symbol,
+			                                       dataPoint,
+			                                       true);
             if(packet == NULL) {
               TRACE_WARN("POS  > No free packet objects"
                   " for position transmission");

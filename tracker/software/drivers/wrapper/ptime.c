@@ -70,7 +70,7 @@ void getTime(ptime_t *date) {
 	RTCDateTime timespec;
 	rtcGetTime(&RTCD1, &timespec);
 
-	date->year = timespec.year + 2000;
+	date->year = timespec.year + RTC_BASE_YEAR;
 	date->month = timespec.month;
 	date->day = timespec.day;
 	date->hour = timespec.millisecond / 3600000;
@@ -85,7 +85,7 @@ void getTime(ptime_t *date) {
 void setTime(ptime_t *date) {
 	TRACE_INFO("GPS  > Calibrate RTC");
 	RTCDateTime timespec;
-	timespec.year = date->year - 2000;
+	timespec.year = date->year - RTC_BASE_YEAR;
 	timespec.month = date->month;
 	timespec.day = date->day;
 	timespec.millisecond = date->hour * 3600000 + date->minute * 60000 + date->second * 1000;

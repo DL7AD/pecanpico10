@@ -23,7 +23,7 @@
 static dataPoint_t dataPoints[2];
 static dataPoint_t* lastDataPoint;
 static bool threadStarted = false;
-static uint8_t attached = 0;
+static uint8_t useGPS = 0;
 
 /**
   * Returns most recent data point which is complete.
@@ -46,94 +46,99 @@ void waitForNewDataPoint(void) {
  */
 static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
                            sysinterval_t timeout) {
-	sysinterval_t start = chVTGetSystemTime();
+  sysinterval_t start = chVTGetSystemTime();
 
-	gpsFix_t gpsFix;
-	memset(&gpsFix, 0, sizeof(gpsFix_t));
+  gpsFix_t gpsFix;
+  memset(&gpsFix, 0, sizeof(gpsFix_t));
 
-	// Switch on GPS if enough power is available and GPS is needed by any position thread
-	uint16_t batt = stm32_get_vbat();
-	if(batt < conf_sram.gps_on_vbat) {
-		tp->gps_state = GPS_LOWBATT1;
-	} else {
+  // Switch on GPS if enough power is available and GPS is needed by any position thread
+  uint16_t batt = stm32_get_vbat();
+  if(batt < conf_sram.gps_on_vbat) {
+    tp->gps_state = GPS_LOWBATT1;
+  } else {
 
-		// Switch on GPS
-		bool status = GPS_Init();
+    // Switch on GPS
+    bool airborne = ltp->sen_i1_press/10 < conf_sram.gps_airborne;
+    TRACE_INFO("COLL > GPS %s in airborne mode", airborne ? "is" : "is not");
+    bool status = GPS_Init(airborne);
 
-		if(status) {
-			// Search for lock as long as enough power is available
-			do {
-				batt = stm32_get_vbat();
-				gps_get_fix(&gpsFix);
-			} while(!isGPSLocked(&gpsFix)
-			    && batt >= conf_sram.gps_off_vbat
-			    && chVTIsSystemTimeWithin(start, start + timeout)); // Do as long no GPS lock and within timeout, timeout=cycle-1sec (-3sec in order to keep synchronization)
+    if(status) {
+      // Search for lock as long as enough power is available
+      do {
+        batt = stm32_get_vbat();
+        gps_get_fix(&gpsFix);
+      } while(!isGPSLocked(&gpsFix)
+          && batt >= conf_sram.gps_off_vbat
+          && chVTIsSystemTimeWithin(start, start + timeout)); // Do as long no GPS lock and within timeout, timeout=cycle-1sec (-3sec in order to keep synchronization)
 
-			if(batt < conf_sram.gps_off_vbat) { // GPS was switched on but prematurely switched off because the battery is low on power, switch off GPS
+      if(batt < conf_sram.gps_off_vbat) { // GPS was switched on but prematurely switched off because the battery is low on power, switch off GPS
 
-				GPS_Deinit();
-				TRACE_WARN("COLL > GPS sampling finished GPS LOW BATT");
-				tp->gps_state = GPS_LOWBATT2;
+        GPS_Deinit();
+        TRACE_WARN("COLL > GPS sampling finished GPS LOW BATT");
+        tp->gps_state = GPS_LOWBATT2;
 
-			} else if(!isGPSLocked(&gpsFix)) { // GPS was switched on but it failed to get a lock, keep GPS switched on
+      } else if(!isGPSLocked(&gpsFix)) { // GPS was switched on but it failed to get a lock, keep GPS switched on
 
-				TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
-				tp->gps_state = GPS_LOSS;
+        TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
+        tp->gps_state = GPS_LOSS;
 
-			} else { // GPS locked successfully, switch off GPS (unless cycle is less than 60 seconds)
+      } else { // GPS locked successfully, switch off GPS (unless cycle is less than 60 seconds)
 
-				// Switch off GPS (if cycle time is more than 60 seconds)
-				if(timeout < TIME_S2I(60)) {
-					TRACE_INFO("COLL > Keep GPS switched on because cycle < 60sec");
-					tp->gps_state = GPS_LOCKED2;
-				} else if(conf_sram.gps_onper_vbat != 0 && batt >= conf_sram.gps_onper_vbat) {
-					TRACE_INFO("COLL > Keep GPS switched on because VBAT >= %dmV", conf_sram.gps_onper_vbat);
-					tp->gps_state = GPS_LOCKED2;
-				} else {
-					TRACE_INFO("COLL > Switch off GPS");
-					GPS_Deinit();
-					tp->gps_state = GPS_LOCKED1;
-				}
+        // Switch off GPS (if cycle time is more than 60 seconds)
+        if(timeout < TIME_S2I(60)) {
+          TRACE_INFO("COLL > Keep GPS switched on because cycle < 60sec");
+          tp->gps_state = GPS_LOCKED2;
+        } else if(conf_sram.gps_onper_vbat != 0 && batt >= conf_sram.gps_onper_vbat) {
+          TRACE_INFO("COLL > Keep GPS switched on because VBAT >= %dmV", conf_sram.gps_onper_vbat);
+          tp->gps_state = GPS_LOCKED2;
+        } else {
+          TRACE_INFO("COLL > Switch off GPS");
+          GPS_Deinit();
+          tp->gps_state = GPS_LOCKED1;
+        }
 
-				// Debug
-				TRACE_INFO("COLL > GPS sampling finished GPS LOCK");
+        // Debug
+        TRACE_INFO("COLL > GPS sampling finished GPS LOCK");
 
-				// Calibrate RTC
-				setTime(&gpsFix.time);
+        // Calibrate RTC
+        setTime(&gpsFix.time);
 
-				// Take time from GPS
-				tp->gps_time = date2UnixTimestamp(&gpsFix.time);
+        // Take time from GPS
+        tp->gps_time = date2UnixTimestamp(&gpsFix.time);
 
-				// Set new GPS fix
-				tp->gps_lat = gpsFix.lat;
-				tp->gps_lon = gpsFix.lon;
-				tp->gps_alt = gpsFix.alt;
+        // Set new GPS fix
+        tp->gps_lat = gpsFix.lat;
+        tp->gps_lon = gpsFix.lon;
+        tp->gps_alt = gpsFix.alt;
 
-				tp->gps_sats = gpsFix.num_svs;
-				tp->gps_pdop = (gpsFix.pdop+3)/5;
-			}
+        tp->gps_sats = gpsFix.num_svs;
+        tp->gps_pdop = (gpsFix.pdop+3)/5;
+      }
 
-		} else { // GPS communication error
+    } else { // GPS communication error
 
-			GPS_Deinit();
-			tp->gps_state = GPS_ERROR;
+      GPS_Deinit();
+      tp->gps_state = GPS_ERROR;
 
-		}
-	}
+    }
+  }
 
-	tp->gps_ttff = TIME_I2S(chVTGetSystemTime() - start); // Time to first fix
+  tp->gps_ttff = TIME_I2S(chVTGetSystemTime() - start); // Time to first fix
 
-	if(tp->gps_state != GPS_LOCKED1 && tp->gps_state != GPS_LOCKED2) { // We have no valid GPS fix
-		// Take time from internal RTC
-		ptime_t time;
-		getTime(&time);
-		tp->gps_time = date2UnixTimestamp(&time);
+  if(tp->gps_state != GPS_LOCKED1 && tp->gps_state != GPS_LOCKED2) { // We have no valid GPS fix
+    // Take time from internal RTC
+    ptime_t time;
+    getTime(&time);
+    if(time.year != RTC_BASE_YEAR) {
+      /* RTC has been set so OK to use data. */
+      tp->gps_time = date2UnixTimestamp(&time);
 
-		// Take GPS fix from old lock
-		tp->gps_lat = ltp->gps_lat;
-		tp->gps_lon = ltp->gps_lon;
-		tp->gps_alt = ltp->gps_alt;
-	}
+      // Take GPS fix from old lock
+      tp->gps_lat = ltp->gps_lat;
+      tp->gps_lon = ltp->gps_lon;
+      tp->gps_alt = ltp->gps_alt;
+    } /* Else don't set tp data since RTC is not valid. */
+  }
 }
 
 /*
@@ -259,132 +264,179 @@ static void setSystemStatus(dataPoint_t* tp) {
   * Data Collector (Thread)
   */
 THD_FUNCTION(collectorThread, arg) {
-	uint8_t *attached = arg;
+  uint8_t *useGPS = arg;
 
-	uint32_t id = 0;
-	lastDataPoint = &dataPoints[0];
+  uint32_t id = 0;
 
-	// Read time from RTC
-	ptime_t time;
-	getTime(&time);
-	lastDataPoint->gps_time = date2UnixTimestamp(&time);
+  // Read time from RTC
+  ptime_t time;
+  getTime(&time);
+  dataPoints[0].gps_time = date2UnixTimestamp(&time);
+  dataPoints[1].gps_time = date2UnixTimestamp(&time);
 
-	// Get last data point from memory
-	TRACE_INFO("COLL > Read last data point from flash memory");
-	dataPoint_t* lastLogPoint = flash_getNewestLogEntry();
+  lastDataPoint = &dataPoints[0];
 
-	if(lastLogPoint != NULL) { // If there is stored data point, then get the last know GPS fix
-		dataPoints[0].reset     = lastLogPoint->reset+1;
-		dataPoints[1].reset     = lastLogPoint->reset+1;
-		lastDataPoint->gps_lat  = lastLogPoint->gps_lat;
-		lastDataPoint->gps_lon  = lastLogPoint->gps_lon;
-		lastDataPoint->gps_alt  = lastLogPoint->gps_alt;
-		lastDataPoint->gps_sats = lastLogPoint->gps_sats;
-		lastDataPoint->gps_ttff = lastLogPoint->gps_ttff;
+  // Get last data point from memory
+  TRACE_INFO("COLL > Read last data point from flash memory");
+  dataPoint_t* lastLogPoint = flash_getNewestLogEntry();
 
-		TRACE_INFO(
-			"COLL > Last data point (from memory)\r\n"
-			"%s Reset %d ID %d\r\n"
-			"%s Latitude: %d.%07ddeg\r\n"
-			"%s Longitude: %d.%07ddeg\r\n"
-			"%s Altitude: %d Meter",
-			TRACE_TAB, lastLogPoint->reset, lastLogPoint->id,
-			TRACE_TAB, lastDataPoint->gps_lat/10000000, (lastDataPoint->gps_lat > 0 ? 1:-1)*lastDataPoint->gps_lat%10000000,
-			TRACE_TAB, lastDataPoint->gps_lon/10000000, (lastDataPoint->gps_lon > 0 ? 1:-1)*lastDataPoint->gps_lon%10000000,
-			TRACE_TAB, lastDataPoint->gps_alt
-		);
-	} else {
-		TRACE_INFO("COLL > No data point found in flash memory");
-	}
+  if(lastLogPoint != NULL) { // If there is stored data point, then get it.
+    dataPoints[0].reset     = lastLogPoint->reset+1;
+    dataPoints[1].reset     = lastLogPoint->reset+1;
+    unixTimestamp2Date(&time, lastDataPoint->gps_time);
+    lastDataPoint->gps_lat  = lastLogPoint->gps_lat;
+    lastDataPoint->gps_lon  = lastLogPoint->gps_lon;
+    lastDataPoint->gps_alt  = lastLogPoint->gps_alt;
+    lastDataPoint->gps_sats = lastLogPoint->gps_sats;
+    lastDataPoint->gps_ttff = lastLogPoint->gps_ttff;
 
-	lastDataPoint->gps_state = GPS_LOG; // Mark dataPoint as LOG packet
+    TRACE_INFO(
+        "COLL > Last data point (from memory)\r\n"
+        "%s Reset %d ID %d\r\n"
+        "%s Time %04d-%02d-%02d %02d:%02d:%02d\r\n"
+        "%s Latitude: %d.%07ddeg\r\n"
+        "%s Longitude: %d.%07ddeg\r\n"
+        "%s Altitude: %d Meter",
+        TRACE_TAB, lastLogPoint->reset, lastLogPoint->id,
+        TRACE_TAB, time.year, time.month, time.day, time.hour,
+        time.minute, time.day,
+        TRACE_TAB, lastDataPoint->gps_lat/10000000,
+        (lastDataPoint->gps_lat > 0
+            ? 1:-1)*lastDataPoint->gps_lat%10000000,
+            TRACE_TAB, lastDataPoint->gps_lon/10000000,
+            (lastDataPoint->gps_lon > 0
+                ? 1:-1)*lastDataPoint->gps_lon%10000000,
+                TRACE_TAB, lastDataPoint->gps_alt
+    );
+    lastDataPoint->gps_state = GPS_LOG; // Mark dataPoint as LOG packet
+  } else {
+    TRACE_INFO("COLL > No data point found in flash memory");
+    lastDataPoint->gps_state = GPS_OFF; // Mark dataPoint unset
+  }
 
-	// Measure telemetry
-	measureVoltage(lastDataPoint);
-	getSensors(lastDataPoint);
-	getGPIO(lastDataPoint);
-	setSystemStatus(lastDataPoint);
+  // Measure telemetry
+  measureVoltage(lastDataPoint);
+  getSensors(lastDataPoint);
+  getGPIO(lastDataPoint);
+  setSystemStatus(lastDataPoint);
 
-	// Write data point to Flash memory
-	flash_writeLogDataPoint(lastDataPoint);
+  // Write data point to Flash memory
+  flash_writeLogDataPoint(lastDataPoint);
 
-	// Wait for position threads to start
-	chThdSleep(TIME_MS2I(500));
+  // Wait for position threads to start
+  chThdSleep(TIME_MS2I(500));
 
-	sysinterval_t cycle_time = chVTGetSystemTime();
-	while(true)
-	{
-		TRACE_INFO("COLL > Do module DATA COLLECTOR cycle");
+  sysinterval_t cycle_time = chVTGetSystemTime();
+  while(true)
+  {
+    TRACE_INFO("COLL > Do module DATA COLLECTOR cycle");
 
-		dataPoint_t* tp  = &dataPoints[(id+1) % 2]; // Current data point (the one which is processed now)
-		dataPoint_t* ltp = &dataPoints[ id    % 2]; // Last data point
+    dataPoint_t* tp  = &dataPoints[(id+1) % 2]; // Current data point (the one which is processed now)
+    dataPoint_t* ltp = &dataPoints[ id    % 2]; // Last data point
 
-		// Determine cycle time and if GPS should be used.
-		sysinterval_t data_cycle_time = TIME_S2I(600);
-		if(conf_sram.pos_pri.thread_conf.active && conf_sram.pos_sec.thread_conf.active) { // Both position threads are active
-			data_cycle_time = conf_sram.pos_pri.thread_conf.cycle < conf_sram.pos_sec.thread_conf.cycle ? conf_sram.pos_pri.thread_conf.cycle : conf_sram.pos_sec.thread_conf.cycle; // Choose the smallest cycle
-			(*attached)++;
-		} else if(conf_sram.pos_pri.thread_conf.active) { // Only primary position thread is active
-			data_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
-            (*attached)++;
-		} else if(conf_sram.pos_sec.thread_conf.active) { // Only secondary position thread is active
-			data_cycle_time = conf_sram.pos_sec.thread_conf.cycle;
-            (*attached)++;
-        } else if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.tx.beacon) { // APRS beacon is active
-            data_cycle_time = conf_sram.pos_sec.thread_conf.cycle;
-            if(conf_sram.aprs.tx.gps)
-              (*attached)++;
-		} else { // There must be an error
-			TRACE_ERROR("COLL > Data collector started but no position thread is active");
-		}
+    // Determine cycle time and if GPS should be used.
+    sysinterval_t data_cycle_time = TIME_S2I(600);
+    if(conf_sram.pos_pri.thread_conf.active && conf_sram.pos_sec.thread_conf.active) { // Both position threads are active
+      data_cycle_time = conf_sram.pos_pri.thread_conf.cycle < conf_sram.pos_sec.thread_conf.cycle ? conf_sram.pos_pri.thread_conf.cycle : conf_sram.pos_sec.thread_conf.cycle; // Choose the smallest cycle
+      (*useGPS)++;
+    } else if(conf_sram.pos_pri.thread_conf.active) { // Only primary position thread is active
+      data_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
+      (*useGPS)++;
+    } else if(conf_sram.pos_sec.thread_conf.active) { // Only secondary position thread is active
+      data_cycle_time = conf_sram.pos_sec.thread_conf.cycle;
+      (*useGPS)++;
+    } else if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.tx.beacon) { // APRS beacon is active
+      data_cycle_time = conf_sram.aprs.tx.cycle;
+      if(conf_sram.aprs.tx.gps) {
+        (*useGPS)++;
+      }
+    } else { // There must be an error
+      TRACE_ERROR("COLL > Data collector started but no position thread is active");
+    }
 
-		// Get GPS position
-		if(*attached) aquirePosition(tp, ltp, data_cycle_time - TIME_S2I(3));
+    // Gather telemetry and system status data
+    measureVoltage(tp);
+    getSensors(tp);
+    getGPIO(tp);
+    setSystemStatus(tp);
 
-		tp->id = ++id; // Serial ID
+    /*
+     *  Enable GPS position acquisition if requested.
+     *  a) If the RTC was not set then enable GPS temporarily to set it.
+     *  b) If a thread is using GPS for position.
+     */
+    unixTimestamp2Date(&time, ltp->gps_time);
+    if(*useGPS == 0 && time.year == RTC_BASE_YEAR) {
+      TRACE_INFO("COLL > Acquire time using GPS");
+      aquirePosition(tp, ltp, data_cycle_time - TIME_S2I(3));
+      /* GPS done. */
+      if(!(tp->gps_state == GPS_LOCKED1
+          || tp->gps_state == GPS_LOCKED2)) {
+        /* Acquisition failed. Wait and then try again. */
+        TRACE_INFO("COLL > Time acquisition from GPS failed");
+        chThdSleep(TIME_S2I(60));
+        continue;
+      }
+      TRACE_INFO("COLL > Time acquired from GPS");
+      /* Switch GPS off. */
+      GPS_Deinit();
+    } else if(*useGPS > 0) {
+      aquirePosition(tp, ltp, data_cycle_time - TIME_S2I(3));
+    } else {
+      /*
+       * No threads using GPS.
+       * RTC valid so set tp & ltp from fixed location data.
+       */
+      tp->gps_alt = conf_sram.aprs.tx.alt;
+      tp->gps_lat = conf_sram.aprs.tx.lat;
+      tp->gps_lon = conf_sram.aprs.tx.lon;
+      tp->gps_state = GPS_FIXED;
 
-		// Measure telemetry
-		measureVoltage(tp);
-		getSensors(tp);
-	    getGPIO(tp);
-		setSystemStatus(tp);
+      ltp->gps_time = tp->gps_time;
+      ltp->gps_alt = tp->gps_alt;
+      ltp->gps_lat = tp->gps_lat;
+      ltp->gps_lon = tp->gps_lon;
+      ltp->gps_state = GPS_FIXED;
+    }
 
-		// Trace data
-		unixTimestamp2Date(&time, tp->gps_time);
-		TRACE_INFO(	"COLL > New data point available (ID=%d)\r\n"
-					"%s Time %04d-%02d-%02d %02d:%02d:%02d\r\n"
-					"%s Pos  %d.%05d %d.%05d Alt %dm\r\n"
-					"%s Sats %d TTFF %dsec\r\n"
-					"%s ADC Vbat=%d.%03dV Vsol=%d.%03dV Pbat=%dmW\r\n"
-					"%s AIR p=%d.%01dPa T=%d.%02ddegC phi=%d.%01d%%\r\n"
+    tp->id = ++id; // Serial ID
+
+    // Trace data
+    unixTimestamp2Date(&time, tp->gps_time);
+    TRACE_INFO(	"COLL > New data point available (ID=%d)\r\n"
+        "%s Time %04d-%02d-%02d %02d:%02d:%02d\r\n"
+        "%s Pos  %d.%05d %d.%05d Alt %dm\r\n"
+        "%s Sats %d TTFF %dsec\r\n"
+        "%s ADC Vbat=%d.%03dV Vsol=%d.%03dV Pbat=%dmW\r\n"
+        "%s AIR p=%d.%01dPa T=%d.%02ddegC phi=%d.%01d%%\r\n"
 #if     ENABLE_EXTERNAL_I2C == TRUE
-                    "%s IO IO1=%d",
+        "%s IOP IO1=%d",
 
 #else
-                    "%s IO IO1=%d IO2=%d IO3=%d",
+        "%s IOP IO1=%d IO2=%d IO3=%d",
 #endif
-					tp->id,
-					TRACE_TAB, time.year, time.month, time.day, time.hour, time.minute, time.day,
-					TRACE_TAB, tp->gps_lat/10000000, (tp->gps_lat > 0 ? 1:-1)*(tp->gps_lat/100)%100000, tp->gps_lon/10000000, (tp->gps_lon > 0 ? 1:-1)*(tp->gps_lon/100)%100000, tp->gps_alt,
-					TRACE_TAB, tp->gps_sats, tp->gps_ttff,
-					TRACE_TAB, tp->adc_vbat/1000, (tp->adc_vbat%1000), tp->adc_vsol/1000, (tp->adc_vsol%1000), tp->pac_pbat,
-					TRACE_TAB, tp->sen_i1_press/10, tp->sen_i1_press%10, tp->sen_i1_temp/100, tp->sen_i1_temp%100, tp->sen_i1_hum/10, tp->sen_i1_hum%10,
+        tp->id,
+        TRACE_TAB, time.year, time.month, time.day, time.hour, time.minute, time.day,
+        TRACE_TAB, tp->gps_lat/10000000, (tp->gps_lat > 0 ? 1:-1)*(tp->gps_lat/100)%100000, tp->gps_lon/10000000, (tp->gps_lon > 0 ? 1:-1)*(tp->gps_lon/100)%100000, tp->gps_alt,
+        TRACE_TAB, tp->gps_sats, tp->gps_ttff,
+        TRACE_TAB, tp->adc_vbat/1000, (tp->adc_vbat%1000), tp->adc_vsol/1000, (tp->adc_vsol%1000), tp->pac_pbat,
+        TRACE_TAB, tp->sen_i1_press/10, tp->sen_i1_press%10, tp->sen_i1_temp/100, tp->sen_i1_temp%100, tp->sen_i1_hum/10, tp->sen_i1_hum%10,
 #if     ENABLE_EXTERNAL_I2C == TRUE
-                    TRACE_TAB, tp->gpio & 1
+        TRACE_TAB, tp->gpio & 1
 #else
-                    TRACE_TAB, tp->gpio & 1, (tp->gpio >> 1) & 1, (tp->gpio >> 2) & 1
+        TRACE_TAB, tp->gpio & 1, (tp->gpio >> 1) & 1, (tp->gpio >> 2) & 1
 #endif
-		);
+    );
 
-		// Write data point to Flash memory
-		flash_writeLogDataPoint(tp);
+    // Write data point to Flash memory
+    flash_writeLogDataPoint(tp);
 
-		// Switch last data point
-		lastDataPoint = tp;
+    // Switch last data point
+    lastDataPoint = tp;
 
-		// Wait until cycle
-		cycle_time = chThdSleepUntilWindowed(cycle_time, cycle_time + data_cycle_time);
-	}
+    // Wait until cycle
+    cycle_time = chThdSleepUntilWindowed(cycle_time, cycle_time + data_cycle_time);
+  }
 }
 
 /*
@@ -399,7 +451,7 @@ void init_data_collector() {
 		thread_t *th = chThdCreateFromHeap(NULL,
 		                                   THD_WORKING_AREA_SIZE(10*1024),
 		                                   "TRA", LOWPRIO,
-		                                   collectorThread, &attached);
+		                                   collectorThread, &useGPS);
 		if(!th) {
 			// Print startup error, do not start watchdog for this thread
 			TRACE_ERROR("COLL > Could not start"

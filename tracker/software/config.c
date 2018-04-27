@@ -131,7 +131,8 @@ const conf_t conf_flash_default = {
               .rssi         = 0x3F
           },
           // Node rx identity
-           .call            = "VK2GJ-4"
+           .call            = "VK2GJ-4",
+           .symbol          = SYM_ANTENNA   // Use this symbol in message responses
       },
       .tx = { // The transmit identity for digipeat transmit and messages responses
           .radio_conf = {
@@ -170,6 +171,7 @@ const conf_t conf_flash_default = {
 	.gps_on_vbat			= 1000,
 	.gps_off_vbat			= 1000,
 	.gps_onper_vbat			= 1000,
+	.gps_airborne           = 90000,        //  Enable airborne mode below this threshold (Pa)
 
 	.magic					= CONFIG_MAGIC_DEFAULT // Do not remove. This is the activation bit.
 };
