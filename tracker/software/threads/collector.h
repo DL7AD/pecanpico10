@@ -5,6 +5,20 @@
 #include "hal.h"
 #include "ptime.h"
 
+#define BME_STATUS_MASK         0x3
+#define BME_OK_VALUE            0x0
+#define BME_FAIL_VALUE          0x1
+#define BME_NOT_FITTED_VALUE    0x02
+
+#define BMEI1_STATUS_SHIFT      8
+#define BMEI1_STATUS_MASK       (BME_STATUS_MASK << BMEI1_STATUS_SHIFT)
+
+#define BMEE1_STATUS_SHIFT      10
+#define BMEE1_STATUS_MASK       (BME_STATUS_MASK << BMEE1_STATUS_SHIFT)
+
+#define BMEE2_STATUS_SHIFT      12
+#define BMEE2_STATUS_MASK       (BME_STATUS_MASK << BMEE2_STATUS_SHIFT)
+
 typedef enum {
 	GPS_LOCKED1,	// The GPS is locked, the GPS has been switched off
 	GPS_LOCKED2,	// The GPS is locked, the GPS has been kept switched on
@@ -80,7 +94,8 @@ typedef struct {
 
 void waitForNewDataPoint(void);
 dataPoint_t* getLastDataPoint(void);
-
+void getSensors(dataPoint_t* tp);
+void setSystemStatus(dataPoint_t* tp);
 void init_data_collector(void);
 
 #endif /* __COLLECTOR_H__ */

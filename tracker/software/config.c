@@ -146,7 +146,7 @@ const conf_t conf_flash_default = {
             .path           = "WIDE2-1",
             .symbol         = SYM_DIGIPEATER,
             .beacon         = true,
-            .gps            = false,
+            .gps            = true,
             // A set location if GPS not enabled or unable to acquire lock.
             .lat            = -337331175,       // Degress (1e-7)
             .lon            = 1511143478,       // Degrees (1e-7)
@@ -171,7 +171,7 @@ const conf_t conf_flash_default = {
 	.gps_on_vbat			= 1000,
 	.gps_off_vbat			= 1000,
 	.gps_onper_vbat			= 1000,
-	.gps_airborne           = 90000,        //  Enable airborne mode below this threshold (Pa)
+	.gps_airborne           = 90000,        //  Enable airborne mode when air pressure below this (Pa)
 
 	.magic					= CONFIG_MAGIC_DEFAULT // Do not remove. This is the activation bit.
 };

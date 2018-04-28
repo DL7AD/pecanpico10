@@ -60,14 +60,16 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
     /* Switch on GPS
      * If BMEi1 is OK then use air pressure to decide if airborne mode is set.
      */
-    bool airborne = !(ltp->sys_error & 0x10) && ltp->sen_i1_press/10 < conf_sram.gps_airborne;
-    TRACE_INFO("COLL > GPS %s in airborne mode", airborne ? "is" : "is not");
-    bool status = GPS_Init(airborne);
+    bool dynamic = conf_sram.gps_airborne != 0;
+    TRACE_INFO("COLL > GPS %s in dynamic mode", dynamic ? "is" : "is not");
+
+    bool status = GPS_Init();
 
     if(status) {
       // Search for lock as long as enough power is available
       do {
         batt = stm32_get_vbat();
+        gps_set_model(dynamic);
         gps_get_fix(&gpsFix);
       } while(!isGPSLocked(&gpsFix)
           && batt >= conf_sram.gps_off_vbat
@@ -159,8 +161,7 @@ static uint8_t bme280_error;
 /*
  *
  */
-static void getSensors(dataPoint_t* tp)
-{
+void getSensors(dataPoint_t* tp) {
 	// Measure BME280
 	bme280_error = 0;
 	bme280_t handle;
@@ -235,7 +236,7 @@ static void getGPIO(dataPoint_t* tp) {
 /*
  *
  */
-static void setSystemStatus(dataPoint_t* tp) {
+void setSystemStatus(dataPoint_t* tp) {
 
   /*
    * Set system errors.
@@ -382,13 +383,17 @@ THD_FUNCTION(collectorThread, arg) {
       TRACE_INFO("COLL > Time acquired from GPS");
       /* Switch GPS off. */
       GPS_Deinit();
-    } else if(*useGPS > 0) {
+    }
+
+    if(*useGPS > 0) {
+      TRACE_INFO("COLL > Acquire position using GPS");
       aquirePosition(tp, ltp, data_cycle_time - TIME_S2I(3));
     } else {
       /*
        * No threads using GPS.
        * RTC valid so set tp & ltp from fixed location data.
        */
+      TRACE_INFO("COLL > Using fixed location");
       tp->gps_alt = conf_sram.aprs.tx.alt;
       tp->gps_lat = conf_sram.aprs.tx.lat;
       tp->gps_lon = conf_sram.aprs.tx.lon;

@@ -9,7 +9,12 @@
 #include "hal.h"
 #include "ptime.h"
 
-#define UBLOX_MAX_ADDRESS	0x42
+#define GPS_MODEL_UNSET         -1
+#define GPS_MODEL_PORTABLE      0
+#define GPS_MODEL_STATIONARY    2
+#define GPS_MODEL_AIRBORNE1     6
+
+#define UBLOX_MAX_ADDRESS	    0x42
 
 // You can either use I2C or UART
 //#define UBLOX_USE_UART
@@ -30,6 +35,8 @@ typedef struct {
 
 uint8_t gps_set_gps_only(void);
 uint8_t gps_disable_nmea_output(void);
+bool gps_set_model(bool dynamic);
+uint8_t gps_set_stationary_model(void);
 uint8_t gps_set_portable_model(void);
 uint8_t gps_set_airborne_model(void);
 uint8_t gps_set_power_save(void);
@@ -37,7 +44,7 @@ uint8_t gps_power_save(int on);
 //uint8_t gps_save_settings(void);
 bool gps_get_fix(gpsFix_t *fix);
 
-bool GPS_Init(bool airborne);
+bool GPS_Init(void);
 void GPS_Deinit(void);
 uint32_t GPS_get_mcu_frequency(void);
 bool gps_calc_ubx_csum(uint8_t *mbuf, uint16_t mlen);
