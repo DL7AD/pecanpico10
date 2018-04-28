@@ -51,6 +51,8 @@
 #define SYM_DIGIPEATER					0x2F23
 #define SYM_ANTENNA                     0x2F72
 
+#define APRS_NUM_TELEM_GROUPS           4
+
 #define APRS_HEARD_LIST_SIZE            20
 
 #define APRS_MAX_MSG_ARGUMENTS          10
@@ -87,7 +89,7 @@ extern bool test_gps_enabled;
 extern "C" {
 #endif
   void      aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len);
-  packet_t aprs_encode_position(const char *callsign,
+  packet_t aprs_encode_stamped_position_and_telemetry(const char *callsign,
                                 const char *path, aprs_sym_t symbol,
                                 dataPoint_t *dataPoint);
   packet_t  aprs_encode_position_and_telemetry(const char *callsign,

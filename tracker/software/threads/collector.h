@@ -5,18 +5,22 @@
 #include "hal.h"
 #include "ptime.h"
 
+#define BME_STATUS_BITS         2
 #define BME_STATUS_MASK         0x3
 #define BME_OK_VALUE            0x0
 #define BME_FAIL_VALUE          0x1
-#define BME_NOT_FITTED_VALUE    0x02
+#define BME_NOT_FITTED_VALUE    0x2
 
-#define BMEI1_STATUS_SHIFT      8
+#define BME_ALL_STATUS_MASK     0x3F
+#define BME_ALL_STATUS_SHIFT    8
+
+#define BMEI1_STATUS_SHIFT      BME_ALL_STATUS_SHIFT
 #define BMEI1_STATUS_MASK       (BME_STATUS_MASK << BMEI1_STATUS_SHIFT)
 
-#define BMEE1_STATUS_SHIFT      10
+#define BMEE1_STATUS_SHIFT      BMEI1_STATUS_SHIFT + BME_STATUS_BITS
 #define BMEE1_STATUS_MASK       (BME_STATUS_MASK << BMEE1_STATUS_SHIFT)
 
-#define BMEE2_STATUS_SHIFT      12
+#define BMEE2_STATUS_SHIFT      BMEI1_STATUS_SHIFT + BME_STATUS)BITS
 #define BMEE2_STATUS_MASK       (BME_STATUS_MASK << BMEE2_STATUS_SHIFT)
 
 typedef enum {
@@ -73,8 +77,7 @@ typedef struct {
 	uint16_t reset;
 	uint32_t id;			// Serial ID
 	uint32_t gps_time;		// GPS time
-
-	uint8_t  gpio;          // GPIO states
+	//int8_t      gps_model;
 
 	uint32_t sys_time;		// System time (in seconds)
 	uint32_t sys_error;			// System error flags
@@ -90,6 +93,8 @@ typedef struct {
                        * - 10:11 BMEe1 status (0 = OK, 1 = Fail, 2 = Not fitted)
                        * - 12:13 BMEe2 status (0 = OK, 1 = Fail, 2 = Not fitted)
                        */
+
+    uint8_t  gpio;    // GPIO states
 } dataPoint_t;
 
 void waitForNewDataPoint(void);

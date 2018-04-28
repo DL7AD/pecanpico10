@@ -24,6 +24,7 @@ static dataPoint_t dataPoints[2];
 static dataPoint_t* lastDataPoint;
 static bool threadStarted = false;
 static uint8_t useGPS = 0;
+static uint8_t useTEL = 0;
 
 /**
   * Returns most recent data point which is complete.
@@ -209,7 +210,7 @@ void getSensors(dataPoint_t* tp) {
 		bme280_error |= 0x10;
 	}
 #else
-	/* Set status to "not fitted". */
+	/* Set status to "not fitted" for E1 & E2. */
 	bme280_error |= 0x28;
 #endif
 	// Measure various temperature sensors
@@ -257,7 +258,8 @@ void setSystemStatus(dataPoint_t* tp) {
 	tp->sys_error |= (pac1720_hasError() & 0x3)   << 3;
 	tp->sys_error |= (OV5640_hasError()  & 0x7)   << 5;
 
-	tp->sys_error |= (bme280_error & 0x3F)        << 8;
+	tp->sys_error |= (bme280_error & BME_ALL_STATUS_MASK)
+	    << BME_ALL_STATUS_SHIFT;
 
 	// Set system time
 	tp->sys_time = TIME_I2S(chVTGetSystemTime());
@@ -394,16 +396,17 @@ THD_FUNCTION(collectorThread, arg) {
        * RTC valid so set tp & ltp from fixed location data.
        */
       TRACE_INFO("COLL > Using fixed location");
+      unixTimestamp2Date(&time, tp->gps_time);
       tp->gps_alt = conf_sram.aprs.tx.alt;
       tp->gps_lat = conf_sram.aprs.tx.lat;
       tp->gps_lon = conf_sram.aprs.tx.lon;
       tp->gps_state = GPS_FIXED;
-
+/*
       ltp->gps_time = tp->gps_time;
       ltp->gps_alt = tp->gps_alt;
       ltp->gps_lat = tp->gps_lat;
       ltp->gps_lon = tp->gps_lon;
-      ltp->gps_state = GPS_FIXED;
+      ltp->gps_state = GPS_FIXED;*/
     }
 
     tp->id = ++id; // Serial ID
@@ -446,26 +449,47 @@ THD_FUNCTION(collectorThread, arg) {
   }
 }
 
-/*
+/**
+  * Telemetry config (Thread)
+  */
+THD_FUNCTION(configThread, arg) {
+  uint8_t *useTEL = arg;
+  while(true) chThdSleep(TIME_S2I(1));
+}
+
+/**
  *
  */
 void init_data_collector() {
-	if(!threadStarted) {
+  if(!threadStarted) {
 
-	  threadStarted = true;
+    threadStarted = true;
 
-		TRACE_INFO("COLL > Startup data collector thread");
-		thread_t *th = chThdCreateFromHeap(NULL,
-		                                   THD_WORKING_AREA_SIZE(10*1024),
-		                                   "TRA", LOWPRIO,
-		                                   collectorThread, &useGPS);
-		if(!th) {
-			// Print startup error, do not start watchdog for this thread
-			TRACE_ERROR("COLL > Could not start"
-			    " thread (not enough memory available)");
-		} else {
-			chThdSleep(TIME_MS2I(300)); // Wait a little bit until data collector has initialized first dataset
-		}
-	}
+    TRACE_INFO("COLL > Startup data collector thread");
+    thread_t *th = chThdCreateFromHeap(NULL,
+                                       THD_WORKING_AREA_SIZE(10*1024),
+                                       "COL", LOWPRIO,
+                                       collectorThread, &useGPS);
+    if(!th) {
+      // Print startup error, do not start watchdog for this thread
+      TRACE_ERROR("COLL > Could not start"
+          " thread (not enough memory available)");
+    } else {
+      chThdSleep(TIME_MS2I(300)); // Wait a little bit until data collector has initialized first dataset
+    }
+
+    TRACE_INFO("CFG > Startup telemetry config thread");
+    th = chThdCreateFromHeap(NULL,
+                                       THD_WORKING_AREA_SIZE(10*1024),
+                                       "CFG", LOWPRIO,
+                                       configThread, &useTEL);
+    if(!th) {
+      // Print startup error, do not start watchdog for this thread
+      TRACE_ERROR("CFG > Could not start"
+          " thread (not enough memory available)");
+    } else {
+      chThdSleep(TIME_MS2I(300));
+    }
+  }
 }
 

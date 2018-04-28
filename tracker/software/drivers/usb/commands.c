@@ -13,12 +13,12 @@
 static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
 
 const ShellCommand commands[] = {
-	{"set_trace_level", usb_cmd_set_trace_level},
+/*	{"set_trace_level", usb_cmd_set_trace_level},*/
     {"trace", usb_cmd_set_trace_level}, /* Short form alias. */
 	{"picture", usb_cmd_printPicture},
 	{"print_log", usb_cmd_printLog},
 	{"config", usb_cmd_printConfig},
-	{"aprs_message", usb_cmd_send_aprs_message},
+/*	{"aprs_message", usb_cmd_send_aprs_message},*/
 	{"msg", usb_cmd_send_aprs_message}, /* Short form alias. */
 /*    {"test_gps", usb_cmd_set_test_gps},*/
 #if SHELL_CMD_MEM_ENABLED == TRUE

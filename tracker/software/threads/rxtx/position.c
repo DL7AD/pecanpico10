@@ -49,7 +49,7 @@ THD_FUNCTION(posThread, arg)
                 TRACE_INFO("POS  > Transmit telemetry configuration");
 
                 // Encode and transmit telemetry config packet
-                for(uint8_t type = 0; type < 4; type++) {
+                for(uint8_t type = 0; type < APRS_NUM_TELEM_GROUPS; type++) {
                     packet_t packet = aprs_encode_telemetry_configuration(
                                               conf->call,
                                               conf->path,
@@ -68,8 +68,8 @@ THD_FUNCTION(posThread, arg)
                                       conf->radio_conf.cca)) {
                        TRACE_ERROR("POS  > Failed to transmit telemetry data");
                       }
-                      chThdSleep(TIME_S2I(5));
                     }
+                    chThdSleep(TIME_S2I(15));
                 }
 
                 last_conf_transmission += conf->tel_enc_cycle;

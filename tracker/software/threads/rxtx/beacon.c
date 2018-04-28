@@ -38,14 +38,14 @@ THD_FUNCTION(bcnThread, arg) {
     dataPoint_t* dataPoint = getLastDataPoint();
     if(!p_sleep(&conf->thread_conf.sleep_conf)) {
 
-      // Telemetry encoding parameter transmission
+      // Telemetry encoding parameter transmissions
       if(conf->tx.tel_enc_cycle != 0 && last_conf_transmission
           + conf->tx.tel_enc_cycle < chVTGetSystemTime()) {
 
         TRACE_INFO("BCN  > Transmit telemetry configuration");
 
         // Encode and transmit telemetry config packet
-        for(uint8_t type = 0; type < 4; type++) {
+        for(uint8_t type = 0; type < APRS_NUM_TELEM_GROUPS; type++) {
           packet_t packet = aprs_encode_telemetry_configuration(
               conf->tx.call,
               conf->tx.path,
@@ -64,8 +64,8 @@ THD_FUNCTION(bcnThread, arg) {
                                 conf->tx.radio_conf.cca)) {
               TRACE_ERROR("BCN  > Failed to transmit telemetry config");
             }
-            chThdSleep(TIME_S2I(5));
           }
+          chThdSleep(TIME_S2I(15));
         }
         last_conf_transmission += conf->tx.tel_enc_cycle;
       }

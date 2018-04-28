@@ -280,7 +280,7 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
  * @return    encoded packet object pointer
  * @retval    NULL if encoding failed
  */
-packet_t aprs_encode_position(const char *callsign,
+packet_t aprs_encode_stamped_position_and_telemetry(const char *callsign,
                               const char *path, aprs_sym_t symbol,
                               dataPoint_t *dataPoint) {
   ptime_t time;
@@ -320,9 +320,9 @@ packet_t aprs_encode_position(const char *callsign,
                             callsign,
                             APRS_DEVICE_CALLSIGN,
                             path,
+                            time.day,
                             time.hour,
-                            time.minute,
-                            time.second);
+                            time.minute);
 
   xmit[len+0]  = (symbol >> 8) & 0xFF;
   xmit[len+1]  = y3+33;
@@ -424,17 +424,14 @@ packet_t aprs_encode_position_and_telemetry(const char *callsign,
 	uint32_t a1  = a / 91;
 	uint32_t a1r = a % 91;
 
-    ptime_t time;
-    unixTimestamp2Date(&time, dataPoint->gps_time);
+/*    ptime_t time;
+    unixTimestamp2Date(&time, dataPoint->gps_time);*/
 
 	char xmit[256];
-    uint32_t len = chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:@%02d%02d%02dz",
+    uint32_t len = chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:=",
                               callsign,
                               APRS_DEVICE_CALLSIGN,
-                              path,
-                              time.hour,
-                              time.minute,
-                              time.second);
+                              path);
 
     uint8_t gpsFix = dataPoint->gps_state == GPS_LOCKED1
         || dataPoint->gps_state == GPS_LOCKED2
@@ -807,11 +804,39 @@ msg_t aprs_send_position_response(aprs_identity_t *id,
 
   if(argc != 0)
     return MSG_ERROR;
+/*
+ * TODO: This should just send a request to a TEL service.
+ * The TEL service should then transmit config data at a spaced interval.
+ * The same applies to BCN and POS threads which should also use a TEL service.
+ */
+  // Encode and transmit telemetry config first
+  for(uint8_t type = 0; type < APRS_NUM_TELEM_GROUPS; type++) {
+    packet_t packet = aprs_encode_telemetry_configuration(
+        id->call,
+        id->path,
+        APRS_DEVICE_CALLSIGN,
+        type);
+    if(packet == NULL) {
+      TRACE_WARN("BCN  > No free packet objects for"
+          " telemetry config transmission");
+    } else {
+      if(!transmitOnRadio(packet,
+                          id->freq,
+                          0,
+                          0,
+                          id->pwr,
+                          id->mod,
+                          id->cca)) {
+        TRACE_ERROR("BCN  > Failed to transmit telemetry config");
+      }
+    }
+    chThdSleep(TIME_S2I(15));
+  }
 
   /* TODO: Implement a simple (non base 91) position parameter. */
   TRACE_INFO("RX   > Message: Position query");
   dataPoint_t* dataPoint = getLastDataPoint();
-  packet_t pp = aprs_encode_position(id->call,
+  packet_t pp = aprs_encode_stamped_position_and_telemetry(id->call,
                                      id->path,
                                      id->symbol,
                                      dataPoint);
@@ -1246,7 +1271,7 @@ packet_t aprs_encode_telemetry_configuration(const char *originator,
               "UNIT.V,V,W,degC,Pa,1,1,1", false);
 #endif
 		case 2: return aprs_encode_message(originator, path, destination,
-                 "EQNS.0,.001,0,0,.001,0,0,.001,-4.096,0,.1,-100,0,12.5,500", false);
+                 "EQNS.0,0.001,0,0,0.001,0,0,0.001,-4.096,0,0.1,-100,0,12.5,500", false);
 		case 3: return aprs_encode_message(originator, path, destination,
                  "BITS.11111111,", false);
 		default: return NULL;

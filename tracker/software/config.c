@@ -122,7 +122,7 @@ const conf_t conf_flash_default = {
 	.aprs = {
       .thread_conf = {
           .active       = true,
-          .init_delay   = TIME_S2I(20),
+          .init_delay   = TIME_S2I(20)
       },
       .rx = { // The receive identity for APRS
           .radio_conf = {
@@ -146,7 +146,7 @@ const conf_t conf_flash_default = {
             .path           = "WIDE2-1",
             .symbol         = SYM_DIGIPEATER,
             .beacon         = true,
-            .gps            = true,
+            .gps            = false,
             // A set location if GPS not enabled or unable to acquire lock.
             .lat            = -337331175,       // Degress (1e-7)
             .lon            = 1511143478,       // Degrees (1e-7)
@@ -168,10 +168,11 @@ const conf_t conf_flash_default = {
 
 	// Power control
 	.keep_cam_switched_on	= false,
-	.gps_on_vbat			= 1000,
-	.gps_off_vbat			= 1000,
-	.gps_onper_vbat			= 1000,
-	.gps_airborne           = 90000,        //  Enable airborne mode when air pressure below this (Pa)
+	.gps_on_vbat			= 3300,         // mV
+	.gps_off_vbat			= 2500,         // mV
+	.gps_onper_vbat			= 5000,         // mV
+	// GPS model control
+	.gps_airborne           = 90000,        // Air pressure (Pa) threshold for airborne model
 
 	.magic					= CONFIG_MAGIC_DEFAULT // Do not remove. This is the activation bit.
 };

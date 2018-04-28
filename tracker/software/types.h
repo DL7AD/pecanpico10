@@ -127,7 +127,25 @@ typedef struct {
     char            call[AX25_MAX_ADDR_LEN];
     char            path[16];
     aprs_sym_t      symbol;
-    radio_squelch_t rssi;                   // Squelch for CCA check
+} thd_tx_conf_t;
+
+typedef struct {
+    radio_tx_conf_t radio_conf;
+
+    // Protocol
+    char            call[AX25_MAX_ADDR_LEN];
+    char            path[16];
+    aprs_sym_t      symbol;
+    bool            enabled;
+} thd_base_conf_t;
+
+typedef struct {
+    radio_tx_conf_t radio_conf;
+
+    // Protocol
+    char            call[AX25_MAX_ADDR_LEN];
+    char            path[16];
+    aprs_sym_t      symbol;
     bool            enabled;
     bool            beacon;
     bool            gps;
@@ -136,17 +154,16 @@ typedef struct {
     gps_alt_t       alt;
     sysinterval_t   cycle;                 // Beacon interval (0: continously)
     sysinterval_t   tel_enc_cycle;
-} thd_tx_conf_t;
+} thd_digi_conf_t;
 
 /* APRS configuration. */
 typedef struct {
   thread_conf_t     thread_conf;
-    thd_rx_conf_t   rx;
-    thd_tx_conf_t   tx;
-    thd_tx_conf_t   base;                   // Base station receiving unsolicited sends
-    bool            dig_active;             // Digipeater active flag
-    radio_freq_t    freq;                   // Default APRS frequency if no GPS
-
+  thd_rx_conf_t     rx;
+  thd_digi_conf_t   tx;
+  thd_base_conf_t   base;                   // Base station receiving unsolicited sends
+  bool              dig_active;             // Digipeater active flag
+  radio_freq_t      freq;                   // Default APRS frequency if no GPS
 } thd_aprs_conf_t;
 
 typedef struct {

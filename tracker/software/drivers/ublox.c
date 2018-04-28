@@ -30,7 +30,7 @@ const SerialConfig gps_config =
   */
 void gps_transmit_string(uint8_t *cmd, uint8_t length) {
   gps_calc_ubx_csum(cmd, length);
-#if defined(UBLOX_USE_I2C)
+#if UBLOX_USE_I2C == TRUE
   I2C_writeN(UBLOX_MAX_ADDRESS, cmd, length);
 #elif defined(UBLOX_USE_UART)
   sdWrite(&SD5, cmd, length);
@@ -42,18 +42,18 @@ void gps_transmit_string(uint8_t *cmd, uint8_t length) {
   * Returns false is there is no byte available else true
   */
 bool gps_receive_byte(uint8_t *data) {
-	#if defined(UBLOX_USE_I2C)
+#if UBLOX_USE_I2C == TRUE
 	uint16_t len;
 	I2C_read16(UBLOX_MAX_ADDRESS, 0xFD, &len);
 	if(len) {
 		I2C_read8(UBLOX_MAX_ADDRESS, 0xFF, data);
 		return true;
 	}
-	#elif defined(UBLOX_USE_UART)
+#else
 	if((*data = sdGetTimeout(&SD5, TIME_IMMEDIATE)) != MSG_TIMEOUT) {
 	  return true;
 	}
-    #endif
+#endif
     return false;
 }
 
@@ -117,18 +117,20 @@ uint8_t gps_receive_ack(uint8_t class_id, uint8_t msg_id, uint16_t timeout) {
   * returns the length of the payload
   *
   */
-uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id, unsigned char *payload, uint16_t timeout) {
+uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
+                             unsigned char *payload, uint16_t timeout) {
 	uint8_t rx_byte;
 	enum {UBX_A, UBX_B, CLASSID, MSGID, LEN_A, LEN_B, PAYLOAD} state = UBX_A;
 	uint16_t payload_cnt = 0;
 	uint16_t payload_len = 0;
 
-	sysinterval_t sTimeout = chVTGetSystemTimeX() + TIME_MS2I(timeout);
-	while(sTimeout >= chVTGetSystemTimeX()) {
+	sysinterval_t sNow = chVTGetSystemTime();
+
+	while(chVTIsSystemTimeWithin(sNow, sNow + TIME_MS2I(timeout))) {
 
 		// Receive one byte
       if(!gps_receive_byte(&rx_byte)) {
-			chThdSleep(TIME_MS2I(10));
+			chThdSleep(TIME_MS2I(1));
 			continue;
 		}
 
@@ -168,7 +170,6 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id, unsigned char *pa
 				state = UBX_A;
 		}
 	}
-
 	return 0;
 }
 
@@ -247,10 +248,10 @@ bool gps_get_fix(gpsFix_t *fix) {
           fix->alt = (uint16_t)alt_tmp;
       }
 /*    }*/
-	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%d.%02d",
+	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%d.%02d model=%d",
 		fix->time.year, fix->time.month, fix->time.day, fix->time.hour, fix->time.minute, fix->time.second,
 		fix->lat/10000000, (fix->lat > 0 ? 1:-1)*(fix->lat/100)%100000, fix->lon/10000000, (fix->lon > 0 ? 1:-1)*(fix->lon/100)%100000,
-		fix->alt, fix->num_svs, fix->fixOK, fix->pdop/100, fix->pdop%100
+		fix->alt, fix->num_svs, fix->fixOK, fix->pdop/100, fix->pdop%100, gps_model
 	);
 
 	return true;
@@ -374,7 +375,7 @@ uint8_t gps_set_airborne_model(void) {
 	uint8_t model6[] = {
 		0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 	// UBX-CFG-NAV5
 		0xFF, 0xFF, 							// parameter bitmask
-		GPS_MODEL_AIRBORNE1,					// dynamic model
+		GPS_MODEL_AIRBORNE1G,					// dynamic model
 		0x03, 									// fix mode
 		0x00, 0x00, 0x00, 0x00, 				// 2D fix altitude
 		0x10, 0x27, 0x00, 0x00,					// 2D fix altitude variance
@@ -473,12 +474,12 @@ bool gps_set_model(bool dynamic) {
   }
 
   /* Default to airborne model. */
-  if(gps_model == GPS_MODEL_AIRBORNE1)
+  if(gps_model == GPS_MODEL_AIRBORNE1G)
     return true;
   cntr = 3;
   while((status = gps_set_airborne_model()) == false && cntr--);
   if(status) {
-    gps_model = GPS_MODEL_AIRBORNE1;
+    gps_model = GPS_MODEL_AIRBORNE1G;
     //TRACE_INFO("GPS  > ... Set airborne model OK");
     return true;
   }
@@ -528,6 +529,9 @@ bool GPS_Init() {
 	return true;
 }
 
+/*
+ *
+ */
 void GPS_Deinit(void)
 {
 	// Switch MOSFET
