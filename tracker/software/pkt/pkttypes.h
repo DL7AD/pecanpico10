@@ -46,6 +46,13 @@ typedef enum radioUnit {
   PKT_RADIO_1
 } radio_unit_t;
 
+typedef enum radioMode {
+  RADIO_OFF,
+  RADIO_RX,
+  RADIO_TX,
+  RADIO_CCA
+} radio_mode_t;
+
 /* Radio parameters. */
 
 /* Radio frequency in Hz. */
@@ -63,5 +70,15 @@ typedef uint8_t radio_squelch_t;
 typedef int8_t  radio_pwr_t;
 
 typedef uint8_t ax25char_t;
+
+typedef int32_t gps_coord_t;
+
+typedef int32_t gps_alt_t;
+
+typedef uint16_t aprs_sym_t;
+
+typedef uint32_t link_speed_t;
+
+typedef uint16_t volt_level_t;
 
 #endif /* PKT_PKTTYPES_H_ */

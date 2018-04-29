@@ -425,7 +425,7 @@ extern int ax25_get_pid (packet_t this_p);
 
 extern unsigned short ax25_dedupe_crc (packet_t pp);
 
-extern unsigned short ax25_m_m_crc (packet_t pp);
+//extern unsigned short ax25_m_m_crc (packet_t pp);
 
 extern void ax25_safe_print (char *, int, int ascii_only);
 

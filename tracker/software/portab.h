@@ -67,7 +67,7 @@
 #endif
 
 //#define LINE_PWM_MIRROR             PAL_LINE(GPIOA, 8U)
-#define LINE_GPIO_PIN               PAL_LINE(GPIOA, 8U)
+//#define LINE_GPIO_PIN               PAL_LINE(GPIOA, 8U)
 
 /**
  *  ICU related definitions.

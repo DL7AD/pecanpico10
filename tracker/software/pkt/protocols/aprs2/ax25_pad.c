@@ -479,7 +479,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 
 	if ( ! ax25_parse_addr (AX25_SOURCE, pa, strict, atemp, &ssid_temp, &heard_temp)) {
       TRACE_ERROR("PKT  > Bad source address in packet");
-	  /* Only need single packet release here but linked probably better for consistency. */
+	  /* Only need single packet release here but linked would be fine for consistency. */
       pktReleasePacketBuffer(this_p);
 	  return (NULL);
 	}
@@ -2509,10 +2509,12 @@ unsigned short ax25_dedupe_crc (packet_t pp)
  *		There is a very very small probability that two unrelated 
  *		packets will result in the same checksum, and the
  *		undesired dropping of the packet.
-		
+ *
+ * TODO: Deprecate - not used
+ *
  *------------------------------------------------------------------------------*/
 
-unsigned short ax25_m_m_crc (packet_t pp)
+/*unsigned short ax25_m_m_crc (packet_t pp)
 {
 	unsigned short crc;
 	unsigned char fbuf[AX25_MAX_PACKET_LEN];
@@ -2524,7 +2526,7 @@ unsigned short ax25_m_m_crc (packet_t pp)
 	crc = crc16(fbuf, flen, crc);
 
 	return (crc);
-}
+}*/
 
 
 /*------------------------------------------------------------------

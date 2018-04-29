@@ -6,6 +6,14 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 */
 
+/**
+ * @file    pktevt.h
+ * @brief   Packet event tracing.
+ *
+ * @addtogroup pktdiag
+ * @{
+ */
+
 #ifndef PKT_DIAGNOSTICS_PKTEVT_H_
 #define PKT_DIAGNOSTICS_PKTEVT_H_
 
@@ -24,3 +32,5 @@ void pktDisableEventTrace(void);
 #endif
 
 #endif /* PKT_DIAGNOSTICS_PKTEVT_H_ */
+
+/** @} */

@@ -19,7 +19,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_RECEIVE,
 			.mod			= MOD_AFSK,
-            .rssi           = 0x4F,
+            .cca            = 0x4F,
 		},
 		// Node identity
 		.call				= "VK2GJ-12",
@@ -27,7 +27,7 @@ const conf_t conf_flash_default = {
 		.symbol				= SYM_ANTENNA,
 		.aprs_msg           = true,
 
-		.tel_enc_cycle		= TIME_S2I(10800)
+        .tel_enc_cycle  = TIME_S2I(60*180) // How often to send telemetry config
 	},
 
 	// Secondary position node
@@ -41,7 +41,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
 			.mod			= MOD_AFSK,
-            .rssi           = 0x4F
+            .cca            = 0x4F
 		},
         // Node identity
 		.call				= "DL7AD-14",
@@ -64,7 +64,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
             .freq           = 144800000,
 			.mod			= MOD_2FSK,
-			.rssi           = 0x4F,
+			.cca            = 0x4F,
 			.redundantTx	= false
 		},
         // Node identity
@@ -88,7 +88,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
 			.freq			= 145175000,
 			.mod			= MOD_AFSK,
-            .rssi           = 0x4F
+            .cca            = 0x4F
 		},
         // Node identity
 		.call				= "VK2GJ-14",
@@ -110,7 +110,7 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
 			.freq			= FREQ_APRS_DYNAMIC,
 			.mod			= MOD_AFSK,
-            .rssi           = 0x4F
+            .cca            = 0x4F
 		},
         // Node identity
 		.call				= "VK2GJ-13",
@@ -122,7 +122,7 @@ const conf_t conf_flash_default = {
 	.aprs = {
       .thread_conf = {
           .active       = true,
-          .init_delay   = TIME_S2I(20),
+          .init_delay   = TIME_S2I(20)
       },
       .rx = { // The receive identity for APRS
           .radio_conf = {
@@ -131,43 +131,48 @@ const conf_t conf_flash_default = {
               .rssi         = 0x3F
           },
           // Node rx identity
-           .call            = "VK2GJ-4"
+           .call            = "VK2GJ-4",
+           .symbol          = SYM_ANTENNA   // Use this symbol in message responses
       },
       .tx = { // The transmit identity for digipeat transmit and messages responses
           .radio_conf = {
                .freq        = FREQ_APRS_RECEIVE,
                .pwr         = 0x7F,
                .mod         = MOD_AFSK,
-               .rssi        = 0x4F
+               .cca         = 0x4F
           },
           // Node tx identity
             .call           = "VK2GJ-5",
             .path           = "WIDE2-1",
             .symbol         = SYM_DIGIPEATER,
             .beacon         = true,
-            .lat            = -337331175,
-            .lon            = 1511143478,
-            .alt            = 144,
-            .interval       = TIME_S2I(60*5),
+            .gps            = false,
+            // A set location if GPS not enabled or unable to acquire lock.
+            .lat            = -337331175,       // Degress (1e-7)
+            .lon            = 1511143478,       // Degrees (1e-7)
+            .alt            = 144,              // Alt in metres
+            .cycle          = TIME_S2I(60*30),  // Beacon interval
 
-            .tel_enc_cycle  = TIME_S2I(60*180)
+            .tel_enc_cycle  = TIME_S2I(60*180) // How often to send telemetry config
       },
       .base = {
              // The base station identity
              // Tracker originated messages can be sent to this call sign sent
-             .enabled       = false,
+             .enabled       = true,
              .call          = "VK2GJ-7",
              .path          = "WIDE2-1",
       },
       .dig_active           = true,
-      .freq                 = 145175000     // Default APRS frequency
+      .freq                 = 145175000     // Default APRS frequency when geofence not resolved
 	},
 
 	// Power control
 	.keep_cam_switched_on	= false,
-	.gps_on_vbat			= 1000,
-	.gps_off_vbat			= 1000,
-	.gps_onper_vbat			= 1000,
+	.gps_on_vbat			= 3300,         // mV
+	.gps_off_vbat			= 2500,         // mV
+	.gps_onper_vbat			= 5000,         // mV
+	// GPS model control
+	.gps_airborne           = 90000,        // Air pressure (Pa) threshold for airborne model
 
 	.magic					= CONFIG_MAGIC_DEFAULT // Do not remove. This is the activation bit.
 };

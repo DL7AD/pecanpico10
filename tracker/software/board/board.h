@@ -18,7 +18,7 @@
 #define _BOARD_H_
 
 /*
- * Setup for Pecan Pico 9a board.
+ * Setup for Pecan Pico 10a board.
  */
 
 /*
@@ -244,10 +244,17 @@
  */
 
 // IO
+#define LINE_GPIO_PIN               PAL_LINE(GPIOA, 8U)
 #define LINE_IO_TXD                 PAL_LINE(GPIOB, 10U)
 #define LINE_IO_RXD                 PAL_LINE(GPIOC, 11U)
+#define LINE_IO1                    LINE_GPIO_PIN
+#define LINE_IO2                    LINE_IO_TXD
+#define LINE_IO3                    LINE_IO_RXD
+
+// LED
 #define LINE_IO_BLUE                PAL_LINE(GPIOC, 1U)
 #define LINE_IO_GREEN               PAL_LINE(GPIOC, 3U)
+
 
 // GPS
 #define LINE_GPS_EN                 PAL_LINE(GPIOA, 15U)
@@ -309,6 +316,8 @@
 
 #define Si446x_MIN_FREQ				144000000				/* Minimum allowed frequency in Hz */
 #define Si446x_MAX_FREQ				148000000				/* Maximum allowed frequency in Hz */
+#define Si446x_BASE_FREQ            Si446x_MIN_FREQ
+#define Si446x_STEP_HZ              12500
 #define Si446x_CLK					STM32_HSECLK			/* Oscillator frequency in Hz */
 #define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
@@ -338,7 +347,7 @@
 
 /*
  * GPIOA setup:
- *
+ * TODO: Enter correct assignment (versus NUCLEO pins)
  * PA0  - ZIO_D32 TIM2_CH1          (input pullup).
  * PA1  - PIN1                      (input pullup).
  * PA2  - ZIO_A8 ADC1_IN2           (input pullup).
@@ -412,7 +421,7 @@
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN5) |       \
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN6) |       \
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN7) |       \
-                                     PIN_PUPDR_PULLDOWN(GPIOA_PIN8) |       \
+                                     PIN_PUPDR_FLOATING(GPIOA_PIN8) |       \
                                      PIN_PUPDR_FLOATING(GPIOA_USB_VBUS) |       \
                                      PIN_PUPDR_FLOATING(GPIOA_USB_ID) |      \
                                      PIN_PUPDR_FLOATING(GPIOA_USB_DM) |      \
@@ -455,7 +464,7 @@
 
 /*
  * GPIOB setup:
- *
+ * TODO: Enter correct assignment (versus NUCLEO pins)
  * PB0  - ZIO_D33 TIM3_CH3 LED1     (output pushpull maximum).
  * PB1  - ZIO_A6 ADC1_IN9           (input pullup).
  * PB2  - ZIO_D27 QUADSPI_CLK       (input pullup).
@@ -572,7 +581,7 @@
 
 /*
  * GPIOC setup:
- *
+ * TODO: Enter correct assignment (versus NUCLEO pins)
  * PC0  - ARD_A1 ADC1_IN10          (input pullup).
  * PC1  - ARD_A3 ADC1_IN11          (input pullup).
  * PC2  - ZIO_A7 ADC1_IN12          (input pullup).
@@ -689,7 +698,7 @@
 
 /*
  * GPIOD setup:
- *
+ * TODO: Enter correct assignment (versus NUCLEO pins)
  * PD0  - ZIO_D67 CAN1_RX           (input pullup).
  * PD1  - ZIO_D66 CAN1_TX           (input pullup).
  * PD2  - ZIO_D48 SDMMC_CMD         (input pullup).
@@ -806,7 +815,7 @@
 
 /*
  * GPIOE setup:
- *
+ * TODO: Enter correct assignment (versus NUCLEO pins)
  * PE0  - ZIO_D34 TIM4_ETR          (input pullup).
  * PE1  - PIN1                      (input pullup).
  * PE2  - ZIO_D31 ZIO_D56 QUADSPI_BK1_IO2(input pullup).
@@ -923,7 +932,7 @@
 
 /*
  * GPIOF setup:
- *
+ * TODO: Enter correct assignment (versus NUCLEO pins)
  * PF0  - ZIO_D68 I2C2_SDA          (input pullup).
  * PF1  - ZIO_D69 I2C2_SCL          (input pullup).
  * PF2  - ZIO_D70 I2C2_SMBA         (input pullup).
@@ -1040,7 +1049,7 @@
 
 /*
  * GPIOG setup:
- *
+ * TODO: Enter correct assignment (versus NUCLEO pins)
  * PG0  - ZIO_D65                   (input pullup).
  * PG1  - ZIO_D64                   (input pullup).
  * PG2  - ZIO_D49                   (input pullup).
@@ -1157,7 +1166,7 @@
 
 /*
  * GPIOH setup:
- *
+ * TODO: Enter correct assignment (versus NUCLEO pins)
  * PH0  - OSC_IN                    (input floating).
  * PH1  - OSC_OUT                   (input floating).
  * PH2  - PIN2                      (input pullup).
@@ -1274,7 +1283,7 @@
 
 /*
  * GPIOI setup:
- *
+ * TODO: Enter correct assignment (versus NUCLEO pins)
  * PI0  - PIN0                      (input pullup).
  * PI1  - PIN1                      (input pullup).
  * PI2  - PIN2                      (input pullup).
@@ -1391,7 +1400,7 @@
 
 /*
  * GPIOJ setup:
- *
+ * TODO: Enter correct assignment (versus NUCLEO pins)
  * PJ0  - PIN0                      (input pullup).
  * PJ1  - PIN1                      (input pullup).
  * PJ2  - PIN2                      (input pullup).
@@ -1508,7 +1517,7 @@
 
 /*
  * GPIOK setup:
- *
+ * TODO: Enter correct assignment (versus NUCLEO pins)
  * PK0  - PIN0                      (input pullup).
  * PK1  - PIN1                      (input pullup).
  * PK2  - PIN2                      (input pullup).

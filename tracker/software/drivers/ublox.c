@@ -9,8 +9,10 @@
 #include "pi2c.h"
 #include "debug.h"
 #include "config.h"
+#include "collector.h"
 
 bool test_gps_enabled = false;
+int8_t gps_model = GPS_MODEL_UNSET;
 
 #if defined(UBLOX_USE_UART)
 // Serial driver configuration for GPS
@@ -28,7 +30,7 @@ const SerialConfig gps_config =
   */
 void gps_transmit_string(uint8_t *cmd, uint8_t length) {
   gps_calc_ubx_csum(cmd, length);
-#if defined(UBLOX_USE_I2C)
+#if UBLOX_USE_I2C == TRUE
   I2C_writeN(UBLOX_MAX_ADDRESS, cmd, length);
 #elif defined(UBLOX_USE_UART)
   sdWrite(&SD5, cmd, length);
@@ -40,18 +42,18 @@ void gps_transmit_string(uint8_t *cmd, uint8_t length) {
   * Returns false is there is no byte available else true
   */
 bool gps_receive_byte(uint8_t *data) {
-	#if defined(UBLOX_USE_I2C)
+#if UBLOX_USE_I2C == TRUE
 	uint16_t len;
 	I2C_read16(UBLOX_MAX_ADDRESS, 0xFD, &len);
 	if(len) {
 		I2C_read8(UBLOX_MAX_ADDRESS, 0xFF, data);
 		return true;
 	}
-	#elif defined(UBLOX_USE_UART)
+#else
 	if((*data = sdGetTimeout(&SD5, TIME_IMMEDIATE)) != MSG_TIMEOUT) {
 	  return true;
 	}
-    #endif
+#endif
     return false;
 }
 
@@ -115,18 +117,20 @@ uint8_t gps_receive_ack(uint8_t class_id, uint8_t msg_id, uint16_t timeout) {
   * returns the length of the payload
   *
   */
-uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id, unsigned char *payload, uint16_t timeout) {
+uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
+                             unsigned char *payload, uint16_t timeout) {
 	uint8_t rx_byte;
 	enum {UBX_A, UBX_B, CLASSID, MSGID, LEN_A, LEN_B, PAYLOAD} state = UBX_A;
 	uint16_t payload_cnt = 0;
 	uint16_t payload_len = 0;
 
-	sysinterval_t sTimeout = chVTGetSystemTimeX() + TIME_MS2I(timeout);
-	while(sTimeout >= chVTGetSystemTimeX()) {
+	sysinterval_t sNow = chVTGetSystemTime();
+
+	while(chVTIsSystemTimeWithin(sNow, sNow + TIME_MS2I(timeout))) {
 
 		// Receive one byte
       if(!gps_receive_byte(&rx_byte)) {
-			chThdSleep(TIME_MS2I(10));
+			chThdSleep(TIME_MS2I(1));
 			continue;
 		}
 
@@ -166,7 +170,6 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id, unsigned char *pa
 				state = UBX_A;
 		}
 	}
-
 	return 0;
 }
 
@@ -205,35 +208,6 @@ bool gps_get_fix(gpsFix_t *fix) {
 		return false;
 	}
 
-	/* FIXME: Temporary hack to enable fixed GPS location to be specified. */
-
-	/* Fake GPS test. */
-/*	if(test_gps_enabled) {
-      // Extract data from message
-      fix->fixOK = true;
-      fix->pdop = 2.0;
-
-      fix->num_svs = 20;
-      fix->type = 3;
-
-      fix->time.year = 2018;
-      fix->time.month = 4;
-      fix->time.day = 12;
-      fix->time.hour = 1;
-      fix->time.minute = 2;
-      fix->time.second = 3;
-
-
-       * VK2GJ QTH in degrees...
-       * lat=-33.7331175 lon=151.1143478
-       * UBLOX set using degrees expressed as 1e-7 value.
-       *
-
-      fix->lat = -337331175;
-      fix->lon = 1511143478;
-
-      fix->alt = 144;
-	} else {*/
       // Extract data from message
       fix->fixOK = navstatus[5] & 0x1;
       fix->pdop = navpvt[76] + (navpvt[77] << 8);
@@ -274,10 +248,10 @@ bool gps_get_fix(gpsFix_t *fix) {
           fix->alt = (uint16_t)alt_tmp;
       }
 /*    }*/
-	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%d.%02d",
+	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%d.%02d model=%d",
 		fix->time.year, fix->time.month, fix->time.day, fix->time.hour, fix->time.minute, fix->time.second,
 		fix->lat/10000000, (fix->lat > 0 ? 1:-1)*(fix->lat/100)%100000, fix->lon/10000000, (fix->lon > 0 ? 1:-1)*(fix->lon/100)%100000,
-		fix->alt, fix->num_svs, fix->fixOK, fix->pdop/100, fix->pdop%100
+		fix->alt, fix->num_svs, fix->fixOK, fix->pdop/100, fix->pdop%100, gps_model
 	);
 
 	return true;
@@ -311,6 +285,82 @@ uint8_t gps_disable_nmea_output(void) {
 }
 
 /**
+  * gps_set_stationary_model
+  *
+  * tells the GPS to use the stationary positioning model.
+  *
+  * working uBlox MAX-M8Q
+  *
+  * returns if ACKed by GPS
+  *
+  */
+uint8_t gps_set_stationary_model(void) {
+    uint8_t model6[] = {
+        0xB5, 0x62, 0x06, 0x24, 0x24, 0x00,     // UBX-CFG-NAV5
+        0xFF, 0xFF,                             // parameter bitmask
+        GPS_MODEL_STATIONARY,                   // dynamic model
+        0x03,                                   // fix mode
+        0x00, 0x00, 0x00, 0x00,                 // 2D fix altitude
+        0x10, 0x27, 0x00, 0x00,                 // 2D fix altitude variance
+        0x05,                                   // minimum elevation
+        0x00,                                   // reserved
+        0xFA, 0x00,                             // position DOP
+        0xFA, 0x00,                             // time DOP
+        0x64, 0x00,                             // position accuracy
+        0x2C, 0x01,                             // time accuracy
+        0x00,                                   // static hold threshold
+        0x3C,                                   // DGPS timeout
+        0x00,                                   // min. SVs above C/No thresh
+        0x00,                                   // C/No threshold
+        0x00, 0x00,                             // reserved
+        0xc8, 0x00,                             // static hold max. distance
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // reserved
+        0x00, 0x00                              // CRC place holders
+    };
+
+    gps_transmit_string(model6, sizeof(model6));
+    return gps_receive_ack(0x06, 0x24, 1000);
+}
+
+/**
+  * gps_set_portable_model
+  *
+  * tells the GPS to use the portable positioning model.
+  *
+  * working uBlox MAX-M8Q
+  *
+  * returns if ACKed by GPS
+  *
+  */
+uint8_t gps_set_portable_model(void) {
+    uint8_t model6[] = {
+        0xB5, 0x62, 0x06, 0x24, 0x24, 0x00,     // UBX-CFG-NAV5
+        0xFF, 0xFF,                             // parameter bitmask
+        GPS_MODEL_PORTABLE,                     // dynamic model
+        0x03,                                   // fix mode
+        0x00, 0x00, 0x00, 0x00,                 // 2D fix altitude
+        0x10, 0x27, 0x00, 0x00,                 // 2D fix altitude variance
+        0x05,                                   // minimum elevation
+        0x00,                                   // reserved
+        0xFA, 0x00,                             // position DOP
+        0xFA, 0x00,                             // time DOP
+        0x64, 0x00,                             // position accuracy
+        0x2C, 0x01,                             // time accuracy
+        0x00,                                   // static hold threshold
+        0x3C,                                   // DGPS timeout
+        0x00,                                   // min. SVs above C/No thresh
+        0x00,                                   // C/No threshold
+        0x00, 0x00,                             // reserved
+        0xc8, 0x00,                             // static hold max. distance
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // reserved
+        0x00, 0x00                              // CRC place holders
+    };
+
+    gps_transmit_string(model6, sizeof(model6));
+    return gps_receive_ack(0x06, 0x24, 1000);
+}
+
+/**
   * gps_set_airborne_model
   *
   * tells the GPS to use the airborne positioning model. Should be used to
@@ -325,7 +375,7 @@ uint8_t gps_set_airborne_model(void) {
 	uint8_t model6[] = {
 		0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 	// UBX-CFG-NAV5
 		0xFF, 0xFF, 							// parameter bitmask
-		0x06, 									// dynamic model
+		GPS_MODEL_AIRBORNE1G,					// dynamic model
 		0x03, 									// fix mode
 		0x00, 0x00, 0x00, 0x00, 				// 2D fix altitude
 		0x10, 0x27, 0x00, 0x00,					// 2D fix altitude variance
@@ -395,7 +445,52 @@ uint8_t gps_power_save(int on) {
 	return gps_receive_ack(0x06, 0x11, 1000);
 }
 
-bool GPS_Init(void) {
+/**
+  * gps_set_model
+  *
+  * Selects nav model based on air pressure
+  */
+bool gps_set_model(bool dynamic) {
+  uint8_t cntr;
+  bool status;
+
+  dataPoint_t tp;
+  getSensors(&tp);
+  setSystemStatus(&tp);
+  if(dynamic && ((tp.sys_error & BMEI1_STATUS_MASK) == BME_OK_VALUE)
+      && (tp.sen_i1_press/10 > conf_sram.gps_airborne)) {
+    if(gps_model == GPS_MODEL_STATIONARY)
+      return true;
+    /* Set stationary model. */
+    cntr = 3;
+    while((status = gps_set_stationary_model()) == false && cntr--);
+    if(status) {
+      gps_model = GPS_MODEL_STATIONARY;
+      //TRACE_INFO("GPS  > ... Set stationary model OK");
+      return true;
+    }
+    TRACE_ERROR("GPS  > Communication Error [set stationary]");
+    return false;
+  }
+
+  /* Default to airborne model. */
+  if(gps_model == GPS_MODEL_AIRBORNE1G)
+    return true;
+  cntr = 3;
+  while((status = gps_set_airborne_model()) == false && cntr--);
+  if(status) {
+    gps_model = GPS_MODEL_AIRBORNE1G;
+    //TRACE_INFO("GPS  > ... Set airborne model OK");
+    return true;
+  }
+  TRACE_ERROR("GPS  > Communication Error [set airborne]");
+  return false;
+}
+
+/*
+ *
+ */
+bool GPS_Init() {
 	// Initialize pins
 	TRACE_INFO("GPS  > Init pins");
 	palSetLineMode(LINE_GPS_RESET, PAL_MODE_OUTPUT_PUSHPULL);	// GPS reset
@@ -418,6 +513,7 @@ bool GPS_Init(void) {
 	// Wait for GPS startup
 	chThdSleep(TIME_S2I(1));
 
+	gps_model = GPS_MODEL_UNSET;
 	// Configure GPS
 	TRACE_INFO("GPS  > Transmit config to GPS");
 
@@ -430,24 +526,18 @@ bool GPS_Init(void) {
 		TRACE_ERROR("GPS  > Communication Error [disable NMEA]");
 		return false;
 	}
-
-	cntr = 3;
-	while((status = gps_set_airborne_model()) == false && cntr--);
-	if(status) {
-		TRACE_INFO("GPS  > ... Set airborne model OK");
-	} else {
-		TRACE_ERROR("GPS  > Communication Error [set airborne]");
-		return false;
-	}
-
 	return true;
 }
 
+/*
+ *
+ */
 void GPS_Deinit(void)
 {
 	// Switch MOSFET
 	TRACE_INFO("GPS  > Switch off");
 	palClearLine(LINE_GPS_EN);
+    gps_model = GPS_MODEL_UNSET;
 }
 
 /*

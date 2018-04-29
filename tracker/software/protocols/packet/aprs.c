@@ -52,7 +52,7 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "pos_pri.pwr",                   sizeof(conf_sram.pos_pri.radio_conf.pwr),                    &conf_sram.pos_pri.radio_conf.pwr                   },
 	{TYPE_INT,  "pos_pri.freq",                  sizeof(conf_sram.pos_pri.radio_conf.freq),                   &conf_sram.pos_pri.radio_conf.freq                  },
     {TYPE_INT,  "pos_pri.mod",                   sizeof(conf_sram.pos_pri.radio_conf.mod),                    &conf_sram.pos_pri.radio_conf.mod                   },
-    {TYPE_INT,  "pos_pri.rssi",                  sizeof(conf_sram.pos_pri.radio_conf.rssi),                   &conf_sram.pos_pri.radio_conf.rssi                  },
+    {TYPE_INT,  "pos_pri.cca",                   sizeof(conf_sram.pos_pri.radio_conf.cca),                    &conf_sram.pos_pri.radio_conf.cca                   },
 	{TYPE_STR,  "pos_pri.call",                  sizeof(conf_sram.pos_pri.call),                              &conf_sram.pos_pri.call                             },
 	{TYPE_STR,  "pos_pri.path",                  sizeof(conf_sram.pos_pri.path),                              &conf_sram.pos_pri.path                             },
 	{TYPE_INT,  "pos_pri.symbol",                sizeof(conf_sram.pos_pri.symbol),                            &conf_sram.pos_pri.symbol                           },
@@ -68,7 +68,7 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "pos_sec.pwr",                   sizeof(conf_sram.pos_sec.radio_conf.pwr),                    &conf_sram.pos_sec.radio_conf.pwr                   },
 	{TYPE_INT,  "pos_sec.freq",                  sizeof(conf_sram.pos_sec.radio_conf.freq),                   &conf_sram.pos_sec.radio_conf.freq                  },
 	{TYPE_INT,  "pos_sec.mod",                   sizeof(conf_sram.pos_sec.radio_conf.mod),                    &conf_sram.pos_sec.radio_conf.mod                   },
-    {TYPE_INT,  "pos_sec.rssi",                  sizeof(conf_sram.pos_sec.radio_conf.rssi),                   &conf_sram.pos_sec.radio_conf.rssi                  },
+    {TYPE_INT,  "pos_sec.cca",                   sizeof(conf_sram.pos_sec.radio_conf.cca),                    &conf_sram.pos_sec.radio_conf.cca                   },
 	{TYPE_STR,  "pos_sec.call",                  sizeof(conf_sram.pos_sec.call),                              &conf_sram.pos_sec.call                             },
 	{TYPE_STR,  "pos_sec.path",                  sizeof(conf_sram.pos_sec.path),                              &conf_sram.pos_sec.path                             },
 	{TYPE_INT,  "pos_sec.symbol",                sizeof(conf_sram.pos_sec.symbol),                            &conf_sram.pos_sec.symbol                           },
@@ -85,7 +85,7 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "img_pri.pwr",                   sizeof(conf_sram.img_pri.radio_conf.pwr),                    &conf_sram.img_pri.radio_conf.pwr                   },
     {TYPE_INT,  "img_pri.freq",                  sizeof(conf_sram.img_pri.radio_conf.freq),                   &conf_sram.img_pri.radio_conf.freq                  },
 	{TYPE_INT,  "img_pri.mod",                   sizeof(conf_sram.img_pri.radio_conf.mod),                    &conf_sram.img_pri.radio_conf.mod                   },
-    {TYPE_INT,  "img_pri.rssi",                  sizeof(conf_sram.img_pri.radio_conf.rssi),                   &conf_sram.img_pri.radio_conf.rssi                  },
+    {TYPE_INT,  "img_pri.cca",                   sizeof(conf_sram.img_pri.radio_conf.cca),                    &conf_sram.img_pri.radio_conf.cca                   },
 	{TYPE_INT,  "img_pri.speed",                 sizeof(conf_sram.img_pri.radio_conf.speed),                  &conf_sram.img_pri.radio_conf.speed                 },
 	{TYPE_INT,  "img_pri.redundantTx",           sizeof(conf_sram.img_pri.radio_conf.redundantTx),            &conf_sram.img_pri.radio_conf.redundantTx           },
 	{TYPE_STR,  "img_pri.call",                  sizeof(conf_sram.img_pri.call),                              &conf_sram.img_pri.call                             },
@@ -104,7 +104,7 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "img_sec.pwr",                   sizeof(conf_sram.img_sec.radio_conf.pwr),                    &conf_sram.img_sec.radio_conf.pwr                   },
 	{TYPE_INT,  "img_sec.freq",                  sizeof(conf_sram.img_sec.radio_conf.freq),                   &conf_sram.img_sec.radio_conf.freq                  },
 	{TYPE_INT,  "img_sec.mod",                   sizeof(conf_sram.img_sec.radio_conf.mod),                    &conf_sram.img_sec.radio_conf.mod                   },
-    {TYPE_INT,  "img_sec.rssi",                  sizeof(conf_sram.img_sec.radio_conf.rssi),                   &conf_sram.img_sec.radio_conf.rssi                  },
+    {TYPE_INT,  "img_sec.cca",                  sizeof(conf_sram.img_sec.radio_conf.cca),                     &conf_sram.img_sec.radio_conf.cca                   },
 	{TYPE_INT,  "img_sec.speed",                 sizeof(conf_sram.img_sec.radio_conf.speed),                  &conf_sram.img_sec.radio_conf.speed                 },
 	{TYPE_INT,  "img_sec.redundantTx",           sizeof(conf_sram.img_sec.radio_conf.redundantTx),            &conf_sram.img_sec.radio_conf.redundantTx           },
 	{TYPE_STR,  "img_sec.call",                  sizeof(conf_sram.img_sec.call),                              &conf_sram.img_sec.call                             },
@@ -123,7 +123,7 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "log.pwr",                       sizeof(conf_sram.log.radio_conf.pwr),                        &conf_sram.log.radio_conf.pwr                       },
 	{TYPE_INT,  "log.freq",                      sizeof(conf_sram.log.radio_conf.freq),                       &conf_sram.log.radio_conf.freq                      },
 	{TYPE_INT,  "log.mod",                       sizeof(conf_sram.log.radio_conf.mod),                        &conf_sram.log.radio_conf.mod                       },
-    {TYPE_INT,  "log.rssi",                      sizeof(conf_sram.log.radio_conf.rssi),                       &conf_sram.log.radio_conf.rssi                      },
+    {TYPE_INT,  "log.cca",                       sizeof(conf_sram.log.radio_conf.cca),                        &conf_sram.log.radio_conf.cca                       },
 	{TYPE_INT,  "log.speed",                     sizeof(conf_sram.log.radio_conf.speed),                      &conf_sram.log.radio_conf.speed                     },
 	{TYPE_INT,  "log.redundantTx",               sizeof(conf_sram.log.radio_conf.redundantTx),                &conf_sram.log.radio_conf.redundantTx               },
 	{TYPE_STR,  "log.call",                      sizeof(conf_sram.log.call),                                  &conf_sram.log.call                                 },
@@ -141,17 +141,24 @@ const conf_command_t command_list[] = {
     {TYPE_INT,  "aprs.base.freq",                sizeof(conf_sram.aprs.base.radio_conf.freq),                 &conf_sram.aprs.base.radio_conf.freq                },
     {TYPE_INT,  "aprs.base.pwr",                 sizeof(conf_sram.aprs.base.radio_conf.pwr),                  &conf_sram.aprs.base.radio_conf.pwr                 },
     {TYPE_INT,  "aprs.base.mod",                 sizeof(conf_sram.aprs.base.radio_conf.mod),                  &conf_sram.aprs.base.radio_conf.mod                 },
-    {TYPE_INT,  "aprs.base.rssi",                sizeof(conf_sram.aprs.base.radio_conf.rssi),                 &conf_sram.aprs.base.radio_conf.rssi                },
+    {TYPE_INT,  "aprs.base.cca",                 sizeof(conf_sram.aprs.base.radio_conf.cca),                  &conf_sram.aprs.base.radio_conf.cca                 },
     {TYPE_STR,  "aprs.base.call",                sizeof(conf_sram.aprs.base.call),                            &conf_sram.aprs.base.call                           },
 
 	{TYPE_INT,  "aprs.tx.freq",                  sizeof(conf_sram.aprs.tx.radio_conf.freq),                   &conf_sram.aprs.tx.radio_conf.freq                  },
     {TYPE_INT,  "aprs.tx.pwr",                   sizeof(conf_sram.aprs.tx.radio_conf.pwr),                    &conf_sram.aprs.tx.radio_conf.pwr                   },
     {TYPE_INT,  "aprs.tx.mod",                   sizeof(conf_sram.aprs.tx.radio_conf.mod),                    &conf_sram.aprs.tx.radio_conf.mod                   },
-	{TYPE_INT,  "aprs.tx.rssi",                  sizeof(conf_sram.aprs.tx.radio_conf.rssi),                   &conf_sram.aprs.tx.radio_conf.rssi                  },
+	{TYPE_INT,  "aprs.tx.cca",                   sizeof(conf_sram.aprs.tx.radio_conf.cca),                    &conf_sram.aprs.tx.radio_conf.cca                   },
     {TYPE_STR,  "aprs.tx.call",                  sizeof(conf_sram.aprs.tx.call),                              &conf_sram.aprs.tx.call                             },
     {TYPE_STR,  "aprs.tx.path",                  sizeof(conf_sram.aprs.tx.path),                              &conf_sram.aprs.tx.path                             },
     {TYPE_INT,  "aprs.tx.symbol",                sizeof(conf_sram.aprs.tx.symbol),                            &conf_sram.aprs.tx.symbol                           },
+    {TYPE_INT,  "aprs.tx.beacon",                sizeof(conf_sram.aprs.tx.beacon),                            &conf_sram.aprs.tx.beacon                           },
+    {TYPE_INT,  "aprs.tx.gps",                   sizeof(conf_sram.aprs.tx.gps),                               &conf_sram.aprs.tx.gps                              },
+    {TYPE_INT,  "aprs.tx.lat",                   sizeof(conf_sram.aprs.tx.lat),                               &conf_sram.aprs.tx.lat                              },
+    {TYPE_INT,  "aprs.tx.lon",                   sizeof(conf_sram.aprs.tx.lon),                               &conf_sram.aprs.tx.lon                              },
+    {TYPE_INT,  "aprs.tx.alt",                   sizeof(conf_sram.aprs.tx.alt),                               &conf_sram.aprs.tx.alt                              },
+    {TYPE_INT,  "aprs.tx.cycle"  ,               sizeof(conf_sram.aprs.tx.cycle),                             &conf_sram.aprs.tx.cycle                            },
     {TYPE_INT,  "aprs.dig_active",               sizeof(conf_sram.aprs.dig_active),                           &conf_sram.aprs.dig_active                          },
+    {TYPE_INT,  "aprs.freq",                     sizeof(conf_sram.aprs.freq),                                 &conf_sram.aprs.freq                                },
     {TYPE_INT,  "keep_cam_switched_on",          sizeof(conf_sram.keep_cam_switched_on),                      &conf_sram.keep_cam_switched_on                     },
 	{TYPE_INT,  "gps_on_vbat",                   sizeof(conf_sram.gps_on_vbat),                               &conf_sram.gps_on_vbat                              },
 	{TYPE_INT,  "gps_off_vbat",                  sizeof(conf_sram.gps_off_vbat),                              &conf_sram.gps_off_vbat                             },
@@ -166,9 +173,8 @@ const conf_command_t command_list[] = {
 const APRSCommand aprs_commands[] = {
     {"?aprsd", aprs_send_aprsd_message},
     {"?aprsh", aprs_send_aprsh_message},
-    {"?aprsp", aprs_send_position_beacon},
+    {"?aprsp", aprs_send_position_response},
     {"?gpio", aprs_execute_gpio_command},
-/*    {"?gps", aprs_handle_gps_command},*/
     {"?reset", aprs_execute_system_reset},
     {"?save", aprs_execute_config_save},
     {"?img", aprs_execute_img_command},
@@ -265,14 +271,6 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 
 /**
  * @brief  Transmit APRS position packet.
- * @notes  The comments are filled with:
- * @notes  - Static comment (can be set in config.h)
- * @notes  - Battery voltage in mV
- * @notes  - Solar voltage in mW (if tracker is solar-enabled)
- * @notes  - Temperature in Celcius
- * @notes  - Air pressure in Pascal
- * @notes  - Number of satellites being used
- * @notes  - Number of cycles where GPS has been lost (if applicable in cycle)
  *
  * @param[in] callsign  origination call sign
  * @param[in] path      path to use
@@ -282,9 +280,130 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
  * @return    encoded packet object pointer
  * @retval    NULL if encoding failed
  */
-packet_t aprs_encode_position(const char *callsign,
-                              const char *path, uint16_t symbol,
+packet_t aprs_encode_stamped_position_and_telemetry(const char *callsign,
+                              const char *path, aprs_sym_t symbol,
                               dataPoint_t *dataPoint) {
+
+  // Latitude
+  uint32_t y = 380926 * (90 - dataPoint->gps_lat/10000000.0);
+  uint32_t y3  = y   / 753571;
+  uint32_t y3r = y   % 753571;
+  uint32_t y2  = y3r / 8281;
+  uint32_t y2r = y3r % 8281;
+  uint32_t y1  = y2r / 91;
+  uint32_t y1r = y2r % 91;
+
+  // Longitude
+  uint32_t x = 190463 * (180 + dataPoint->gps_lon/10000000.0);
+  uint32_t x3  = x   / 753571;
+  uint32_t x3r = x   % 753571;
+  uint32_t x2  = x3r / 8281;
+  uint32_t x2r = x3r % 8281;
+  uint32_t x1  = x2r / 91;
+  uint32_t x1r = x2r % 91;
+
+  // Altitude
+  uint32_t a = logf(METER_TO_FEET(dataPoint->gps_alt)) / logf(1.002f);
+  uint32_t a1  = a / 91;
+  uint32_t a1r = a % 91;
+
+  uint8_t gpsFix = dataPoint->gps_state == GPS_LOCKED1
+      || dataPoint->gps_state == GPS_LOCKED2
+      || dataPoint->gps_state == GPS_FIXED ? GSP_FIX_CURRENT : GSP_FIX_OLD;
+  uint8_t src = NMEA_SRC_GGA;
+  uint8_t origin = ORIGIN_PICO;
+
+  ptime_t time;
+  getTime(&time);
+  if(time.year == RTC_BASE_YEAR)
+    /* RTC is not set so use dataPoint (it may have a valid date). */
+    unixTimestamp2Date(&time, dataPoint->gps_time);
+  char xmit[256];
+  uint32_t len = chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:@%02d%02d%02dz",
+                            callsign,
+                            APRS_DEVICE_CALLSIGN,
+                            path,
+                            time.day,
+                            time.hour,
+                            time.minute);
+
+  xmit[len+0]  = (symbol >> 8) & 0xFF;
+  xmit[len+1]  = y3+33;
+  xmit[len+2]  = y2+33;
+  xmit[len+3]  = y1+33;
+  xmit[len+4]  = y1r+33;
+  xmit[len+5]  = x3+33;
+  xmit[len+6]  = x2+33;
+  xmit[len+7]  = x1+33;
+  xmit[len+8]  = x1r+33;
+  xmit[len+9]  = symbol & 0xFF;
+  xmit[len+10] = a1+33;
+  xmit[len+11] = a1r+33;
+  xmit[len+12] = ((gpsFix << 5) | (src << 3) | origin) + 33;
+
+  // Comments
+  uint32_t len2 = base91_encode((uint8_t*)dataPoint,
+                                (uint8_t*)&xmit[len+13],
+                                sizeof(dataPoint_t));
+
+  xmit[len+len2+13] = '|';
+
+  /* APRS base91 encoded telemetry. */
+  // Sequence ID
+  uint32_t t = dataPoint->id & 0x1FFF;
+  xmit[len+len2+14] = t/91 + 33;
+  xmit[len+len2+15] = t%91 + 33;
+
+  // Telemetry analog parameters
+  for(uint8_t i=0; i<5; i++) {
+    switch(i) {
+    case 0: t = dataPoint->adc_vbat;                break;
+    case 1: t = dataPoint->adc_vsol;                break;
+    case 2: t = dataPoint->pac_pbat+4096;           break;
+    case 3: t = dataPoint->sen_i1_temp/10 + 1000;   break;
+    case 4: t = dataPoint->sen_i1_press/125 - 40;   break;
+    }
+
+    xmit[len+len2+16+i*2]   = t/91 + 33;
+    xmit[len+len2+16+i*2+1] = t%91 + 33;
+  }
+
+  // Telemetry digital parameter
+  xmit[len+len2+26] = dataPoint->gpio + 33;
+
+  /* Digital bits second byte - set zero. */
+  xmit[len+len2+27] = 33;
+  xmit[len+len2+28] = '|';
+  xmit[len+len2+29] = 0;
+
+  return ax25_from_text(xmit, true);
+}
+
+/**
+ * @brief  Transmit APRS position and telemetry packet.
+ * @notes  Base 91 telemetry encoding is used.
+ * @notes  The comments are filled with:
+ * @notes  - Battery voltage in mV
+ * @notes  - Solar voltage in mW (if tracker is solar-enabled)
+ * @notes  - Temperature in Celcius
+ * @notes  - Air pressure in Pascal
+ * @notes  - Number of satellites being used
+ * @notes  - Number of cycles where GPS has been lost (if applicable in cycle)
+ * @notes  - State of GPIO port(s)
+ *
+ * @param[in] callsign  origination call sign
+ * @param[in] path      path to use
+ * @param[in] symbol    symbol for originator
+ * @param[in] dataPoint position data object
+ *
+ * @return    encoded packet object pointer
+ * @retval    NULL if encoding failed
+ */
+packet_t aprs_encode_position_and_telemetry(const char *callsign,
+                              const char *path, aprs_sym_t symbol,
+                              dataPoint_t *dataPoint,
+                              bool extended) {
+  (void)extended;
 	// Latitude
 	uint32_t y = 380926 * (90 - dataPoint->gps_lat/10000000.0);
 	uint32_t y3  = y   / 753571;
@@ -308,15 +427,21 @@ packet_t aprs_encode_position(const char *callsign,
 	uint32_t a1  = a / 91;
 	uint32_t a1r = a % 91;
 
-	uint8_t gpsFix = dataPoint->gps_state == GPS_LOCKED1
-	    || dataPoint->gps_state == GPS_LOCKED2
-	    || dataPoint->gps_state == GPS_FIXED ? GSP_FIX_CURRENT : GSP_FIX_OLD;
-	uint8_t src = NMEA_SRC_GGA;
-	uint8_t origin = ORIGIN_PICO;
+/*    ptime_t time;
+    unixTimestamp2Date(&time, dataPoint->gps_time);*/
 
 	char xmit[256];
-	uint32_t len = chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:!",
-	                          callsign, APRS_DEVICE_CALLSIGN, path);
+    uint32_t len = chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:=",
+                              callsign,
+                              APRS_DEVICE_CALLSIGN,
+                              path);
+
+    uint8_t gpsFix = dataPoint->gps_state == GPS_LOCKED1
+        || dataPoint->gps_state == GPS_LOCKED2
+        || dataPoint->gps_state == GPS_FIXED ? GSP_FIX_CURRENT : GSP_FIX_OLD;
+
+    uint8_t src = NMEA_SRC_GGA;
+    uint8_t origin = ORIGIN_PICO;
 
 	xmit[len+0]  = (symbol >> 8) & 0xFF;
 	xmit[len+1]  = y3+33;
@@ -339,12 +464,13 @@ packet_t aprs_encode_position(const char *callsign,
 
 	xmit[len+len2+13] = '|';
 
+	/* APRS base91 encoded telemetry. */
 	// Sequence ID
 	uint32_t t = dataPoint->id & 0x1FFF;
 	xmit[len+len2+14] = t/91 + 33;
 	xmit[len+len2+15] = t%91 + 33;
 
-	// Telemetry parameter
+	// Telemetry analog parameters
 	for(uint8_t i=0; i<5; i++) {
 		switch(i) {
 			case 0: t = dataPoint->adc_vbat;				break;
@@ -358,12 +484,20 @@ packet_t aprs_encode_position(const char *callsign,
 		xmit[len+len2+16+i*2+1] = t%91 + 33;
 	}
 
-	xmit[len+len2+26] = '|';
-	xmit[len+len2+27] = 0;
+    // Telemetry digital parameter
+    xmit[len+len2+26] = dataPoint->gpio + 33;
+
+    /* Digital bits second byte - set zero. */
+    xmit[len+len2+27] = 33;
+    xmit[len+len2+28] = '|';
+	xmit[len+len2+29] = 0;
 
 	return ax25_from_text(xmit, true);
 }
 
+/*
+ *
+ */
 packet_t aprs_encode_data_packet(const char *callsign, const char *path,
                                  char packetType, uint8_t *data)
 {
@@ -467,7 +601,7 @@ msg_t aprs_send_aprsd_message(aprs_identity_t *id,
                   0,
                   id->pwr,
                   id->mod,
-                  id->rssi)) {
+                  id->cca)) {
     TRACE_ERROR("RX   > Transmit of APRSD failed");
     return MSG_ERROR;
   }
@@ -518,7 +652,7 @@ msg_t aprs_send_aprsh_message(aprs_identity_t *id,
                   0,
                   id->pwr,
                   id->mod,
-                  id->rssi)) {
+                  id->cca)) {
     TRACE_ERROR("RX   > Transmit of APRSH failed");
     return MSG_ERROR;
   }
@@ -541,101 +675,120 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
   if(argc != 1)
     return MSG_ERROR;
 
-  if(!strcmp(argv[0], "pa8:1")) {
-    TRACE_INFO("RX   > Message: GPIO query PA8 HIGH");
-    palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
-    palSetPad(GPIOA, 8);
+/*  char *tok = strtok(argv[0], ":");
+  if(tok == NULL)
+    return MSG_ERROR;*/
+
+  /* TODO: WIP to generalize by parsing out the port # and operation. */
+  if(!strcmp(argv[0], "io1:1")) {
+    TRACE_INFO("RX   > Message: GPIO set IO1 HIGH");
+    palSetLineMode(LINE_IO1, PAL_MODE_OUTPUT_PUSHPULL);
+    palSetLine(LINE_IO1);
     return MSG_OK;
   }
 
-  if(!strcmp(argv[0], "pa8:0")) {
-    TRACE_INFO("RX   > Message: GPIO query PA8 LOW");
-    palSetPadMode(GPIOA, 8, PAL_MODE_OUTPUT_PUSHPULL);
-    palClearPad(GPIOA, 8);
+  if(!strcmp(argv[0], "io1:0")) {
+    TRACE_INFO("RX   > Message: GPIO set IO1 LOW");
+    palSetLineMode(LINE_IO1, PAL_MODE_OUTPUT_PUSHPULL);
+    palClearLine(LINE_IO1);
     return MSG_OK;
   }
 
-  if(!strcmp(argv[0], "pa8:?")) {
-    char buf[AX25_MAX_APRS_MSG_LEN + 1];
-    /* TODO: Need to read mode and if not output then report as "input" etc. */
-    chsnprintf(buf, sizeof(buf),
-                   "PA8 is %s ",
-                   (palReadPad(GPIOA, 8) == PAL_HIGH) ? "HIGH" : "LOW");
+#if ENABLE_EXTERNAL_I2C != TRUE
 
-    packet_t pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
-    if(pp == NULL) {
-      TRACE_WARN("RX   > No free packet objects or badly formed message");
-      return MSG_ERROR;
+  if(!strcmp(argv[0], "io2:1")) {
+    TRACE_INFO("RX   > Message: GPIO set IO2 HIGH");
+    palSetLineMode(LINE_IO2, PAL_MODE_OUTPUT_PUSHPULL);
+    palSetLine(LINE_IO2);
+    return MSG_OK;
+  }
+
+  if(!strcmp(argv[0], "io2:0")) {
+    TRACE_INFO("RX   > Message: GPIO set IO2 LOW");
+    palSetLineMode(LINE_IO2, PAL_MODE_OUTPUT_PUSHPULL);
+    palClearLine(LINE_IO2);
+    return MSG_OK;
+  }
+
+  if(!strcmp(argv[0], "io3:1")) {
+    TRACE_INFO("RX   > Message: GPIO set IO3 HIGH");
+    palSetLineMode(LINE_IO3, PAL_MODE_OUTPUT_PUSHPULL);
+    palSetLine(LINE_IO3);
+    return MSG_OK;
+  }
+
+  if(!strcmp(argv[0], "io3:0")) {
+    TRACE_INFO("RX   > Message: GPIO set IO3 LOW");
+    palSetLineMode(LINE_IO3, PAL_MODE_OUTPUT_PUSHPULL);
+    palClearLine(LINE_IO3);
+    return MSG_OK;
+  }
+#endif
+
+  /* TODO: Parse out IO number and reduce above and below ugly DRY code. */
+  packet_t pp;
+  do {
+    if(!strcmp(argv[0], "io1:?")) {
+      char buf[AX25_MAX_APRS_MSG_LEN + 1];
+      /* TODO: Need to read mode and if not output then report as "input" etc. */
+      chsnprintf(buf, sizeof(buf),
+                     "IO1 is %s ",
+                     (palReadLine(LINE_IO1) == PAL_HIGH) ? "HIGH" : "LOW");
+      TRACE_INFO("RX   > Message: GPIO query IO1 is %s", (palReadLine(LINE_IO1) == PAL_HIGH) ? "HIGH" : "LOW");
+      pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
+      if(pp == NULL) {
+        TRACE_WARN("RX   > No free packet objects or badly formed message");
+        return MSG_ERROR;
+      }
+      break;
     }
-    if(!transmitOnRadio(pp,
-                id->freq,
-                0,
-                0,
-                id->pwr,
-                id->mod,
-                id->rssi)) {
-      TRACE_ERROR("RX   > Transmit of GPIO status failed");
-      return MSG_ERROR;
-    }
-    return MSG_OK;
-  }
-  return MSG_ERROR;
-}
 
-/*
- * @brief       Handle GPS command
- *
- * @param[in]   id      aprs node identity
- * @param[in]   argc    number of parameters
- * @param[in]   argv    array of pointers to parameter strings
- *
- * @return      result of command
- * @retval      MSG_OK if the command completed.
- * @retval      MSG_ERROR if there was an error.
- */
-/*msg_t aprs_handle_gps_command(aprs_identity_t *id,
-                                 int argc, char *argv[]) {
-  if(argc != 1)
+#if ENABLE_EXTERNAL_I2C != TRUE
+    if(!strcmp(argv[0], "io2:?")) {
+      char buf[AX25_MAX_APRS_MSG_LEN + 1];
+      /* TODO: Need to read mode and if not output then report as "input" etc. */
+      chsnprintf(buf, sizeof(buf),
+                     "IO2 is %s ",
+                     (palReadLine(LINE_IO2) == PAL_HIGH) ? "HIGH" : "LOW");
+      TRACE_INFO("RX   > Message: GPIO query IO2 is %s", (palReadLine(LINE_IO2) == PAL_HIGH) ? "HIGH" : "LOW");
+      pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
+      if(pp == NULL) {
+        TRACE_WARN("RX   > No free packet objects or badly formed message");
+        return MSG_ERROR;
+      }
+      break;
+    }
+
+    if(!strcmp(argv[0], "io3:?")) {
+      char buf[AX25_MAX_APRS_MSG_LEN + 1];
+      /* TODO: Need to read mode and if not output then report as "input" etc. */
+      chsnprintf(buf, sizeof(buf),
+                     "IO3 is %s ",
+                     (palReadLine(LINE_IO3) == PAL_HIGH) ? "HIGH" : "LOW");
+      TRACE_INFO("RX   > Message: GPIO query IO3 is %s", (palReadLine(LINE_IO3) == PAL_HIGH) ? "HIGH" : "LOW");
+      pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
+      if(pp == NULL) {
+        TRACE_WARN("RX   > No free packet objects or badly formed message");
+        return MSG_ERROR;
+      }
+      break;
+    }
+    /* No known IO port found. */
     return MSG_ERROR;
-
-  if(!strcmp(argv[0], "fixed")) {
-    TRACE_INFO("RX   > Message: GPS set to fixed location");
-    test_gps_enabled = true;
-    return MSG_OK;
+#endif
+  } while(true);
+  if(!transmitOnRadio(pp,
+              id->freq,
+              0,
+              0,
+              id->pwr,
+              id->mod,
+              id->cca)) {
+    TRACE_ERROR("RX   > Transmit of GPIO status failed");
+    return MSG_ERROR;
   }
-
-  if(!strcmp(argv[0], "normal")) {
-    TRACE_INFO("RX   > Message: GPS set to normal operation");
-    test_gps_enabled = false;
-    return MSG_OK;
-  }
-
-  if(!strcmp(argv[0], "status")) {
-    char buf[AX25_MAX_APRS_MSG_LEN + 1];
-
-    chsnprintf(buf, sizeof(buf),
-                   "GPS is %s",
-                   test_gps_enabled ? "fixed" : "normal");
-
-    packet_t pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
-    if(pp == NULL) {
-      TRACE_WARN("RX   > No free packet objects or badly formed message");
-      return MSG_ERROR;
-    }
-    if(!transmitOnRadio(pp,
-                id->freq,
-                0,
-                0,
-                id->pwr,
-                id->mod,
-                id->rssi)) {
-      TRACE_ERROR("RX   > Transmit of GPS status failed");
-      return MSG_ERROR;
-    }
-    return MSG_OK;
-  }
-  return MSG_ERROR;
-}*/
+  return MSG_OK;
+}
 
 /**
 * @brief       Request for position beacon to be sent
@@ -648,16 +801,44 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
 * @retval      MSG_OK if the command completed.
 * @retval      MSG_ERROR if there was an error.
 */
-msg_t aprs_send_position_beacon(aprs_identity_t *id,
+msg_t aprs_send_position_response(aprs_identity_t *id,
                                 int argc, char *argv[]) {
   (void)argv;
 
   if(argc != 0)
     return MSG_ERROR;
+/*
+ * TODO: This should just send a request to a TEL service.
+ * The TEL service should then transmit config data at a spaced interval.
+ * The same applies to BCN and POS threads which should also use a TEL service.
+ */
+  // Encode and transmit telemetry config first
+  for(uint8_t type = 0; type < APRS_NUM_TELEM_GROUPS; type++) {
+    packet_t packet = aprs_encode_telemetry_configuration(
+        id->call,
+        id->path,
+        id->call,
+        type);
+    if(packet == NULL) {
+      TRACE_WARN("BCN  > No free packet objects for"
+          " telemetry config transmission");
+    } else {
+      if(!transmitOnRadio(packet,
+                          id->freq,
+                          0,
+                          0,
+                          id->pwr,
+                          id->mod,
+                          id->cca)) {
+        TRACE_ERROR("BCN  > Failed to transmit telemetry config");
+      }
+    }
+    chThdSleep(TIME_S2I(5));
+  }
 
   TRACE_INFO("RX   > Message: Position query");
   dataPoint_t* dataPoint = getLastDataPoint();
-  packet_t pp = aprs_encode_position(id->call,
+  packet_t pp = aprs_encode_stamped_position_and_telemetry(id->call,
                                      id->path,
                                      id->symbol,
                                      dataPoint);
@@ -671,8 +852,8 @@ msg_t aprs_send_position_beacon(aprs_identity_t *id,
                       0,
                       id->pwr,
                       id->mod,
-                      id->rssi)) {
-    TRACE_ERROR("RX   > Transmit of APRSD failed");
+                      id->cca)) {
+    TRACE_ERROR("RX   > Transmit of APRSP failed");
     return MSG_ERROR;
   }
   return MSG_OK;
@@ -711,7 +892,7 @@ msg_t aprs_execute_system_reset(aprs_identity_t *id,
                   0,
                   id->pwr,
                   id->mod,
-                  id->rssi);
+                  id->cca);
 
   chThdSleep(TIME_S2I(10));
 
@@ -911,9 +1092,9 @@ static bool aprs_decode_message(packet_t pp) {
   identity.freq = conf_sram.aprs.tx.radio_conf.freq;
   identity.pwr = conf_sram.aprs.tx.radio_conf.pwr;
   identity.mod = conf_sram.aprs.tx.radio_conf.mod;
-  identity.rssi = conf_sram.aprs.tx.radio_conf.rssi;
+  identity.cca = conf_sram.aprs.tx.radio_conf.cca;
 
-  /* Check which nodes are enabled to accept aprs messages. */
+  /* Check which nodes are enabled to accept APRS messages. */
   bool pos_pri = !strcmp(conf_sram.pos_pri.call, dest)
 	        && (conf_sram.pos_pri.aprs_msg)
 	        && (conf_sram.pos_pri.thread_conf.active);
@@ -936,13 +1117,15 @@ static bool aprs_decode_message(packet_t pp) {
   bool aprs_rx = !strcmp(conf_sram.aprs.rx.call, dest)
             && (conf_sram.aprs.thread_conf.active);
   if(aprs_rx) {
-    /* Parameters come from tx. */
+    strcpy(identity.call, conf_sram.aprs.rx.call);
+    identity.symbol = conf_sram.aprs.rx.symbol;
+    /* Other parameters come from tx identity. */
   }
 
   bool aprs_tx = !strcmp(conf_sram.aprs.tx.call, dest)
             && (conf_sram.aprs.thread_conf.active)
             && (conf_sram.aprs.dig_active);
-  /* Default already set for tx. */
+  /* Default already set tx parameters. */
 
   /* Check if this is message and address is one of the nodes on this device. */
   if(!((pinfo[10] == ':') && (pos_pri || pos_sec || aprs_rx || aprs_tx))) {
@@ -1034,7 +1217,7 @@ static bool aprs_decode_message(packet_t pp) {
                     0,
                     identity.pwr,
                     identity.mod,
-                    identity.rssi);
+                    identity.cca);
   }
   /* Flag that the APRS content should not be digipeated. */
   return false;
@@ -1062,10 +1245,10 @@ static void aprs_digipeat(packet_t pp) {
                       0,
                       conf_sram.aprs.tx.radio_conf.pwr,
                       conf_sram.aprs.tx.radio_conf.mod,
-                      conf_sram.aprs.tx.radio_conf.rssi)) {
+                      conf_sram.aprs.tx.radio_conf.cca)) {
         TRACE_INFO("RX   > Failed to digipeat packet");
       } /* TX failed. */
-    } /* Should be digipteated. */
+    } /* Should be digipeated. */
   } /* Duplicate check. */
 }
 
@@ -1078,13 +1261,21 @@ packet_t aprs_encode_telemetry_configuration(const char *originator,
                                              uint8_t type) {
 	switch(type) {
 		case 0:	return aprs_encode_message(originator, path, destination,
-		       	        "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure", false);
+#if     ENABLE_EXTERNAL_I2C == TRUE
+		      "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure,IO1", false);
+#else
+              "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure,IO1,IO2,IO3", false);
+#endif
 		case 1: return aprs_encode_message(originator, path, destination,
-		                "UNIT.V,V,W,degC,Pa", false);
+#if     ENABLE_EXTERNAL_I2C == TRUE
+		      "UNIT.V,V,W,degC,Pa,1", false);
+#else
+              "UNIT.V,V,W,degC,Pa,1,1,1", false);
+#endif
 		case 2: return aprs_encode_message(originator, path, destination,
-		                 "EQNS.0,.001,0,0,.001,0,0,.001,-4.096,0,.1,-100,0,12.5,500", false);
+                 "EQNS.0,0.001,0,0,0.001,0,0,0.001,-4.096,0,0.1,-100,0,12.5,500", false);
 		case 3: return aprs_encode_message(originator, path, destination,
-		                  "BITS.11111111,", false);
+                 "BITS.11111111,Pecan Pico", false);
 		default: return NULL;
 	}
 }

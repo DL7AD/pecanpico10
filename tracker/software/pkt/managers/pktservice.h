@@ -201,33 +201,33 @@ extern "C" {
 #endif
   bool pktSystemInit(void);
   bool pktSystemDeinit(void);
-  bool pktServiceCreate(radio_unit_t radio);
-  bool pktServiceRelease(radio_unit_t radio);
-  msg_t pktOpenRadioReceive(radio_unit_t radio,
-                                     encoding_type_t encoding,
-                                     radio_freq_t frequency,
-                                     channel_hz_t ch_step);
-  msg_t pktEnableDataReception(radio_unit_t radio,
-                              radio_ch_t channel,
-                              radio_squelch_t sq,
-                              pkt_buffer_cb_t cb);
-  void pktStartDecoder(radio_unit_t radio);
-  msg_t pktDisableDataReception(radio_unit_t radio);
-  void pktStopDecoder(radio_unit_t radio);
-  msg_t pktCloseRadioReceive(radio_unit_t radio);
+  bool pktServiceCreate(const radio_unit_t radio);
+  bool pktServiceRelease(const radio_unit_t radio);
+  msg_t pktOpenRadioReceive(const radio_unit_t radio,
+                                     const encoding_type_t encoding,
+                                     const radio_freq_t frequency,
+                                     const channel_hz_t ch_step);
+  msg_t pktEnableDataReception(const radio_unit_t radio,
+                              const radio_ch_t channel,
+                              const radio_squelch_t sq,
+                              const pkt_buffer_cb_t cb);
+  void pktStartDecoder(const radio_unit_t radio);
+  msg_t pktDisableDataReception(const radio_unit_t radio);
+  void pktStopDecoder(const radio_unit_t radio);
+  msg_t pktCloseRadioReceive(const radio_unit_t radio);
   bool  pktStoreBufferData(pkt_data_object_t *buffer, ax25char_t data);
   eventflags_t  pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer);
   thread_t *pktCreateBufferCallback(pkt_data_object_t *pkt_buffer);
   void pktCallback(void *arg);
-  void pktCallbackManagerOpen(radio_unit_t radio);
+  void pktCallbackManagerOpen(const radio_unit_t radio);
   void pktCompletion(void *arg);
-  dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio);
-  thread_t *pktCallbackManagerCreate(radio_unit_t radio);
+  dyn_objects_fifo_t *pktIncomingBufferPoolCreate(const radio_unit_t radio);
+  thread_t *pktCallbackManagerCreate(const radio_unit_t radio);
   void pktCallbackManagerRelease(packet_svc_t *handler);
   void pktIncomingBufferPoolRelease(packet_svc_t *handler);
-  dyn_objects_fifo_t *pktCommonBufferPoolCreate(radio_unit_t radio);
-  void pktCommonBufferPoolRelease(radio_unit_t radio);
-  void pktReleaseBufferSemaphore(radio_unit_t radio);
+  dyn_objects_fifo_t *pktCommonBufferPoolCreate(const radio_unit_t radio);
+  void pktCommonBufferPoolRelease(const radio_unit_t radio);
+  void pktReleaseBufferSemaphore(const radio_unit_t radio);
   msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
   void pktReleasePacketBuffer(packet_t pp);
   dyn_semaphore_t *pktInitBufferControl(void);
