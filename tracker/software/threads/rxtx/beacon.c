@@ -49,7 +49,7 @@ THD_FUNCTION(bcnThread, arg) {
           packet_t packet = aprs_encode_telemetry_configuration(
               conf->tx.call,
               conf->tx.path,
-              APRS_DEVICE_CALLSIGN,
+              conf->tx.call,
               type);
           if(packet == NULL) {
             TRACE_WARN("BCN  > No free packet objects for"
@@ -65,7 +65,7 @@ THD_FUNCTION(bcnThread, arg) {
               TRACE_ERROR("BCN  > Failed to transmit telemetry config");
             }
           }
-          chThdSleep(TIME_S2I(15));
+          chThdSleep(TIME_S2I(5));
         }
         last_conf_transmission += conf->tx.tel_enc_cycle;
       }

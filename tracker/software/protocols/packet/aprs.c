@@ -283,8 +283,6 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 packet_t aprs_encode_stamped_position_and_telemetry(const char *callsign,
                               const char *path, aprs_sym_t symbol,
                               dataPoint_t *dataPoint) {
-  ptime_t time;
-  unixTimestamp2Date(&time, dataPoint->gps_time);
 
   // Latitude
   uint32_t y = 380926 * (90 - dataPoint->gps_lat/10000000.0);
@@ -315,6 +313,11 @@ packet_t aprs_encode_stamped_position_and_telemetry(const char *callsign,
   uint8_t src = NMEA_SRC_GGA;
   uint8_t origin = ORIGIN_PICO;
 
+  ptime_t time;
+  getTime(&time);
+  if(time.year == RTC_BASE_YEAR)
+    /* RTC is not set so use dataPoint (it may have a valid date). */
+    unixTimestamp2Date(&time, dataPoint->gps_time);
   char xmit[256];
   uint32_t len = chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:@%02d%02d%02dz",
                             callsign,
@@ -814,7 +817,7 @@ msg_t aprs_send_position_response(aprs_identity_t *id,
     packet_t packet = aprs_encode_telemetry_configuration(
         id->call,
         id->path,
-        APRS_DEVICE_CALLSIGN,
+        id->call,
         type);
     if(packet == NULL) {
       TRACE_WARN("BCN  > No free packet objects for"
@@ -830,10 +833,9 @@ msg_t aprs_send_position_response(aprs_identity_t *id,
         TRACE_ERROR("BCN  > Failed to transmit telemetry config");
       }
     }
-    chThdSleep(TIME_S2I(15));
+    chThdSleep(TIME_S2I(5));
   }
 
-  /* TODO: Implement a simple (non base 91) position parameter. */
   TRACE_INFO("RX   > Message: Position query");
   dataPoint_t* dataPoint = getLastDataPoint();
   packet_t pp = aprs_encode_stamped_position_and_telemetry(id->call,
@@ -1273,7 +1275,7 @@ packet_t aprs_encode_telemetry_configuration(const char *originator,
 		case 2: return aprs_encode_message(originator, path, destination,
                  "EQNS.0,0.001,0,0,0.001,0,0,0.001,-4.096,0,0.1,-100,0,12.5,500", false);
 		case 3: return aprs_encode_message(originator, path, destination,
-                 "BITS.11111111,", false);
+                 "BITS.11111111,Pecan Pico", false);
 		default: return NULL;
 	}
 }

@@ -53,7 +53,7 @@ THD_FUNCTION(posThread, arg)
                     packet_t packet = aprs_encode_telemetry_configuration(
                                               conf->call,
                                               conf->path,
-                                              APRS_DEVICE_CALLSIGN,
+                                              conf->call,
                                               type);
                     if(packet == NULL) {
                       TRACE_WARN("POS  > No free packet objects for"
@@ -69,7 +69,7 @@ THD_FUNCTION(posThread, arg)
                        TRACE_ERROR("POS  > Failed to transmit telemetry data");
                       }
                     }
-                    chThdSleep(TIME_S2I(15));
+                    chThdSleep(TIME_S2I(5));
                 }
 
                 last_conf_transmission += conf->tel_enc_cycle;

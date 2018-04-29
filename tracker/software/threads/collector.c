@@ -24,7 +24,7 @@ static dataPoint_t dataPoints[2];
 static dataPoint_t* lastDataPoint;
 static bool threadStarted = false;
 static uint8_t useGPS = 0;
-static uint8_t useTEL = 0;
+static uint8_t useCFG = 0;
 
 /**
   * Returns most recent data point which is complete.
@@ -393,9 +393,10 @@ THD_FUNCTION(collectorThread, arg) {
     } else {
       /*
        * No threads using GPS.
-       * RTC valid so set tp & ltp from fixed location data.
+       * RTC valid so set tp & ltp from RTC and fixed location data.
        */
       TRACE_INFO("COLL > Using fixed location");
+      getTime(&time);
       unixTimestamp2Date(&time, tp->gps_time);
       tp->gps_alt = conf_sram.aprs.tx.alt;
       tp->gps_lat = conf_sram.aprs.tx.lat;
@@ -453,7 +454,8 @@ THD_FUNCTION(collectorThread, arg) {
   * Telemetry config (Thread)
   */
 THD_FUNCTION(configThread, arg) {
-  uint8_t *useTEL = arg;
+  //uint8_t *useCFG = arg;
+  (void)arg;
   while(true) chThdSleep(TIME_S2I(1));
 }
 
@@ -478,11 +480,11 @@ void init_data_collector() {
       chThdSleep(TIME_MS2I(300)); // Wait a little bit until data collector has initialized first dataset
     }
 
-    TRACE_INFO("CFG > Startup telemetry config thread");
+    TRACE_INFO("CFG  > Startup telemetry config thread");
     th = chThdCreateFromHeap(NULL,
                                        THD_WORKING_AREA_SIZE(10*1024),
                                        "CFG", LOWPRIO,
-                                       configThread, &useTEL);
+                                       configThread, &useCFG);
     if(!th) {
       // Print startup error, do not start watchdog for this thread
       TRACE_ERROR("CFG > Could not start"
