@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name pecanpico)(type KiCad)(uri /src/pecanpico10/tracker/hardware/lib/pecanpico.pretty)(options "")(descr ""))
+)
