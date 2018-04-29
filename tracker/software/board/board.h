@@ -261,6 +261,7 @@
 #define LINE_GPS_RESET              PAL_LINE(GPIOB, 14U)
 #define LINE_GPS_TXD                PAL_LINE(GPIOB, 13U)
 #define LINE_GPS_RXD                PAL_LINE(GPIOB, 12U)
+#define LINE_GPS_TIMEPULSE          PAL_LINE(GPIOB, 15U)
 
 // I2C
 #define LINE_I2C_SCL                PAL_LINE(GPIOB, 8U)
@@ -304,13 +305,12 @@
 
 // USB
 #define LINE_USB_ID                 PAL_LINE(GPIOA, 10U)
-#define LINE_USB_VUSB               PAL_LINE(GPIOA,  9U)
+#define LINE_USB_VBUS               PAL_LINE(GPIOA,  9U)
 #define LINE_USB_DM                 PAL_LINE(GPIOA, 11U)
 #define LINE_USB_DP                 PAL_LINE(GPIOA, 12U)
 
 // Misc
 #define LINE_TCXO_EN                PAL_LINE(GPIOC, 13U)
-//#define LINE_SD_DET                 PAL_LINE(GPIOC, 8U)
 
 // Hardware dependent settings
 
@@ -347,23 +347,23 @@
 
 /*
  * GPIOA setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
- * PA0  - ZIO_D32 TIM2_CH1          (input pullup).
- * PA1  - PIN1                      (input pullup).
- * PA2  - ZIO_A8 ADC1_IN2           (input pullup).
- * PA3  - ARD_A0 ADC1_IN3           (input pullup).
- * PA4  - ZIO_D24 SPI3_NSS          (input pullup).
- * PA5  - ARD_D13 SPI1_SCK          (input pullup).
- * PA6  - ARD_D12 SPI1_MISO         (input pullup).
- * PA7  - ARD_D11 SPI1_MOSI ZIO_D71 (input pullup).
- * PA8  - USB_SOF                   (alternate 10).
- * PA9  - USB_VBUS                  (analog).
+ *
+ * PA0  - CAM_D2                    (input pulldown).
+ * PA1  - CAM_D3                    (input pulldown).
+ * PA2  - CAM_D4                    (input pulldown).
+ * PA3  - CAM_D5                    (input pulldown).
+ * PA4  - CAM_D6                    (input pulldown).
+ * PA5  - CAM_D7                    (input pulldown).
+ * PA6  - CAM_D8                    (input pulldown).
+ * PA7  - CAM_D9                    (input pulldown).
+ * PA8  - IO_PA8                    (input floating).
+ * PA9  - USB_VBUS                  (input floating).
  * PA10 - USB_ID                    (alternate 10).
  * PA11 - USB_DM                    (alternate 10).
  * PA12 - USB_DP                    (alternate 10).
  * PA13 - SWDIO                     (alternate 0).
  * PA14 - SWCLK                     (alternate 0).
- * PA15 - ZIO_D20 I2S3_WS           (alternate 6).
+ * PA15 - GPS_EN                    (input pulldown).
  */
 #define VAL_GPIOA_MODER             (PIN_MODE_INPUT(GPIOA_PIN0) |           \
                                      PIN_MODE_INPUT(GPIOA_PIN1) |           \
@@ -390,10 +390,10 @@
                                      PIN_OTYPE_PUSHPULL(GPIOA_PIN6) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOA_PIN7) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOA_PIN8) |       \
-                                     PIN_OTYPE_PUSHPULL(GPIOA_USB_VBUS) |       \
-                                     PIN_OTYPE_PUSHPULL(GPIOA_USB_ID) |      \
-                                     PIN_OTYPE_PUSHPULL(GPIOA_USB_DM) |      \
-                                     PIN_OTYPE_PUSHPULL(GPIOA_USB_DP) |      \
+                                     PIN_OTYPE_PUSHPULL(GPIOA_USB_VBUS) |   \
+                                     PIN_OTYPE_PUSHPULL(GPIOA_USB_ID) |     \
+                                     PIN_OTYPE_PUSHPULL(GPIOA_USB_DM) |     \
+                                     PIN_OTYPE_PUSHPULL(GPIOA_USB_DP) |     \
                                      PIN_OTYPE_PUSHPULL(GPIOA_SWDIO) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOA_SWCLK) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOA_PIN15))
@@ -406,10 +406,10 @@
                                      PIN_OSPEED_VERYLOW(GPIOA_PIN6) |       \
                                      PIN_OSPEED_VERYLOW(GPIOA_PIN7) |       \
                                      PIN_OSPEED_VERYLOW(GPIOA_PIN8) |       \
-                                     PIN_OSPEED_HIGH(GPIOA_USB_VBUS) |       \
-                                     PIN_OSPEED_HIGH(GPIOA_USB_ID) |      \
-                                     PIN_OSPEED_HIGH(GPIOA_USB_DM) |      \
-                                     PIN_OSPEED_HIGH(GPIOA_USB_DP) |      \
+                                     PIN_OSPEED_HIGH(GPIOA_USB_VBUS) |      \
+                                     PIN_OSPEED_HIGH(GPIOA_USB_ID) |        \
+                                     PIN_OSPEED_HIGH(GPIOA_USB_DM) |        \
+                                     PIN_OSPEED_HIGH(GPIOA_USB_DP) |        \
                                      PIN_OSPEED_HIGH(GPIOA_SWDIO) |         \
                                      PIN_OSPEED_HIGH(GPIOA_SWCLK) |         \
                                      PIN_OSPEED_VERYLOW(GPIOA_PIN15))
@@ -422,10 +422,10 @@
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN6) |       \
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN7) |       \
                                      PIN_PUPDR_FLOATING(GPIOA_PIN8) |       \
-                                     PIN_PUPDR_FLOATING(GPIOA_USB_VBUS) |       \
-                                     PIN_PUPDR_FLOATING(GPIOA_USB_ID) |      \
-                                     PIN_PUPDR_FLOATING(GPIOA_USB_DM) |      \
-                                     PIN_PUPDR_FLOATING(GPIOA_USB_DP) |      \
+                                     PIN_PUPDR_FLOATING(GPIOA_USB_VBUS) |   \
+                                     PIN_PUPDR_FLOATING(GPIOA_USB_ID) |     \
+                                     PIN_PUPDR_FLOATING(GPIOA_USB_DM) |     \
+                                     PIN_PUPDR_FLOATING(GPIOA_USB_DP) |     \
                                      PIN_PUPDR_FLOATING(GPIOA_SWDIO) |      \
                                      PIN_PUPDR_FLOATING(GPIOA_SWCLK) |      \
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN15))
@@ -438,10 +438,10 @@
                                      PIN_ODR_HIGH(GPIOA_PIN6) |             \
                                      PIN_ODR_HIGH(GPIOA_PIN7) |             \
                                      PIN_ODR_HIGH(GPIOA_PIN8) |             \
-                                     PIN_ODR_HIGH(GPIOA_USB_VBUS) |             \
-                                     PIN_ODR_HIGH(GPIOA_USB_ID) |            \
-                                     PIN_ODR_HIGH(GPIOA_USB_DM) |            \
-                                     PIN_ODR_HIGH(GPIOA_USB_DP) |            \
+                                     PIN_ODR_HIGH(GPIOA_USB_VBUS) |         \
+                                     PIN_ODR_HIGH(GPIOA_USB_ID) |           \
+                                     PIN_ODR_HIGH(GPIOA_USB_DM) |           \
+                                     PIN_ODR_HIGH(GPIOA_USB_DP) |           \
                                      PIN_ODR_HIGH(GPIOA_SWDIO) |            \
                                      PIN_ODR_HIGH(GPIOA_SWCLK) |            \
                                      PIN_ODR_HIGH(GPIOA_PIN15))
@@ -454,33 +454,33 @@
                                      PIN_AFIO_AF(GPIOA_PIN6, 0) |           \
                                      PIN_AFIO_AF(GPIOA_PIN7, 0))
 #define VAL_GPIOA_AFRH              (PIN_AFIO_AF(GPIOA_PIN8, 0) |           \
-                                     PIN_AFIO_AF(GPIOA_USB_VBUS, 0) |           \
-                                     PIN_AFIO_AF(GPIOA_USB_ID, 10) |          \
-                                     PIN_AFIO_AF(GPIOA_USB_DM, 10) |          \
-                                     PIN_AFIO_AF(GPIOA_USB_DP, 10) |          \
+                                     PIN_AFIO_AF(GPIOA_USB_VBUS, 0) |       \
+                                     PIN_AFIO_AF(GPIOA_USB_ID, 10) |        \
+                                     PIN_AFIO_AF(GPIOA_USB_DM, 10) |        \
+                                     PIN_AFIO_AF(GPIOA_USB_DP, 10) |        \
                                      PIN_AFIO_AF(GPIOA_SWDIO, 0) |          \
                                      PIN_AFIO_AF(GPIOA_SWCLK, 0) |          \
                                      PIN_AFIO_AF(GPIOA_PIN15, 0))
 
 /*
  * GPIOB setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
- * PB0  - ZIO_D33 TIM3_CH3 LED1     (output pushpull maximum).
- * PB1  - ZIO_A6 ADC1_IN9           (input pullup).
- * PB2  - ZIO_D27 QUADSPI_CLK       (input pullup).
- * PB3  - ZIO_D23 I2S3_CK           (input pullup).
- * PB4  - ZIO_D25 SPI3_MISO         (input pullup).
- * PB5  - ZIO_D22 I2S3_SD           (input pullup).
- * PB6  - ZIO_D26 QUADSPI_BK1_NCS   (input pullup).
- * PB7  - LED2                      (output pushpull maximum).
- * PB8  - ARD_D15 I2C1_SCL          (input pullup).
- * PB9  - ARD_D14 I2C1_SDA          (input pullup).
- * PB10 - ZIO_D36 TIM2_CH3          (input pullup).
- * PB11 - ZIO_D35 TIM2_CH4          (input pullup).
- * PB12 - ZIO_D19 I2S2_WS           (input pullup).
- * PB13 - ZIO_D18 I2S2_CK           (input pullup).
- * PB14 - LED3                      (output pushpull maximum).
- * PB15 - ZIO_D17 I2S2_SD           (input pullup).
+ *
+ * PB0  - CAM_RESET                 (input pulldown).
+ * PB1  - ADC_VBAT                  (input pulldown).
+ * PB2  - BOOT1                     (input pulldown).
+ * PB3  - SPI_SCK                   (input pulldown).
+ * PB4  - SPI_MISO                  (input pulldown).
+ * PB5  - SPI_MOSI                  (input pulldown).
+ * PB6  - RADIO_GPIO1               (input pulldown).
+ * PB7  - RADIO_GPIO0               (input pulldown).
+ * PB8  - I2C_SCL                   (input pulldown).
+ * PB9  - I2C_SDA                   (input pulldown).
+ * PB10 - IO_TXD                    (input floating).
+ * PB11 - PIN11                     (input pulldown).
+ * PB12 - GPS_RXD                   (input pulldown).
+ * PB13 - GPS_TXD                   (input pulldown).
+ * PB14 - GPS_RESET                 (input pulldown).
+ * PB15 - GPS_TIMEPULSE             (input pulldown).
  */
 #define VAL_GPIOB_MODER             (PIN_MODE_INPUT(GPIOB_PIN0) |           \
                                      PIN_MODE_INPUT(GPIOB_PIN1) |           \
@@ -540,7 +540,7 @@
                                      PIN_PUPDR_PULLDOWN(GPIOB_PIN7) |       \
                                      PIN_PUPDR_PULLDOWN(GPIOB_PIN8) |       \
                                      PIN_PUPDR_PULLDOWN(GPIOB_PIN9) |       \
-                                     PIN_PUPDR_PULLDOWN(GPIOB_PIN10) |      \
+                                     PIN_PUPDR_FLOATING(GPIOB_PIN10) |      \
                                      PIN_PUPDR_PULLDOWN(GPIOB_PIN11) |      \
                                      PIN_PUPDR_PULLDOWN(GPIOB_PIN12) |      \
                                      PIN_PUPDR_PULLDOWN(GPIOB_PIN13) |      \
@@ -582,20 +582,20 @@
 /*
  * GPIOC setup:
  * TODO: Enter correct assignment (versus NUCLEO pins)
- * PC0  - ARD_A1 ADC1_IN10          (input pullup).
- * PC1  - ARD_A3 ADC1_IN11          (input pullup).
- * PC2  - ZIO_A7 ADC1_IN12          (input pullup).
- * PC3  - ARD_A2 ADC1_IN13          (input pullup).
- * PC4  - ARD_A4 ADC1_IN14          (input pullup).
- * PC5  - ARD_A5 ADC1_IN15          (input pullup).
- * PC6  - ZIO_D16 I2S2_MCK          (input pullup).
- * PC7  - ZIO_D21 I2S3_MCK          (input pullup).
- * PC8  - ZIO_D43 SDMMC_D0          (input pullup).
- * PC9  - ZIO_D44 SDMMC_D1          (input pullup).
- * PC10 - ZIO_D45 SDMMC_D2          (input pullup).
- * PC11 - ZIO_D46 SDMMC_D3          (input pullup).
- * PC12 - ZIO_D47 SDMMC_CK          (input pullup).
- * PC13 - BUTTON                    (input floating).
+ * PC0  - SD_CS                     (output pushpull highspeed high).
+ * PC1  - IO_BLUE                   (input pulldown).
+ * PC2  - ADC_VSOL                  (input pulldown).
+ * PC3  - IO_GREEN                  (input pulldown).
+ * PC4  - ADC_VUSB                  (input pulldown).
+ * PC5  - CAM_VSYNC                 (input pulldown).
+ * PC6  - CAM_PCLK                  (input pulldown).
+ * PC7  - CAM_EN                    (input pulldown).
+ * PC8  - SD_DET                    (input pullup verylowspeed).
+ * PC9  - CAM_XCLK                  (input pulldown).
+ * PC10 - RADIO_SDN                 (output opendrain pullup high verylowspeed).
+ * PC11 - IO_RXD                    (input floating).
+ * PC12 - RADIO_CS                  (output pushpull high).
+ * PC13 - TCXO_EN                   (input pulldown).
  * PC14 - OSC32_IN                  (input floating).
  * PC15 - OSC32_OUT                 (input floating).
  */
@@ -625,13 +625,13 @@
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN7) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN8) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN9) |       \
-                                     PIN_OTYPE_OPENDRAIN(GPIOC_PIN10) |      \
+                                     PIN_OTYPE_OPENDRAIN(GPIOC_PIN10) |     \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN11) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN12) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN13) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOC_OSC32_IN) |   \
                                      PIN_OTYPE_PUSHPULL(GPIOC_OSC32_OUT))
-#define VAL_GPIOC_OSPEEDR           (PIN_OSPEED_HIGH(GPIOC_PIN0) |       \
+#define VAL_GPIOC_OSPEEDR           (PIN_OSPEED_HIGH(GPIOC_PIN0) |          \
                                      PIN_OSPEED_VERYLOW(GPIOC_PIN1) |       \
                                      PIN_OSPEED_VERYLOW(GPIOC_PIN2) |       \
                                      PIN_OSPEED_VERYLOW(GPIOC_PIN3) |       \
@@ -643,7 +643,7 @@
                                      PIN_OSPEED_VERYLOW(GPIOC_PIN9) |       \
                                      PIN_OSPEED_VERYLOW(GPIOC_PIN10) |      \
                                      PIN_OSPEED_VERYLOW(GPIOC_PIN11) |      \
-                                     PIN_OSPEED_HIGH(GPIOC_PIN12) |      \
+                                     PIN_OSPEED_HIGH(GPIOC_PIN12)    |      \
                                      PIN_OSPEED_VERYLOW(GPIOC_PIN13) |      \
                                      PIN_OSPEED_VERYLOW(GPIOC_OSC32_IN) |   \
                                      PIN_OSPEED_VERYLOW(GPIOC_OSC32_OUT))
@@ -658,7 +658,7 @@
                                      PIN_PUPDR_PULLUP(GPIOC_PIN8)   |       \
                                      PIN_PUPDR_PULLDOWN(GPIOC_PIN9) |       \
                                      PIN_PUPDR_PULLUP(GPIOC_PIN10)   |      \
-                                     PIN_PUPDR_PULLDOWN(GPIOC_PIN11) |      \
+                                     PIN_PUPDR_FLOATING(GPIOC_PIN11) |      \
                                      PIN_PUPDR_PULLDOWN(GPIOC_PIN12) |      \
                                      PIN_PUPDR_PULLDOWN(GPIOC_PIN13) |      \
                                      PIN_PUPDR_FLOATING(GPIOC_OSC32_IN) |   \
@@ -698,23 +698,23 @@
 
 /*
  * GPIOD setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
- * PD0  - ZIO_D67 CAN1_RX           (input pullup).
- * PD1  - ZIO_D66 CAN1_TX           (input pullup).
- * PD2  - ZIO_D48 SDMMC_CMD         (input pullup).
- * PD3  - ZIO_D55 USART2_CTS        (input pullup).
- * PD4  - ZIO_D54 USART2_RTS        (input pullup).
- * PD5  - ZIO_D53 USART2_TX         (input pullup).
- * PD6  - ZIO_D52 USART2_RX         (input pullup).
- * PD7  - ZIO_D51 USART2_SCLK       (input pullup).
- * PD8  - USART3_RX STLK_RX         (alternate 7).
- * PD9  - USART3_TX STLK_TX         (alternate 7).
- * PD10 - PIN10                     (input pullup).
- * PD11 - ZIO_D30 QUADSPI_BK1_IO0   (input pullup).
- * PD12 - ZIO_D29 QUADSPI_BK1_IO1   (input pullup).
- * PD13 - ZIO_D28 QUADSPI_BK1_IO3   (input pullup).
- * PD14 - ARD_D10 SPI1_NSS          (input pullup).
- * PD15 - ARD_D9 TIM4_CH4           (input pullup).
+ *
+ * PD0  - PIN0                      (input pulldown).
+ * PD1  - PIN1                      (input pulldown).
+ * PD2  - RADIO_IRQ                 (input pulldown).
+ * PD3  - PIN3                      (input pulldown).
+ * PD4  - PIN4                      (input pulldown).
+ * PD5  - PIN5                      (input pulldown).
+ * PD6  - PIN6                      (input pulldown).
+ * PD7  - PIN7                      (input pulldown).
+ * PD8  - PIN8                      (input pulldown).
+ * PD9  - PIN9                      (input pulldown).
+ * PD10 - PIN10                     (input pulldown).
+ * PD11 - PIN11                     (input pulldown).
+ * PD12 - PIN12                     (input pulldown).
+ * PD13 - PIN13                     (input pulldown).
+ * PD14 - PIN14                     (input pulldown).
+ * PD15 - PIN15                     (input pulldown).
  */
 #define VAL_GPIOD_MODER             (PIN_MODE_INPUT(GPIOD_PIN0) |           \
                                      PIN_MODE_INPUT(GPIOD_PIN1) |           \
@@ -815,23 +815,23 @@
 
 /*
  * GPIOE setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
- * PE0  - ZIO_D34 TIM4_ETR          (input pullup).
- * PE1  - PIN1                      (input pullup).
- * PE2  - ZIO_D31 ZIO_D56 QUADSPI_BK1_IO2(input pullup).
- * PE3  - ZIO_D60 SAI1_SD_B         (input pullup).
- * PE4  - ZIO_D57 SAI1_FS_A         (input pullup).
- * PE5  - ZIO_D58 SAI1_SCK_A        (input pullup).
- * PE6  - ZIO_D59 SAI1_SD_A         (input pullup).
- * PE7  - ZIO_D41 TIM1_ETR          (input pullup).
- * PE8  - ZIO_D42 TIM1_CH1N         (input pullup).
- * PE9  - ARD_D6 TIM1_CH1           (input pullup).
- * PE10 - ZIO_D40 TIM1_CH2N         (input pullup).
- * PE11 - ARD_D5 TIM1_CH2           (input pullup).
- * PE12 - ZIO_D39 TIM1_CH3N         (input pullup).
- * PE13 - ARD_D3 TIM1_CH3           (input pullup).
- * PE14 - ZIO_D38                   (input pullup).
- * PE15 - ZIO_D37 TIM1_BKIN1        (input pullup).
+ *
+ * PE0  - PIN0                      (input pulldown).
+ * PE1  - PIN1                      (input pulldown).
+ * PE2  - PIN2                      (input pulldown).
+ * PE3  - PIN3                      (input pulldown).
+ * PE4  - PIN4                      (input pulldown).
+ * PE5  - PIN5                      (input pulldown).
+ * PE6  - PIN6                      (input pulldown).
+ * PE7  - PIN7                      (input pulldown).
+ * PE8  - PIN8                      (input pulldown).
+ * PE9  - PIN9                      (input pulldown).
+ * PE10 - PIN10                     (input pulldown).
+ * PE11 - PIN11                     (input pulldown).
+ * PE12 - PIN12                     (input pulldown).
+ * PE13 - PIN13                     (input pulldown).
+ * PE14 - PIN14                     (input pulldown).
+ * PE15 - PIN15                     (input pulldown).
  */
 #define VAL_GPIOE_MODER             (PIN_MODE_INPUT(GPIOE_PIN0) |           \
                                      PIN_MODE_INPUT(GPIOE_PIN1) |           \
@@ -932,23 +932,23 @@
 
 /*
  * GPIOF setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
- * PF0  - ZIO_D68 I2C2_SDA          (input pullup).
- * PF1  - ZIO_D69 I2C2_SCL          (input pullup).
- * PF2  - ZIO_D70 I2C2_SMBA         (input pullup).
- * PF3  - PIN3                      (input pullup).
- * PF4  - PIN4                      (input pullup).
- * PF5  - PIN5                      (input pullup).
- * PF6  - PIN6                      (input pullup).
- * PF7  - ZIO_D62 SAI1_MCLK_B       (input pullup).
- * PF8  - ZIO_D61 SAI1_SCK_B        (input pullup).
- * PF9  - ZIO_D63 SAI1_FS_B         (input pullup).
- * PF10 - PIN10                     (input pullup).
- * PF11 - PIN11                     (input pullup).
- * PF12 - ARD_D8                    (input pullup).
- * PF13 - ARD_D7                    (input pullup).
- * PF14 - ARD_D4                    (input pullup).
- * PF15 - ARD_D2                    (input pullup).
+ *
+ * PF0  - PIN0                      (input pulldown).
+ * PF1  - PIN1                      (input pulldown).
+ * PF2  - PIN2                      (input pulldown).
+ * PF3  - PIN3                      (input pulldown).
+ * PF4  - PIN4                      (input pulldown).
+ * PF5  - PIN5                      (input pulldown).
+ * PF6  - PIN6                      (input pulldown).
+ * PF7  - PIN7                      (input pulldown).
+ * PF8  - PIN8                      (input pulldown).
+ * PF9  - PIN9                      (input pulldown).
+ * PF10 - PIN10                     (input pulldown).
+ * PF11 - PIN11                     (input pulldown).
+ * PF12 - PIN12                     (input pulldown).
+ * PF13 - PIN13                     (input pulldown).
+ * PF14 - PIN14                     (input pulldown).
+ * PF15 - PIN15                     (input pulldown).
  */
 #define VAL_GPIOF_MODER             (PIN_MODE_INPUT(GPIOF_PIN0) |           \
                                      PIN_MODE_INPUT(GPIOF_PIN1) |           \
@@ -1049,23 +1049,23 @@
 
 /*
  * GPIOG setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
- * PG0  - ZIO_D65                   (input pullup).
- * PG1  - ZIO_D64                   (input pullup).
- * PG2  - ZIO_D49                   (input pullup).
- * PG3  - ZIO_D50                   (input pullup).
- * PG4  - PIN4                      (input pullup).
- * PG5  - PIN5                      (input pullup).
- * PG6  - USB_GPIO_OUT              (output pushpull maximum).
- * PG7  - USB_GPIO_IN               (input pullup).
- * PG8  - PIN8                      (input pullup).
- * PG9  - ARD_D0 USART6_RX          (input pullup).
- * PG10 - PIN10                     (input pullup).
- * PG11 - PIN11                     (input pullup).
- * PG12 - PIN12                     (input pullup).
- * PG13 - PIN13                     (input pullup).
- * PG14 - ARD_D1 USART6_TX          (input pullup).
- * PG15 - PIN15                     (input pullup).
+ *
+ * PG0  - PIN0                      (input pulldown).
+ * PG1  - PIN1                      (input pulldown).
+ * PG2  - PIN2                      (input pulldown).
+ * PG3  - PIN3                      (input pulldown).
+ * PG4  - PIN4                      (input pulldown).
+ * PG5  - PIN5                      (input pulldown).
+ * PG6  - PIN6                      (input pulldown).
+ * PG7  - PIN7                      (input pulldown).
+ * PG8  - PIN8                      (input pulldown).
+ * PG9  - PIN9                      (input pulldown).
+ * PG10 - PIN10                     (input pulldown).
+ * PG11 - PIN11                     (input pulldown).
+ * PG12 - PIN12                     (input pulldown).
+ * PG13 - PIN13                     (input pulldown).
+ * PG14 - PIN14                     (input pulldown).
+ * PG15 - PIN15                     (input pulldown).
  */
 #define VAL_GPIOG_MODER             (PIN_MODE_INPUT(GPIOG_PIN0) |           \
                                      PIN_MODE_INPUT(GPIOG_PIN1) |           \
@@ -1166,23 +1166,23 @@
 
 /*
  * GPIOH setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
+ *
  * PH0  - OSC_IN                    (input floating).
  * PH1  - OSC_OUT                   (input floating).
- * PH2  - PIN2                      (input pullup).
- * PH3  - PIN3                      (input pullup).
- * PH4  - PIN4                      (input pullup).
- * PH5  - PIN5                      (input pullup).
- * PH6  - PIN6                      (input pullup).
- * PH7  - PIN7                      (input pullup).
- * PH8  - PIN8                      (input pullup).
- * PH9  - PIN9                      (input pullup).
- * PH10 - PIN10                     (input pullup).
- * PH11 - PIN11                     (input pullup).
- * PH12 - PIN12                     (input pullup).
- * PH13 - PIN13                     (input pullup).
- * PH14 - PIN14                     (input pullup).
- * PH15 - PIN15                     (input pullup).
+ * PH2  - PIN2                      (input pulldown).
+ * PH3  - PIN3                      (input pulldown).
+ * PH4  - PIN4                      (input pulldown).
+ * PH5  - PIN5                      (input pulldown).
+ * PH6  - PIN6                      (input pulldown).
+ * PH7  - PIN7                      (input pulldown).
+ * PH8  - PIN8                      (input pulldown).
+ * PH9  - PIN9                      (input pulldown).
+ * PH10 - PIN10                     (input pulldown).
+ * PH11 - PIN11                     (input pulldown).
+ * PH12 - PIN12                     (input pulldown).
+ * PH13 - PIN13                     (input pulldown).
+ * PH14 - PIN14                     (input pulldown).
+ * PH15 - PIN15                     (input pulldown).
  */
 #define VAL_GPIOH_MODER             (PIN_MODE_INPUT(GPIOH_OSC_IN) |         \
                                      PIN_MODE_INPUT(GPIOH_OSC_OUT) |        \
@@ -1283,23 +1283,23 @@
 
 /*
  * GPIOI setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
- * PI0  - PIN0                      (input pullup).
- * PI1  - PIN1                      (input pullup).
- * PI2  - PIN2                      (input pullup).
- * PI3  - PIN3                      (input pullup).
- * PI4  - PIN4                      (input pullup).
- * PI5  - PIN5                      (input pullup).
- * PI6  - PIN6                      (input pullup).
- * PI7  - PIN7                      (input pullup).
- * PI8  - PIN8                      (input pullup).
- * PI9  - PIN9                      (input pullup).
- * PI10 - PIN10                     (input pullup).
- * PI11 - PIN11                     (input pullup).
- * PI12 - PIN12                     (input pullup).
- * PI13 - PIN13                     (input pullup).
- * PI14 - PIN14                     (input pullup).
- * PI15 - PIN15                     (input pullup).
+ *
+ * PI0  - PIN0                      (input pulldown).
+ * PI1  - PIN1                      (input pulldown).
+ * PI2  - PIN2                      (input pulldown).
+ * PI3  - PIN3                      (input pulldown).
+ * PI4  - PIN4                      (input pulldown).
+ * PI5  - PIN5                      (input pulldown).
+ * PI6  - PIN6                      (input pulldown).
+ * PI7  - PIN7                      (input pulldown).
+ * PI8  - PIN8                      (input pulldown).
+ * PI9  - PIN9                      (input pulldown).
+ * PI10 - PIN10                     (input pulldown).
+ * PI11 - PIN11                     (input pulldown).
+ * PI12 - PIN12                     (input pulldown).
+ * PI13 - PIN13                     (input pulldown).
+ * PI14 - PIN14                     (input pulldown).
+ * PI15 - PIN15                     (input pulldown).
  */
 #define VAL_GPIOI_MODER             (PIN_MODE_INPUT(GPIOI_PIN0) |           \
                                      PIN_MODE_INPUT(GPIOI_PIN1) |           \
@@ -1400,23 +1400,23 @@
 
 /*
  * GPIOJ setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
- * PJ0  - PIN0                      (input pullup).
- * PJ1  - PIN1                      (input pullup).
- * PJ2  - PIN2                      (input pullup).
- * PJ3  - PIN3                      (input pullup).
- * PJ4  - PIN4                      (input pullup).
- * PJ5  - PIN5                      (input pullup).
- * PJ6  - PIN6                      (input pullup).
- * PJ7  - PIN7                      (input pullup).
- * PJ8  - PIN8                      (input pullup).
- * PJ9  - PIN9                      (input pullup).
- * PJ10 - PIN10                     (input pullup).
- * PJ11 - PIN11                     (input pullup).
- * PJ12 - PIN12                     (input pullup).
- * PJ13 - PIN13                     (input pullup).
- * PJ14 - PIN14                     (input pullup).
- * PJ15 - PIN15                     (input pullup).
+ *
+ * PJ0  - PIN0                      (input pulldown).
+ * PJ1  - PIN1                      (input pulldown).
+ * PJ2  - PIN2                      (input pulldown).
+ * PJ3  - PIN3                      (input pulldown).
+ * PJ4  - PIN4                      (input pulldown).
+ * PJ5  - PIN5                      (input pulldown).
+ * PJ6  - PIN6                      (input pulldown).
+ * PJ7  - PIN7                      (input pulldown).
+ * PJ8  - PIN8                      (input pulldown).
+ * PJ9  - PIN9                      (input pulldown).
+ * PJ10 - PIN10                     (input pulldown).
+ * PJ11 - PIN11                     (input pulldown).
+ * PJ12 - PIN12                     (input pulldown).
+ * PJ13 - PIN13                     (input pulldown).
+ * PJ14 - PIN14                     (input pulldown).
+ * PJ15 - PIN15                     (input pulldown).
  */
 #define VAL_GPIOJ_MODER             (PIN_MODE_INPUT(GPIOJ_PIN0) |           \
                                      PIN_MODE_INPUT(GPIOJ_PIN1) |           \
@@ -1517,23 +1517,23 @@
 
 /*
  * GPIOK setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
- * PK0  - PIN0                      (input pullup).
- * PK1  - PIN1                      (input pullup).
- * PK2  - PIN2                      (input pullup).
- * PK3  - PIN3                      (input pullup).
- * PK4  - PIN4                      (input pullup).
- * PK5  - PIN5                      (input pullup).
- * PK6  - PIN6                      (input pullup).
- * PK7  - PIN7                      (input pullup).
- * PK8  - PIN8                      (input pullup).
- * PK9  - PIN9                      (input pullup).
- * PK10 - PIN10                     (input pullup).
- * PK11 - PIN11                     (input pullup).
- * PK12 - PIN12                     (input pullup).
- * PK13 - PIN13                     (input pullup).
- * PK14 - PIN14                     (input pullup).
- * PK15 - PIN15                     (input pullup).
+ *
+ * PK0  - PIN0                      (input pulldown).
+ * PK1  - PIN1                      (input pulldown).
+ * PK2  - PIN2                      (input pulldown).
+ * PK3  - PIN3                      (input pulldown).
+ * PK4  - PIN4                      (input pulldown).
+ * PK5  - PIN5                      (input pulldown).
+ * PK6  - PIN6                      (input pulldown).
+ * PK7  - PIN7                      (input pulldown).
+ * PK8  - PIN8                      (input pulldown).
+ * PK9  - PIN9                      (input pulldown).
+ * PK10 - PIN10                     (input pulldown).
+ * PK11 - PIN11                     (input pulldown).
+ * PK12 - PIN12                     (input pulldown).
+ * PK13 - PIN13                     (input pulldown).
+ * PK14 - PIN14                     (input pulldown).
+ * PK15 - PIN15                     (input pulldown).
  */
 #define VAL_GPIOK_MODER             (PIN_MODE_INPUT(GPIOK_PIN0) |           \
                                      PIN_MODE_INPUT(GPIOK_PIN1) |           \

@@ -59,7 +59,10 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   } else {
 
     /* Switch on GPS
-     * If BMEi1 is OK then use air pressure to decide if airborne mode is set.
+     * If a Pa pressure is set then GPS model depends on BME reading.
+     * If BME is OK then stationary model will be used until Pa < airborne.
+     * Then airborne model will be set.
+     * If the BME is not OK then airborne model will be used immediately.
      */
     bool dynamic = conf_sram.gps_airborne != 0;
     TRACE_INFO("COLL > GPS %s in dynamic mode", dynamic ? "is" : "is not");
@@ -130,7 +133,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
 
   tp->gps_ttff = TIME_I2S(chVTGetSystemTime() - start); // Time to first fix
 
-  if(tp->gps_state != GPS_LOCKED1 && tp->gps_state != GPS_LOCKED2) { // We have no valid GPS fix
+  if(!hasGPSacquiredLock(tp)) { // We have had no valid GPS fix
     // Take time from internal RTC
     ptime_t time;
     getTime(&time);
@@ -332,32 +335,34 @@ THD_FUNCTION(collectorThread, arg) {
   chThdSleep(TIME_MS2I(500));
 
   sysinterval_t cycle_time = chVTGetSystemTime();
-  while(true)
-  {
+
+  // Determine cycle time and if GPS should be used.
+  sysinterval_t data_cycle_time = TIME_S2I(600); // Default.
+
+  if(conf_sram.pos_pri.thread_conf.active && conf_sram.pos_sec.thread_conf.active) { // Both position threads are active
+    data_cycle_time = conf_sram.pos_pri.thread_conf.cycle < conf_sram.pos_sec.thread_conf.cycle ? conf_sram.pos_pri.thread_conf.cycle : conf_sram.pos_sec.thread_conf.cycle; // Choose the smallest cycle
+    (*useGPS)++;
+  } else if(conf_sram.pos_pri.thread_conf.active) { // Only primary position thread is active
+    data_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
+    (*useGPS)++;
+  } else if(conf_sram.pos_sec.thread_conf.active) { // Only secondary position thread is active
+    data_cycle_time = conf_sram.pos_sec.thread_conf.cycle;
+    (*useGPS)++;
+  } else if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.tx.beacon) { // APRS beacon is active
+    data_cycle_time = conf_sram.aprs.tx.cycle;
+    if(conf_sram.aprs.tx.gps) {
+      (*useGPS)++;
+    }
+  } else { // There must be an error
+    TRACE_ERROR("COLL > Data collector started but no position thread is active");
+  }
+
+  /* TODO: To change a service use then useGPS has to be adjusted. */
+  while(true) {
     TRACE_INFO("COLL > Do module DATA COLLECTOR cycle");
 
     dataPoint_t* tp  = &dataPoints[(id+1) % 2]; // Current data point (the one which is processed now)
     dataPoint_t* ltp = &dataPoints[ id    % 2]; // Last data point
-
-    // Determine cycle time and if GPS should be used.
-    sysinterval_t data_cycle_time = TIME_S2I(600);
-    if(conf_sram.pos_pri.thread_conf.active && conf_sram.pos_sec.thread_conf.active) { // Both position threads are active
-      data_cycle_time = conf_sram.pos_pri.thread_conf.cycle < conf_sram.pos_sec.thread_conf.cycle ? conf_sram.pos_pri.thread_conf.cycle : conf_sram.pos_sec.thread_conf.cycle; // Choose the smallest cycle
-      (*useGPS)++;
-    } else if(conf_sram.pos_pri.thread_conf.active) { // Only primary position thread is active
-      data_cycle_time = conf_sram.pos_pri.thread_conf.cycle;
-      (*useGPS)++;
-    } else if(conf_sram.pos_sec.thread_conf.active) { // Only secondary position thread is active
-      data_cycle_time = conf_sram.pos_sec.thread_conf.cycle;
-      (*useGPS)++;
-    } else if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.tx.beacon) { // APRS beacon is active
-      data_cycle_time = conf_sram.aprs.tx.cycle;
-      if(conf_sram.aprs.tx.gps) {
-        (*useGPS)++;
-      }
-    } else { // There must be an error
-      TRACE_ERROR("COLL > Data collector started but no position thread is active");
-    }
 
     // Gather telemetry and system status data
     measureVoltage(tp);
@@ -370,13 +375,13 @@ THD_FUNCTION(collectorThread, arg) {
      *  a) If the RTC was not set then enable GPS temporarily to set it.
      *  b) If a thread is using GPS for position.
      */
-    unixTimestamp2Date(&time, ltp->gps_time);
+    getTime(&time);
+    //unixTimestamp2Date(&time, ltp->gps_time);
     if(*useGPS == 0 && time.year == RTC_BASE_YEAR) {
       TRACE_INFO("COLL > Acquire time using GPS");
       aquirePosition(tp, ltp, data_cycle_time - TIME_S2I(3));
-      /* GPS done. */
-      if(!(tp->gps_state == GPS_LOCKED1
-          || tp->gps_state == GPS_LOCKED2)) {
+      /* RTC is set by aquirePosition(...). */
+      if(!hasGPSacquiredLock(tp)) {
         /* Acquisition failed. Wait and then try again. */
         TRACE_INFO("COLL > Time acquisition from GPS failed");
         chThdSleep(TIME_S2I(60));
@@ -390,10 +395,12 @@ THD_FUNCTION(collectorThread, arg) {
     if(*useGPS > 0) {
       TRACE_INFO("COLL > Acquire position using GPS");
       aquirePosition(tp, ltp, data_cycle_time - TIME_S2I(3));
+      /* RTC is set by aquirePosition(...). */
     } else {
       /*
        * No threads using GPS.
-       * RTC valid so set tp & ltp from RTC and fixed location data.
+       * Update datapoint time from RTC.
+       * Set fixed location.
        */
       TRACE_INFO("COLL > Using fixed location");
       getTime(&time);
@@ -402,12 +409,6 @@ THD_FUNCTION(collectorThread, arg) {
       tp->gps_lat = conf_sram.aprs.tx.lat;
       tp->gps_lon = conf_sram.aprs.tx.lon;
       tp->gps_state = GPS_FIXED;
-/*
-      ltp->gps_time = tp->gps_time;
-      ltp->gps_alt = tp->gps_alt;
-      ltp->gps_lat = tp->gps_lat;
-      ltp->gps_lon = tp->gps_lon;
-      ltp->gps_state = GPS_FIXED;*/
     }
 
     tp->id = ++id; // Serial ID

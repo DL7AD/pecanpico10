@@ -56,12 +56,10 @@ const SerialConfig debug_config = {
 };
 
 void pktConfigSerialDiag(void) {
-#if ENABLE_EXTERNAL_I2C == FALSE
   /* USART3 TX.       */
   palSetLineMode(LINE_USART3_TX, PAL_MODE_ALTERNATE(7));
   /* USART3 RX.       */
   palSetLineMode(LINE_USART3_RX, PAL_MODE_ALTERNATE(7));
-#endif
 }
 
 void pktConfigSerialPkt(void) {
@@ -73,13 +71,11 @@ void pktSetLineModeICU(void) {
 }
 
 void pktSerialStart(void) {
+#if ENABLE_EXTERNAL_I2C == FALSE
   pktConfigSerialDiag();
   pktConfigSerialPkt();
-#if ENABLE_EXTERNAL_I2C == FALSE
   sdStart(SERIAL_CFG_DEBUG_DRIVER, &debug_config);
 #endif
-  //sdStart(SERIAL_CFG_PACKET_DRIVER, &debug_config);
-
   /* Setup diagnostic resource access semaphore. */
   extern binary_semaphore_t diag_out_sem;
   chBSemObjectInit(&diag_out_sem, false);

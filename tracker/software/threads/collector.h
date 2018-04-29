@@ -103,5 +103,23 @@ void getSensors(dataPoint_t* tp);
 void setSystemStatus(dataPoint_t* tp);
 void init_data_collector(void);
 
+/*===========================================================================*/
+/* Module inline functions.                                                  */
+/*===========================================================================*/
+
+/**
+ * @brief   Has GPS achieved lock (even if now switched off).
+ *
+ * @param[in] pointer to data point
+ *
+ * @returns result of check
+ * @retval  true if lock has been achieved
+ * @retval  false if lock has not yet been achieved
+ *
+ * @api
+ */
+#define hasGPSacquiredLock(tp) (tp->gps_state == GPS_LOCKED1                 \
+                                || tp->gps_state == GPS_LOCKED2)
+
 #endif /* __COLLECTOR_H__ */
 
