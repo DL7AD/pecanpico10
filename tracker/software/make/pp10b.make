@@ -72,7 +72,8 @@ endif
 # Enables the use of FPU (no, softfp, hard).
 ifeq ($(USE_FPU),)
   USE_FPU = hard
-  USE_FPU_OPT = -mfloat-abi=$(USE_FPU) -mfpu=fpv4-sp-d16 -fsingle-precision-constant
+  USE_FPU_OPT = -mfloat-abi=$(USE_FPU) \
+   -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 endif
 
 #
@@ -84,13 +85,15 @@ endif
 #
 
 # Define project name here
-PROJECT = ch
+PROJECT = pp10b
 
 # Imported source files and paths
 CHIBIOS = ChibiOS
-CONFDIR := ./cfg/pp10b
-BUILDDIR := ./build/pp10b
-DEPDIR := ./.dep/pp10b
+CONFDIR := ${CURDIR}/cfg/$(PROJECT)
+BUILDDIR := ${CURDIR}/build/$(PROJECT)
+DEPDIR := ${CURDIR}/.dep/$(PROJECT)
+CMSISINC = ${CURDIR}/CMSIS/include
+CMSISLIB = ${CURDIR}/CMSIS/lib/GCC
 
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
@@ -102,6 +105,8 @@ include $(CHIBIOS)/os/hal/ports/STM32/STM32F4xx/platform.mk
 include $(CHIBIOS)/os/hal/osal/rt/osal.mk
 # BOARD files.
 include $(CONFDIR)/board/board.mk
+# PORTAB files.
+include $(CONFDIR)/portab.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
@@ -118,11 +123,15 @@ include $(CHIBIOS)/os/various/fatfs_bindings/fatfs.mk
 # Define linker script file here
 LDSCRIPT= $(CONFDIR)/STM32F413xH.ld
 
+#$(info $$ALLCSRC is [${ALLCSRC}])
+#$(info $$CONFDIR is [${CONFDIR}])
+#$(info $$ALLINC is [${ALLINC}])
+
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CSRC = 	$(ALLCSRC) \
-		$(CONFDIR) \
-       	main.c
+CSRC = $(ALLCSRC) \
+       $(TESTSRC) \
+       main.c \
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -152,8 +161,8 @@ TCPPSRC =
 ASMSRC = $(ALLASMSRC)
 ASMXSRC = $(ALLXASMSRC)
 
-INCDIR = $(ALLINC) $(TESTINC) $(CONFDIR)
-
+INCDIR = $(ALLINC) $(TESTINC)
+#$(info $$INCDIR is [${INCDIR}])
 #
 # Project, sources and paths
 ##############################################################################
@@ -203,21 +212,21 @@ CPPWARN = -Wall -Wextra -Wundef
 
 # List all user C define here, like -D_DEBUG=1
 UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4 -DSHELL_CMD_TEST_ENABLED=0 \
-		-DSHELL_CMD_EXIT_ENABLED=1 -DUSB_TRACE_LEVEL=5 \
-		-DSHELL_CMD_MEM_ENABLED=0
-		# -DDISABLE_HW_WATCHDOG=1
+        -DSHELL_CMD_EXIT_ENABLED=1 -DUSB_TRACE_LEVEL=5 \
+        -DSHELL_CMD_MEM_ENABLED=0
+        # -DDISABLE_HW_WATCHDOG=1
 
 # Define ASM defines here
 UADEFS =
 
 # List all user directories here
-UINCDIR = CMSIS/include
+UINCDIR = $(CMSISINC)
 
 # List the user directory to look for the libraries here
-ULIBDIR = CMSIS/Lib/GCC
+ULIBDIR = $(CMSISLIB)
 
 # List all user libraries here
-ULIBS = -lm CMSIS/Lib/GCC/libarm_cortexM4l_math.a
+ULIBS = -lm $(CMSISLIB)/libarm_cortexM4l_math.a
 
 #
 # End of user defines
@@ -227,5 +236,5 @@ RULESPATH = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC
 include $(RULESPATH)/rules.mk
 
 burn:
-	st-flash write build/$(PROJECT).bin 0x08000000
+    st-flash write build/$(PROJECT)/$(PROJECT).bin 0x08000000
 

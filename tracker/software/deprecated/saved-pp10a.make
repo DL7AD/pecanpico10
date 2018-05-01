@@ -85,15 +85,14 @@ endif
 #
 
 # Define project name here
-PROJECT = pp10a
+PROJECT = ch
 
 # Imported source files and paths
 CHIBIOS = ChibiOS
-CONFDIR := ${CURDIR}/cfg/$(PROJECT)
-BUILDDIR := ${CURDIR}/build/$(PROJECT)
-DEPDIR := ${CURDIR}/.dep/$(PROJECT)
-CMSISINC = ${CURDIR}/CMSIS/include
-CMSISLIB = ${CURDIR}/CMSIS/lib/GCC
+CONFDIR := ${CURDIR}/cfg/pp10a
+BUILDDIR := ${CURDIR}/build/pp10a
+DEPDIR := ${CURDIR}/.dep/pp10a
+AUTOBUILD_ROOT := ${CURDIR}/xsource/
 
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
@@ -105,8 +104,6 @@ include $(CHIBIOS)/os/hal/ports/STM32/STM32F4xx/platform.mk
 include $(CHIBIOS)/os/hal/osal/rt/osal.mk
 # BOARD files.
 include $(CONFDIR)/board/board.mk
-# PORTAB files.
-include $(CONFDIR)/portab.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
@@ -118,7 +115,7 @@ include $(CHIBIOS)/test/rt/rt_test.mk
 include $(CHIBIOS)/test/oslib/oslib_test.mk
 include $(CHIBIOS)/os/hal/lib/streams/streams.mk
 include $(CHIBIOS)/os/various/shell/shell.mk
-include $(CHIBIOS)/os/various/fatfs_bindings/fatfs.mk
+#include $(CHIBIOS)/os/various/fatfs_bindings/fatfs.mk
 
 # Define linker script file here
 LDSCRIPT= $(CONFDIR)/STM32F413xH.ld
@@ -131,6 +128,63 @@ LDSCRIPT= $(CONFDIR)/STM32F413xH.ld
 # setting.
 CSRC = $(ALLCSRC) \
        $(TESTSRC) \
+       $(CHIBIOS)/os/various/fatfs_bindings/fatfs_diskio.c \
+       $(CHIBIOS)/ext/fatfs/src/ff.c \
+       source/threads/rxtx/beacon.c \
+       source/threads/collector.c \
+       source/threads/rxtx/position.c \
+       source/threads/rxtx/image.c \
+       source/threads/rxtx/log.c \
+       source/threads/rxtx/radio.c \
+       source/protocols/ssdv/ssdv.c \
+       source/protocols/ssdv/rs8.c \
+       source/pkt/protocols/aprs2/ax25_pad.c \
+       source/pkt/protocols/aprs2/dedupe.c \
+       source/pkt/protocols/aprs2/fcs_calc.c \
+       source/protocols/packet/aprs.c \
+       source/pkt/protocols/aprs2/digipeater.c \
+       source/drivers/wrapper/pi2c.c \
+       source/drivers/wrapper/ei2c.c \
+       source/drivers/wrapper/padc.c \
+       source/drivers/wrapper/ptime.c \
+       source/drivers/wrapper/pflash.c \
+       source/drivers/ublox.c \
+       source/pkt/devices/si446x.c \
+       source/drivers/bme280.c \
+       source/drivers/pac1720.c \
+       source/drivers/ov5640.c \
+       source/drivers/sd.c \
+       source/drivers/flash/flash.c \
+       source/drivers/flash/helper.c \
+       source/drivers/flash/ihex.c \
+       source/drivers/usb/debug.c \
+       source/config/sleep.c \
+       source/threads/threads.c \
+       source/math/base91.c \
+       source/math/geofence.c \
+       source/threads/watchdog.c \
+       source/drivers/usb/usbcfg.c \
+       source/drivers/usb/commands.c \
+       source/drivers/usb/usb.c \
+       source/pkt/sys/regex/crx.c \
+       \
+       $(CONFDIR)/portab.c \
+       source/pkt/pktconf.c \
+       source/pkt/protocols/crc_calc.c \
+       source/pkt/channels/rxafsk.c \
+       source/pkt/managers/pktradio.c \
+       source/pkt/channels/rxpwm.c \
+       source/pkt/filters/dsp.c \
+       source/pkt/filters/firfilter_q31.c \
+       source/pkt/decoders/corr_q31.c \
+       source/pkt/protocols/rxhdlc.c \
+       source/pkt/managers/pktservice.c \
+       source/pkt/devices/dbguart.c \
+       source/pkt/sys/ihex_out.c \
+       source/pkt/diagnostics/ax25_dump.c \
+       source/pkt/diagnostics/pktevt.c \
+       source/pkt/protocols/txhdlc.c \
+       \
        main.c \
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -161,7 +215,7 @@ TCPPSRC =
 ASMSRC = $(ALLASMSRC)
 ASMXSRC = $(ALLXASMSRC)
 
-INCDIR = $(ALLINC) $(TESTINC)
+INCDIR = $(CONFDIR) $(ALLINC) $(TESTINC)
 #$(info $$INCDIR is [${INCDIR}])
 #
 # Project, sources and paths
@@ -220,13 +274,18 @@ UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4 -DSHELL_CMD_TEST_ENABLED=0 \
 UADEFS =
 
 # List all user directories here
-UINCDIR = $(CMSISINC)
+UINCDIR = source/threads/ source/drivers/ source/drivers/wrapper/ source/pkt/protocols/aprs2 \
+          source/protocols/ssdv source/math/ source/drivers/flash/ source/drivers/usb/ \
+          source/protocols/packet source/drivers/fatfs/ source/threads/rxtx/ \
+          source/pkt source/pkt/channels source/pkt/managers source/pkt/devices source/pkt/protocols \
+          source/pkt/diagnostics source/pkt/filters source/pkt/decoders source/pkt/sys CMSIS/include \
+          source/pkt/sys/regex/ $(CHIBIOS)/ext/fatfs/src source/config
 
 # List the user directory to look for the libraries here
-ULIBDIR = $(CMSISLIB)
+ULIBDIR = CMSIS/Lib/GCC
 
 # List all user libraries here
-ULIBS = -lm $(CMSISLIB)/libarm_cortexM4l_math.a
+ULIBS = -lm CMSIS/Lib/GCC/libarm_cortexM4l_math.a
 
 #
 # End of user defines
@@ -236,5 +295,5 @@ RULESPATH = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC
 include $(RULESPATH)/rules.mk
 
 burn:
-	st-flash write build/$(PROJECT)/$(PROJECT).bin 0x08000000
+	st-flash write build/$(PROJECT).bin 0x08000000
 

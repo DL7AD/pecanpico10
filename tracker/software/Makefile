@@ -17,5 +17,9 @@ clean:
 	-@make --no-print-directory -f ./make/pp10a.make clean
 #	@echo
 #	-@make --no-print-directory -f ./make/pp10b.make clean
-#
+burn:
+	@echo
+	-@make --no-print-directory -f ./make/pp10a.make burn
+#	@echo
+#	-@make --no-print-directory -f ./make/pp10b.make burn
 ##############################################################################

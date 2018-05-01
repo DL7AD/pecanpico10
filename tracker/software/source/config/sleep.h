@@ -13,5 +13,5 @@ sysinterval_t waitForTrigger(sysinterval_t prev, sysinterval_t timeout);
 void trigger_new_data_point(void);
 void trigger_immediately(void);
 
-#endif
+#endif /* __SLEEP_H__ */
 
