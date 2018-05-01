@@ -9,37 +9,60 @@
 #include "radio.h"
 #include "commands.h"
 #include "pflash.h"
+#include "ublox.h"
 
 static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
 
 const ShellCommand commands[] = {
-/*	{"set_trace_level", usb_cmd_set_trace_level},*/
-    {"trace", usb_cmd_set_trace_level}, /* Short form alias. */
+    {"trace", usb_cmd_set_trace_level},
 	{"picture", usb_cmd_printPicture},
 	{"print_log", usb_cmd_printLog},
 	{"config", usb_cmd_printConfig},
-/*	{"aprs_message", usb_cmd_send_aprs_message},*/
-	{"msg", usb_cmd_send_aprs_message}, /* Short form alias. */
-/*    {"test_gps", usb_cmd_set_test_gps},*/
+	{"msg", usb_cmd_send_aprs_message},
+
 #if SHELL_CMD_MEM_ENABLED == TRUE
     {"heap", usb_cmd_ccm_heap},
 #else
     {"mem", usb_cmd_ccm_heap},
 #endif
+    {"sats", usb_cmd_get_gps_sat_info},
 	{NULL, NULL}
 };
 
-/*void usb_cmd_set_test_gps(BaseSequentialStream *chp, int argc, char *argv[])
-{
-    if(argc < 1)
-    {
-        chprintf(chp, "Current test GPS: %s\r\n", test_gps_enabled ? "on" : "off");
-        return;
-    }
-    extern bool test_gps_enabled;
-    test_gps_enabled = atoi(argv[0]);
-}*/
+/*
+ *
+ */
+void usb_cmd_get_gps_sat_info(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
 
+  if(argc > 0) {
+    shellUsage(chp, "sats");
+    return;
+  }
+  gps_svinfo_t svinfo;
+  if(!gps_get_sv_info(&svinfo, sizeof(svinfo))) {
+    chprintf(chp, "No satellite information available\r\n");
+    return;
+  }
+  if(svinfo.numCh == 0) {
+    chprintf(chp, "No satellites found\r\n");
+    return;
+  }
+  chprintf(chp, "Space Vehicle info iTOW=%d numCh=%d globalFlags=%d",
+           svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
+  uint8_t i;
+  for(i = 0; i < svinfo.numCh; i++) {
+    gps_svchn_t *sat = &svinfo.svinfo[i];
+    chprintf(chp, "Satellite info chn=%d svid=%d flags=0x%x quality=%d"
+             "cno=%d elev=%d azim=%d, prRes=%d",
+             sat->chn, sat->svid, sat->flags, sat->flags,
+             sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
+  }
+}
+
+/*
+ *
+ */
 void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
   size_t n, total, largest;
 

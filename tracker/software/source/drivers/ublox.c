@@ -11,7 +11,7 @@
 #include "config.h"
 #include "collector.h"
 
-bool test_gps_enabled = false;
+bool gps_enabled = false;
 int8_t gps_model = GPS_MODEL_UNSET;
 
 #if defined(UBLOX_USE_UART)
@@ -118,7 +118,7 @@ uint8_t gps_receive_ack(uint8_t class_id, uint8_t msg_id, uint16_t timeout) {
   *
   */
 uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
-                             unsigned char *payload, uint16_t timeout) {
+                             unsigned char *payload, size_t size, uint16_t timeout) {
 	uint8_t rx_byte;
 	enum {UBX_A, UBX_B, CLASSID, MSGID, LEN_A, LEN_B, PAYLOAD} state = UBX_A;
 	uint16_t payload_cnt = 0;
@@ -163,6 +163,8 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
 			case PAYLOAD:
 				payload[payload_cnt] = rx_byte;
 				payload_cnt++;
+				if(payload_cnt > size)
+				  return 0;
 				if (payload_cnt == payload_len)
 					return payload_len;
 				break;
@@ -171,6 +173,40 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
 		}
 	}
 	return 0;
+}
+
+/**
+  * gps_get_sv_info
+  *
+  *
+  */
+bool gps_get_sv_info(gps_svinfo_t *svinfo, size_t size) {
+  if(!gps_enabled)
+    return false;
+
+  // Transmit request
+  uint8_t navsvinfo_req[] = {0xB5, 0x62, 0x01, 0x30, 0x00, 0x00, 0x00, 0x00};
+  gps_transmit_string(navsvinfo_req, sizeof(navsvinfo_req));
+
+  if(!gps_receive_payload(0x01, 0x30, (unsigned char*)svinfo, size, 3000)) { // Receive request
+    TRACE_ERROR("GPS  > NAV-SVINFO Polling FAILED");
+    return false;
+  }
+  // Extract data from message
+
+/*
+  TRACE_INFO("GPS  > Space Vehicle info iTOW=%d numCh=%d globalFlags=%d",
+             svinfo->iTOW, svinfo->numCh, svinfo->globalFlags);
+
+  uint8_t i;
+  for(i = 0; i < svinfo->numCh; i++) {
+    gps_svchn_t *sat = &svinfo->svinfo[i];
+    TRACE_INFO("GPS  > Satellite info chn=%d svid=%d flags=0x%x quality=%d"
+        "cno=%d elev=%d azim=%d, prRes=%d",
+         sat->chn, sat->svid, sat->flags, sat->flags,
+         sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
+  }*/
+  return true;
 }
 
 /**
@@ -195,7 +231,7 @@ bool gps_get_fix(gpsFix_t *fix) {
 	uint8_t navpvt_req[] = {0xB5, 0x62, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00};
 	gps_transmit_string(navpvt_req, sizeof(navpvt_req));
 
-	if(!gps_receive_payload(0x01, 0x07, navpvt, 3000)) { // Receive request
+	if(!gps_receive_payload(0x01, 0x07, navpvt, sizeof(navpvt), 3000)) { // Receive request
 		TRACE_ERROR("GPS  > NAV-PVT Polling FAILED");
 		return false;
 	}
@@ -203,7 +239,7 @@ bool gps_get_fix(gpsFix_t *fix) {
 	uint8_t navstatus_req[] = {0xB5, 0x62, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00};
 	gps_transmit_string(navstatus_req, sizeof(navstatus_req));
 
-	if(!gps_receive_payload(0x01, 0x03, navstatus, 3000)) { // Receive request
+	if(!gps_receive_payload(0x01, 0x03, navstatus, sizeof(navstatus), 3000)) { // Receive request
 		TRACE_ERROR("GPS  > NAV-STATUS Polling FAILED");
 		return false;
 	}
@@ -493,6 +529,7 @@ bool gps_set_model(bool dynamic) {
 bool GPS_Init() {
 	// Initialize pins
 	TRACE_INFO("GPS  > Init pins");
+	gps_enabled = true;
 	palSetLineMode(LINE_GPS_RESET, PAL_MODE_OUTPUT_PUSHPULL);	// GPS reset
 	palSetLineMode(LINE_GPS_EN, PAL_MODE_OUTPUT_PUSHPULL);		// GPS off
 
@@ -538,6 +575,7 @@ void GPS_Deinit(void)
 	TRACE_INFO("GPS  > Switch off");
 	palClearLine(LINE_GPS_EN);
     gps_model = GPS_MODEL_UNSET;
+    gps_enabled = false;
 }
 
 /*

@@ -98,7 +98,7 @@
 /*
  * TODO: This will save a lot of system heap as PWM buffers are large
  * Stratgey: Allocate PWM buffers from a CCM heap/pool.
- * Requires some special handling in PWM and AFSK decoder.
+ * Requires some special handling in PWM and AFSK decoder TBI.
  */
 #define USE_HEAP_PWM_BUFFER         FALSE
 
@@ -109,7 +109,10 @@
 /* Number of frame receive buffers. */
 #define NUMBER_RX_PKT_BUFFERS        3U
 
-/* Number of general AX25/APRS processing & frame send buffers. */
+/*
+ * Number of general AX25/APRS processing & frame send buffers.
+ * Can configured as being in CCM to save system core memory use.
+ */
 #define NUMBER_COMMON_PKT_BUFFERS       10U
 #define RESERVE_BUFFERS_FOR_INTERNAL    2U
 #define MAX_BUFFERS_FOR_BURST_SEND      3U
