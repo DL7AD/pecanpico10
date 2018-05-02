@@ -24,4 +24,10 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<variableList>
+		<variable>
+			<name>CHIBIOS</name>
+			<value>file:/G:/micro_development/other_projects/pecan_pico/pecanpico10/tracker/software/ChibiOS</value>
+		</variable>
+	</variableList>
 </projectDescription>
