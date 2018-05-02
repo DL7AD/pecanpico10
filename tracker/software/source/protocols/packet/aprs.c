@@ -163,6 +163,9 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "gps_on_vbat",                   sizeof(conf_sram.gps_on_vbat),                               &conf_sram.gps_on_vbat                              },
 	{TYPE_INT,  "gps_off_vbat",                  sizeof(conf_sram.gps_off_vbat),                              &conf_sram.gps_off_vbat                             },
 	{TYPE_INT,  "gps_onper_vbat",                sizeof(conf_sram.gps_onper_vbat),                            &conf_sram.gps_onper_vbat                           },
+    {TYPE_INT,  "gps_pressure",                  sizeof(conf_sram.gps_pressure),                              &conf_sram.gps_pressure                             },
+    {TYPE_INT,  "gps_low_alt",                   sizeof(conf_sram.gps_low_alt),                               &conf_sram.gps_low_alt                              },
+    {TYPE_INT,  "gps_high_alt",                  sizeof(conf_sram.gps_high_alt),                              &conf_sram.gps_high_alt                             },
 
 	{TYPE_NULL}
 };
@@ -1169,6 +1172,15 @@ static bool aprs_decode_message(packet_t pp) {
   // Trace
   TRACE_INFO("RX   > Received message from %s (ID=%s): %s [%s]",
              src, msg_id_rx, &pinfo[11], astrng);
+
+
+  /* Filter out telemetry configuration sent to ourselves. */
+  char *cfgs[] = {"PARM.", "UNIT.","EQNS.","BITS."};
+  uint8_t x;
+  for(x = 0; x < (sizeof(cfgs) / sizeof((cfgs)[0])); x++) {
+    if(strncmp(astrng, cfgs[x], sizeof(cfgs[0])) == 0)
+      return false;
+  }
 
   /* Parse arguments. */
   char *lp, *cmd, *tokp;

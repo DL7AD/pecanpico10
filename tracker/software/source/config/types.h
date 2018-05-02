@@ -3,6 +3,7 @@
 
 #include "ch.h"
 #include "ax25_pad.h"
+#include "ublox.h"
 
 #define FREQ_RADIO_INVALID  0
 #define FREQ_APRS_DYNAMIC	1 /* Geofencing frequency (144.8 default). */
@@ -182,7 +183,9 @@ typedef struct {
 	volt_level_t    gps_off_vbat;			// Battery voltage threshold at which GPS is switched off
 	volt_level_t    gps_onper_vbat;			// Battery voltage threshold at which GPS is kept switched on all time. This value must be larger
 											// When gps_on_vbat and gps_off_vbat otherwise this value has no effect. Value 0 disables this feature
-	uint32_t        gps_airborne;           // Air pressure below which GPS is switched to airborne mode
+	uint32_t        gps_pressure;           // Air pressure below which GPS is switched to airborne mode
+	gps_hp_model_t gps_low_alt;             // Model to use when air pressure is above gps_pa_threshold
+	gps_lp_model_t gps_high_alt;           // Model to use when air pressure is below gps_pa_threshold
 	uint32_t        magic;                  // Key that indicates if the flash is loaded or has been updated
 	uint16_t        crc;                    // CRC to verify content
 } conf_t;

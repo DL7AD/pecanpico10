@@ -64,7 +64,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
      * Then airborne model will be set.
      * If the BME is not OK then airborne model will be used immediately.
      */
-    bool dynamic = conf_sram.gps_airborne != 0;
+    bool dynamic = conf_sram.gps_pressure != 0;
     TRACE_INFO("COLL > GPS %s in dynamic mode", dynamic ? "is" : "is not");
 
     bool status = GPS_Init();
@@ -90,7 +90,29 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
         TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
         tp->gps_state = GPS_LOSS;
 
-      } else { // GPS locked successfully, switch off GPS (unless cycle is less than 60 seconds)
+      } else {
+        /*
+         * GPS locked successfully.
+         * Output SV info.
+         * Switch off GPS (unless cycle is less than 60 seconds)
+         *
+         */
+        gps_svinfo_t svinfo;
+        if(gps_get_sv_info(&svinfo, sizeof(svinfo))) {
+          TRACE_INFO("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d",
+                     svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
+
+          uint8_t i;
+          for(i = 0; i < svinfo.numCh; i++) {
+            gps_svchn_t *sat = &svinfo.svinfo[i];
+            TRACE_INFO("GPS  > Satellite info chn=%03d svid=%03d flags=0x%02x"
+                " quality=%02d cno=%03d elev=%03d azim=%06d, prRes=%06d",
+                 sat->chn, sat->svid, sat->flags, sat->flags,
+                 sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
+          }
+        } else {
+          TRACE_ERROR("GPS  > Error getting Space Vehicle info");
+        }
 
         // Switch off GPS (if cycle time is more than 60 seconds)
         if(timeout < TIME_S2I(60)) {
@@ -100,7 +122,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
           TRACE_INFO("COLL > Keep GPS switched on because VBAT >= %dmV", conf_sram.gps_onper_vbat);
           tp->gps_state = GPS_LOCKED2;
         } else {
-          TRACE_INFO("COLL > Switch off GPS");
+          TRACE_INFO("COLL > Switching off GPS");
           GPS_Deinit();
           tp->gps_state = GPS_LOCKED1;
         }

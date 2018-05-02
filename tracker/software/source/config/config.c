@@ -12,7 +12,7 @@ const conf_t conf_flash_default = {
 	.pos_pri = {
 		.thread_conf = {
 			.active			= true,
-			.cycle			= TIME_S2I(60*30),
+			.cycle			= TIME_S2I(60*5),
 			.init_delay		= TIME_S2I(30)
 		},
 		.radio_conf = {
@@ -151,7 +151,7 @@ const conf_t conf_flash_default = {
             .lat            = -337331175,       // Degress (1e-7)
             .lon            = 1511143478,       // Degrees (1e-7)
             .alt            = 144,              // Alt in metres
-            .cycle          = TIME_S2I(60*30),  // Beacon interval
+            .cycle          = TIME_S2I(60*30),  // Position and telem beacon interval
 
             .tel_enc_cycle  = TIME_S2I(60*180) // How often to send telemetry config
       },
@@ -171,8 +171,11 @@ const conf_t conf_flash_default = {
 	.gps_on_vbat			= 3300,         // mV
 	.gps_off_vbat			= 2500,         // mV
 	.gps_onper_vbat			= 5000,         // mV
-	// GPS model control
-	.gps_airborne           = 90000,        // Air pressure (Pa) threshold for airborne model
+
+	// GPS altitude model control (air pressure determined by on-board BME280)
+	.gps_pressure           = 90000,        // Air pressure (Pa) threshold for alt model switch
+	.gps_low_alt            = GPS_STATIONARY,
+	.gps_high_alt           = GPS_AIRBORNE_1G,
 
 	.magic					= CONFIG_MAGIC_DEFAULT // Do not remove. This is the activation bit.
 };

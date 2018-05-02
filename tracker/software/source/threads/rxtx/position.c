@@ -118,12 +118,12 @@ THD_FUNCTION(posThread, arg)
                   "or badly formed APRSD message");
             } else {
               if(!transmitOnRadio(packet,
-                              conf_sram.aprs.base.radio_conf.freq,
+                              conf_sram.aprs.tx.radio_conf.freq,
                               0,
                               0,
-                              conf_sram.aprs.base.radio_conf.pwr,
-                              conf_sram.aprs.base.radio_conf.mod,
-                              conf_sram.aprs.base.radio_conf.cca
+                              conf_sram.aprs.tx.radio_conf.pwr,
+                              conf_sram.aprs.tx.radio_conf.mod,
+                              conf_sram.aprs.tx.radio_conf.cca
                               )) {
                 TRACE_ERROR("POS  > Failed to transmit APRSD data");
               }

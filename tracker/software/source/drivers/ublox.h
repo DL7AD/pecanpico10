@@ -19,11 +19,25 @@
 #define GPS_MODEL_AIRBORNE2G    7
 #define GPS_MODEL_AIRBORNE4G    8
 
-#define GPS_MAX_SATELLITES      20
+typedef enum {
+  GPS_PORTABLE      = GPS_MODEL_PORTABLE,
+  GPS_STATIONARY    = GPS_MODEL_STATIONARY,
+  GPS_PEDESTRIAN    = GPS_MODEL_PEDESTRIAN,
+  GPS_AUTOMOTIVE    = GPS_MODEL_AUTOMOTIVE,
+  GPS_SEA           = GPS_MODEL_SEA
+} gps_hp_model_t;
+
+typedef enum {
+  GPS_AIRBORNE_1G   = GPS_MODEL_AIRBORNE1G,
+  GPS_AIRBORNE_2G   = GPS_MODEL_AIRBORNE2G,
+  GPS_AIRBORNE_4G   = GPS_MODEL_AIRBORNE4G
+} gps_lp_model_t;
+
+#define GPS_MAX_SV_CHANNELS     30
 
 #define UBLOX_MAX_ADDRESS	    0x42
 
-// You can either use I2C or UART
+// You can either use I2C (TRUE) or UART (FALSE)
 #define UBLOX_USE_I2C           TRUE
 
 #define isGPSLocked(pos) ((pos)->type == 3 && (pos)->num_svs >= 4 && (pos)->fixOK == true)
@@ -44,7 +58,7 @@ typedef struct {
 	uint8_t     numCh;   	    // number of satellites in info
 	uint8_t     globalFlags;    // chip hardware generation
 	uint16_t    reserved2;      // reserved
-	gps_svchn_t svinfo[GPS_MAX_SATELLITES];
+	gps_svchn_t svinfo[GPS_MAX_SV_CHANNELS];
 } gps_svinfo_t;
 
 typedef struct {

@@ -39,9 +39,10 @@ void usb_cmd_get_gps_sat_info(BaseSequentialStream *chp, int argc, char *argv[])
     shellUsage(chp, "sats");
     return;
   }
+  chprintf(chp, "Checking for satellite information\r\n");
   gps_svinfo_t svinfo;
   if(!gps_get_sv_info(&svinfo, sizeof(svinfo))) {
-    chprintf(chp, "No satellite information available\r\n");
+    chprintf(chp, "No information available\r\n");
     return;
   }
   if(svinfo.numCh == 0) {

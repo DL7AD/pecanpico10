@@ -118,7 +118,8 @@ uint8_t gps_receive_ack(uint8_t class_id, uint8_t msg_id, uint16_t timeout) {
   *
   */
 uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
-                             unsigned char *payload, size_t size, uint16_t timeout) {
+                             unsigned char *payload, size_t size,
+                             uint16_t timeout) {
 	uint8_t rx_byte;
 	enum {UBX_A, UBX_B, CLASSID, MSGID, LEN_A, LEN_B, PAYLOAD} state = UBX_A;
 	uint16_t payload_cnt = 0;
@@ -137,19 +138,19 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
 		// Process one byte
 		switch (state) {
 			case UBX_A:
-				if (rx_byte == 0xB5)	state = UBX_B;
-				else 			state = UBX_A;
+				if(rx_byte == 0xB5)	   state = UBX_B;
+				//else 			state = UBX_A;
 				break;
 			case UBX_B:
-				if (rx_byte == 0x62)	state = CLASSID;
+				if(rx_byte == 0x62)	    state = CLASSID;
 				else			state = UBX_A;
 				break;
 			case CLASSID:
-				if (rx_byte == class_id)state = MSGID;
+				if(rx_byte == class_id) state = MSGID;
 				else			state = UBX_A;
 				break;
 			case MSGID:
-				if (rx_byte == msg_id)	state = LEN_A;
+				if(rx_byte == msg_id)	state = LEN_A;
 				else			state = UBX_A;
 				break;
 			case LEN_A:
@@ -161,12 +162,12 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
 				state = PAYLOAD;
 				break;
 			case PAYLOAD:
-				payload[payload_cnt] = rx_byte;
-				payload_cnt++;
+				payload[payload_cnt++] = rx_byte;
+				//payload_cnt++;
+                if(payload_cnt == payload_len)
+                  return payload_len;
 				if(payload_cnt > size)
 				  return 0;
-				if (payload_cnt == payload_len)
-					return payload_len;
 				break;
 			default:
 				state = UBX_A;
@@ -192,35 +193,15 @@ bool gps_get_sv_info(gps_svinfo_t *svinfo, size_t size) {
     TRACE_ERROR("GPS  > NAV-SVINFO Polling FAILED");
     return false;
   }
-  // Extract data from message
-
-/*
-  TRACE_INFO("GPS  > Space Vehicle info iTOW=%d numCh=%d globalFlags=%d",
-             svinfo->iTOW, svinfo->numCh, svinfo->globalFlags);
-
-  uint8_t i;
-  for(i = 0; i < svinfo->numCh; i++) {
-    gps_svchn_t *sat = &svinfo->svinfo[i];
-    TRACE_INFO("GPS  > Satellite info chn=%d svid=%d flags=0x%x quality=%d"
-        "cno=%d elev=%d azim=%d, prRes=%d",
-         sat->chn, sat->svid, sat->flags, sat->flags,
-         sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
-  }*/
   return true;
 }
 
 /**
   * gps_get_fix
   *
-  * retrieves a GPS fix from the module. if validity flag is not set, date/time and position/altitude are 
+  * retrieves a GPS fix from the module.
+  * if validity flag is not set, date/time and position/altitude are
   * assumed not to be reliable!
-  *
-  * This method divides MAX7/8 and MAX6 modules since the protocol changed at MAX7 series. MAX6 requires
-  * NAV-POSLLH NAV-TIMEUTC and NAV-SOL to get all information about the GPS. With implementation of the
-  * NAV-PVT message at the MAX7 series, all information can be acquired by only one message. Although
-  * MAX7 is backward compatible, MAX7/8 will use NAV-PVT rather than the old protocol.
-  *
-  * argument is call by reference to avoid large stack allocations
   *
   */
 bool gps_get_fix(gpsFix_t *fix) {
@@ -284,7 +265,7 @@ bool gps_get_fix(gpsFix_t *fix) {
           fix->alt = (uint16_t)alt_tmp;
       }
 /*    }*/
-	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%d.%02d model=%d",
+	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%02d.%02d model=%d",
 		fix->time.year, fix->time.month, fix->time.day, fix->time.hour, fix->time.minute, fix->time.second,
 		fix->lat/10000000, (fix->lat > 0 ? 1:-1)*(fix->lat/100)%100000, fix->lon/10000000, (fix->lon > 0 ? 1:-1)*(fix->lon/100)%100000,
 		fix->alt, fix->num_svs, fix->fixOK, fix->pdop/100, fix->pdop%100, gps_model
@@ -300,7 +281,7 @@ bool gps_get_fix(gpsFix_t *fix) {
   * even though the parser can cope with NMEA messages and ignores them, it 
   * may save power to disable them completely.
   *
-  * returns if ACKed by GPS
+  * returns ACK/NAK result
   *
   */
 uint8_t gps_disable_nmea_output(void) {
@@ -325,9 +306,7 @@ uint8_t gps_disable_nmea_output(void) {
   *
   * tells the GPS to use the stationary positioning model.
   *
-  * working uBlox MAX-M8Q
-  *
-  * returns if ACKed by GPS
+  * returns ACK/NAK result
   *
   */
 uint8_t gps_set_stationary_model(void) {
@@ -359,13 +338,83 @@ uint8_t gps_set_stationary_model(void) {
 }
 
 /**
+  * gps_set_low_alt_model
+  *
+  * tells the GPS to use the low altitude positioning model.
+  *
+  * returns ACK/NAK result
+  *
+  */
+uint8_t gps_set_low_alt_model(gps_hp_model_t model) {
+    uint8_t model6[] = {
+        0xB5, 0x62, 0x06, 0x24, 0x24, 0x00,     // UBX-CFG-NAV5
+        0xFF, 0xFF,                             // parameter bitmask
+        model,                                  // dynamic model
+        0x03,                                   // fix mode
+        0x00, 0x00, 0x00, 0x00,                 // 2D fix altitude
+        0x10, 0x27, 0x00, 0x00,                 // 2D fix altitude variance
+        0x05,                                   // minimum elevation
+        0x00,                                   // reserved
+        0xFA, 0x00,                             // position DOP
+        0xFA, 0x00,                             // time DOP
+        0x64, 0x00,                             // position accuracy
+        0x2C, 0x01,                             // time accuracy
+        0x00,                                   // static hold threshold
+        0x3C,                                   // DGPS timeout
+        0x00,                                   // min. SVs above C/No thresh
+        0x00,                                   // C/No threshold
+        0x00, 0x00,                             // reserved
+        0xc8, 0x00,                             // static hold max. distance
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // reserved
+        0x00, 0x00                              // CRC place holders
+    };
+
+    gps_transmit_string(model6, sizeof(model6));
+    return gps_receive_ack(0x06, 0x24, 1000);
+}
+
+/**
+  * gps_set_high_alt_model
+  *
+  * tells the GPS to use the high altitude positioning model.
+  *
+  * returns ACK/NAK result
+  *
+  */
+uint8_t gps_set_high_alt_model(gps_lp_model_t model) {
+    uint8_t model6[] = {
+        0xB5, 0x62, 0x06, 0x24, 0x24, 0x00,     // UBX-CFG-NAV5
+        0xFF, 0xFF,                             // parameter bitmask
+        model,                                  // dynamic model
+        0x03,                                   // fix mode
+        0x00, 0x00, 0x00, 0x00,                 // 2D fix altitude
+        0x10, 0x27, 0x00, 0x00,                 // 2D fix altitude variance
+        0x05,                                   // minimum elevation
+        0x00,                                   // reserved
+        0xFA, 0x00,                             // position DOP
+        0xFA, 0x00,                             // time DOP
+        0x64, 0x00,                             // position accuracy
+        0x2C, 0x01,                             // time accuracy
+        0x00,                                   // static hold threshold
+        0x3C,                                   // DGPS timeout
+        0x00,                                   // min. SVs above C/No thresh
+        0x00,                                   // C/No threshold
+        0x00, 0x00,                             // reserved
+        0xc8, 0x00,                             // static hold max. distance
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // reserved
+        0x00, 0x00                              // CRC place holders
+    };
+
+    gps_transmit_string(model6, sizeof(model6));
+    return gps_receive_ack(0x06, 0x24, 1000);
+}
+
+/**
   * gps_set_portable_model
   *
   * tells the GPS to use the portable positioning model.
   *
-  * working uBlox MAX-M8Q
-  *
-  * returns if ACKed by GPS
+  * returns ACK/NAK result
   *
   */
 uint8_t gps_set_portable_model(void) {
@@ -402,9 +451,7 @@ uint8_t gps_set_portable_model(void) {
   * tells the GPS to use the airborne positioning model. Should be used to
   * get stable lock up to 50km altitude
   *
-  * working uBlox MAX-M8Q
-  *
-  * returns if ACKed by GPS
+  * returns ACK/NAK result
   *
   */
 uint8_t gps_set_airborne_model(void) {
@@ -440,7 +487,7 @@ uint8_t gps_set_airborne_model(void) {
   *
   * enables cyclic tracking on the uBlox M8Q
   *
-  * returns if ACKed by GPS
+  * returns ACK/NAK result
   *
   */
 uint8_t gps_set_power_save(void) {
@@ -469,6 +516,8 @@ uint8_t gps_set_power_save(void) {
   * gps_power_save
   *
   * enables or disables the power save mode (which was configured before)
+  *
+  * returns ACK/NAK result
   */
 uint8_t gps_power_save(int on) {
 	uint8_t recvmgmt[] = {
@@ -494,32 +543,32 @@ bool gps_set_model(bool dynamic) {
   getSensors(&tp);
   setSystemStatus(&tp);
   if(dynamic && ((tp.sys_error & BMEI1_STATUS_MASK) == BME_OK_VALUE)
-      && (tp.sen_i1_press/10 > conf_sram.gps_airborne)) {
-    if(gps_model == GPS_MODEL_STATIONARY)
+      && (tp.sen_i1_press/10 > conf_sram.gps_pressure)) {
+    if(gps_model == conf_sram.gps_low_alt)
       return true;
-    /* Set stationary model. */
+    /* Set low altitude model. */
     cntr = 3;
-    while((status = gps_set_stationary_model()) == false && cntr--);
+    while((status =
+        gps_set_low_alt_model(conf_sram.gps_low_alt)) == false && cntr--);
     if(status) {
-      gps_model = GPS_MODEL_STATIONARY;
-      //TRACE_INFO("GPS  > ... Set stationary model OK");
+      gps_model = conf_sram.gps_low_alt;
       return true;
     }
-    TRACE_ERROR("GPS  > Communication Error [set stationary]");
+    TRACE_ERROR("GPS  > Communication Error [set low altitude model]");
     return false;
-  }
+  } /* Else use high altitude specified or BMEi1 not functional. */
 
-  /* Default to airborne model. */
-  if(gps_model == GPS_MODEL_AIRBORNE1G)
+  /* Default to high altitude model. */
+  if(gps_model == conf_sram.gps_high_alt)
     return true;
   cntr = 3;
-  while((status = gps_set_airborne_model()) == false && cntr--);
+  while((status =
+      gps_set_high_alt_model(conf_sram.gps_high_alt)) == false && cntr--);
   if(status) {
-    gps_model = GPS_MODEL_AIRBORNE1G;
-    //TRACE_INFO("GPS  > ... Set airborne model OK");
+    gps_model = conf_sram.gps_high_alt;
     return true;
   }
-  TRACE_ERROR("GPS  > Communication Error [set airborne]");
+  TRACE_ERROR("GPS  > Communication Error [set high altitude model]");
   return false;
 }
 
@@ -528,7 +577,7 @@ bool gps_set_model(bool dynamic) {
  */
 bool GPS_Init() {
 	// Initialize pins
-	TRACE_INFO("GPS  > Init pins");
+	TRACE_INFO("GPS  > Init GPS pins");
 	gps_enabled = true;
 	palSetLineMode(LINE_GPS_RESET, PAL_MODE_OUTPUT_PUSHPULL);	// GPS reset
 	palSetLineMode(LINE_GPS_EN, PAL_MODE_OUTPUT_PUSHPULL);		// GPS off
