@@ -49,7 +49,7 @@ void start_user_threads(void)
 
 	if(conf_sram.log.thread_conf.active) start_logging_thread(&conf_sram.log);
 
-    if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.tx.beacon)
+    if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.digi.beacon)
       start_beacon_thread(&conf_sram.aprs);
 
 	if(conf_sram.aprs.thread_conf.active) {

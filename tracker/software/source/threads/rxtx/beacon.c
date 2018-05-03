@@ -29,7 +29,7 @@ THD_FUNCTION(bcnThread, arg) {
 
   // Set telemetry configuration transmission variables
   sysinterval_t last_conf_transmission =
-      chVTGetSystemTime() - conf->tx.tel_enc_cycle;
+      chVTGetSystemTime() - conf->digi.tel_enc_cycle;
   sysinterval_t time = chVTGetSystemTime();
 
   while(true) {
@@ -39,35 +39,35 @@ THD_FUNCTION(bcnThread, arg) {
     if(!p_sleep(&conf->thread_conf.sleep_conf)) {
 
       // Telemetry encoding parameter transmissions
-      if(conf->tx.tel_enc_cycle != 0 && last_conf_transmission
-          + conf->tx.tel_enc_cycle < chVTGetSystemTime()) {
+      if(conf->digi.tel_enc_cycle != 0 && last_conf_transmission
+          + conf->digi.tel_enc_cycle < chVTGetSystemTime()) {
 
         TRACE_INFO("BCN  > Transmit telemetry configuration");
 
         // Encode and transmit telemetry config packet
         for(uint8_t type = 0; type < APRS_NUM_TELEM_GROUPS; type++) {
           packet_t packet = aprs_encode_telemetry_configuration(
-              conf->tx.call,
-              conf->tx.path,
-              conf->tx.call,
+              conf->digi.call,
+              conf->digi.path,
+              conf->digi.call,
               type);
           if(packet == NULL) {
             TRACE_WARN("BCN  > No free packet objects for"
                 " telemetry config transmission");
           } else {
             if(!transmitOnRadio(packet,
-                                conf->tx.radio_conf.freq,
+                                conf->digi.radio_conf.freq,
                                 0,
                                 0,
-                                conf->tx.radio_conf.pwr,
-                                conf->tx.radio_conf.mod,
-                                conf->tx.radio_conf.cca)) {
+                                conf->digi.radio_conf.pwr,
+                                conf->digi.radio_conf.mod,
+                                conf->digi.radio_conf.cca)) {
               TRACE_ERROR("BCN  > Failed to transmit telemetry config");
             }
           }
           chThdSleep(TIME_S2I(5));
         }
-        last_conf_transmission += conf->tx.tel_enc_cycle;
+        last_conf_transmission += conf->digi.tel_enc_cycle;
       }
 
       if(dataPoint->gps_state == GPS_FIXED
@@ -77,21 +77,21 @@ THD_FUNCTION(bcnThread, arg) {
         TRACE_INFO("BCN  > Transmit position and telemetry");
 
         // Encode/Transmit position packet
-        packet_t packet = aprs_encode_position_and_telemetry(conf->tx.call,
-                                                             conf->tx.path,
-                                                             conf->tx.symbol,
+        packet_t packet = aprs_encode_position_and_telemetry(conf->digi.call,
+                                                             conf->digi.path,
+                                                             conf->digi.symbol,
                                                              dataPoint, true);
         if(packet == NULL) {
           TRACE_WARN("BCN  > No free packet objects"
               " for position transmission");
         } else {
           if(!transmitOnRadio(packet,
-                              conf->tx.radio_conf.freq,
+                              conf->digi.radio_conf.freq,
                               0,
                               0,
-                              conf->tx.radio_conf.pwr,
-                              conf->tx.radio_conf.mod,
-                              conf->tx.radio_conf.cca)) {
+                              conf->digi.radio_conf.pwr,
+                              conf->digi.radio_conf.mod,
+                              conf->digi.radio_conf.cca)) {
             TRACE_ERROR("BCN  > failed to transmit beacon data");
           }
           chThdSleep(TIME_S2I(5));
@@ -112,7 +112,7 @@ THD_FUNCTION(bcnThread, arg) {
          * There is no acknowledgment requested.
          */
         packet = aprs_compose_aprsd_message(
-            conf->tx.call,
+            conf->digi.call,
             conf->base.path,
             call);
         if(packet == NULL) {
@@ -120,12 +120,12 @@ THD_FUNCTION(bcnThread, arg) {
               "or badly formed APRSD message");
         } else {
           if(!transmitOnRadio(packet,
-                              conf->tx.radio_conf.freq,
+                              conf->digi.radio_conf.freq,
                               0,
                               0,
-                              conf->tx.radio_conf.pwr,
-                              conf->tx.radio_conf.mod,
-                              conf->tx.radio_conf.cca
+                              conf->digi.radio_conf.pwr,
+                              conf->digi.radio_conf.mod,
+                              conf->digi.radio_conf.cca
           )) {
             TRACE_ERROR("BCN  > Failed to transmit APRSD data");
           }
@@ -137,7 +137,7 @@ THD_FUNCTION(bcnThread, arg) {
         continue;
       }
     } /* psleep */
-    time = waitForTrigger(time, conf->tx.cycle);
+    time = waitForTrigger(time, conf->digi.cycle);
   }
 }
 

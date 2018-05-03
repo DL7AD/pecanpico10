@@ -266,20 +266,20 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
 	chprintf(chp, "Message: %s\r\n", m);
 
 	/* Send with ack request (last arg true). */
-	packet_t packet = aprs_encode_message(conf_sram.aprs.tx.call,
-	                                      conf_sram.aprs.tx.path,
+	packet_t packet = aprs_encode_message(conf_sram.aprs.digi.call,
+	                                      conf_sram.aprs.digi.path,
 	                                      argv[0], m, true);
     if(packet == NULL) {
       TRACE_WARN("CMD  > No free packet objects");
       return;
     }
 	transmitOnRadio(packet,
-	                conf_sram.aprs.tx.radio_conf.freq,
+	                conf_sram.aprs.digi.radio_conf.freq,
                     0,
                     0,
-                    conf_sram.aprs.tx.radio_conf.pwr,
-                    conf_sram.aprs.tx.radio_conf.mod,
-                    conf_sram.aprs.tx.radio_conf.cca);
+                    conf_sram.aprs.digi.radio_conf.pwr,
+                    conf_sram.aprs.digi.radio_conf.mod,
+                    conf_sram.aprs.digi.radio_conf.cca);
 
 	chprintf(chp, "Message sent!\r\n");
 }

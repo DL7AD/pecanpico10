@@ -370,9 +370,9 @@ THD_FUNCTION(collectorThread, arg) {
   } else if(conf_sram.pos_sec.thread_conf.active) { // Only secondary position thread is active
     data_cycle_time = conf_sram.pos_sec.thread_conf.cycle;
     (*useGPS)++;
-  } else if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.tx.beacon) { // APRS beacon is active
-    data_cycle_time = conf_sram.aprs.tx.cycle;
-    if(conf_sram.aprs.tx.gps) {
+  } else if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.digi.beacon) { // DIGI beacon is active
+    data_cycle_time = conf_sram.aprs.digi.cycle;
+    if(conf_sram.aprs.digi.gps) {
       (*useGPS)++;
     }
   } else { // There must be an error
@@ -427,9 +427,9 @@ THD_FUNCTION(collectorThread, arg) {
       TRACE_INFO("COLL > Using fixed location");
       getTime(&time);
       unixTimestamp2Date(&time, tp->gps_time);
-      tp->gps_alt = conf_sram.aprs.tx.alt;
-      tp->gps_lat = conf_sram.aprs.tx.lat;
-      tp->gps_lon = conf_sram.aprs.tx.lon;
+      tp->gps_alt = conf_sram.aprs.digi.alt;
+      tp->gps_lat = conf_sram.aprs.digi.lat;
+      tp->gps_lon = conf_sram.aprs.digi.lon;
       tp->gps_state = GPS_FIXED;
     }
 

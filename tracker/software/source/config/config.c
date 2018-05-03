@@ -124,7 +124,10 @@ const conf_t conf_flash_default = {
           .active       = true,
           .init_delay   = TIME_S2I(20)
       },
-      .rx = { // The receive identity for APRS
+      // Default APRS frequency when geofence not resolved
+      .freq                 = 145175000,
+      // The receive identity for APRS
+      .rx = {
           .radio_conf = {
               .freq			= FREQ_APRS_DYNAMIC,
               .mod			= MOD_AFSK,
@@ -134,36 +137,36 @@ const conf_t conf_flash_default = {
            .call            = "VK2GJ-4",
            .symbol          = SYM_ANTENNA   // Use this symbol in message responses
       },
-      .tx = { // The transmit identity for digipeat transmit and messages responses
+      // The transmit identity for digipeat transmit and messages responses
+      .digi = {
           .radio_conf = {
                .freq        = FREQ_APRS_RECEIVE,
                .pwr         = 0x7F,
                .mod         = MOD_AFSK,
                .cca         = 0x4F
           },
+            .active     = true,
           // Node tx identity
             .call           = "VK2GJ-5",
             .path           = "WIDE2-1",
             .symbol         = SYM_DIGIPEATER,
-            .beacon         = true,
-            .gps            = false,
-            // A set location if GPS not enabled or unable to acquire lock.
-            .lat            = -337331175,       // Degress (1e-7)
-            .lon            = 1511143478,       // Degrees (1e-7)
-            .alt            = 144,              // Alt in metres
+            .beacon         = true,             // Set to have digi beacon position and telem
             .cycle          = TIME_S2I(60*30),  // Position and telem beacon interval
+            .gps            = false,            // Set to have digi use GPS for position
+            // A set location if GPS not enabled or unable to acquire lock.
+            .lat            = -337331175,       // Degrees (1e-7)
+            .lon            = 1511143478,       // Degrees (1e-7)
+            .alt            = 144,              // Altitude in metres
 
             .tel_enc_cycle  = TIME_S2I(60*180) // How often to send telemetry config
       },
+      // The base station identity
       .base = {
-             // The base station identity
-             // Tracker originated messages can be sent to this call sign sent
+             // Tracker originated messages will be sent to this call sign if enabled
              .enabled       = true,
              .call          = "VK2GJ-7",
              .path          = "WIDE2-1",
       },
-      .dig_active           = true,
-      .freq                 = 145175000     // Default APRS frequency when geofence not resolved
 	},
 
 	// Power control

@@ -62,139 +62,141 @@ typedef struct {
 
 typedef struct {
   radio_freq_t      freq;   // 0: APRS region frequency (determined by geofencing), f>0 static frequency
-    mod_t           mod;
-    link_speed_t    speed;
-    radio_squelch_t rssi;
+  mod_t           mod;
+  link_speed_t    speed;
+  radio_squelch_t rssi;
 } radio_rx_conf_t; // Radio / Modulation
 
 typedef struct {
-	bool            active;
-	sysinterval_t   init_delay;
-	sysinterval_t   send_spacing;
-	sleep_conf_t    sleep_conf;
-	sysinterval_t   cycle;				// Cycle time (0: continously)
-	sysinterval_t   duration;
+  bool            active;
+  sysinterval_t   init_delay;
+  sysinterval_t   send_spacing;
+  sleep_conf_t    sleep_conf;
+  sysinterval_t   cycle;				// Cycle time (0: continously)
+  sysinterval_t   duration;
 } thread_conf_t; // Thread
 
 typedef struct {
-	thread_conf_t   thread_conf;
-	radio_tx_conf_t radio_conf;
+  thread_conf_t   thread_conf;
+  radio_tx_conf_t radio_conf;
 
-	// Protocol
-	char            call[AX25_MAX_ADDR_LEN];
-	char            path[16];
-	aprs_sym_t      symbol;
-    bool            aprs_msg;
-	sysinterval_t   tel_enc_cycle;
+  // Protocol
+  char            call[AX25_MAX_ADDR_LEN];
+  char            path[16];
+  aprs_sym_t      symbol;
+  bool            aprs_msg;
+  sysinterval_t   tel_enc_cycle;
 } thd_pos_conf_t;
 
 typedef struct {
-	thread_conf_t   thread_conf;
-	radio_tx_conf_t radio_conf;
+  thread_conf_t   thread_conf;
+  radio_tx_conf_t radio_conf;
 
-	// Protocol
-	char            call[AX25_MAX_ADDR_LEN];
-	char            path[16];
+  // Protocol
+  char            call[AX25_MAX_ADDR_LEN];
+  char            path[16];
 
-	resolution_t    res;					// Picture resolution
-	uint8_t         quality;				// SSDV Quality ranging from 0-7
-	uint32_t        buf_size;		    	// SRAM buffer size for the picture
+  resolution_t    res;					// Picture resolution
+  uint8_t         quality;				// SSDV Quality ranging from 0-7
+  uint32_t        buf_size;		    	// SRAM buffer size for the picture
 } thd_img_conf_t;
 
 typedef struct {
-	thread_conf_t   thread_conf;
-	radio_tx_conf_t radio_conf;
+  thread_conf_t   thread_conf;
+  radio_tx_conf_t radio_conf;
 
-	// Protocol
-	char            call[AX25_MAX_ADDR_LEN];
-	char            path[16];
+  // Protocol
+  char            call[AX25_MAX_ADDR_LEN];
+  char            path[16];
 
-	uint8_t         density;				// Density of log points being sent out in 1/x (value 10 => 10%)
+  uint8_t         density;				// Density of log points being sent out in 1/x (value 10 => 10%)
 } thd_log_conf_t;
 
 
 
 typedef struct {
-	radio_rx_conf_t radio_conf;
-    aprs_sym_t      symbol;
-	// Protocol
-	char            call[AX25_MAX_ADDR_LEN];
+  radio_rx_conf_t radio_conf;
+  aprs_sym_t      symbol;
+  // Protocol
+  char            call[AX25_MAX_ADDR_LEN];
 } thd_rx_conf_t;
 
 typedef struct {
-    radio_tx_conf_t radio_conf;
+  radio_tx_conf_t radio_conf;
 
-    // Protocol
-    char            call[AX25_MAX_ADDR_LEN];
-    char            path[16];
-    aprs_sym_t      symbol;
+  // Protocol
+  char            call[AX25_MAX_ADDR_LEN];
+  char            path[16];
+  aprs_sym_t      symbol;
 } thd_tx_conf_t;
 
 typedef struct {
-    radio_tx_conf_t radio_conf;
+  radio_tx_conf_t radio_conf;
 
-    // Protocol
-    char            call[AX25_MAX_ADDR_LEN];
-    char            path[16];
-    aprs_sym_t      symbol;
-    bool            enabled;
+  // Protocol
+  char            call[AX25_MAX_ADDR_LEN];
+  char            path[16];
+  aprs_sym_t      symbol;
+  bool            enabled;
 } thd_base_conf_t;
 
 typedef struct {
-    radio_tx_conf_t radio_conf;
+  bool            active;                // Digipeater active flag
+  radio_tx_conf_t radio_conf;
 
-    // Protocol
-    char            call[AX25_MAX_ADDR_LEN];
-    char            path[16];
-    aprs_sym_t      symbol;
-    bool            enabled;
-    bool            beacon;
-    bool            gps;
-    gps_coord_t     lat;
-    gps_coord_t     lon;
-    gps_alt_t       alt;
-    sysinterval_t   cycle;                 // Beacon interval (0: continously)
-    sysinterval_t   tel_enc_cycle;
+  // Protocol
+  char            call[AX25_MAX_ADDR_LEN];
+  char            path[16];
+  aprs_sym_t      symbol;
+  bool            enabled;
+  bool            beacon;
+  bool            gps;
+  gps_coord_t     lat;
+  gps_coord_t     lon;
+  gps_alt_t       alt;
+  sysinterval_t   cycle;                 // Beacon interval (0: continously)
+  sysinterval_t   tel_enc_cycle;
+
 } thd_digi_conf_t;
 
 /* APRS configuration. */
 typedef struct {
   thread_conf_t     thread_conf;
   thd_rx_conf_t     rx;
-  thd_digi_conf_t   tx;
+  thd_digi_conf_t   digi;
   thd_base_conf_t   base;                   // Base station receiving unsolicited sends
-  bool              dig_active;             // Digipeater active flag
+
   radio_freq_t      freq;                   // Default APRS frequency if no GPS
 } thd_aprs_conf_t;
 
 typedef struct {
-	thd_pos_conf_t	pos_pri;				// Primary position thread configuration
-	thd_pos_conf_t	pos_sec;				// Secondary position thread configuration
+  thd_pos_conf_t	pos_pri;				// Primary position thread configuration
+  thd_pos_conf_t	pos_sec;				// Secondary position thread configuration
 
-	thd_img_conf_t	img_pri;				// Primary image thread configuration
-	thd_img_conf_t	img_sec;				// Secondary image thread configuration
+  thd_img_conf_t	img_pri;				// Primary image thread configuration
+  thd_img_conf_t	img_sec;				// Secondary image thread configuration
 
-	thd_log_conf_t	log;					// Log transmission configuration
-	thd_aprs_conf_t aprs;
+  thd_log_conf_t	log;					// Log transmission configuration
+  thd_aprs_conf_t   aprs;
 
-	bool			keep_cam_switched_on;	// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time
+  bool			    keep_cam_switched_on;	// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time
 
-	volt_level_t    gps_on_vbat;			// Battery voltage threshold at which GPS is switched on
-	volt_level_t    gps_off_vbat;			// Battery voltage threshold at which GPS is switched off
-	volt_level_t    gps_onper_vbat;			// Battery voltage threshold at which GPS is kept switched on all time. This value must be larger
-											// When gps_on_vbat and gps_off_vbat otherwise this value has no effect. Value 0 disables this feature
-	uint32_t        gps_pressure;           // Air pressure below which GPS is switched to airborne mode
-	gps_hp_model_t gps_low_alt;             // Model to use when air pressure is above gps_pa_threshold
-	gps_lp_model_t gps_high_alt;           // Model to use when air pressure is below gps_pa_threshold
-	uint32_t        magic;                  // Key that indicates if the flash is loaded or has been updated
-	uint16_t        crc;                    // CRC to verify content
+  volt_level_t      gps_on_vbat;			// Battery voltage threshold at which GPS is switched on
+  volt_level_t      gps_off_vbat;			// Battery voltage threshold at which GPS is switched off
+  volt_level_t      gps_onper_vbat;			// Battery voltage threshold at which GPS is kept switched on all time. This value must be larger
+                                          // When gps_on_vbat and gps_off_vbat otherwise this value has no effect. Value 0 disables this feature
+  uint32_t          gps_pressure;           // Air pressure below which GPS is switched to airborne mode
+  gps_hp_model_t    gps_low_alt;             // Model to use when air pressure is above gps_pa_threshold
+  gps_lp_model_t    gps_high_alt;           // Model to use when air pressure is below gps_pa_threshold
+  uint32_t          magic;                  // Key that indicates if the flash is loaded or has been updated
+  uint16_t          crc;                    // CRC to verify content
 } conf_t;
 
 typedef struct {
-	uint8_t         type;
-	char            name[64];
-	size_t          size;
-	void            *ptr;
+  uint8_t         type;
+  char            name[64];
+  size_t          size;
+  void            *ptr;
 } conf_command_t;
 
 #endif
