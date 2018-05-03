@@ -12,7 +12,7 @@ const conf_t conf_flash_default = {
 	.pos_pri = {
 		.thread_conf = {
 			.active			= true,
-			.cycle			= TIME_S2I(60*5),
+			.cycle			= TIME_S2I(60*30),
 			.init_delay		= TIME_S2I(30)
 		},
 		.radio_conf = {

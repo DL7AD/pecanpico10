@@ -592,7 +592,7 @@ bool GPS_Init() {
 	#endif
 
 	// Switch MOSFET
-	TRACE_INFO("GPS  > Switch on");
+	TRACE_INFO("GPS  > Power up GPS");
 	palSetLine(LINE_GPS_RESET);	// Pull up GPS reset
 	palSetLine(LINE_GPS_EN);	// Switch on GPS
 	
@@ -621,7 +621,7 @@ bool GPS_Init() {
 void GPS_Deinit(void)
 {
 	// Switch MOSFET
-	TRACE_INFO("GPS  > Switch off");
+	TRACE_INFO("GPS  > Power down GPS");
 	palClearLine(LINE_GPS_EN);
     gps_model = GPS_MODEL_UNSET;
     gps_enabled = false;

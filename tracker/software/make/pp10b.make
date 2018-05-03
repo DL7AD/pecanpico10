@@ -93,7 +93,7 @@ CONFDIR := ${CURDIR}/cfg/$(PROJECT)
 BUILDDIR := ${CURDIR}/build/$(PROJECT)
 DEPDIR := ${CURDIR}/.dep/$(PROJECT)
 CMSISINC = ${CURDIR}/CMSIS/include
-CMSISLIB = ${CURDIR}/CMSIS/lib/GCC
+CMSISLIB = ${CURDIR}/CMSIS/Lib/GCC
 
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
