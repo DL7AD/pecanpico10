@@ -18,7 +18,7 @@
 */
 
 /**
- * @file    ch.h
+ * @file    nil/include/ch.h
  * @brief   Nil RTOS main header file.
  * @details This header includes all the required kernel headers so it is the
  *          only header you usually need to include in your application.
@@ -71,6 +71,26 @@
  * @brief   Kernel version patch number.
  */
 #define CH_KERNEL_PATCH         0
+/** @} */
+
+/**
+ * @name    Constants for configuration options
+ */
+/**
+ * @brief   Generic 'false' preprocessor boolean constant.
+ * @note    It is meant to be used in configuration files as switch.
+ */
+#if !defined(FALSE) || defined(__DOXYGEN__)
+#define FALSE               0
+#endif
+
+/**
+ * @brief   Generic 'true' preprocessor boolean constant.
+ * @note    It is meant to be used in configuration files as switch.
+ */
+#if !defined(TRUE) || defined(__DOXYGEN__)
+#define TRUE                1
+#endif
 /** @} */
 
 /**

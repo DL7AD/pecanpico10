@@ -11,7 +11,7 @@ const conf_t conf_flash_default = {
 	// Primary position node
 	.pos_pri = {
 		.thread_conf = {
-			.active			= true,
+			.active			= false,
 			.cycle			= TIME_S2I(60*30),
 			.init_delay		= TIME_S2I(30)
 		},
@@ -26,8 +26,8 @@ const conf_t conf_flash_default = {
 		.path				= "WIDE2-1",
 		.symbol				= SYM_ANTENNA,
 		.aprs_msg           = true,
-
-        .tel_enc_cycle  = TIME_S2I(60*180) // How often to send telemetry config
+		 // How often to send telemetry config
+        .tel_enc_cycle      = TIME_S2I(60*180)
 	},
 
 	// Secondary position node
@@ -121,8 +121,8 @@ const conf_t conf_flash_default = {
 	// APRS node
 	.aprs = {
       .thread_conf = {
-          .active       = true,
-          .init_delay   = TIME_S2I(20)
+          .active           = true,
+          .init_delay       = TIME_S2I(20)
       },
       // Default APRS frequency when geofence not resolved
       .freq                 = 145175000,
@@ -137,7 +137,7 @@ const conf_t conf_flash_default = {
            .call            = "VK2GJ-4",
            .symbol          = SYM_ANTENNA   // Use this symbol in message responses
       },
-      // The transmit identity for digipeat transmit and messages responses
+      // The digipeat transmit identity and messages responses
       .digi = {
           .radio_conf = {
                .freq        = FREQ_APRS_RECEIVE,
@@ -145,8 +145,8 @@ const conf_t conf_flash_default = {
                .mod         = MOD_AFSK,
                .cca         = 0x4F
           },
-            .active     = true,
-          // Node tx identity
+            .active         = false,
+            // Digipeat identity
             .call           = "VK2GJ-5",
             .path           = "WIDE2-1",
             .symbol         = SYM_DIGIPEATER,
@@ -154,11 +154,11 @@ const conf_t conf_flash_default = {
             .cycle          = TIME_S2I(60*30),  // Position and telem beacon interval
             .gps            = false,            // Set to have digi use GPS for position
             // A set location if GPS not enabled or unable to acquire lock.
-            .lat            = -337331175,       // Degrees (1e-7)
-            .lon            = 1511143478,       // Degrees (1e-7)
+            .lat            = -337331175,       // Degrees (expressed in 1e-7 form)
+            .lon            = 1511143478,       // Degrees (expressed in 1e-7 form)
             .alt            = 144,              // Altitude in metres
-
-            .tel_enc_cycle  = TIME_S2I(60*180) // How often to send telemetry config
+            // How often to send telemetry config (TODO: Move out to global level)
+            .tel_enc_cycle  = TIME_S2I(60*180)
       },
       // The base station identity
       .base = {
@@ -169,6 +169,7 @@ const conf_t conf_flash_default = {
       },
 	},
 
+	// Global controls
 	// Power control
 	.keep_cam_switched_on	= false,
 	.gps_on_vbat			= 3300,         // mV

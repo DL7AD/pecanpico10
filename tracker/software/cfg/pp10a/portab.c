@@ -30,6 +30,10 @@
 /* Module exported variables.                                                */
 /*===========================================================================*/
 
+typedef struct SysProviders {
+
+} providers_t;
+
 //binary_semaphore_t diag_out_sem;
 
 /*===========================================================================*/
