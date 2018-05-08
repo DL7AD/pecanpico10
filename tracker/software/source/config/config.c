@@ -8,12 +8,12 @@
 conf_t conf_sram;
 
 const conf_t conf_flash_default = {
-	// Primary position node
+	// Primary position app
 	.pos_pri = {
 		.thread_conf = {
-			.active			= false,
-			.cycle			= TIME_S2I(60*30),
-			.init_delay		= TIME_S2I(30)
+			.active			= true,
+			.cycle			= TIME_S2I(60*60),
+			.init_delay		= TIME_S2I(60*30)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
@@ -30,7 +30,7 @@ const conf_t conf_flash_default = {
         .tel_enc_cycle      = TIME_S2I(60*180)
 	},
 
-	// Secondary position node
+	// Secondary position app
 	.pos_sec = {
 		.thread_conf = {
 			.active			= false,
@@ -52,12 +52,12 @@ const conf_t conf_flash_default = {
 		.tel_enc_cycle		= TIME_S2I(10800)
 	},
 
-	// Primary image node
+	// Primary image app
 	.img_pri = {
 		.thread_conf = {
-			.active			= false,
-			.cycle			= TIME_S2I(60*10),
-			.init_delay		= TIME_S2I(60*5),
+			.active			= true,
+			.cycle			= TIME_S2I(60*30),
+			.init_delay		= TIME_S2I(60*20),
 			.send_spacing	= TIME_S2I(5)
 		},
 		.radio_conf = {
@@ -67,7 +67,7 @@ const conf_t conf_flash_default = {
 			.cca            = 0x4F,
 			.redundantTx	= false
 		},
-        // Node identity
+        // App identity
 		.call				= "VK2GJ-15",
 		.path				= "",
 
@@ -76,11 +76,11 @@ const conf_t conf_flash_default = {
 		.buf_size			= 40*1024
 	},
 
-	// Secondary image node
+	// Secondary image app
 	.img_sec = {
 		.thread_conf = {
-			.active			= false,
-            .cycle          = TIME_S2I(60*5),
+			.active			= true,
+            .cycle          = TIME_S2I(60*30),
             .init_delay     = TIME_S2I(60*1),
             .send_spacing   = TIME_S2I(30)
 		},
@@ -90,7 +90,7 @@ const conf_t conf_flash_default = {
 			.mod			= MOD_AFSK,
             .cca            = 0x4F
 		},
-        // Node identity
+        // App identity
 		.call				= "VK2GJ-14",
         .path               = "",
 
@@ -99,7 +99,7 @@ const conf_t conf_flash_default = {
 		.buf_size			= 15*1024
 	},
 
-	// Log node
+	// Log app
 	.log = {
 		.thread_conf = {
 			.active			= false,
@@ -118,7 +118,7 @@ const conf_t conf_flash_default = {
 		.density			= 10
 	},
 
-	// APRS node
+	// APRS app
 	.aprs = {
       .thread_conf = {
           .active           = true,
@@ -133,7 +133,7 @@ const conf_t conf_flash_default = {
               .mod			= MOD_AFSK,
               .rssi         = 0x3F
           },
-          // Node rx identity
+          // App rx identity
            .call            = "VK2GJ-4",
            .symbol          = SYM_ANTENNA   // Use this symbol in message responses
       },
@@ -145,7 +145,7 @@ const conf_t conf_flash_default = {
                .mod         = MOD_AFSK,
                .cca         = 0x4F
           },
-            .active         = false,
+            .active         = true,
             // Digipeat identity
             .call           = "VK2GJ-5",
             .path           = "WIDE2-1",

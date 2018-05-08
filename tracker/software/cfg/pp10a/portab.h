@@ -84,14 +84,19 @@
  */
 #define PWM_ICU                     ICUD4
 #define PWM_TIMER_CHANNEL           0
+#define PWM_ICU_CLK                 STM32_TIMCLK1
 
 /* ICU counter frequency. */
 /*
- * TODO: This should be calculated using SYSTEM CLOCK.
- * ICU has to run at an integer divide from SYSTEM CLOCK.
+ * TODO: This should be calculated using timer clock.
+ * ICU has to run at an integer divide from APBx clock.
  */
 
 #define ICU_COUNT_FREQUENCY         6000000U
+
+#if ((PWM_ICU_CLK % ICU_COUNT_FREQUENCY) != 0)
+#error "Invalid ICU frequency for APBx clock setting"
+#endif
 
 #define USE_12_BIT_PWM              FALSE
 

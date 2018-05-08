@@ -91,6 +91,10 @@
 *****************************************************************************
 
 *** Next ***
+- NEW: Added support for STM32F413, added ability to handle the TIMPRE bit
+       in the RCC_DKCFGR register.
+- NEW: Added optional support for character match callback in the UART
+       high level driver.
 - NEW: Change, chMtxGetNextMutexS() renamed to chMtxGetNextMutexX().
 - NEW: RT C++ wrapper reworked, now it is mostly inline code, added some new
        wrappers and methods. Added wrappers for more API functions. BaseThreads
@@ -120,6 +124,10 @@
 - EX:  Updated LIS302DL to 1.1.0 (backported to 18.2.1).
 - EX:  Updated LPS25H to 1.1.0 (backported to 18.2.1).
 - EX:  Updated LSM303DLHC to 1.1.0 (backported to 18.2.1).
+- HAL: Fixed binary instead of logic operator in STM32F4 HAL (bug #946)
+       (backported to 18.2.2 and 17.6.5).
+- HAL: Fixed Mikroe clicker 2 misaligned board file (bug #945)
+       (backported to 18.2.2 and 17.6.5).
 - EX:  Fixed ChibiOS/EX documentation misalignments (bug #943).
 - HAL: Fixed invalid settings in STM32F769I-Discovery board files (bug #942)
        (backported to 18.2.1 and 17.6.5).

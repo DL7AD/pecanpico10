@@ -17,9 +17,9 @@
 #include "hal.h"
 #include "config.h"
 
+/* Attempt to get FTDI emulation working... not a success thus far. */
 #define USB_VCP_FTDI_230X       FALSE
 #define USB_VCP_FTDI_CDC        TRUE
-#define USB_VCP_SILABS_CP210X   FALSE
 
 /* Virtual serial port over USB.*/
 SerialUSBDriver SDU1;
@@ -41,15 +41,9 @@ static const uint8_t vcom_device_descriptor_data[18] = {
                          0x00,          /* bDeviceSubClass.                 */
                          0x00,          /* bDeviceProtocol.                 */
                          0x40,          /* bMaxPacketSize.                  */
-#if USB_VCP_SILABS_CP210X == TRUE
-                         0x10C4,        /* idVendor (SILABS).               */
-                         0xEA60,        /* idProduct.                       */
-                         0x0100,        /* bcdDevice.                       */
-#else
                          0x0403,        /* idVendor (FTDI).                 */
                          0x6015,        /* idProduct.                       */
                          0x0100,        /* bcdDevice.                       */
-#endif
                          1,             /* iManufacturer.                   */
                          2,             /* iProduct.                        */
                          3,             /* iSerialNumber.                   */

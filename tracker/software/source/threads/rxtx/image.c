@@ -663,6 +663,15 @@ THD_FUNCTION(imgThread, arg) {
       time = waitForTrigger(time, conf->thread_conf.cycle);
       continue;
     }
+    /*
+     * History... compiler bug
+     * If size is > 65535 the compiled code wraps address around and kills CMM heap.
+     * Clearing is no longer needed.
+     * SOI is now aligned at index 0 and length is by DMA.
+     */
+/*    uint32_t size = conf->buf_size;
+    for(uint32_t i = 0; i < size ; i++)
+        buffer[i] = 0;*/
     /* Take picture. */
     uint32_t size_sampled = takePicture(buffer, conf->buf_size,
                                         conf->res, true);

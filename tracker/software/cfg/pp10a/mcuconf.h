@@ -44,27 +44,33 @@
 #define STM32_HSE_ENABLED                   TRUE
 #define STM32_LSE_ENABLED                   FALSE
 #define STM32_CLOCK48_REQUIRED              TRUE
+#define STM32_CK48MSEL                      STM32_CK48MSEL_PLLI2S
 #define STM32_SW                            STM32_SW_PLL
 #define STM32_PLLSRC                        STM32_PLLSRC_HSE
 #define STM32_PLLM_VALUE                    26
 #define STM32_PLLN_VALUE                    384
 #define STM32_PLLP_VALUE                    8
-#define STM32_PLLQ_VALUE                    8
+#define STM32_PLLQ_VALUE                    4
 #define STM32_HPRE                          STM32_HPRE_DIV1
 #define STM32_PPRE1                         STM32_PPRE1_DIV1
 #define STM32_PPRE2                         STM32_PPRE2_DIV1
+#define STM32_TIMPRE                        STM32_TIMPRE_PCLK
 #define STM32_RTCSEL                        STM32_RTCSEL_LSI
 #define STM32_RTCPRE_VALUE                  8
 #define STM32_MCO1SEL                       STM32_MCO1SEL_PLL
 #define STM32_MCO1PRE                       STM32_MCO1PRE_DIV1
 #define STM32_MCO2SEL                       STM32_MCO2SEL_PLL
-#define STM32_MCO2PRE                       STM32_MCO2PRE_DIV2 /* Camera XCLK 24MHz */
-#define STM32_I2SSRC                        STM32_I2SSRC_CKIN
+#define STM32_MCO2PRE                       STM32_MCO2PRE_DIV2
+#define STM32_I2SSRC                        STM32_PLLI2SSRC_CKIN
+#define STM32_PLLI2SM_VALUE                 26
 #define STM32_PLLI2SN_VALUE                 192
-#define STM32_PLLI2SR_VALUE                 5
+#define STM32_PLLI2SR_VALUE                 4
+#define STM32_PLLI2SQ_VALUE                 4
 #define STM32_PVD_ENABLE                    FALSE
 #define STM32_PLS                           STM32_PLS_LEV0
 #define STM32_BKPRAM_ENABLE                 FALSE
+
+
 
 /*
  * ADC driver system settings.
@@ -154,12 +160,14 @@
 #define STM32_ICU_USE_TIM3                  FALSE
 #define STM32_ICU_USE_TIM4                  TRUE
 #define STM32_ICU_USE_TIM5                  FALSE
+#define STM32_ICU_USE_TIM8                  FALSE
 #define STM32_ICU_USE_TIM9                  FALSE
 #define STM32_ICU_TIM1_IRQ_PRIORITY         7
 #define STM32_ICU_TIM2_IRQ_PRIORITY         7
 #define STM32_ICU_TIM3_IRQ_PRIORITY         7
 #define STM32_ICU_TIM4_IRQ_PRIORITY         7
 #define STM32_ICU_TIM5_IRQ_PRIORITY         7
+#define STM32_ICU_TIM8_IRQ_PRIORITY         7
 #define STM32_ICU_TIM9_IRQ_PRIORITY         7
 
 /*
