@@ -29,13 +29,15 @@
 const radio_band_t band_2m = {
   .start    = BAND_MIN_2M_FREQ,
   .end      = BAND_MAX_2M_FREQ,
-  .step     = 12500
+  .step     = 12500,
+  .def      = BAND_DEF_2M_FREQ
 };
 
 const radio_band_t band_70cm = {
   .start    = BAND_MIN_70CM_FREQ,
   .end      = BAND_MAX_70CM_FREQ,
-  .step     = 25000
+  .step     = 25000,
+  .def      = BAND_DEF_70CM_FREQ
 };
 
 /*===========================================================================*/

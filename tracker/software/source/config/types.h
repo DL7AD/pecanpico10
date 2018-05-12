@@ -5,12 +5,23 @@
 #include "ax25_pad.h"
 #include "ublox.h"
 
+typedef enum {
+FREQ_RADIO_INVALID  = 0,
+FREQ_APRS_DYNAMIC,           /* Geofencing frequency (144.8 default). */
+FREQ_APRS_SCAN,              /* Frequency last found in RX scan. - TBI */
+FREQ_APRS_RECEIVE,           /* Active RX frequency - fall back to DYNAMIC. */
+FREQ_CMDC_RECEIVE,           /* Frequency used for command and control. TBI */
+FREQ_APRS_DEFAULT,           /* Default frequency specified in configuration */
+FREQ_CODES_END
+} freq_codes_t;
+
 #define FREQ_RADIO_INVALID  0
 #define FREQ_APRS_DYNAMIC	1 /* Geofencing frequency (144.8 default). */
 #define FREQ_APRS_SCAN      2 /* Frequency last found in RX scan. - TBI */
 #define FREQ_APRS_RECEIVE   3 /* Active RX frequency - fall back to DYNAMIC. */
 #define FREQ_CMDC_RECEIVE   4 /* Frequency used for command and control. TBI */
 #define FREQ_APRS_DEFAULT   5 /* Default frequency specified in configuration */
+#define FREQ_CODES_END      6
 
 #define CYCLE_CONTINUOUSLY	0
 
@@ -52,111 +63,126 @@ typedef enum {
 	RES_MAX
 } resolution_t;
 
+/*typedef union {
+  radio_squelch_t   cca;
+  radio_squelch_t   rssi;
+} radio_sq_t;*/
+
 typedef struct {
   radio_pwr_t       pwr;
-  radio_freq_t      freq;	// 0: APRS region frequency (determined by geofencing), f>0 static frequency
+  radio_freq_t      freq;
+  mod_t             mod;
+  link_speed_t      speed;
+  union {
+    radio_squelch_t   cca;
+    radio_squelch_t   rssi;
+  };
+} radio_conf_t;
+
+typedef struct {
+  radio_pwr_t       pwr;
+  radio_freq_t      freq;
   mod_t             mod;
   link_speed_t      speed;
   radio_squelch_t   cca;
-  bool              redundantTx;
 } radio_tx_conf_t; // Radio / Modulation
 
 typedef struct {
-  radio_freq_t      freq;   // 0: APRS region frequency (determined by geofencing), f>0 static frequency
-  mod_t           mod;
-  link_speed_t    speed;
-  radio_squelch_t rssi;
+  radio_freq_t      freq;
+  mod_t             mod;
+  link_speed_t      speed;
+  radio_squelch_t   rssi;
 } radio_rx_conf_t; // Radio / Modulation
 
 typedef struct {
-  bool            active;
-  sysinterval_t   init_delay;
-  sysinterval_t   send_spacing;
-  sleep_conf_t    sleep_conf;
-  sysinterval_t   cycle;				// Cycle time (0: continously)
-  sysinterval_t   duration;
+  bool              active;
+  sysinterval_t     init_delay;
+  sysinterval_t     send_spacing;
+  sleep_conf_t      sleep_conf;
+  sysinterval_t     cycle;				// Cycle time (0: continously)
+  sysinterval_t     duration;
 } thread_conf_t; // Thread
 
 typedef struct {
-  thread_conf_t   thread_conf;
-  radio_tx_conf_t radio_conf;
+  thread_conf_t     thread_conf;
+  radio_tx_conf_t   radio_conf;
 
   // Protocol
-  char            call[AX25_MAX_ADDR_LEN];
-  char            path[16];
-  aprs_sym_t      symbol;
-  bool            aprs_msg;
-  sysinterval_t   tel_enc_cycle;
+  char              call[AX25_MAX_ADDR_LEN];
+  char              path[16];
+  aprs_sym_t        symbol;
+  bool              aprs_msg;
+  sysinterval_t     tel_enc_cycle;
 } thd_pos_conf_t;
 
 typedef struct {
-  thread_conf_t   thread_conf;
-  radio_tx_conf_t radio_conf;
-
+  thread_conf_t     thread_conf;
+  radio_tx_conf_t   radio_conf;
+  bool              redundantTx;
   // Protocol
-  char            call[AX25_MAX_ADDR_LEN];
-  char            path[16];
+  char              call[AX25_MAX_ADDR_LEN];
+  char              path[16];
 
-  resolution_t    res;					// Picture resolution
-  uint8_t         quality;				// SSDV Quality ranging from 0-7
-  uint32_t        buf_size;		    	// SRAM buffer size for the picture
+  resolution_t      res;					// Picture resolution
+  uint8_t           quality;				// SSDV Quality ranging from 0-7
+  uint32_t          buf_size;		    	// SRAM buffer size for the picture
 } thd_img_conf_t;
 
 typedef struct {
-  thread_conf_t   thread_conf;
-  radio_tx_conf_t radio_conf;
+  thread_conf_t     thread_conf;
+  radio_tx_conf_t   radio_conf;
 
   // Protocol
-  char            call[AX25_MAX_ADDR_LEN];
-  char            path[16];
+  char              call[AX25_MAX_ADDR_LEN];
+  char              path[16];
 
-  uint8_t         density;				// Density of log points being sent out in 1/x (value 10 => 10%)
+  uint8_t           density;				// Density of log points being sent out in 1/x (value 10 => 10%)
 } thd_log_conf_t;
 
 
 
 typedef struct {
-  radio_rx_conf_t radio_conf;
-  aprs_sym_t      symbol;
+  radio_rx_conf_t   radio_conf;
+  aprs_sym_t        symbol;
   // Protocol
-  char            call[AX25_MAX_ADDR_LEN];
+  char              call[AX25_MAX_ADDR_LEN];
 } thd_rx_conf_t;
 
 typedef struct {
-  radio_tx_conf_t radio_conf;
+  radio_tx_conf_t   radio_conf;
 
   // Protocol
-  char            call[AX25_MAX_ADDR_LEN];
-  char            path[16];
-  aprs_sym_t      symbol;
+  char              call[AX25_MAX_ADDR_LEN];
+  char              path[16];
+  aprs_sym_t        symbol;
 } thd_tx_conf_t;
 
 typedef struct {
-  radio_tx_conf_t radio_conf;
+  radio_tx_conf_t   radio_conf;
 
   // Protocol
-  char            call[AX25_MAX_ADDR_LEN];
-  char            path[16];
-  aprs_sym_t      symbol;
-  bool            enabled;
+  char              call[AX25_MAX_ADDR_LEN];
+  char              path[16];
+  aprs_sym_t        symbol;
+  bool              enabled;
 } thd_base_conf_t;
 
 typedef struct {
-  bool            active;                // Digipeater active flag
-  radio_tx_conf_t radio_conf;
+  bool              active;                // Digipeater active flag
+  radio_tx_conf_t   radio_conf;
 
   // Protocol
-  char            call[AX25_MAX_ADDR_LEN];
-  char            path[16];
-  aprs_sym_t      symbol;
-  bool            enabled;
-  bool            beacon;
-  bool            gps;
-  gps_coord_t     lat;
-  gps_coord_t     lon;
-  gps_alt_t       alt;
-  sysinterval_t   cycle;                 // Beacon interval (0: continously)
-  sysinterval_t   tel_enc_cycle;
+  char              call[AX25_MAX_ADDR_LEN];
+  char              path[16];
+  aprs_sym_t        symbol;
+  bool              enabled;
+  bool              beacon;
+  bool              gps;
+  gps_coord_t       lat;
+  gps_coord_t       lon;
+  gps_alt_t         alt;
+  sysinterval_t     cycle;                 // Beacon interval (0: continously)
+  sysinterval_t     tel_enc_cycle;
 
 } thd_digi_conf_t;
 
@@ -194,11 +220,11 @@ typedef struct {
 } conf_t;
 
 typedef struct {
-  uint8_t         type;
-  char            name[64];
-  size_t          size;
-  void            *ptr;
+  uint8_t           type;
+  char              name[64];
+  size_t            size;
+  void              *ptr;
 } conf_command_t;
 
-#endif
+#endif /* __TYPES_H__ */
 

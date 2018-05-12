@@ -78,6 +78,7 @@ typedef struct radioBand {
   radio_freq_t  start;
   radio_freq_t  end;
   channel_hz_t  step;
+  radio_freq_t  def;
 } radio_band_t;
 
 typedef struct radioParam {

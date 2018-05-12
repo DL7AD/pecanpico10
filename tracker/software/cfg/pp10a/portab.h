@@ -47,8 +47,10 @@
 
 #define BAND_MIN_2M_FREQ	    	144000000				/* Minimum allowed frequency in Hz */
 #define BAND_MAX_2M_FREQ			148000000				/* Maximum allowed frequency in Hz */
+#define BAND_DEF_2M_FREQ            144800000               /* Default frequency in Hz.        */
 #define BAND_MIN_70CM_FREQ          420000000               /* Minimum allowed frequency in Hz */
 #define BAND_MAX_70CM_FREQ          450000000               /* Maximum allowed frequency in Hz */
+#define BAND_DEF_70CM_FREQ          439100000               /* Default frequency in Hz.        */
 
 #define DEFAULT_OPERATING_FREQ      144800000
 

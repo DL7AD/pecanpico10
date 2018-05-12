@@ -499,23 +499,50 @@ void pktReleaseRadio(const radio_unit_t radio) {
 }
 
 /**
- * @brief   Get current receive operating frequency.
+ * @brief   Get default operating frequency.
  *
  * @param[in] radio         Radio unit ID.
  *
  * @return      operating frequency
- * @retval      0 if requested frequency or radio ID is invalid
+ * @retval      FREQ_RADIO_INVALID if radio ID is invalid
+ * @retval      Default frequency otherwise
  *
  * @api
  */
+radio_freq_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
+  /* FIXME: Default frequency in config to be per radio. */
+  (void)radio;
+  /* FIXME: INVALID relies on 0 in conf if no default set. */
+  if(conf_sram.aprs.freq != FREQ_RADIO_INVALID)
+    return conf_sram.aprs.freq;
+  else
+    return DEFAULT_OPERATING_FREQ;
+}
+
+/**
+ * @brief   Get current receive operating frequency.
+ *
+ * @param[in] radio         Radio unit ID.
+ *
+ * @return      actual operating frequency or special code
+ * @retval      0 if requested frequency or radio ID is invalid
+ *
+ * @notapi
+ */
 radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
+  radio_freq_t op_freq;
   if(pktIsReceiveActive(radio)) {
-    radio_freq_t op_freq = handler->radio_rx_config.base_frequency
+    if(handler->radio_rx_config.base_frequency < FREQ_CODES_END)
+      /* Frequency code. */
+      return handler->radio_rx_config.base_frequency;
+    /* Normal frequency. */
+    op_freq = handler->radio_rx_config.base_frequency
         + (handler->radio_rx_config.step_hz * handler->radio_rx_config.channel);
     return op_freq;
   }
-  return FREQ_RADIO_INVALID;
+  /* Receive is not active so return default operating frequency. */
+  return pktGetDefaultOperatingFrequency(radio);
 }
 
 /**
@@ -539,14 +566,24 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
                                           radio_ch_t chan,
                                           const radio_mode_t mode) {
 
-  radio_freq_t op_freq;
+  if((base_freq == FREQ_APRS_RECEIVE || base_freq == FREQ_APRS_SCAN)
+                   && mode == RADIO_TX) {
+    /* Get current RX frequency (or default) and use that. */
+    step = 0;
+    chan = 0;
+    /* FIXME: Should switch on all special codes to make system robust. */
+    base_freq = pktGetReceiveOperatingFrequency(radio);
+  }
 
   /*
    * Check for dynamic frequency determination.
    * Dynamic can return an absolute frequency or a further special code.
    */
   if(base_freq == FREQ_APRS_DYNAMIC) {
-    /* Get frequency by geofencing. */
+    /*
+     * Get frequency by geofencing.
+     * Geofencing can return special code FREQ_APRS_DEFAULT.
+     */
     base_freq = getAPRSRegionFrequency();
     step = 0;
     chan = 0;
@@ -554,29 +591,13 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
 
   /* Check for default. */
   if(base_freq == FREQ_APRS_DEFAULT) {
-    /* FIXME: INVALID relies on 0 in conf if no default set. */
-    if(conf_sram.aprs.freq != FREQ_RADIO_INVALID)
-      return conf_sram.aprs.freq;
-    else
-      return DEFAULT_OPERATING_FREQ;
-  }
-
-  if((base_freq == FREQ_APRS_RECEIVE || base_freq == FREQ_APRS_SCAN)
-                   && mode == RADIO_TX) {
-    /* Get current RX frequency (if valid) and use that. */
-    if((op_freq = pktGetReceiveOperatingFrequency(radio))
-        != FREQ_RADIO_INVALID)
-      return op_freq;
-    else {
-      /* Get frequency by geofencing. */
-      base_freq = getAPRSRegionFrequency();
-      step = 0;
-      chan = 0;
-    }
+    base_freq = pktGetDefaultOperatingFrequency(radio);
+    step = 0;
+    chan = 0;
   }
 
   /* Calculate operating frequency. */
-  op_freq = base_freq + (step * chan);
+  radio_freq_t op_freq = base_freq + (step * chan);
 
   /* Check validity. */
   uint8_t radios = sizeof(radio_list) / sizeof(radio_param_t);
@@ -588,7 +609,7 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
       else
         return FREQ_RADIO_INVALID;
     }
-  }
+  } /* End for */
   return FREQ_RADIO_INVALID;
 }
 

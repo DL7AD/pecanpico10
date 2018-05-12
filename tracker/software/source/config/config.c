@@ -21,7 +21,7 @@ const conf_t conf_flash_default = {
 			.mod			= MOD_AFSK,
             .cca            = 0x4F,
 		},
-		// Node identity
+		// App identity
 		.call				= "VK2GJ-12",
 		.path				= "WIDE2-1",
 		.symbol				= SYM_ANTENNA,
@@ -43,7 +43,7 @@ const conf_t conf_flash_default = {
 			.mod			= MOD_AFSK,
             .cca            = 0x4F
 		},
-        // Node identity
+        // App identity
 		.call				= "DL7AD-14",
 		.path				= "WIDE1-1",
 		.symbol				= SYM_BALLOON,
@@ -64,16 +64,18 @@ const conf_t conf_flash_default = {
 			.pwr			= 0x7F,
             .freq           = 144800000,
 			.mod			= MOD_2FSK,
-			.cca            = 0x4F,
-			.redundantTx	= false
+			.cca            = 0x4F
+
 		},
         // App identity
 		.call				= "VK2GJ-15",
 		.path				= "",
 
+        // Image settings
 		.res				= RES_VGA,
 		.quality			= 4,
-		.buf_size			= 40*1024
+		.buf_size			= 40*1024,
+        .redundantTx        = false
 	},
 
 	// Secondary image app
@@ -94,9 +96,11 @@ const conf_t conf_flash_default = {
 		.call				= "VK2GJ-14",
         .path               = "",
 
+        // Image settings
 		.res				= RES_QVGA,
 		.quality			= 4,
-		.buf_size			= 15*1024
+		.buf_size			= 15*1024,
+        .redundantTx        = false
 	},
 
 	// Log app
