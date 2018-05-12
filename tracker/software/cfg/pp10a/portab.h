@@ -45,11 +45,20 @@
 #define LINE_SPI_MISO               PAL_LINE(GPIOB, 4U)
 #define LINE_SPI_MOSI               PAL_LINE(GPIOB, 5U)
 
-#define Si446x_MIN_2M_FREQ	    	144000000				/* Minimum allowed frequency in Hz */
-#define Si446x_MAX_2M_FREQ			148000000				/* Maximum allowed frequency in Hz */
+#define BAND_MIN_2M_FREQ	    	144000000				/* Minimum allowed frequency in Hz */
+#define BAND_MAX_2M_FREQ			148000000				/* Maximum allowed frequency in Hz */
+#define BAND_DEF_2M_FREQ            144800000               /* Default frequency in Hz.        */
+#define BAND_MIN_70CM_FREQ          420000000               /* Minimum allowed frequency in Hz */
+#define BAND_MAX_70CM_FREQ          450000000               /* Maximum allowed frequency in Hz */
+#define BAND_DEF_70CM_FREQ          439100000               /* Default frequency in Hz.        */
+
+#define DEFAULT_OPERATING_FREQ      144800000
+
 #define Si446x_CLK					STM32_HSECLK			/* Oscillator frequency in Hz */
 #define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
+
+#define NUM_PKT_RADIOS              1
 
 //#define LINE_OVERFLOW_LED         LINE_LED3
 #define LINE_DECODER_LED            LINE_IO_BLUE
@@ -84,14 +93,19 @@
  */
 #define PWM_ICU                     ICUD4
 #define PWM_TIMER_CHANNEL           0
+#define PWM_ICU_CLK                 STM32_TIMCLK1
 
 /* ICU counter frequency. */
 /*
- * TODO: This should be calculated using SYSTEM CLOCK.
- * ICU has to run at an integer divide from SYSTEM CLOCK.
+ * TODO: This should be calculated using timer clock.
+ * ICU has to run at an integer divide from APBx clock.
  */
 
 #define ICU_COUNT_FREQUENCY         6000000U
+
+#if ((PWM_ICU_CLK % ICU_COUNT_FREQUENCY) != 0)
+#error "Invalid ICU frequency for APBx clock setting"
+#endif
 
 #define USE_12_BIT_PWM              FALSE
 
@@ -142,6 +156,8 @@
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
+
+extern const radio_param_t radio_list[NUM_PKT_RADIOS];
 
 #ifdef __cplusplus
 extern "C" {

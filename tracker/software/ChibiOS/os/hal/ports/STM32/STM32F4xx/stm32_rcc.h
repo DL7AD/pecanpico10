@@ -607,11 +607,9 @@
 /**
  * @brief   Enables the I2C4 peripheral clock.
  *
- * @param[in] lp        low power enable flag
- *
  * @api
  */
-#define rccEnableI2C4(lp) rccEnableAPB1(RCC_APB1ENR_FMPI2C1EN, lp)
+#define rccEnableI2C4() rccEnableAPB1(RCC_APB1ENR_FMPI2C1EN, lp)
 
 /**
  * @brief   Disables the I2C4 peripheral clock.
@@ -1235,13 +1233,10 @@
 
 /**
  * @brief   Disables the LPTIM1 peripheral clock.
- * @note    The @p lp parameter is ignored in this family.
- *
- * @param[in] lp        low power enable flag
  *
  * @api
  */
-#define rccDisableLPTIM1(lp) rccDisableAPB1(RCC_APB1ENR_LPTIM1EN, lp)
+#define rccDisableLPTIM1() rccDisableAPB1(RCC_APB1ENR_LPTIM1EN, lp)
 
 /**
  * @brief   Resets the LPTIM1 peripheral.
@@ -1452,13 +1447,10 @@
 
 /**
  * @brief   Disables the UART9 peripheral clock.
- * @note    The @p lp parameter is ignored in this family.
- *
- * @param[in] lp        low power enable flag
  *
  * @api
  */
-#define rccDisableUART9(lp) rccDisableAPB2(RCC_APB2ENR_UART9EN, lp)
+#define rccDisableUART9() rccDisableAPB2(RCC_APB2ENR_UART9EN, lp)
 
 /**
  * @brief   Resets the UART9 peripheral.
@@ -1480,9 +1472,6 @@
 
 /**
  * @brief   Disables the UART10 peripheral clock.
- * @note    The @p lp parameter is ignored in this family.
- *
- * @param[in] lp        low power enable flag
  *
  * @api
  */

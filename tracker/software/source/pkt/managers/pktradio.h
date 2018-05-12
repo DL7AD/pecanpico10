@@ -111,8 +111,6 @@ extern "C" {
                                             channel_hz_t step,
                                             radio_ch_t chan,
                                             const radio_mode_t mode);
-  bool      pktIsRadioInBand(const radio_unit_t radio,
-                             const radio_freq_t freq);
   bool      pktLLDresumeReceive(const radio_unit_t radio);
   bool      pktLLDsendPacket(radio_task_object_t *rto);
   void      pktScheduleSendComplete(radio_task_object_t *rto,

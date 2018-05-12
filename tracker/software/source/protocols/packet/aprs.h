@@ -41,7 +41,6 @@
 #define ORIGIN_DIGIPEATER_CONVERSION	0x7
 
 #define APRS_DEVICE_CALLSIGN	    	"APECAN" // APExxx = Pecan device
-//#define APRS_DEST_SSID					0
 
 #define SYM_BALLOON						0x2F4F
 #define SYM_SMALLAIRCRAFT				0x2F27
@@ -51,6 +50,8 @@
 #define SYM_DIGIPEATER					0x2F23
 #define SYM_ANTENNA                     0x2F72
 
+#define APRS_PATH_LENGTH                16
+
 #define APRS_NUM_TELEM_GROUPS           4
 
 #define APRS_HEARD_LIST_SIZE            20
@@ -58,15 +59,17 @@
 #define APRS_MAX_MSG_ARGUMENTS          10
 
 typedef struct APRSIdentity {
-  char      num[8];
-  char      src[AX25_MAX_ADDR_LEN];
-  char      call[AX25_MAX_ADDR_LEN];
-  char      path[16];
-  uint16_t  symbol;
-  uint32_t  freq;
-  uint8_t   pwr;
-  mod_t     mod;
-  uint8_t   cca;
+  /* APRS parameters. */
+  char              num[8];                  /**< @brief Message number.    */
+  char              src[AX25_MAX_ADDR_LEN];  /**< @brief Source call.       */
+  char              call[AX25_MAX_ADDR_LEN]; /**< @brief Destination call.  */
+  char              path[APRS_PATH_LENGTH];  /**< @brief Path.              */
+  aprs_sym_t        symbol;                  /**< @brief symbol.            */
+  /* Radio parameters. */
+  radio_freq_t      freq;
+  radio_pwr_t       pwr;
+  mod_t             mod;
+  radio_squelch_t   cca;
 } aprs_identity_t;
 
 /**
@@ -78,18 +81,16 @@ typedef msg_t (*aprscmd_t)(aprs_identity_t *id, int argc, char *argv[]);
  * @brief   APRS command entry type.
  */
 typedef struct {
-  const char            *ac_name;           /**< @brief Command name.       */
-  aprscmd_t             ac_function;        /**< @brief Command function.   */
+  const char        *ac_name;              /**< @brief Command name.       */
+  aprscmd_t         ac_function;           /**< @brief Command function.   */
 } APRSCommand;
 
-/* Temporary. Will be deprecated when fixed station feature is implemented. */
-extern bool test_gps_enabled;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
   void      aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len);
-  packet_t aprs_encode_stamped_position_and_telemetry(const char *callsign,
+  packet_t  aprs_encode_stamped_position_and_telemetry(const char *callsign,
                                 const char *path, aprs_sym_t symbol,
                                 dataPoint_t *dataPoint);
   packet_t  aprs_encode_position_and_telemetry(const char *callsign,
@@ -124,10 +125,11 @@ extern "C" {
                                   int argc, char *argv[]);
   msg_t     aprs_execute_img_command(aprs_identity_t *id,
                                    int argc, char *argv[]);
-  msg_t aprs_execute_system_reset(aprs_identity_t *id,
+  msg_t     aprs_execute_system_reset(aprs_identity_t *id,
                                   int argc, char *argv[]);
 #ifdef __cplusplus
 }
-#endif
-#endif
+#endif /* __cplusplus */
+
+#endif /* __APRS_H__ */
 

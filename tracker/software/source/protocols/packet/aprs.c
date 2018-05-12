@@ -87,7 +87,7 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "img_pri.mod",                   sizeof(conf_sram.img_pri.radio_conf.mod),                    &conf_sram.img_pri.radio_conf.mod                   },
     {TYPE_INT,  "img_pri.cca",                   sizeof(conf_sram.img_pri.radio_conf.cca),                    &conf_sram.img_pri.radio_conf.cca                   },
 	{TYPE_INT,  "img_pri.speed",                 sizeof(conf_sram.img_pri.radio_conf.speed),                  &conf_sram.img_pri.radio_conf.speed                 },
-	{TYPE_INT,  "img_pri.redundantTx",           sizeof(conf_sram.img_pri.radio_conf.redundantTx),            &conf_sram.img_pri.radio_conf.redundantTx           },
+	{TYPE_INT,  "img_pri.redundantTx",           sizeof(conf_sram.img_pri.redundantTx),                       &conf_sram.img_pri.redundantTx                      },
 	{TYPE_STR,  "img_pri.call",                  sizeof(conf_sram.img_pri.call),                              &conf_sram.img_pri.call                             },
 	{TYPE_STR,  "img_pri.path",                  sizeof(conf_sram.img_pri.path),                              &conf_sram.img_pri.path                             },
 	{TYPE_INT,  "img_pri.res",                   sizeof(conf_sram.img_pri.res),                               &conf_sram.img_pri.res                              },
@@ -104,9 +104,9 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "img_sec.pwr",                   sizeof(conf_sram.img_sec.radio_conf.pwr),                    &conf_sram.img_sec.radio_conf.pwr                   },
 	{TYPE_INT,  "img_sec.freq",                  sizeof(conf_sram.img_sec.radio_conf.freq),                   &conf_sram.img_sec.radio_conf.freq                  },
 	{TYPE_INT,  "img_sec.mod",                   sizeof(conf_sram.img_sec.radio_conf.mod),                    &conf_sram.img_sec.radio_conf.mod                   },
-    {TYPE_INT,  "img_sec.cca",                  sizeof(conf_sram.img_sec.radio_conf.cca),                     &conf_sram.img_sec.radio_conf.cca                   },
+    {TYPE_INT,  "img_sec.cca",                   sizeof(conf_sram.img_sec.radio_conf.cca),                    &conf_sram.img_sec.radio_conf.cca                   },
 	{TYPE_INT,  "img_sec.speed",                 sizeof(conf_sram.img_sec.radio_conf.speed),                  &conf_sram.img_sec.radio_conf.speed                 },
-	{TYPE_INT,  "img_sec.redundantTx",           sizeof(conf_sram.img_sec.radio_conf.redundantTx),            &conf_sram.img_sec.radio_conf.redundantTx           },
+	{TYPE_INT,  "img_sec.redundantTx",           sizeof(conf_sram.img_sec.redundantTx),                       &conf_sram.img_sec.redundantTx                      },
 	{TYPE_STR,  "img_sec.call",                  sizeof(conf_sram.img_sec.call),                              &conf_sram.img_sec.call                             },
 	{TYPE_STR,  "img_sec.path",                  sizeof(conf_sram.img_sec.path),                              &conf_sram.img_sec.path                             },
 	{TYPE_INT,  "img_sec.res",                   sizeof(conf_sram.img_sec.res),                               &conf_sram.img_sec.res                              },
@@ -125,7 +125,6 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "log.mod",                       sizeof(conf_sram.log.radio_conf.mod),                        &conf_sram.log.radio_conf.mod                       },
     {TYPE_INT,  "log.cca",                       sizeof(conf_sram.log.radio_conf.cca),                        &conf_sram.log.radio_conf.cca                       },
 	{TYPE_INT,  "log.speed",                     sizeof(conf_sram.log.radio_conf.speed),                      &conf_sram.log.radio_conf.speed                     },
-	{TYPE_INT,  "log.redundantTx",               sizeof(conf_sram.log.radio_conf.redundantTx),                &conf_sram.log.radio_conf.redundantTx               },
 	{TYPE_STR,  "log.call",                      sizeof(conf_sram.log.call),                                  &conf_sram.log.call                                 },
 	{TYPE_STR,  "log.path",                      sizeof(conf_sram.log.path),                                  &conf_sram.log.path                                 },
 	{TYPE_INT,  "log.density",                   sizeof(conf_sram.log.density),                               &conf_sram.log.density                              },
@@ -157,7 +156,7 @@ const conf_command_t command_list[] = {
     {TYPE_INT,  "aprs.digi.lon",                 sizeof(conf_sram.aprs.digi.lon),                             &conf_sram.aprs.digi.lon                            },
     {TYPE_INT,  "aprs.digi.alt",                 sizeof(conf_sram.aprs.digi.alt),                             &conf_sram.aprs.digi.alt                            },
     {TYPE_INT,  "aprs.digi.cycle",               sizeof(conf_sram.aprs.digi.cycle),                           &conf_sram.aprs.digi.cycle                          },
-    {TYPE_INT,  "aprs.digi.digi_active",         sizeof(conf_sram.aprs.digi.active),                     &conf_sram.aprs.digi.active                    },
+    {TYPE_INT,  "aprs.digi.digi_active",         sizeof(conf_sram.aprs.digi.active),                          &conf_sram.aprs.digi.active                         },
     {TYPE_INT,  "aprs.freq",                     sizeof(conf_sram.aprs.freq),                                 &conf_sram.aprs.freq                                },
     {TYPE_INT,  "keep_cam_switched_on",          sizeof(conf_sram.keep_cam_switched_on),                      &conf_sram.keep_cam_switched_on                     },
 	{TYPE_INT,  "gps_on_vbat",                   sizeof(conf_sram.gps_on_vbat),                               &conf_sram.gps_on_vbat                              },
@@ -247,6 +246,13 @@ static msg_t aprs_cmd_exec(const APRSCommand *acp,
     acp++;
   }
   return MSG_TIMEOUT;
+}
+
+/**
+ *
+ */
+void aprs_get_identity(void) {
+
 }
 
 /**
@@ -1152,7 +1158,7 @@ static bool aprs_decode_message(packet_t pp) {
       memcpy(msg_id_rx, &pinfo[i+1], sizeof(msg_id_rx)-1);
       // Cut off non-printable chars
       for(uint8_t j=0; j<sizeof(msg_id_rx); j++) {
-        if(msg_id_rx[j] < 32 || msg_id_rx[j] > 126) {
+        if(msg_id_rx[j] < ' ' || msg_id_rx[j] > '~') {
           msg_id_rx[j] = 0;
           break;
         }
@@ -1175,10 +1181,10 @@ static bool aprs_decode_message(packet_t pp) {
 
 
   /* Filter out telemetry configuration sent to ourselves. */
-  char *cfgs[] = {"PARM.", "UNIT.","EQNS.","BITS."};
+  char const *cfgs[] = {"parm.", "unit.", "eqns.", "bits."};
   uint8_t x;
   for(x = 0; x < (sizeof(cfgs) / sizeof((cfgs)[0])); x++) {
-    if(strncmp(astrng, cfgs[x], sizeof(cfgs[0])) == 0)
+    if(strncmp(astrng, cfgs[x], strlen(cfgs[x])) == 0)
       return false;
   }
 

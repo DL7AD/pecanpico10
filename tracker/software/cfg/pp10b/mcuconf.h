@@ -58,13 +58,17 @@
 #define STM32_MCO1SEL                       STM32_MCO1SEL_PLL
 #define STM32_MCO1PRE                       STM32_MCO1PRE_DIV1
 #define STM32_MCO2SEL                       STM32_MCO2SEL_PLL
-#define STM32_MCO2PRE                       STM32_MCO2PRE_DIV2 /* Camera XCLK 24MHz */
+#define STM32_MCO2PRE                       STM32_MCO2PRE_DIV2
 #define STM32_I2SSRC                        STM32_I2SSRC_CKIN
-#define STM32_PLLI2SN_VALUE                 192
-#define STM32_PLLI2SR_VALUE                 5
+#define STM32_PLLI2SM_VALUE                 26
+#define STM32_PLLI2SN_VALUE                 384
+#define STM32_PLLI2SR_VALUE                 4
+#define STM32_PLLI2SQ_VALUE                 8
 #define STM32_PVD_ENABLE                    FALSE
 #define STM32_PLS                           STM32_PLS_LEV0
 #define STM32_BKPRAM_ENABLE                 FALSE
+#define STM32_TIMPRE                        STM32_TIMPRE_PCLK
+#define STM32_CK48MSEL                      STM32_CK48MSEL_PLL
 
 /*
  * ADC driver system settings.

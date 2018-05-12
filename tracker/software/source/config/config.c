@@ -1,3 +1,8 @@
+/**
+ * Put your configuration settings here. See description of all fields in types.h
+ */
+
+
 #include "config.h"
 #include "aprs.h"
 

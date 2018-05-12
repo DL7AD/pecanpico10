@@ -787,12 +787,14 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = ./src \
+                         ../../os/license \
                          ../../os/rt/dox \
                          ../../os/rt/src \
                          ../../os/rt/include \
                          ../../os/rt/templates \
-                         ../../os/common/oslib/src \
-                         ../../os/common/oslib/include
+                         ../../os/lib/dox \
+                         ../../os/lib/src \
+                         ../../os/lib/include
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses

@@ -367,7 +367,7 @@ static bool transmit_image_packets(const uint8_t *image,
   /* FIXME: This doesn't work with burst mode packet sends. */
   // Process redundant transmission from last cycle
   if(strlen((char*)pkt_base91)
-      && conf->radio_conf.redundantTx) {
+      && conf->redundantTx) {
     packet_t packet = aprs_encode_data_packet(conf->call, conf->path,
                                               'I', pkt_base91);
     if(packet == NULL) {
@@ -412,7 +412,7 @@ static bool transmit_image_packets(const uint8_t *image,
     uint8_t buffers = fmin((NUMBER_COMMON_PKT_BUFFERS / 2),
                            MAX_BUFFERS_FOR_BURST_SEND);
     uint8_t chain = (conf->radio_conf.mod == MOD_2FSK
-        && !conf->radio_conf.redundantTx) ?
+        && !conf->redundantTx) ?
         buffers : 1;
     TRACE_INFO("IMG  > Encode %i APRS/SSDV packet%s", chain,
                (chain > 1 ? " burst" : ""));
@@ -663,6 +663,15 @@ THD_FUNCTION(imgThread, arg) {
       time = waitForTrigger(time, conf->thread_conf.cycle);
       continue;
     }
+    /*
+     * History... compiler bug
+     * If size is > 65535 the compiled code wraps address around and kills CMM heap.
+     * Clearing is no longer needed.
+     * SOI is now aligned at index 0 and length is by DMA.
+     */
+/*    uint32_t size = conf->buf_size;
+    for(uint32_t i = 0; i < size ; i++)
+        buffer[i] = 0;*/
     /* Take picture. */
     uint32_t size_sampled = takePicture(buffer, conf->buf_size,
                                         conf->res, true);
@@ -706,7 +715,7 @@ THD_FUNCTION(imgThread, arg) {
         } /* End initSD() */
 
         /* Transmit on radio. */
-        if(conf->radio_conf.mod == MOD_2FSK && conf->radio_conf.redundantTx) {
+        if(conf->radio_conf.mod == MOD_2FSK && conf->redundantTx) {
           TRACE_WARN("IMG  > Redundant TX disables 2FSK burst send mode");
         }
 

@@ -521,12 +521,6 @@ void Si446x_shutdown(radio_unit_t radio) {
 }
 
 /* ====================================================================== Radio TX/RX ======================================================================= */
-/*
-static bool Si446x_isRadioInBand(radio_unit_t radio, radio_freq_t freq) {
-   TODO: Hardware mapping of radio.
-  (void)radio;
-  return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
-}*/
 
 /*
  * Get CCA over measurement interval.
@@ -564,7 +558,7 @@ static bool Si446x_transmit(radio_unit_t radio,
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
                                                       step, chan, RADIO_TX);
 
-  if(!pktIsRadioInBand(radio, op_freq)) {
+  if(op_freq == FREQ_RADIO_INVALID) {
     TRACE_ERROR("SI   > Frequency out of range");
     TRACE_ERROR("SI   > abort transmission");
     return false;
@@ -643,10 +637,9 @@ bool Si446x_receiveNoLock(radio_unit_t radio,
                           mod_t mod) {
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
                                                       step, channel, RADIO_RX);
-  /* TODO: compute f + s*c. */
-  if(!pktIsRadioInBand(radio, op_freq)) {
+  if(op_freq == FREQ_RADIO_INVALID) {
     TRACE_ERROR("SI   > Frequency out of range");
-    TRACE_ERROR("SI   > abort reception");
+    TRACE_ERROR("SI   > abort transmission");
     return false;
   }
 

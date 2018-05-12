@@ -92,4 +92,10 @@
 			<locationURI>CHIBIOS/test</locationURI>
 		</link>
 	</linkedResources>
+	<variableList>
+		<variable>
+			<name>CHIBIOS</name>
+			<value>file:/C:/ChibiStudio/chibios_trunk</value>
+		</variable>
+	</variableList>
 </projectDescription>

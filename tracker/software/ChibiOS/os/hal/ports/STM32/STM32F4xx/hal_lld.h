@@ -449,6 +449,11 @@
 #define STM32_PLLI2SP_DIV8      (3 << 16)   /**< PLLI2S clock divided by 8. */
 #define STM32_PLLI2SQ_MASK      (15 << 24)  /**< PLLI2SQ mask.              */
 #define STM32_PLLI2SR_MASK      (7 << 28)   /**< PLLI2SR mask.              */
+#if defined(STM32F413xx)
+#define STM32_PLLI2SSRC_MASK    (1 << 22)   /**< PLLI2SSRC mask.            */
+#define STM32_PLLI2SSRC_CKIN    (0 << 22)   /**< PLLI2SSRC is CK_IN.        */
+#define STM32_PLLI2SSRC_I2SCKIN (1 << 22)   /**< PLLI2SSRC is I2S_CKIN.     */
+#endif
 /** @} */
 
 /**
@@ -555,6 +560,9 @@
 #define STM32_CK48MSEL_MASK     (1 << 27)   /**< CK48MSEL mask.             */
 #define STM32_CK48MSEL_PLL      (0 << 27)   /**< PLL48CLK source is PLL.    */
 #define STM32_CK48MSEL_PLLSAI   (1 << 27)   /**< PLL48CLK source is PLLSAI. */
+#if defined(STM32F413xx)
+#define STM32_CK48MSEL_PLLI2S   (1 << 27)   /**< PLL48CLK source is PLLI2S. */
+#endif
 
 #define STM32_SDMMCSEL_MASK     (1 << 28)   /**< SDMMCSEL mask.             */
 #define STM32_SDMMCSEL_PLL48CLK (0 << 28)   /**< SDMMC source is PLL48CLK.  */
@@ -563,7 +571,6 @@
 #define STM32_SPDIFSEL_MASK     (1 << 29)   /**< SPDIFSEL mask.             */
 #define STM32_SPDIFSEL_PLLI2S   (0 << 29)   /**< SPDIF source is PLLI2S.    */
 #define STM32_SPDIFSEL_PLL      (1 << 29)   /**< SPDIF source is PLL.       */
-
 /** @} */
 
 /*===========================================================================*/
@@ -904,6 +911,13 @@
  */
 #if !defined(STM32_SAI2SEL) || defined(__DOXYGEN__)
 #define STM32_SAI2SEL               STM32_SAI2SEL_OFF
+#endif
+
+/**
+ * @brief   TIM prescaler clock source.
+ */
+#if !defined(STM32_TIMPRE) || defined(__DOXYGEN__)
+#define STM32_TIMPRE                STM32_TIMPRE_PCLK
 #endif
 
 /**
@@ -1485,7 +1499,7 @@
  * @brief   STM32_PLLR field.
  */
 #if ((STM32_PLLR_VALUE >= 2) && (STM32_PLLR_VALUE <= 7)) ||                 \
-	defined(__DOXYGEN__)
+    defined(__DOXYGEN__)
 #define STM32_PLLR                  (STM32_PLLR_VALUE << 28)
 #else
 #error "invalid STM32_PLLR_VALUE value specified"
@@ -1569,8 +1583,8 @@
 #endif
 #define STM32_OVERDRIVE_REQUIRED    FALSE
 
-#elif defined(STM32F410xx) || defined(STM32F411xx) || defined(STM32F412xx) \
-  || defined(STM32F413xx)
+#elif defined(STM32F410xx) || defined(STM32F411xx) ||                      \
+      defined(STM32F412xx) || defined(STM32F413xx)
 #if STM32_SYSCLK <= 64000000
 #define STM32_VOS                   STM32_VOS_SCALE3
 #elif STM32_SYSCLK <= 84000000
@@ -1667,10 +1681,13 @@
 /*
  * PLLI2S enable check.
  */
-#if (STM32_I2SSRC == STM32_I2SSRC_PLLI2S) ||                                \
+#if (STM32_CLOCK48_REQUIRED && (STM32_CK48MSEL == STM32_CK48MSEL_PLLI2S)    \
+    && defined(STM32F413xx)) ||                                             \
+    (STM32_I2SSRC == STM32_I2SSRC_PLLI2S) ||                                \
     (STM32_SAI1SEL == STM32_SAI1SEL_PLLI2S) ||                              \
     (STM32_SAI2SEL == STM32_SAI2SEL_PLLI2S) ||                              \
     defined(__DOXYGEN__)
+
 /**
  * @brief   PLLI2S activation flag.
  */
@@ -1692,21 +1709,21 @@
 /**
  * @brief   STM32_PLLI2SN field.
  */
-#if defined (STM32F446xx) || defined(__DOXYGEN__)
+#if defined(STM32F446xx) || defined(STM32F413xx) || defined(__DOXYGEN__)
 #if ((STM32_PLLI2SN_VALUE >= 50) && (STM32_PLLI2SN_VALUE <= 432)) ||       \
     defined(__DOXYGEN__)
 #define STM32_PLLI2SN               (STM32_PLLI2SN_VALUE << 6)
 #else
 #error "invalid STM32_PLLI2SN_VALUE value specified"
 #endif
-#else  /* !defined(STM32F446xx) */
+#else  /* !(defined(STM32F446xx) || defined(STM32F413xx)) */
 #if ((STM32_PLLI2SN_VALUE >= 192) && (STM32_PLLI2SN_VALUE <= 432)) ||       \
     defined(__DOXYGEN__)
 #define STM32_PLLI2SN               (STM32_PLLI2SN_VALUE << 6)
 #else
 #error "invalid STM32_PLLI2SN_VALUE value specified"
 #endif
-#endif  /* defined(STM32F446xx) */
+#endif  /* !(defined(STM32F446xx) || defined(STM32F413xx)) */
 
 /**
  * @brief   STM32_PLLI2SP field.
@@ -1746,7 +1763,7 @@
 /**
  * @brief   PLLI2S input clock frequency.
  */
-#if defined(STM32F446xx)
+#if defined(STM32F446xx) || defined(STM32F413xx)
 #if (STM32_PLLSRC == STM32_PLLSRC_HSE) || defined(__DOXYGEN__)
 #define STM32_PLLI2SCLKIN           (STM32_HSECLK / STM32_PLLI2SM_VALUE)
 #elif STM32_PLLSRC == STM32_PLLSRC_HSI
@@ -1754,7 +1771,7 @@
 #else
 #error "invalid STM32_PLLSRC value specified"
 #endif
-#else /* !defined(STM32F446xx) */
+#else /* !(defined(STM32F446xx) || defined(STM32F413xx)) */
 #if (STM32_PLLSRC == STM32_PLLSRC_HSE) || defined(__DOXYGEN__)
 #define STM32_PLLI2SCLKIN           (STM32_HSECLK / STM32_PLLM_VALUE)
 #elif STM32_PLLSRC == STM32_PLLSRC_HSI
@@ -1762,7 +1779,7 @@
 #else
 #error "invalid STM32_PLLSRC value specified"
 #endif
-#endif /* defined(STM32F446xx) */
+#endif /* !(defined(STM32F446xx) || defined(STM32F413xx)) */
 
 /**
  * @brief   PLLI2S VCO frequency.
@@ -1795,7 +1812,8 @@
 /*
  * PLLSAI enable check.
  */
-#if (STM32_CLOCK48_REQUIRED && (STM32_CK48MSEL == STM32_CK48MSEL_PLLSAI)) | \
+#if (STM32_CLOCK48_REQUIRED && (STM32_CK48MSEL == STM32_CK48MSEL_PLLSAI)    \
+    && defined(STM32F446xx)) ||                                             \
     (STM32_PLLSAIDIVR != STM32_PLLSAIDIVR_OFF) ||                           \
     (STM32_SAI1SEL == STM32_SAI1SEL_PLLSAI) ||                              \
     (STM32_SAI2SEL == STM32_SAI2SEL_PLLSAI) ||                              \
@@ -2044,16 +2062,60 @@
 #if STM32_CLOCK48_REQUIRED || defined(__DOXYGEN__)
 #if (STM32_CK48MSEL == STM32_CK48MSEL_PLL) || defined(__DOXYGEN__)
 #define STM32_PLL48CLK              (STM32_PLLVCO / STM32_PLLQ_VALUE)
-#elif STM32_CK48MSEL == STM32_CK48MSEL_PLLSAI
+#elif (STM32_CK48MSEL == STM32_CK48MSEL_PLLSAI) && defined(STM32F446xx)
 #define STM32_PLL48CLK              (STM32_PLLSAIVCO / STM32_PLLSAIP_VALUE)
+#elif (STM32_CK48MSEL == STM32_CK48MSEL_PLLI2S) && defined(STM32F413xx)
+#define STM32_PLL48CLK              STM32_PLLI2S_Q_CLKOUT
 #else
 #error "invalid source selected for PLL48CLK clock"
 #endif
 #else /* !STM32_CLOCK48_REQUIRED */
 #define STM32_PLL48CLK              0
-#endif /* !STM32_CLOCK48_REQUIRED */
+#endif /* STM32_CLOCK48_REQUIRED */
 
-/* TODO: Use PLLR value to set R clock. */
+#if defined(STM32F413xx) || defined(STM32F446xx)
+#if STM32_TIMPRE == STM32_TIMPRE_HCLK
+/**
+ * @brief   Clock of timers connected to APB1
+ *          (Timers 2, 3, 4, 5, 6, 7, 12, 13, 14).
+ */
+#if (STM32_PPRE1 == STM32_PPRE1_DIV1) ||                                    \
+    (STM32_PPRE1 == STM32_PPRE1_DIV2) ||                                    \
+    (STM32_PPRE1 == STM32_PPRE1_DIV4 && defined(STM32F446xx)) ||            \
+    defined(__DOXYGEN__)
+#define STM32_TIMCLK1               STM32_HCLK
+#else
+#define STM32_TIMCLK1               (STM32_PCLK1 * 4)
+#endif
+#else /* STM32_TIMPRE != STM32_TIMPRE_HCLK */
+#if (STM32_PPRE1 == STM32_PPRE1_DIV1) || defined(__DOXYGEN__)
+#define STM32_TIMCLK1               STM32_HCLK
+#else /* !(STM32_TIMPRE_HCLK == STM32_TIMPRE_HCLK) */
+#define STM32_TIMCLK1               (STM32_PCLK1 * 2)
+#endif
+#endif /* STM32_TIMPRE == STM32_TIMPRE_HCLK */
+
+#if (STM32_TIMPRE == STM32_TIMPRE_HCLK) || defined(STM32F446xx)
+#if (STM32_PPRE1 == STM32_PPRE1_DIV1) ||                                    \
+    (STM32_PPRE1 == STM32_PPRE1_DIV2) ||                                    \
+    (STM32_PPRE1 == STM32_PPRE1_DIV4 && defined(STM32F446xx)) ||            \
+    defined(__DOXYGEN__)
+/**
+ * @brief   Clock of timers connected to APB2 (Timers 1, 8, 9, 10, 11).
+ */
+#define STM32_TIMCLK2               STM32_HCLK
+#else
+#define STM32_TIMCLK2               (STM32_PCLK2 * 4)
+#endif
+#else /* STM32_TIMPRE != STM32_TIMPRE_HCLK */
+#if (STM32_PPRE2 == STM32_PPRE2_DIV1) || defined(__DOXYGEN__)
+#define STM32_TIMCLK2               STM32_HCLK
+#else
+#define STM32_TIMCLK2               (STM32_PCLK2 * 2)
+#endif
+#endif /* STM32_TIMPRE != STM32_TIMPRE_HCLK */
+
+#else /* !(defined(STM32F413xx) || defined(STM32F446xx)) */
 
 /**
  * @brief   Clock of timers connected to APB1
@@ -2073,6 +2135,7 @@
 #else
 #define STM32_TIMCLK2               (STM32_PCLK2 * 2)
 #endif
+#endif /*  defined(STM32F413) */
 
 /**
  * @brief   Flash settings.

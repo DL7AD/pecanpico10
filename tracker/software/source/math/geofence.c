@@ -653,7 +653,7 @@ static bool isPointInBrazil(int32_t lat, int32_t lon) {
   * use the APRS default frequency set in the config file if no GPS fix has
   * been received.
   */
-uint32_t getAPRSRegionFrequency(void) {
+uint32_t getAPRSRegionFrequency() {
 	dataPoint_t *point = getLastDataPoint();
 
 	// Position unknown
@@ -696,7 +696,6 @@ uint32_t getAPRSRegionFrequency(void) {
 	if(isPointInBrazil(point->gps_lat, point->gps_lon))
 		return APRS_FREQ_BRAZIL;
 
-	// For the rest of the world 144.800 MHz
-	return 144800000;
+	return FREQ_APRS_DEFAULT;
 }
 
