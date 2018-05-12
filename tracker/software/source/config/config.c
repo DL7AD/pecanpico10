@@ -11,7 +11,7 @@ const conf_t conf_flash_default = {
 	// Primary position app
 	.pos_pri = {
 		.thread_conf = {
-			.active			= true,
+			.active			= false,
 			.cycle			= TIME_S2I(60*60),
 			.init_delay		= TIME_S2I(60*30)
 		},
@@ -34,22 +34,22 @@ const conf_t conf_flash_default = {
 	.pos_sec = {
 		.thread_conf = {
 			.active			= false,
-			.cycle			= TIME_S2I(120),
-            .init_delay     = TIME_S2I(60)
+            .cycle          = TIME_S2I(60*1),
+            .init_delay     = TIME_S2I(60*1)
 		},
 		.radio_conf = {
 			.pwr			= 0x7F,
-			.freq			= FREQ_APRS_DYNAMIC,
-			.mod			= MOD_AFSK,
+			.freq			= 144800000,
+			.mod			= MOD_2FSK,
             .cca            = 0x4F
 		},
         // App identity
-		.call				= "DL7AD-14",
-		.path				= "WIDE1-1",
-		.symbol				= SYM_BALLOON,
-		.aprs_msg           = true,
-
-		.tel_enc_cycle		= TIME_S2I(10800)
+        .call               = "VK2GJ-12",
+        .path               = "WIDE2-1",
+        .symbol             = SYM_ANTENNA,
+		.aprs_msg           = false,
+        // How often to send telemetry config
+       .tel_enc_cycle      = TIME_S2I(60*180)
 	},
 
 	// Primary image app

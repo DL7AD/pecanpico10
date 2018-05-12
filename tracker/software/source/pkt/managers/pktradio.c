@@ -547,7 +547,7 @@ radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
 
 /**
  * @brief   Compute an operating frequency.
- * @notes   All special frequency parameters are handled.
+ * @notes   All special frequency codes are resolved to an actual frequency.
  *
  * @param[in] radio         Radio unit ID.
  * @param[in] base_freq     Radio base frequency.
@@ -571,7 +571,7 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
     /* Get current RX frequency (or default) and use that. */
     step = 0;
     chan = 0;
-    /* FIXME: Should switch on all special codes to make system robust. */
+    /* FIXME: Should switch on all special codes for error check. */
     base_freq = pktGetReceiveOperatingFrequency(radio);
   }
 
@@ -599,22 +599,11 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
   /* Calculate operating frequency. */
   radio_freq_t op_freq = base_freq + (step * chan);
 
-  /* Check validity. */
-  uint8_t radios = sizeof(radio_list) / sizeof(radio_param_t);
-  for(uint8_t i = 0; i < radios; i++) {
-    if(radio_list[i].id == radio) {
-      if(radio_list[i].band->start <= op_freq
-          && op_freq < radio_list[i].band->end)
-        return op_freq;
-      else
-        return FREQ_RADIO_INVALID;
-    }
-  } /* End for */
-  return FREQ_RADIO_INVALID;
+  return pktCheckAllowedFrequency(radio, op_freq);
 }
 
 /**
- * @brief   Send on radio.
+ * @brief   Send packet(s) on radio.
  * @notes   This is the API interface to the radio LLD.
  * @notes   Currently just map directly to 446x driver.
  * @notes   In future would implement a lookup and VMT to access radio methods.

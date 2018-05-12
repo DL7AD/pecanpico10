@@ -29,6 +29,7 @@
 /* The number of radio task object the FIFO has. */
 #define RADIO_TASK_QUEUE_MAX            10
 
+#define NUM_BANDS_PER_RADIO             2
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
@@ -53,6 +54,7 @@ typedef enum radioCommand {
  */
 typedef struct radioTask radio_task_object_t;
 typedef struct packetHandlerData packet_svc_t;
+typedef struct radioParam radio_param_t;
 
 /**
  * @brief           Radio task notification callback type.
@@ -89,6 +91,9 @@ struct radioTask {
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
+
+
+//extern const radio_param_t radio_list[NUM_PKT_RADIOS];
 
 #ifdef __cplusplus
 extern "C" {

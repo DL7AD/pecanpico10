@@ -20,6 +20,7 @@
 #include "pkttypes.h"
 #include "portab.h"
 #include "usb.h"
+#include "types.h"
 #include <stdarg.h>
 
 /*===========================================================================*/
@@ -29,15 +30,15 @@
 const radio_band_t band_2m = {
   .start    = BAND_MIN_2M_FREQ,
   .end      = BAND_MAX_2M_FREQ,
-  .step     = 12500,
-  .def      = BAND_DEF_2M_FREQ
+  .step     = BAND_STEP_2M_HZ,
+  .def_aprs = BAND_DEF_2M_APRS
 };
 
 const radio_band_t band_70cm = {
   .start    = BAND_MIN_70CM_FREQ,
   .end      = BAND_MAX_70CM_FREQ,
-  .step     = 25000,
-  .def      = BAND_DEF_70CM_FREQ
+  .step     = BAND_STEP_70CM_HZ,
+  .def_aprs = BAND_DEF_70CM_APRS
 };
 
 /*===========================================================================*/
@@ -50,10 +51,13 @@ typedef struct SysProviders {
 
 const radio_param_t radio_list[NUM_PKT_RADIOS] = {
   { /* Radio #1 */
-    .id = PKT_RADIO_1,
+    .unit = PKT_RADIO_1,
     .type = SI4464,
-    .band = (radio_band_t * const)&band_2m
-  }/* End radio1 */
+    .band = {
+             (radio_band_t * const)&band_2m,
+              NULL
+            }
+  } /* End radio1 */
 };
 
 /*===========================================================================*/
@@ -184,6 +188,37 @@ void sysConfigureCoreIO(void) {
   #if ACTIVATE_USB
   startUSB();
   #endif
+}
+
+/*
+ * Return a single radio parameter record pointer
+ * The radio parameter picks a single records.
+ * The current system does not work if the same radio is listed multiple times.
+ * TODO: Have an enumerate and check radio array on startup.
+ */
+radio_param_t *pktGetRadioParameters(radio_unit_t radio) {
+  (void)radio;
+}
+
+/*
+ *
+ */
+radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq) {
+  /* Check validity. */
+  uint8_t radios = NUM_PKT_RADIOS/*sizeof(radio_list) / sizeof(radio_param_t)*/;
+  for(uint8_t i = 0; i < radios; i++) {
+    if(radio_list[i].unit != radio)
+      continue;
+    for(uint8_t x = 0; x < NUM_BANDS_PER_RADIO; x++) {
+      if(radio_list[i].band[x] == NULL)
+        /* No more bands in this radio. */
+          return FREQ_RADIO_INVALID;
+      if(radio_list[i].band[x]->start <= freq
+          && freq < radio_list[i].band[x]->end)
+        return freq;
+    } /* End for bands */
+  } /* End for radios*/
+  return FREQ_RADIO_INVALID;
 }
 
 /** @} */

@@ -70,22 +70,8 @@ typedef enum radioTypes {
 typedef enum radioMode {
   RADIO_OFF,
   RADIO_RX,
-  RADIO_TX,
-  RADIO_CCA
+  RADIO_TX
 } radio_mode_t;
-
-typedef struct radioBand {
-  radio_freq_t  start;
-  radio_freq_t  end;
-  channel_hz_t  step;
-  radio_freq_t  def;
-} radio_band_t;
-
-typedef struct radioParam {
-  radio_unit_t  id;
-  radio_type_t  type;
-  radio_band_t  *band;
-} radio_param_t;
 
 typedef uint8_t ax25char_t;
 

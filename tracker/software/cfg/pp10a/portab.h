@@ -47,10 +47,12 @@
 
 #define BAND_MIN_2M_FREQ	    	144000000				/* Minimum allowed frequency in Hz */
 #define BAND_MAX_2M_FREQ			148000000				/* Maximum allowed frequency in Hz */
-#define BAND_DEF_2M_FREQ            144800000               /* Default frequency in Hz.        */
+#define BAND_STEP_2M_HZ             12500
+#define BAND_DEF_2M_APRS            144800000               /* Default frequency in Hz.        */
 #define BAND_MIN_70CM_FREQ          420000000               /* Minimum allowed frequency in Hz */
 #define BAND_MAX_70CM_FREQ          450000000               /* Maximum allowed frequency in Hz */
-#define BAND_DEF_70CM_FREQ          439100000               /* Default frequency in Hz.        */
+#define BAND_STEP_70CM_HZ           25000
+#define BAND_DEF_70CM_APRS          439100000               /* Default frequency in Hz.        */
 
 #define DEFAULT_OPERATING_FREQ      144800000
 
@@ -59,6 +61,7 @@
 #define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
 
 #define NUM_PKT_RADIOS              1
+#define NUM_BANDS_PER_RADIO         2
 
 //#define LINE_OVERFLOW_LED         LINE_LED3
 #define LINE_DECODER_LED            LINE_IO_BLUE
@@ -149,6 +152,19 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
+typedef struct radioBand {
+  radio_freq_t  start;
+  radio_freq_t  end;
+  channel_hz_t  step;
+  radio_freq_t  def_aprs;
+} radio_band_t;
+
+typedef struct radioParam {
+  radio_unit_t  unit;
+  radio_type_t  type;
+  radio_band_t  *band[NUM_BANDS_PER_RADIO];
+} radio_param_t;
+
 /*===========================================================================*/
 /* Module macros.                                                            */
 /*===========================================================================*/
@@ -157,7 +173,7 @@
 /* External declarations.                                                    */
 /*===========================================================================*/
 
-extern const radio_param_t radio_list[NUM_PKT_RADIOS];
+//extern const radio_param_t radio_list[NUM_PKT_RADIOS];
 
 #ifdef __cplusplus
 extern "C" {
@@ -172,6 +188,7 @@ extern "C" {
   void pktWrite(uint8_t *buf, uint32_t len);
   void pktPowerUpRadio(radio_unit_t radio);
   void pktPowerDownRadio(radio_unit_t radio);
+  radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq);
 #ifdef __cplusplus
 }
 #endif
