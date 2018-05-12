@@ -37,22 +37,6 @@ inline const char *getModulation(uint8_t key) {
 };
 #endif
 
-/**
- * @brief   Definition of radio unit ID.
- * @details Defines the radio unit used in configuring and enabling a radio.
- *
- */
-typedef enum radioUnit {
-  PKT_RADIO_1
-} radio_unit_t;
-
-typedef enum radioMode {
-  RADIO_OFF,
-  RADIO_RX,
-  RADIO_TX,
-  RADIO_CCA
-} radio_mode_t;
-
 /* Radio parameters. */
 
 /* Radio frequency in Hz. */
@@ -68,6 +52,39 @@ typedef uint8_t radio_ch_t;
 typedef uint8_t radio_squelch_t;
 
 typedef int8_t  radio_pwr_t;
+
+/**
+ * @brief   Definition of radio unit ID.
+ * @details Defines the radio unit used in configuring and enabling a radio.
+ *
+ */
+typedef enum radioUnit {
+  PKT_RADIO_1
+} radio_unit_t;
+
+typedef enum radioTypes {
+  SI4464,
+  SI4463
+} radio_type_t;
+
+typedef enum radioMode {
+  RADIO_OFF,
+  RADIO_RX,
+  RADIO_TX,
+  RADIO_CCA
+} radio_mode_t;
+
+typedef struct radioBand {
+  radio_freq_t  start;
+  radio_freq_t  end;
+  channel_hz_t  step;
+} radio_band_t;
+
+typedef struct radioParam {
+  radio_unit_t  id;
+  radio_type_t  type;
+  radio_band_t  *band;
+} radio_param_t;
 
 typedef uint8_t ax25char_t;
 

@@ -117,6 +117,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       } /* End switch on modulation type. */
 
       /* Initialise the radio. */
+      /* TODO: Move this 446x call into abstracted LLD. */
       Si446x_conditional_init(radio);
       break;
     } /* End case PKT_RADIO_OPEN. */
@@ -277,6 +278,7 @@ THD_FUNCTION(pktRadioManager, arg) {
           rxok = pktLLDresumeReceive(radio);
           pktResumeReception(radio);
         } else {
+          /* TODO: Implement LLD function for this. */
           Si446x_shutdown(radio);
         }
       }
@@ -497,12 +499,37 @@ void pktReleaseRadio(const radio_unit_t radio) {
 }
 
 /**
+ * @brief   Get current receive operating frequency.
+ *
+ * @param[in] radio         Radio unit ID.
+ *
+ * @return      operating frequency
+ * @retval      0 if requested frequency or radio ID is invalid
+ *
+ * @api
+ */
+radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  if(pktIsReceiveActive(radio)) {
+    radio_freq_t op_freq = handler->radio_rx_config.base_frequency
+        + (handler->radio_rx_config.step_hz * handler->radio_rx_config.channel);
+    return op_freq;
+  }
+  return FREQ_RADIO_INVALID;
+}
+
+/**
  * @brief   Compute an operating frequency.
  * @notes   All special frequency parameters are handled.
  *
- * @param[in] base_freq    Radio base frequency.
- * @param[in] step         Radio channel step frequency.
- * @param[in] chan         Radio channel number.
+ * @param[in] radio         Radio unit ID.
+ * @param[in] base_freq     Radio base frequency.
+ * @param[in] step          Radio channel step frequency.
+ * @param[in] chan          Radio channel number.
+ *
+ * @return      operating frequency
+ * @retval      an absolute operating frequency in Hz.
+ * @retval      FREQ_RADIO_INVALID if frequency or radio ID is invalid
  *
  * @api
  */
@@ -512,49 +539,57 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
                                           radio_ch_t chan,
                                           const radio_mode_t mode) {
 
-  if(base_freq == FREQ_APRS_RECEIVE) {
-    /* Get current RX frequency (if valid) and use that. */
-    packet_svc_t *handler = pktGetServiceObject(radio);
-    if(pktIsReceiveActive(radio)) {
-      base_freq = handler->radio_rx_config.base_frequency;
-      step = handler->radio_rx_config.step_hz;
-      chan = handler->radio_rx_config.channel;
-    } else
-      base_freq = FREQ_APRS_DYNAMIC;
-  }
+  radio_freq_t op_freq;
 
+  /*
+   * Check for dynamic frequency determination.
+   * Dynamic can return an absolute frequency or a further special code.
+   */
   if(base_freq == FREQ_APRS_DYNAMIC) {
     /* Get frequency by geofencing. */
     base_freq = getAPRSRegionFrequency();
-    /*
-     *  If using geofence ignore channel and step for now.
-     *  TODO: Could compute base + step + channel and update PKT object?
-     */
+    step = 0;
     chan = 0;
-    step = Si446x_STEP_HZ;
-    if(base_freq == FREQ_APRS_SCAN && mode == RADIO_RX) {
-      base_freq = Si446x_BASE_FREQ;
-      step = Si446x_STEP_HZ;
+  }
+
+  /* Check for default. */
+  if(base_freq == FREQ_APRS_DEFAULT) {
+    /* FIXME: INVALID relies on 0 in conf if no default set. */
+    if(conf_sram.aprs.freq != FREQ_RADIO_INVALID)
+      return conf_sram.aprs.freq;
+    else
+      return DEFAULT_OPERATING_FREQ;
+  }
+
+  if((base_freq == FREQ_APRS_RECEIVE || base_freq == FREQ_APRS_SCAN)
+                   && mode == RADIO_TX) {
+    /* Get current RX frequency (if valid) and use that. */
+    if((op_freq = pktGetReceiveOperatingFrequency(radio))
+        != FREQ_RADIO_INVALID)
+      return op_freq;
+    else {
+      /* Get frequency by geofencing. */
+      base_freq = getAPRSRegionFrequency();
+      step = 0;
+      chan = 0;
     }
   }
 
   /* Calculate operating frequency. */
-  uint32_t op_freq = base_freq + (step * chan);
-  return pktIsRadioInBand(radio, op_freq) ? op_freq : FREQ_RADIO_INVALID;
-}
+  op_freq = base_freq + (step * chan);
 
-/**
- * @brief   Check if requested frequency is in band for the radio.
- *
- * @param[in] radio   radio unit ID.
- * @param[in] freq    Radio frequency.
- *
- * @api
- */
-bool pktIsRadioInBand(const radio_unit_t radio, const radio_freq_t freq) {
-  /* TODO: Mapping of radio ID to radio device/capabilities. */
-  (void)radio;
-  return (Si446x_MIN_FREQ <= freq && freq < Si446x_MAX_FREQ);
+  /* Check validity. */
+  uint8_t radios = sizeof(radio_list) / sizeof(radio_param_t);
+  for(uint8_t i = 0; i < radios; i++) {
+    if(radio_list[i].id == radio) {
+      if(radio_list[i].band->start <= op_freq
+          && op_freq < radio_list[i].band->end)
+        return op_freq;
+      else
+        return FREQ_RADIO_INVALID;
+    }
+  }
+  return FREQ_RADIO_INVALID;
 }
 
 /**
@@ -569,6 +604,7 @@ bool pktIsRadioInBand(const radio_unit_t radio, const radio_freq_t freq) {
  */
 bool pktLLDsendPacket(radio_task_object_t *rto) {
   bool status;
+  /* TODO: Implement VMT to functions per radio type. */
   switch(rto->type) {
   case MOD_2FSK:
     status = Si446x_blocSend2FSK(rto);

@@ -58,11 +58,13 @@
 #define APRS_MAX_MSG_ARGUMENTS          10
 
 typedef struct APRSIdentity {
-  char      num[8];
-  char      src[AX25_MAX_ADDR_LEN];
-  char      call[AX25_MAX_ADDR_LEN];
-  char      path[16];
-  uint16_t  symbol;
+  /* APRS parameters. */
+  char      num[8];                         /**< @brief Message number.     */
+  char      src[AX25_MAX_ADDR_LEN];         /**< @brief Source call.        */
+  char      call[AX25_MAX_ADDR_LEN];        /**< @brief Destination call.   */
+  char      path[16];                       /**< @brief Path.               */
+  uint16_t  symbol;                         /**< @brief symbol.             */
+  /* Radio parameters. */
   uint32_t  freq;
   uint8_t   pwr;
   mod_t     mod;
@@ -83,7 +85,7 @@ typedef struct {
 } APRSCommand;
 
 /* Temporary. Will be deprecated when fixed station feature is implemented. */
-extern bool test_gps_enabled;
+//extern bool test_gps_enabled;
 
 #ifdef __cplusplus
 extern "C" {

@@ -26,6 +26,18 @@
 /* Module local definitions.                                                 */
 /*===========================================================================*/
 
+const radio_band_t band_2m = {
+  .start    = BAND_MIN_2M_FREQ,
+  .end      = BAND_MAX_2M_FREQ,
+  .step     = 12500
+};
+
+const radio_band_t band_70cm = {
+  .start    = BAND_MIN_70CM_FREQ,
+  .end      = BAND_MAX_70CM_FREQ,
+  .step     = 25000
+};
+
 /*===========================================================================*/
 /* Module exported variables.                                                */
 /*===========================================================================*/
@@ -34,7 +46,13 @@ typedef struct SysProviders {
 
 } providers_t;
 
-//binary_semaphore_t diag_out_sem;
+const radio_param_t radio_list[NUM_PKT_RADIOS] = {
+  { /* Radio #1 */
+    .id = PKT_RADIO_1,
+    .type = SI4464,
+    .band = (radio_band_t * const)&band_2m
+  }/* End radio1 */
+};
 
 /*===========================================================================*/
 /* Module local types.                                                       */

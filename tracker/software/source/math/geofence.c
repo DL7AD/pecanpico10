@@ -696,7 +696,6 @@ uint32_t getAPRSRegionFrequency(void) {
 	if(isPointInBrazil(point->gps_lat, point->gps_lon))
 		return APRS_FREQ_BRAZIL;
 
-	// For the rest of the world 144.800 MHz
-	return 144800000;
+	return FREQ_APRS_DEFAULT;
 }
 
