@@ -550,8 +550,8 @@ radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
  * @notes   All special frequency codes are resolved to an actual frequency.
  *
  * @param[in] radio         Radio unit ID.
- * @param[in] base_freq     Radio base frequency.
- * @param[in] step          Radio channel step frequency.
+ * @param[in] base_freq     Radio base frequency in Hz.
+ * @param[in] step          Radio channel step size in Hz.
  * @param[in] chan          Radio channel number.
  *
  * @return      operating frequency

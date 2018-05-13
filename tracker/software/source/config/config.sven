@@ -23,7 +23,7 @@ const conf_t conf_flash_default = {
             .cca = 0xFF,
         },
         // App identity
-        .call = "VK2GJ-12",
+        .call = "DL7AD-12",
         .path = "WIDE1-1",
         .symbol = SYM_BALLOON,
         .aprs_msg = true,
@@ -45,7 +45,7 @@ const conf_t conf_flash_default = {
             .cca = 0xFF
         },
         // App identity
-        .call = "VK2GJ-15",
+        .call = "DL7AD-15",
         .path = "",
         .symbol = SYM_BALLOON,
         .aprs_msg = true,
@@ -69,7 +69,7 @@ const conf_t conf_flash_default = {
 
         },
         // App identity
-        .call = "VK2GJ-15",
+        .call = "DL7AD-15",
         .path = "",
 
         // Image settings
@@ -130,29 +130,29 @@ const conf_t conf_flash_default = {
             .init_delay = TIME_S2I(10)
         },
         // Default APRS frequency when geofence not resolved
-        .freq = 145175000,
+        .freq = 145825000,
         // The receive identity for APRS
         .rx = {
             .radio_conf = {
-                .freq = 145175000,
+                .freq = 145825000,
                 .mod = MOD_AFSK,
                 .rssi = 0x5F
             },
             // App rx identity
-            .call = "VK2GJ-4",
+            .call = "DL7AD-15",
             .symbol = SYM_BALLOON // Use this symbol in message responses
         },
         // The digipeat transmit identity and messages responses
         .digi = {
             .radio_conf = {
-                .freq = 145175000,
+                .freq = 145825000,
                 .pwr = 0x7F,
                 .mod = MOD_AFSK,
                 .cca = 0xFF
             },
             .active = true,
             // Digipeat identity
-            .call = "VK2GJ-5",
+            .call = "DL7AD-15",
             .path = "WIDE2-1",
             .symbol = SYM_DIGIPEATER,
             .beacon = false, // Set to have digi beacon position and telem

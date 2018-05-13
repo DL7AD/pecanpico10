@@ -103,7 +103,7 @@ THD_FUNCTION(posThread, arg)
              * Else send it to device identity.
              */
             char *call = conf_sram.aprs.base.enabled
-                ? conf_sram.aprs.base.call : APRS_DEVICE_CALLSIGN;
+                ? conf_sram.aprs.base.call : conf->call;
             /*
              * Send message from this device.
              * Use call sign and path as specified in base config.
@@ -118,12 +118,12 @@ THD_FUNCTION(posThread, arg)
                   "or badly formed APRSD message");
             } else {
               if(!transmitOnRadio(packet,
-                              conf_sram.aprs.digi.radio_conf.freq,
+                              conf->radio_conf.freq,
                               0,
                               0,
-                              conf_sram.aprs.digi.radio_conf.pwr,
-                              conf_sram.aprs.digi.radio_conf.mod,
-                              conf_sram.aprs.digi.radio_conf.cca
+                              conf->radio_conf.pwr,
+                              conf->radio_conf.mod,
+                              conf->radio_conf.cca
                               )) {
                 TRACE_ERROR("POS  > Failed to transmit APRSD data");
               }
