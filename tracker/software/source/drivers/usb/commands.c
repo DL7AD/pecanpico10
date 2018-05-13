@@ -49,13 +49,13 @@ void usb_cmd_get_gps_sat_info(BaseSequentialStream *chp, int argc, char *argv[])
     chprintf(chp, "No satellites found\r\n");
     return;
   }
-  chprintf(chp, "Space Vehicle info iTOW=%d numCh=%d globalFlags=%d",
+  chprintf(chp, "Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d\r\n",
            svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
   uint8_t i;
   for(i = 0; i < svinfo.numCh; i++) {
     gps_svchn_t *sat = &svinfo.svinfo[i];
-    chprintf(chp, "Satellite info chn=%d svid=%d flags=0x%x quality=%d"
-             "cno=%d elev=%d azim=%d, prRes=%d",
+    chprintf(chp, "chn=%03d svid=%03d flags=0x%02x quality=%02d"
+             " cno=%03d elev=%03d azim=%06d prRes=%06d\r\n",
              sat->chn, sat->svid, sat->flags, sat->flags,
              sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
   }
