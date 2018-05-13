@@ -12,7 +12,6 @@
   |  +--hal/              - Builders for HAL.
   |  |  +--Doxyfile_*     - Doxygen project files (required for rebuild).
   |  |  +--html/          - Local HTML documentation (after rebuild).
-  |  |  +--reports/       - Test reports.
   |  |  +--rsc/           - Documentation resource files (required for rebuild).
   |  |  +--src/           - Documentation source files (required for rebuild).
   |  |  +--Doxyfile_*     - Doxygen project files (required for rebuild).
@@ -20,14 +19,12 @@
   |  +--nil/              - Builders for NIL.
   |  |  +--Doxyfile_*     - Doxygen project files (required for rebuild).
   |  |  +--html/          - Local HTML documentation (after rebuild).
-  |  |  +--reports/       - Test reports.
   |  |  +--rsc/           - Documentation resource files (required for rebuild).
   |  |  +--src/           - Documentation source files (required for rebuild).
   |  |  +--Doxyfile_*     - Doxygen project files (required for rebuild).
   |  |  +--index.html     - Local documentation access (after rebuild).
   |  +--rt/               - Builders for RT.
   |  |  +--html/          - Local HTML documentation (after rebuild).
-  |  |  +--reports/       - Test reports.
   |  |  +--rsc/           - Documentation resource files (required for rebuild).
   |  |  +--src/           - Documentation source files (required for rebuild).
   |  |  +--Doxyfile_*     - Doxygen project files (required for rebuild).
@@ -94,6 +91,14 @@
 *****************************************************************************
 
 *** Next ***
+- NEW: Added support for STM32F413, added ability to handle the TIMPRE bit
+       in the RCC_DKCFGR register.
+- NEW: Added optional support for character match callback in the UART
+       high level driver.
+- NEW: Change, chMtxGetNextMutexS() renamed to chMtxGetNextMutexX().
+- NEW: RT C++ wrapper reworked, now it is mostly inline code, added some new
+       wrappers and methods. Added wrappers for more API functions. BaseThreads
+       are no more descendants of ThreadReference.
 - NEW: Updated STM32L4xx headers to version 1.11.0.
 - NEW: Added HAL support for STM32L443.
 - NEW: Added support for LDM303AGR 6 axis Accelerometer\Magnetometer MEMS.
@@ -104,6 +109,14 @@
        grow to include more functionalities.
        RT and NIL will contain only the core functionalities, everything else
        is shared library code.
+- EX.  Global version number moved to 1.1.0.
+- EX:  Updated HTS221 to 1.1.1 (backported to 18.2.2).
+- EX:  Updated L3GD20 to 1.1.1 (backported to 18.2.2).
+- EX:  Updated LIS3DSH to 1.1.1 (backported to 18.2.2).
+- EX:  Updated LIS3MDL to 1.1.1 (backported to 18.2.2).
+- EX:  Updated LPS25H to 1.1.1 (backported to 18.2.2).
+- EX:  Updated LSM303DLHC to 1.1.1 (backported to 18.2.2).
+- EX:  Updated LSM6DS0 to 1.1.1 (backported to 18.2.2).
 - EX:  Updated HTS221 to 1.1.0 (backported to 18.2.1).
 - EX:  Updated L3GD20 to 1.1.0 (backported to 18.2.1).
 - EX:  Updated LIS3DSH to 1.1.0 (backported to 18.2.1).
@@ -111,6 +124,21 @@
 - EX:  Updated LIS302DL to 1.1.0 (backported to 18.2.1).
 - EX:  Updated LPS25H to 1.1.0 (backported to 18.2.1).
 - EX:  Updated LSM303DLHC to 1.1.0 (backported to 18.2.1).
+- HAL: Fixed binary instead of logic operator in STM32F4 HAL (bug #946)
+       (backported to 18.2.2 and 17.6.5).
+- HAL: Fixed Mikroe clicker 2 misaligned board file (bug #945)
+       (backported to 18.2.2 and 17.6.5).
+- EX:  Fixed ChibiOS/EX documentation misalignments (bug #943).
+- HAL: Fixed invalid settings in STM32F769I-Discovery board files (bug #942)
+       (backported to 18.2.1 and 17.6.5).
+- OTH: Fixed short branch to _unhandled_exception in vectors.S (bug #941)
+       (backported to 18.2.1).
+- HAL: Fixed IOBus PAL functions missing the const qualifier (bug #940)
+       (backported to 18.2.1 and 17.6.5).
+- HAL: Fixed STM32 USBv1 driver does not reset data toggling bits on endpoint
+       initialization (bug #939)(backported to 18.2.1 and 17.6.5).
+- HAL: Fixed incorrect behavior of USB driver on SET CONFIGURATION (bug #938)
+       (backported to 18.2.1 and 17.6.5).
 - HAL: Fixed macro expansion problem in SPI high level driver (bug #937)
        (backported to 18.2.1).
 - HAL: Fixed missing CAN2 macros from STM32L4xx stm32_rcc.h file (bug #936)

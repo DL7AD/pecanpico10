@@ -92,12 +92,11 @@ db.cursor().execute("""
 """ Packet handler for received APRS packets"""
 def received_data(data):
 	# Parse line and detect data
-	# Position	(.*)\>APECAN(.*?):\/([0-9]{6}h)(.{13})(.*?)\|(.*)\|
-	# Image		(.*)\>APECAN(.*?):\/([0-9]{6}h)(.{13})I(.*)
-	# Log		(.*)\>APECAN(.*?):\/([0-9]{6}h)(.{13})L(.*)
+	# Position	(.*)\>APECAN(.*?):\=(.{13})(.*?)\|(.*)\|
+	# Image/Log	(.*)\>APECAN(.*?):\{\{(I|L)(.*)
 
 	all = re.search("(.*)\>APECAN(.*?):", data)
-	pos = re.search("(.*)\>APECAN(.*?):\!(.{13})(.*?)\|(.*)\|", data)
+	pos = re.search("(.*)\>APECAN(.*?):\=(.{13})(.*?)\|(.*)\|", data)
 	dat = re.search("(.*)\>APECAN(.*?):\{\{(I|L)(.*)", data)
 	dir = re.search("(.*)\>APECAN(.*?)::(.{9}):Directs=(.*)", data)
 

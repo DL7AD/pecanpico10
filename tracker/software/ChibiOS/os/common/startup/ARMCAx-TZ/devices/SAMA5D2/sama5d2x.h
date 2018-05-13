@@ -39,6 +39,7 @@
 #if !defined  (SAMA5D2)
 #define SAMA5D2
 #endif /* SAMA5D2 */
+
 /** 
   * @addtogroup Device_Included
   * @{
@@ -62,16 +63,16 @@
 #endif
 
 /**@} */
-/*
- * Wrapper for WOLFSSL
- * TODO: to remove
- */
+
+/* TODO: to delete */
 #define Aes wc_Aes
+
 /**
   * @brief SAMA5D2 Family
   * @{
   */
 #define ID_SAIC_FIQ     ( 0) /**< \brief FIQ Interrupt ID (SAIC_FIQ) */
+#define ID_PMC          ( 1) /**< \brief Power Management Controller (PMC) */
 #define ID_ARM_PMU      ( 2) /**< \brief Performance Monitor Unit (PMU) (ARM_PMU) */
 #define ID_PIT          ( 3) /**< \brief Periodic Interval Timer Interrupt (PIT) */
 #define ID_WDT          ( 4) /**< \brief Watchdog timer Interrupt (WDT) */
@@ -155,6 +156,7 @@
 #define ID_PIOD         (70) /**< \brief  (PIOD) */
 #define ID_SDMMC0_TIMER (71) /**< \brief  (SDMMC0_TIMER) */
 #define ID_SDMMC1_TIMER (72) /**< \brief  (SDMMC1_TIMER) */
+#define ID_RSTC         (73) /**< \brief Reset Controller (RSTC) */
 #define ID_SYSC         (74) /**< \brief System Controller Interrupt, RTC, RSTC, PMC (SYSC) */
 #define ID_ACC          (75) /**< \brief Analog Comparator (ACC) */
 #define ID_RXLP         (76) /**< \brief Uart Low Power (RXLP) */
@@ -164,6 +166,7 @@
 #define ID_PERIPH_COUNT (79) /**< \brief Number of peripheral IDs */
 
 /* XDMA Peripheral Interface Number */
+
 #define PERID_TWIHS0_TX    0
 #define PERID_TWIHS0_RX    1
 #define PERID_TWIHS1_TX    2
@@ -224,6 +227,7 @@
 #define PERID_PDMIC_RX     50
 
 #define ID_SAIC_FIQ_MSK       (1 << (ID_SAIC_FIQ & 0x1F))
+#define ID_PMC_MSK            (1 << (ID_PMC & 0x1F))
 #define ID_ARM_PMU_MSK        (1 << (ID_ARM_PMU & 0x1F))
 #define ID_PIT_MSK            (1 << (ID_PIT & 0x1F))
 #define ID_WDT_MSK            (1 << (ID_WDT & 0x1F))
@@ -307,6 +311,7 @@
 #define ID_PIOD_MSK           (1 << (ID_PIOD & 0x1F))
 #define ID_SDMMC0_TIMER_MSK   (1 << (ID_SDMMC0_TIMER & 0x1F))
 #define ID_SDMMC1_TIMER_MSK   (1 << (ID_SDMMC1_TIMER & 0x1F))
+#define ID_RSTC_MSK           (1 << (ID_RSTC & 0x1F)
 #define ID_SYSC_MSK           (1 << (ID_SYSC & 0x1F))
 #define ID_ACC_MSK            (1 << (ID_ACC & 0x1F))
 #define ID_RXLP_MSK           (1 << (ID_RXLP & 0x1F))
