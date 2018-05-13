@@ -1087,7 +1087,7 @@ static bool aprs_decode_message(packet_t pp) {
   strupr(src);
 
   /*
-   *  Setup default responding node identity.
+   *  Setup default responding app identity.
    *  Default identity id set to tx.
    */
 
@@ -1103,8 +1103,8 @@ static bool aprs_decode_message(packet_t pp) {
   identity.mod = conf_sram.aprs.digi.radio_conf.mod;
   identity.cca = conf_sram.aprs.digi.radio_conf.cca;
 
-  /* Check which nodes are enabled to accept APRS messages. */
-  bool pos_pri = !strcmp(conf_sram.pos_pri.call, dest)
+  /* Check which apps are enabled to accept APRS messages. */
+  bool pos_pri = (strcmp(conf_sram.pos_pri.call, dest) == 0)
 	        && (conf_sram.pos_pri.aprs_msg)
 	        && (conf_sram.pos_pri.thread_conf.active);
 
@@ -1114,7 +1114,7 @@ static bool aprs_decode_message(packet_t pp) {
     identity.symbol = conf_sram.pos_pri.symbol;
   }
 
-  bool pos_sec = !strcmp(conf_sram.pos_sec.call, dest)
+  bool pos_sec = (strcmp(conf_sram.pos_sec.call, dest) == 0)
             && (conf_sram.pos_sec.aprs_msg)
             && (conf_sram.pos_sec.thread_conf.active);
   if(pos_sec) {
@@ -1123,7 +1123,7 @@ static bool aprs_decode_message(packet_t pp) {
     identity.symbol = conf_sram.pos_sec.symbol;
   }
 
-  bool aprs_rx = !strcmp(conf_sram.aprs.rx.call, dest)
+  bool aprs_rx = (strcmp(conf_sram.aprs.rx.call, dest) == 0)
             && (conf_sram.aprs.thread_conf.active);
   if(aprs_rx) {
     strcpy(identity.call, conf_sram.aprs.rx.call);
@@ -1131,15 +1131,16 @@ static bool aprs_decode_message(packet_t pp) {
     /* Other parameters come from tx identity. */
   }
 
-  bool aprs_tx = !strcmp(conf_sram.aprs.digi.call, dest)
+  /* Even if the digi is not active respond on the digi (TX) call. */
+  bool aprs_tx = (strcmp(conf_sram.aprs.digi.call, dest) == 0)
             && (conf_sram.aprs.thread_conf.active)
-            && (conf_sram.aprs.digi.active);
+            /*&& (conf_sram.aprs.digi.active)*/;
   /* Default already set tx parameters. */
 
-  /* Check if this is message and address is one of the nodes on this device. */
+  /* Check if this is message and address is one of the apps on this device. */
   if(!((pinfo[10] == ':') && (pos_pri || pos_sec || aprs_rx || aprs_tx))) {
     /*
-     * Not a command or not addressed to one of the active nodes on this device.
+     * Not a command or not addressed to one of the active apps on this device.
      * Flag that message should be digipeated.
      */
     return true;
@@ -1158,7 +1159,7 @@ static bool aprs_decode_message(packet_t pp) {
       memcpy(msg_id_rx, &pinfo[i+1], sizeof(msg_id_rx)-1);
       // Cut off non-printable chars
       for(uint8_t j=0; j<sizeof(msg_id_rx); j++) {
-        if(msg_id_rx[j] < ' ' || msg_id_rx[j] > '~') {
+        if(msg_id_rx[j] < 32 || msg_id_rx[j] > 126) {
           msg_id_rx[j] = 0;
           break;
         }
@@ -1177,11 +1178,11 @@ static bool aprs_decode_message(packet_t pp) {
 
   // Trace
   TRACE_INFO("RX   > Received message from %s (ID=%s): %s [%s]",
-             src, msg_id_rx, &pinfo[11], astrng);
+             src, msg_id_rx[0] == 0 ? "none" : msg_id_rx, &pinfo[11], astrng);
 
 
   /* Filter out telemetry configuration and "Directs=" messages sent to ourselves. */
-  char const *cfgs[] = {"parm.", "unit.", "eqns.", "bits.","directs="};
+  char const *cfgs[] = {"parm.", "unit.", "eqns.", "bits.", "directs="};
   uint8_t x;
   for(x = 0; x < (sizeof(cfgs) / sizeof((cfgs)[0])); x++) {
     if(strncmp(astrng, cfgs[x], strlen(cfgs[x])) == 0)

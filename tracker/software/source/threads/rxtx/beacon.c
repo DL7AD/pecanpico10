@@ -33,12 +33,11 @@ THD_FUNCTION(bcnThread, arg) {
   sysinterval_t time = chVTGetSystemTime();
 
   while(true) {
-    char code_s[20];
+    char code_s[100];
     pktDisplayFrequencyCode(conf->digi.radio_conf.freq,
                                               code_s, sizeof(code_s));
     TRACE_INFO("POS  > Do module BEACON cycle for %s on %s",
                conf->digi.call, code_s);
-    //TRACE_INFO("BCN  > Do module BEACON cycle");
 
     dataPoint_t* dataPoint = getLastDataPoint();
     if(!p_sleep(&conf->thread_conf.sleep_conf)) {
@@ -75,71 +74,70 @@ THD_FUNCTION(bcnThread, arg) {
         last_conf_transmission += conf->digi.tel_enc_cycle;
       }
 
-      if(dataPoint->gps_state == GPS_FIXED
+      if(!(dataPoint->gps_state == GPS_FIXED
           || dataPoint->gps_state == GPS_LOCKED1
-          || dataPoint->gps_state == GPS_LOCKED2) {
+          || dataPoint->gps_state == GPS_LOCKED2)) {
+            TRACE_INFO("BCN  > Waiting for GPS data for position beacon");
+            chThdSleep(TIME_S2I(60));
+            continue;
+      }
 
-        TRACE_INFO("BCN  > Transmit position and telemetry");
+      TRACE_INFO("BCN  > Transmit position and telemetry");
 
-        // Encode/Transmit position packet
-        packet_t packet = aprs_encode_position_and_telemetry(conf->digi.call,
-                                                             conf->digi.path,
-                                                             conf->digi.symbol,
-                                                             dataPoint, true);
-        if(packet == NULL) {
-          TRACE_WARN("BCN  > No free packet objects"
-              " for position transmission");
-        } else {
-          if(!transmitOnRadio(packet,
-                              conf->digi.radio_conf.freq,
-                              0,
-                              0,
-                              conf->digi.radio_conf.pwr,
-                              conf->digi.radio_conf.mod,
-                              conf->digi.radio_conf.cca)) {
-            TRACE_ERROR("BCN  > failed to transmit beacon data");
-          }
-          chThdSleep(TIME_S2I(5));
-        }
-
-        /*
-         * Encode/Transmit APRSD packet.
-         * This is a tracker originated message (not a reply to a request).
-         * The message will be sent to the base station if set.
-         * Else send it to device identity.
-         */
-        char *call = conf_sram.aprs.base.enabled
-            ? conf_sram.aprs.base.call : conf->digi.call;
-
-        /*
-         * Send message from this device.
-         * Use call sign and path as specified in base config.
-         * There is no acknowledgment requested.
-         */
-        packet = aprs_compose_aprsd_message(
-            conf->digi.call,
-            conf->base.path,
-            call);
-        if(packet == NULL) {
-          TRACE_WARN("BCN  > No free packet objects "
-              "or badly formed APRSD message");
-        } else {
-          if(!transmitOnRadio(packet,
-                              conf->digi.radio_conf.freq,
-                              0,
-                              0,
-                              conf->digi.radio_conf.pwr,
-                              conf->digi.radio_conf.mod,
-                              conf->digi.radio_conf.cca
-          )) {
-            TRACE_ERROR("BCN  > Failed to transmit APRSD data");
-          }
-          chThdSleep(TIME_S2I(5));
-        }
+      // Encode/Transmit position packet
+      packet_t packet = aprs_encode_position_and_telemetry(conf->digi.call,
+                                                           conf->digi.path,
+                                                           conf->digi.symbol,
+                                                           dataPoint, true);
+      if(packet == NULL) {
+        TRACE_WARN("BCN  > No free packet objects"
+            " for position transmission");
       } else {
-        TRACE_INFO("BCN  > Waiting for GPS data for position beacon");
-        chThdSleep(TIME_S2I(60));
-        continue;
+        if(!transmitOnRadio(packet,
+                            conf->digi.radio_conf.freq,
+                            0,
+                            0,
+                            conf->digi.radio_conf.pwr,
+                            conf->digi.radio_conf.mod,
+                            conf->digi.radio_conf.cca)) {
+          TRACE_ERROR("BCN  > failed to transmit beacon data");
+        }
+        chThdSleep(TIME_S2I(5));
+      }
+
+      /*
+       * Encode/Transmit APRSD packet.
+       * This is a tracker originated message (not a reply to a request).
+       * The message will be sent to the base station if set.
+       * Else send it to device identity.
+       */
+      char *call = conf_sram.aprs.base.enabled
+          ? conf_sram.aprs.base.call : conf->digi.call;
+
+      /*
+       * Send message from this device.
+       * Use call sign and path as specified in base config.
+       * There is no acknowledgment requested.
+       */
+      packet = aprs_compose_aprsd_message(
+          conf->digi.call,
+          conf->base.path,
+          call);
+      if(packet == NULL) {
+        TRACE_WARN("BCN  > No free packet objects "
+            "or badly formed APRSD message");
+      } else {
+        if(!transmitOnRadio(packet,
+                            conf->digi.radio_conf.freq,
+                            0,
+                            0,
+                            conf->digi.radio_conf.pwr,
+                            conf->digi.radio_conf.mod,
+                            conf->digi.radio_conf.cca
+        )) {
+          TRACE_ERROR("BCN  > Failed to transmit APRSD data");
+        }
+        chThdSleep(TIME_S2I(5));
       }
     } /* psleep */
     time = waitForTrigger(time, conf->digi.cycle);

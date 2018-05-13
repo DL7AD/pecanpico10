@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "aprs.h"
+#include "geofence.h"
 
 conf_t conf_sram;
 
@@ -13,19 +14,19 @@ const conf_t conf_flash_default = {
     .pos_pri = {
         .thread_conf = {
             .active = true,
-            .cycle = TIME_S2I(60),
+            .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(30)
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = 144800000,
+            .freq = FREQ_APRS_DYNAMIC,
             .mod = MOD_AFSK,
-            .cca = 0xFF,
+            .cca = 0x4F,
         },
         // App identity
         .call = "VK2GJ-12",
         .path = "WIDE1-1",
-        .symbol = SYM_BALLOON,
+        .symbol = SYM_ANTENNA,
         .aprs_msg = true,
         // How often to send telemetry config
         .tel_enc_cycle = TIME_S2I(60 * 60)
@@ -34,7 +35,7 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .thread_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(180),
             .init_delay = TIME_S2I(60)
         },
@@ -56,16 +57,16 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .thread_conf = {
-            .active = true,
+            .active = false,
             .cycle = CYCLE_CONTINUOUSLY,
             .init_delay = TIME_S2I(300),
             .send_spacing = TIME_S2I(30)
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = FREQ_APRS_DYNAMIC,
-            .mod = MOD_AFSK,
-            .cca = 0xFF
+            .freq = 144800000,
+            .mod = MOD_2FSK,
+            .cca = 0x4F
 
         },
         // App identity
@@ -130,13 +131,13 @@ const conf_t conf_flash_default = {
             .init_delay = TIME_S2I(20)
         },
         // Default APRS frequency when geofence not resolved
-        .freq = 145175000,
+        .freq = APRS_FREQ_AUSTRALIA,
         // The receive identity for APRS
         .rx = {
             .radio_conf = {
-                .freq = 145175000,
+                .freq = FREQ_APRS_DYNAMIC,
                 .mod = MOD_AFSK,
-                .rssi = 0x5F
+                .rssi = 0x3F
             },
             // App rx identity
             .call = "VK2GJ-4",
@@ -145,17 +146,17 @@ const conf_t conf_flash_default = {
         // The digipeat transmit identity and messages responses
         .digi = {
             .radio_conf = {
-                .freq = 145175000,
+                .freq = FREQ_APRS_RECEIVE,
                 .pwr = 0x7F,
                 .mod = MOD_AFSK,
-                .cca = 0xFF
+                .cca = 0x4F
             },
             .active = true,
             // Digipeat identity
             .call = "VK2GJ-5",
             .path = "WIDE2-1",
             .symbol = SYM_DIGIPEATER,
-            .beacon = false, // Set to have digi beacon position and telem
+            .beacon = true, // Set to have digi beacon position and telem
             .cycle = TIME_S2I(60 * 30), // Position and telem beacon interval
             .gps = false, // Set to have digi use GPS for position
             // A set location if GPS not enabled or unable to acquire lock.
@@ -163,7 +164,7 @@ const conf_t conf_flash_default = {
             .lon = 1511143478, // Degrees (expressed in 1e-7 form)
             .alt = 144, // Altitude in metres
             // How often to send telemetry config (TODO: Move out to global level)
-            .tel_enc_cycle = TIME_S2I(0)
+            .tel_enc_cycle = TIME_S2I(60 * 60 * 2)
         },
         // The base station identity
         .base = {

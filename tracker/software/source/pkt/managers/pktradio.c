@@ -505,38 +505,38 @@ int pktDisplayFrequencyCode(radio_freq_t code, char *buf, size_t size) {
   char* str = NULL;
   switch(code) {
   case FREQ_RADIO_INVALID:
-    str = "FREQ_RADIO_INVALID";
+    str = "No Code";
     break;
 
   case FREQ_APRS_DYNAMIC:
-    str = "FREQ_APRS_DYNAMIC";
+    str = "APRS Dynamic frequency";
     break;
 
   case FREQ_APRS_SCAN:
-    str = "FREQ_APRS_SCAN";
+    str = "APRS Scan channel";
     break;
 
   case FREQ_APRS_RECEIVE:
-    str = "FREQ_APRS_RECEIVE";
+    str = "APRS Receive frequency";
     break;
 
   case FREQ_CMDC_RECEIVE:
-    str = "FREQ_CMDC_RECEIVE";
+    str = "CNC Receivefrequency";
     break;
 
   case FREQ_APRS_DEFAULT:
-    str = "FREQ_APRS_DEFAULT";
+    str = "APRS Defaultfrequency";
     break;
 
   case FREQ_CODES_END:
-    str = "FREQ_CODES_END";
+    str = "Invalid Code";
     break;
 
   default:
     break;
   }
   if(str != NULL)
-    return chsnprintf(buf, size, "%s (%d)", str, code);
+    return chsnprintf(buf, size, "%s", str);
   else
     return chsnprintf(buf, size, "%d.%03d MHz",
                       code/1000000, (code%1000000)/1000);

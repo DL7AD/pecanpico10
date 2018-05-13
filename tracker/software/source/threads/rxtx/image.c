@@ -643,7 +643,7 @@ THD_FUNCTION(imgThread, arg) {
 
   sysinterval_t time = chVTGetSystemTime();
   while(true) {
-    char code_s[20];
+    char code_s[100];
     pktDisplayFrequencyCode(conf->radio_conf.freq,
                                               code_s, sizeof(code_s));
     TRACE_INFO("POS  > Do module POSITION cycle for %s on %s",
