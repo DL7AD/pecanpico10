@@ -104,7 +104,7 @@ THD_FUNCTION(bcnThread, arg) {
          * Else send it to device identity.
          */
         char *call = conf_sram.aprs.base.enabled
-            ? conf_sram.aprs.base.call : APRS_DEVICE_CALLSIGN;
+            ? conf_sram.aprs.base.call : conf->digi.call;
 
         /*
          * Send message from this device.

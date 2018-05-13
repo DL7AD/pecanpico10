@@ -34,7 +34,7 @@ THD_FUNCTION(posThread, arg)
 	sysinterval_t time = chVTGetSystemTime();
 
 	while(true) {
-		TRACE_INFO("POS  > Do module POSITION cycle");
+		TRACE_INFO("POS  > Do module POSITION cycle for %s", conf->call);
 
 		TRACE_INFO("POS  > Get last data point");
 		dataPoint_t* dataPoint = getLastDataPoint();

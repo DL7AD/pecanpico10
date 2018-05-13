@@ -1180,8 +1180,8 @@ static bool aprs_decode_message(packet_t pp) {
              src, msg_id_rx, &pinfo[11], astrng);
 
 
-  /* Filter out telemetry configuration sent to ourselves. */
-  char const *cfgs[] = {"parm.", "unit.", "eqns.", "bits."};
+  /* Filter out telemetry configuration and "Directs=" messages sent to ourselves. */
+  char const *cfgs[] = {"parm.", "unit.", "eqns.", "bits.","directs="};
   uint8_t x;
   for(x = 0; x < (sizeof(cfgs) / sizeof((cfgs)[0])); x++) {
     if(strncmp(astrng, cfgs[x], strlen(cfgs[x])) == 0)
