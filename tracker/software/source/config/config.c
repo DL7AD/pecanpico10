@@ -14,7 +14,7 @@ const conf_t conf_flash_default = {
         .thread_conf = {
             .active = true,
             .cycle = TIME_S2I(60),
-            .init_delay = TIME_S2I(0)
+            .init_delay = TIME_S2I(30)
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -127,7 +127,7 @@ const conf_t conf_flash_default = {
     .aprs = {
         .thread_conf = {
             .active = true,
-            .init_delay = TIME_S2I(10)
+            .init_delay = TIME_S2I(20)
         },
         // Default APRS frequency when geofence not resolved
         .freq = 145175000,

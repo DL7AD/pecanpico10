@@ -34,7 +34,11 @@ THD_FUNCTION(posThread, arg)
 	sysinterval_t time = chVTGetSystemTime();
 
 	while(true) {
-		TRACE_INFO("POS  > Do module POSITION cycle for %s", conf->call);
+	    char code_s[20];
+	    pktDisplayFrequencyCode(conf->radio_conf.freq,
+	                                              code_s, sizeof(code_s));
+		TRACE_INFO("POS  > Do module POSITION cycle for %s on %s",
+		           conf->call, code_s);
 
 		TRACE_INFO("POS  > Get last data point");
 		dataPoint_t* dataPoint = getLastDataPoint();

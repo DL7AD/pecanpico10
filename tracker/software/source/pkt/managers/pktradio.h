@@ -122,6 +122,7 @@ extern "C" {
                                 thread_t *thread);
   void      pktStartDecoder(const radio_unit_t radio);
   void      pktStopDecoder(const radio_unit_t radio);
+  int       pktDisplayFrequencyCode(radio_freq_t code, char *buf, size_t size);
 #ifdef __cplusplus
 }
 #endif

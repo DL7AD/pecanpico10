@@ -17,7 +17,7 @@ FREQ_CODES_END
 
 #define FREQ_RADIO_INVALID  0
 #define FREQ_APRS_DYNAMIC	1 /* Geofencing frequency (144.8 default). */
-#define FREQ_APRS_SCAN      2 /* Frequency last found in RX scan. - TBI */
+#define FREQ_APRS_SCAN      2 /* Frequency based on band base + channel scan. */
 #define FREQ_APRS_RECEIVE   3 /* Active RX frequency - fall back to DYNAMIC. */
 #define FREQ_CMDC_RECEIVE   4 /* Frequency used for command and control. TBI */
 #define FREQ_APRS_DEFAULT   5 /* Default frequency specified in configuration */

@@ -33,7 +33,12 @@ THD_FUNCTION(bcnThread, arg) {
   sysinterval_t time = chVTGetSystemTime();
 
   while(true) {
-    TRACE_INFO("BCN  > Do module BEACON cycle");
+    char code_s[20];
+    pktDisplayFrequencyCode(conf->digi.radio_conf.freq,
+                                              code_s, sizeof(code_s));
+    TRACE_INFO("POS  > Do module BEACON cycle for %s on %s",
+               conf->digi.call, code_s);
+    //TRACE_INFO("BCN  > Do module BEACON cycle");
 
     dataPoint_t* dataPoint = getLastDataPoint();
     if(!p_sleep(&conf->thread_conf.sleep_conf)) {

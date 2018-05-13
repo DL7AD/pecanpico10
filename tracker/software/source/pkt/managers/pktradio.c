@@ -498,6 +498,50 @@ void pktReleaseRadio(const radio_unit_t radio) {
   chBSemSignal(&handler->radio_sem);
 }
 
+/*
+ *
+ */
+int pktDisplayFrequencyCode(radio_freq_t code, char *buf, size_t size) {
+  char* str = NULL;
+  switch(code) {
+  case FREQ_RADIO_INVALID:
+    str = "FREQ_RADIO_INVALID";
+    break;
+
+  case FREQ_APRS_DYNAMIC:
+    str = "FREQ_APRS_DYNAMIC";
+    break;
+
+  case FREQ_APRS_SCAN:
+    str = "FREQ_APRS_SCAN";
+    break;
+
+  case FREQ_APRS_RECEIVE:
+    str = "FREQ_APRS_RECEIVE";
+    break;
+
+  case FREQ_CMDC_RECEIVE:
+    str = "FREQ_CMDC_RECEIVE";
+    break;
+
+  case FREQ_APRS_DEFAULT:
+    str = "FREQ_APRS_DEFAULT";
+    break;
+
+  case FREQ_CODES_END:
+    str = "FREQ_CODES_END";
+    break;
+
+  default:
+    break;
+  }
+  if(str != NULL)
+    return chsnprintf(buf, size, "%s (%d)", str, code);
+  else
+    return chsnprintf(buf, size, "%d.%03d MHz",
+                      code/1000000, (code%1000000)/1000);
+}
+
 /**
  * @brief   Get default operating frequency.
  *

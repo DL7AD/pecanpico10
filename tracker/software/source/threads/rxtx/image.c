@@ -643,7 +643,12 @@ THD_FUNCTION(imgThread, arg) {
 
   sysinterval_t time = chVTGetSystemTime();
   while(true) {
-    TRACE_INFO("IMG  > Do module IMAGE cycle");
+    char code_s[20];
+    pktDisplayFrequencyCode(conf->radio_conf.freq,
+                                              code_s, sizeof(code_s));
+    TRACE_INFO("POS  > Do module POSITION cycle for %s on %s",
+               conf->call, code_s);
+    //TRACE_INFO("IMG  > Do module IMAGE cycle");
     if(p_sleep(&conf->thread_conf.sleep_conf)) {
       /* Re-check every minute. */
       chThdSleep(TIME_S2I(60));
@@ -666,8 +671,8 @@ THD_FUNCTION(imgThread, arg) {
     /*
      * History... compiler bug
      * If size is > 65535 the compiled code wraps address around and kills CMM heap.
-     * Clearing is no longer needed.
-     * SOI is now aligned at index 0 and length is by DMA.
+     * Anyway clearing of the capture buffer is no longer needed.
+     * SOI is now aligned at index 0 and length > EOI is returned by DMA.
      */
 /*    uint32_t size = conf->buf_size;
     for(uint32_t i = 0; i < size ; i++)
