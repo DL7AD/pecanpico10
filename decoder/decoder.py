@@ -78,6 +78,15 @@ db.cursor().execute("""
 		PRIMARY KEY (`call`,`id`,`packetID`)
 	)
 """)
+db.cursor().execute("""
+	CREATE TABLE IF NOT EXISTS `directs`
+	(
+		`call` VARCHAR(10),
+		`rxtime` INTEGER,
+		`directs` VARCHAR(256),
+		PRIMARY KEY (`call`,`rxtime`)
+	)
+""")
 
 
 """ Packet handler for received APRS packets"""
@@ -90,8 +99,9 @@ def received_data(data):
 	all = re.search("(.*)\>APECAN(.*?):", data)
 	pos = re.search("(.*)\>APECAN(.*?):\!(.{13})(.*?)\|(.*)\|", data)
 	dat = re.search("(.*)\>APECAN(.*?):\{\{(I|L)(.*)", data)
+	dir = re.search("(.*)\>APECAN(.*?)::(.{9}):Directs=(.*)", data)
 
-	if pos or dat:
+	if pos or dat or dir:
 		# Debug
 		if args.verbose:
 			print('='*100)
@@ -116,6 +126,9 @@ def received_data(data):
 				image.insert_image(db, rxer, call, data)
 			elif typ is 'L': # Log packet
 				position.insert_position(db, call, data, 'log')
+
+		elif dir: # Directs packet
+			position.insert_directs(db, call, dir.group(4))
 
 if args.device == 'I': # Source APRS-IS
 

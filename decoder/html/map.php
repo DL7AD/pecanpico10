@@ -58,16 +58,18 @@ function loadRecentData() {
 
 	});
 }
-
+<?php
+$tel = (new Tracker($_GET['call']))->getLastTelemetry();
+?>
 function initMap() {
 	map = new google.maps.Map(document.getElementById('map'), {
-		zoom: 6,
-		center: new google.maps.LatLng(51,11),
+		zoom: 8,
+		center: new google.maps.LatLng(<?=$tel->gps_lat/10000000?>,<?=$tel->gps_lon/10000000?>),
 		gestureHandling: 'greedy'
 	});
 
 	loadRecentData();
-	//setInterval(loadRecentData, 1000);
+	setInterval(loadRecentData, 1000);
 }
 </script>
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCdZi_9pTemN0IOE2KO_LMkR1-jJh92qhU&callback=initMap"></script>

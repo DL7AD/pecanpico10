@@ -142,12 +142,19 @@ function loadRecentData() {
 					case 'err_i2c1':
 					case 'err_i2c2':
 					case 'err_eva7m':
+						switch(d) {
+							case 0: $('#' + key).html(colorize(COL_GREEN, "OK")); break;
+							case 1: $('#' + key).html(colorize(COL_RED, "Fail")); break;
+						}
+						break;
+
 					case 'err_bme280_i1':
 					case 'err_bme280_e1':
 					case 'err_bme280_e2':
 						switch(d) {
 							case 0: $('#' + key).html(colorize(COL_GREEN, "OK")); break;
 							case 1: $('#' + key).html(colorize(COL_RED, "Fail")); break;
+							case 2: $('#' + key).html(colorize(COL_ORANGE, "Not fitted")); break;
 						}
 						break;
 
@@ -182,6 +189,10 @@ function loadRecentData() {
 		$('#pos_cnt3600').text(json['packetCount']['pos']['cnt3600']);
 		$('#pos_cnt86400').text(json['packetCount']['pos']['cnt86400']);
 
+		$('#dir_cnt300').text(json['packetCount']['dir']['cnt300']);
+		$('#dir_cnt3600').text(json['packetCount']['dir']['cnt3600']);
+		$('#dir_cnt86400').text(json['packetCount']['dir']['cnt86400']);
+
 		$('#img_cnt300').text(json['packetCount']['img']['cnt300']);
 		$('#img_cnt3600').text(json['packetCount']['img']['cnt3600']);
 		$('#img_cnt86400').text(json['packetCount']['img']['cnt86400']);
@@ -193,6 +204,7 @@ function loadRecentData() {
 		$('#act_pos').text(time_format(json['lastActivity']['pos']));
 		$('#act_img').text(time_format(json['lastActivity']['img']));
 		$('#act_log').text(time_format(json['lastActivity']['log']));
+		$('#act_dir').text(time_format(json['lastActivity']['dir']));
 
 		// Update charts if there is new data or at a timeout of 300 seconds
 		if(tel.length > 0 || json['time']-lastChartUpdate > 300) {
