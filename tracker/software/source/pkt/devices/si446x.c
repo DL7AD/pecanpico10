@@ -571,6 +571,9 @@ static bool Si446x_transmit(radio_unit_t radio,
     chThdSleep(TIME_MS2I(1));
   }
 
+  /* Set band parameters. */
+  Si446x_setBandParameters(radio, freq, step);
+
   /* Check for blind send request. */
   if(rssi != PKT_SI446X_NO_CCA_RSSI) {
     Si446x_setProperty8(Si446x_MODEM_RSSI_THRESH, rssi);
