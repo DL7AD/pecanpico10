@@ -43,14 +43,14 @@ class Telemetry {
 		$this->sys_time = (int)$sqlResult['sys_time'];
 		$this->sys_error = (int)$sqlResult['sys_error'];
 
-		$this->err_i2c1 = ((int)$this->sys_error >> 0) & 0x1;
-		$this->err_i2c2 = ((int)$this->sys_error >> 1) & 0x1;
-		$this->err_eva7m = ((int)$this->sys_error >> 2) & 0x1;
-		$this->err_pac1720 = ((int)$this->sys_error >> 3) & 0x3;
-		$this->err_ov5640 = ((int)$this->sys_error >> 5) & 0x3;
-		$this->err_bme280_i1 = ((int)$this->sys_error >> 8) & 0x1;
-		$this->err_bme280_e1 = ((int)$this->sys_error >> 9) & 0x1;
-		$this->err_bme280_e2 = ((int)$this->sys_error >> 10) & 0x1;
+		$this->err_i2c1      = ((int)$this->sys_error >> 0)  & 0x1;
+		$this->err_i2c2      = ((int)$this->sys_error >> 1)  & 0x1;
+		$this->err_eva7m     = ((int)$this->sys_error >> 2)  & 0x1;
+		$this->err_pac1720   = ((int)$this->sys_error >> 3)  & 0x3;
+		$this->err_ov5640    = ((int)$this->sys_error >> 5)  & 0x3;
+		$this->err_bme280_i1 = ((int)$this->sys_error >> 8)  & 0x3;
+		$this->err_bme280_e1 = ((int)$this->sys_error >> 10) & 0x3;
+		$this->err_bme280_e2 = ((int)$this->sys_error >> 12) & 0x3;
 
 	}
 }

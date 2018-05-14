@@ -32,3 +32,11 @@ def insert_position(db, call, comm, typ):
 
 			print('Received erroneous %s packet Call=%s' % (typ, call))
 
+def insert_directs(db, call, dir):
+	rxtime = int(datetime.now(timezone.utc).timestamp())
+	db.cursor().execute("INSERT INTO `directs` (`call`,`rxtime`,`directs`) VALUES (%s,%s,%s)", (call,rxtime,dir))
+	db.commit()
+
+	# Debug
+	print('Received dir packet packet Call=%s' % call)
+

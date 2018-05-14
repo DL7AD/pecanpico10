@@ -18,6 +18,8 @@ class Tracker {
 			SELECT * FROM (
 				(SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'pos' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'pos' ORDER BY `rxtime` DESC LIMIT 1)
 				UNION ALL
+				(SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'dir' as `type` FROM `directs` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' ORDER BY `rxtime` DESC LIMIT 1)
+				UNION ALL
 				(SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'img' as `type` FROM `image` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' ORDER BY `rxtime` DESC LIMIT 1)
 				UNION ALL
 				(SELECT UNIX_TIMESTAMP() - `rxtime` as `lasttime`,'log' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'log' ORDER BY `rxtime` DESC LIMIT 1)
@@ -109,6 +111,8 @@ class Tracker {
 			FROM (
 				SELECT COUNT(*) as `cnt86400`,'pos' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'pos' AND `rxtime`+86400 > UNIX_TIMESTAMP()
 				UNION ALL
+				SELECT COUNT(*) as `cnt86400`,'dir' as `type` FROM `directs` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `rxtime`+86400 > UNIX_TIMESTAMP()
+				UNION ALL
 				SELECT COUNT(*) as `cnt86400`,'img' as `type` FROM `image` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `rxtime`+86400 > UNIX_TIMESTAMP()
 				UNION ALL
 				SELECT COUNT(*) as `cnt86400`,'log' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'log' AND `rxtime`+86400 > UNIX_TIMESTAMP()
@@ -116,12 +120,16 @@ class Tracker {
 			JOIN (
 				SELECT COUNT(*) as `cnt3600`,'pos' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'pos' AND `rxtime`+3600 > UNIX_TIMESTAMP()
 				UNION ALL
+				SELECT COUNT(*) as `cnt3600`,'dir' as `type` FROM `directs` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `rxtime`+3600 > UNIX_TIMESTAMP()
+				UNION ALL
 				SELECT COUNT(*) as `cnt3600`,'img' as `type` FROM `image` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `rxtime`+3600 > UNIX_TIMESTAMP()
 				UNION ALL
 				SELECT COUNT(*) as `cnt3600`,'log' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'log' AND `rxtime`+3600 > UNIX_TIMESTAMP()
 			) AS b
 			JOIN (
 				SELECT COUNT(*) as `cnt300`,'pos' as `type` FROM `position` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `org` = 'pos' AND `rxtime`+300 > UNIX_TIMESTAMP()
+				UNION ALL
+				SELECT COUNT(*) as `cnt300`,'dir' as `type` FROM `directs` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `rxtime`+300 > UNIX_TIMESTAMP()
 				UNION ALL
 				SELECT COUNT(*) as `cnt300`,'img' as `type` FROM `image` WHERE `call` = '" . Database::getInstance()->escape_string($this->call) . "' AND `rxtime`+300 > UNIX_TIMESTAMP()
 				UNION ALL
