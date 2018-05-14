@@ -74,10 +74,11 @@ THD_FUNCTION(bcnThread, arg) {
         last_conf_transmission += conf->digi.tel_enc_cycle;
       }
 
-      if(!(dataPoint->gps_state == GPS_FIXED
+      while(!(dataPoint->gps_state == GPS_FIXED
           || dataPoint->gps_state == GPS_LOCKED1
-          || dataPoint->gps_state == GPS_LOCKED2)) {
-            TRACE_INFO("BCN  > Waiting for GPS data for position beacon");
+          || dataPoint->gps_state == GPS_LOCKED2
+          || dataPoint->gps_state == GPS_LOG)) {
+            TRACE_INFO("BCN  > Waiting for position data for beacon");
             chThdSleep(TIME_S2I(60));
             continue;
       }

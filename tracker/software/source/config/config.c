@@ -13,7 +13,7 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .thread_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(30)
         },
@@ -169,7 +169,7 @@ const conf_t conf_flash_default = {
         // The base station identity
         .base = {
             // Tracker originated messages will be sent to this call sign if enabled
-            .enabled = false,
+            .enabled = true,
             .call = "VK2GJ-7",
             .path = "WIDE2-1",
         },

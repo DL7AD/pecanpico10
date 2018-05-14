@@ -1177,8 +1177,8 @@ static bool aprs_decode_message(packet_t pp) {
   char *astrng = strlwr((char*)&pinfo[11]);
 
   // Trace
-  TRACE_INFO("RX   > Received message from %s (ID=%s): %s [%s]",
-             src, msg_id_rx[0] == 0 ? "none" : msg_id_rx, &pinfo[11], astrng);
+  TRACE_INFO("RX   > Received message from %s (ID=%s): %s",
+             src, msg_id_rx[0] == 0 ? "none" : msg_id_rx, astrng);
 
 
   /* Filter out telemetry configuration and "Directs=" messages sent to ourselves. */

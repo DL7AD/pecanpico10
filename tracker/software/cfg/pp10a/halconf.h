@@ -389,7 +389,12 @@
 #define USB_USE_WAIT                TRUE
 #endif
 
+/**
+ * @brief   Set host wakeup duration.
+ */
+#if !defined(USB_HOST_WAKEUP_DURATION) || defined(__DOXYGEN__)
 #define USB_HOST_WAKEUP_DURATION    15
+#endif
 
 #endif /* HALCONF_H */
 
