@@ -60,6 +60,14 @@ const radio_param_t radio_list[NUM_PKT_RADIOS] = {
   } /* End radio1 */
 };
 
+
+const SerialConfig debug_config = {
+  115200,
+  0,
+  0,
+  0
+};
+
 /*===========================================================================*/
 /* Module local types.                                                       */
 /*===========================================================================*/
@@ -76,13 +84,6 @@ const radio_param_t radio_list[NUM_PKT_RADIOS] = {
 /*===========================================================================*/
 /* Module exported functions.                                                */
 /*===========================================================================*/
-
-const SerialConfig debug_config = {
-  115200,
-  0,
-  0,
-  0
-};
 
 void pktConfigSerialDiag(void) {
   /* USART3 TX.       */
@@ -198,6 +199,7 @@ void sysConfigureCoreIO(void) {
  */
 radio_param_t *pktGetRadioParameters(radio_unit_t radio) {
   (void)radio;
+  return NULL;
 }
 
 /*

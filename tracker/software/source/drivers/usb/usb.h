@@ -6,6 +6,7 @@
 
 typedef enum sduTermStates {
   TERM_SDU_INIT = 0,
+  TERM_SDU_START,
   TERM_SDU_IDLE,
   TERM_SDU_OUT,
   TERM_SDU_SHELL,

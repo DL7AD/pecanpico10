@@ -386,8 +386,10 @@
  * @note    Disabling this option saves both code and data space.
  */
 #if !defined(USB_USE_WAIT) || defined(__DOXYGEN__)
-#define USB_USE_WAIT                FALSE
+#define USB_USE_WAIT                TRUE
 #endif
+
+#define USB_HOST_WAKEUP_DURATION    15
 
 #endif /* HALCONF_H */
 
