@@ -118,8 +118,24 @@ void init_data_collector(void);
  *
  * @api
  */
-#define hasGPSacquiredLock(tp) (tp->gps_state == GPS_LOCKED1                 \
-                                || tp->gps_state == GPS_LOCKED2)
+#define hasGPSacquiredLock(dp) (dp->gps_state == GPS_LOCKED1                \
+                                || dp->gps_state == GPS_LOCKED2)
+
+/**
+ * @brief   Is position valid.
+ *
+ * @param[in] pointer to data point
+ *
+ * @returns result of check
+ * @retval  true if position data is valid
+ * @retval  false if position not valid
+ *
+ * @api
+ */
+#define isPositionValid(dp)   (dp->gps_state == GPS_LOCKED1                 \
+                                || dp->gps_state == GPS_LOCKED2             \
+                                || dp->gps_state == GPS_FIXED               \
+                                || dp->gps_state == GPS_LOG)
 
 #endif /* __COLLECTOR_H__ */
 

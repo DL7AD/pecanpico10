@@ -331,12 +331,12 @@ THD_FUNCTION(collectorThread, arg) {
         TRACE_TAB, time.year, time.month, time.day, time.hour,
         time.minute, time.day,
         TRACE_TAB, lastDataPoint->gps_lat/10000000,
-        (lastDataPoint->gps_lat > 0
-            ? 1:-1)*lastDataPoint->gps_lat%10000000,
-            TRACE_TAB, lastDataPoint->gps_lon/10000000,
-            (lastDataPoint->gps_lon > 0
-                ? 1:-1)*lastDataPoint->gps_lon%10000000,
-                TRACE_TAB, lastDataPoint->gps_alt
+          (lastDataPoint->gps_lat > 0
+              ? 1:-1)*lastDataPoint->gps_lat%10000000,
+              TRACE_TAB, lastDataPoint->gps_lon/10000000,
+          (lastDataPoint->gps_lon > 0
+              ? 1:-1)*lastDataPoint->gps_lon%10000000,
+              TRACE_TAB, lastDataPoint->gps_alt
     );
     lastDataPoint->gps_state = GPS_LOG; // Mark dataPoint as LOG packet
   } else {
