@@ -4,3 +4,4 @@ build
 __pycache__
 *.sqlite
 decoder/html/images/
+.project
