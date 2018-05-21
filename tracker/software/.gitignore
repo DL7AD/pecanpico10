@@ -1,4 +1,6 @@
 /debug/
 /.cproject
 /.settings/
-/.project/
+/.project
+/*.launch
+/.loadpath
