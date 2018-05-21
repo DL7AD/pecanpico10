@@ -90,7 +90,7 @@ const conf_t conf_flash_default = {
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = 145175000,
+            .freq = APRS_FREQ_AUSTRALIA,
             .mod = MOD_AFSK,
             .cca = 0x4F
         },
