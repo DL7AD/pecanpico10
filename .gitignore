@@ -1,9 +1,14 @@
+# Eclipse
 build
 .dep
+.project
+.cproject
+.settings
+# Decoder server
 *.pyc
 __pycache__
 *.sqlite
 decoder/html/images/
-.project
-.cproject
-.settings
+# MacOS
+.DS_Store
+.DS_Store?
