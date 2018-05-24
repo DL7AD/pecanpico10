@@ -243,7 +243,7 @@ bool pktCheckAFSKSymbolTime(AFSKDemodDriver *myDriver) {
     }
 
     case AFSK_DSP_FCORR_DECODE: {
-
+      break;
     }
 
     default: {

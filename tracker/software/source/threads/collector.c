@@ -1,3 +1,11 @@
+/**
+ * @file        collector.c
+ * @brief       Telemetry data collector.
+ *
+ * @addtogroup  telemetry
+ * @{
+ */
+
 #include "ch.h"
 #include "hal.h"
 
@@ -42,17 +50,33 @@ void waitForNewDataPoint(void) {
 		chThdSleep(TIME_S2I(1));
 }
 
-/*
+/**
+ * @brief   Acquire GPS position and time data.
+ * @notes	The GPS is switched only if a service requires it.
+ * @notes	The GPS model used can be controlled by barometric pressure.
+ * @notes	The model for high/low pressure is set in config.c.
+ * @notes	Model switching enables more reliable lock at low altitude.
+ * @notes	The switch to airborne model is then made at high altitude.
  *
+ * @post    The provided data point (record) is updated.
+ *
+ * @param[in]   tp  	pointer to current @p datapoint structure
+ * @param[in]	ltp		pointer to prior @p datapoint structure
+ * @param[in]   timeout time limit to wait for acquisition
+ *
+ * @api
  */
 static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
                            sysinterval_t timeout) {
   sysinterval_t start = chVTGetSystemTime();
 
-  gpsFix_t gpsFix;
-  memset(&gpsFix, 0, sizeof(gpsFix_t));
+  gpsFix_t gpsFix = {0};
+  //memset(&gpsFix, 0, sizeof(gpsFix_t));
 
-  // Switch on GPS if enough power is available and GPS is needed by any position thread
+  /*
+   * Switch on GPS if...
+   * Position/time is requested by a service and power is available.
+   */
   uint16_t batt = stm32_get_vbat();
   if(batt < conf_sram.gps_on_vbat) {
     tp->gps_state = GPS_LOWBATT1;
@@ -171,8 +195,15 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   }
 }
 
-/*
+/**
+ * @brief   Get voltage status and save in datapoint.
+ * @notes	The battery and solar voltages are read and stored.
  *
+ * @post    The provided data point (record) is updated.
+ *
+ * @param[in]   tp   pointer to a @p datapoint structure
+ *
+ * @api
  */
 static void measureVoltage(dataPoint_t* tp)
 {
@@ -184,8 +215,15 @@ static void measureVoltage(dataPoint_t* tp)
 
 static uint8_t bme280_error;
 
-/*
+/**
+ * @brief   Get sensor status and save in datapoint.
+ * @notes	The active/installed sensor(s) are read and stored.
  *
+ * @post    The provided data point (record) is updated.
+ *
+ * @param[in]   tp   pointer to a @p datapoint structure
+ *
+ * @api
  */
 void getSensors(dataPoint_t* tp) {
 	// Measure BME280
@@ -246,8 +284,16 @@ void getSensors(dataPoint_t* tp) {
 	tp->light_intensity = OV5640_getLastLightIntensity() & 0xFFFF;
 }
 
-/*
- * Get the state of GPIOs available on edge connector.
+/**
+ * @brief   Get GPIO port status and save in datapoint.
+ * @notes	The input state or current output state is read.
+ * @notes	The GPIO mode is determined by the port user.
+ *
+ * @post    The provided data point (record) is updated.
+ *
+ * @param[in]   tp   pointer to a @p datapoint structure
+ *
+ * @api
  */
 static void getGPIO(dataPoint_t* tp) {
 #if     ENABLE_EXTERNAL_I2C == TRUE
@@ -259,8 +305,17 @@ static void getGPIO(dataPoint_t* tp) {
 #endif
 }
 
-/*
+/**
+ * @brief   Update/set system status data.
+ * @notes	The system hardware health/status is read.
+ * @notes	This covers the main hardware units...
+ * @notes	I2C, GPS, Power, Camera & Environment.
  *
+ * @post    The provided data point (record) is updated.
+ *
+ * @param[in]   tp   pointer to a @p datapoint structure
+ *
+ * @api
  */
 void setSystemStatus(dataPoint_t* tp) {
 
@@ -290,9 +345,10 @@ void setSystemStatus(dataPoint_t* tp) {
 	tp->sys_time = TIME_I2S(chVTGetSystemTime());
 }
 
-/**
-  * Data Collector (Thread)
-  */
+/*===========================================================================*/
+/* Data collector thread.                                                    */
+/*===========================================================================*/
+
 THD_FUNCTION(collectorThread, arg) {
   uint8_t *useGPS = arg;
 
@@ -475,6 +531,8 @@ THD_FUNCTION(collectorThread, arg) {
 
 /**
   * Telemetry config (Thread)
+  * TODO: Make this service thread run on system level time schedule to send config packets.
+  * Any thread sending telemetry would request this service be started.
   */
 THD_FUNCTION(configThread, arg) {
   //uint8_t *useCFG = arg;
@@ -518,3 +576,4 @@ void init_data_collector() {
   }
 }
 
+/** @} */
