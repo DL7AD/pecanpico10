@@ -96,6 +96,9 @@ void pktConfigSerialPkt(void) {
 
 }
 
+/**
+ * TODO: Move this into pktconf.h and use general GPIO to setup.
+ */
 void pktSetLineModeICU(void) {
   palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
 }

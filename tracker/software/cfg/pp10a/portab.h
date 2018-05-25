@@ -63,10 +63,16 @@
 #define NUM_PKT_RADIOS              1
 #define NUM_BANDS_PER_RADIO         2
 
-//#define LINE_OVERFLOW_LED         LINE_LED3
+/* LED status indicators (set to PAL_NOLINE if not available). */
+#define LINE_OVERFLOW_LED           PAL_NOLINE
 #define LINE_DECODER_LED            LINE_IO_BLUE
-//#define LINE_SQUELCH_LED            LINE_IO_GREEN
+#define LINE_SQUELCH_LED            PAL_NOLINE
+#define LINE_NO_FIFO_LED            PAL_NOLINE
 
+/* Diagnostic PWM mirror port. */
+#define LINE_PWM_MIRROR             PAL_NOLINE
+
+/* Radio ports. */
 #define LINE_CCA                    LINE_RADIO_IRQ
 #define LINE_ICU                    LINE_RADIO_GPIO1
 

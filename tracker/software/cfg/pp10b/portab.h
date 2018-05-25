@@ -45,8 +45,7 @@
 #define LINE_SPI_MISO               PAL_LINE(GPIOB, 4U)
 #define LINE_SPI_MOSI               PAL_LINE(GPIOB, 5U)
 
-#define Si446x_MIN_2M_FREQ	    	144000000				/* Minimum allowed frequency in Hz */
-#define Si446x_MAX_2M_FREQ			148000000				/* Maximum allowed frequency in Hz */
+/* Si446x clock setup. */
 #define Si446x_CLK					STM32_HSECLK			/* Oscillator frequency in Hz */
 #define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */

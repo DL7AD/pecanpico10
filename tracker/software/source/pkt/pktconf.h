@@ -98,9 +98,7 @@
 #define EVT_PKT_CBK_MGR_FAIL    EVENT_MASK(EVT_PRIORITY_BASE + 31)
 
 
-/* Decoder thread event IDs (sent from initiator to decoder). */
-/*TODO: These needs to be values and NOT bit shifted masks. */
-
+/* Decoder thread event masks (sent from initiator to decoder). */
 #define DEC_COMMAND_START       EVENT_MASK(EVT_PRIORITY_BASE + 0)
 #define DEC_COMMAND_STOP        EVENT_MASK(EVT_PRIORITY_BASE + 1)
 #define DEC_COMMAND_CLOSE       EVENT_MASK(EVT_PRIORITY_BASE + 2)
@@ -112,14 +110,14 @@
 #define USB_SHELL_EVT           EVT_PRIORITY_BASE + 0
 #define USB_SDU1_EVT            EVT_PRIORITY_BASE + 16
 
-/* Response thread events (from decoder to initiator). */
+/* Response thread event masks (from decoder to initiator). */
 #define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 15)
 #define DEC_START_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 16)
 #define DEC_STOP_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 17)
 #define DEC_CLOSE_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 18)
 #define USR_COMMAND_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 19)
 
-/* Diagnostic events. */
+/* Diagnostic event masks. */
 #define EVT_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 20)
 #define EVT_PKT_OUT_END         EVENT_MASK(EVT_PRIORITY_BASE + 21)
 
@@ -146,6 +144,7 @@
 
 /* Extra GPIO value used in local GPIO set/clear/toggle functions. */
 #define PAL_TOGGLE              2U
+#define PAL_INVALID             -1
 
 /*===========================================================================*/
 /* Aerospace decoder subsystem includes.                                     */
@@ -191,158 +190,35 @@ extern "C" {
 /*===========================================================================*/
 
 /**
-* @brief   Define GPIO port where the NIRQ from the radio is connected.
-* @notes   The NIRQ line is set in the radio to output the CCA condition.
-*
-* @api
-*/
-static inline void pktSetLineModeCCA(void) {
-  palSetLineMode(LINE_CCA, PAL_MODE_INPUT_PULLUP);
-}
-
-/**
- * @brief   For driving an indicator LED for decoder status.
- * @notes   These functions control the LED on a GPIO line if defined.
+ * @brief   Generalized GPIO handling for optional IO.
+ * @notes   These functions are primarily for LED line control.
  *
  * @api
  */
-static inline void pktSetLineModeDecoderLED(void) {
-#if defined(LINE_DECODER_LED)
-  palSetLineMode(LINE_DECODER_LED, PAL_MODE_OUTPUT_PUSHPULL);
-#endif
+static inline void pktSetGPIOlineMode(ioline_t line, iomode_t mode) {
+  if(line != PAL_NOLINE)
+    palSetLineMode(line, mode);
 }
 
-static inline void pktUnsetLineModeDecoderLED(void) {
-#if defined(LINE_DECODER_LED)
-  palSetLineMode(LINE_DECODER_LED, PAL_MODE_UNCONNECTED);
-#endif
+static inline void pktUnsetGPIOlineMode(ioline_t line) {
+  if(line != PAL_NOLINE)
+    palSetLineMode(line, PAL_MODE_UNCONNECTED);
 }
 
-static inline void pktWriteDecoderLED(uint8_t state) {
-#if defined(LINE_DECODER_LED)
-  if(state != PAL_TOGGLE)
-    palWriteLine(LINE_DECODER_LED, state);
+static inline void pktWriteGPIOline(ioline_t line, uint8_t state) {
+  if(line != PAL_NOLINE) {
+    if(state != PAL_TOGGLE)
+      palWriteLine(line, state);
+    else
+      palToggleLine(line);
+  }
+}
+
+static inline int8_t pktReadGPIOline(ioline_t line) {
+  if(line != PAL_NOLINE)
+    return palReadLine(line);
   else
-    palToggleLine(LINE_DECODER_LED);
-#else
-  (void)state;
-#endif
-}
-
-/**
- * @brief   For driving an indicator LED for PWM CCA asserted.
- * @notes   These functions control the LED on a GPIO line if defined.
- *
- * @api
- */
-static inline void pktSetLineModeSquelchLED(void) {
-#if defined(LINE_SQUELCH_LED)
-  palSetLineMode(LINE_SQUELCH_LED, PAL_MODE_OUTPUT_PUSHPULL);
-#endif
-}
-
-static inline void pktWriteSquelchLED(uint8_t state) {
-#if defined(LINE_SQUELCH_LED)
-  if(state != PAL_TOGGLE)
-    palWriteLine(LINE_SQUELCH_LED, state);
-  else
-    palToggleLine(LINE_SQUELCH_LED);
-#else
-  (void)state;
-#endif
-}
-
-static inline void pktUnsetLineModeSquelchLED(void) {
-#if defined(LINE_SQUELCH_LED)
-  palSetLineMode(LINE_SQUELCH_LED, PAL_MODE_UNCONNECTED);
-#endif
-}
-
-/**
- * @brief   For driving an indicator LED for PWM queue space exhausted.
- * @notes   These functions control the LED on a GPIO line if defined.
- *
- * @api
- */
-static inline void pktSetLineModeOverflowLED(void) {
-#if defined(LINE_OVERFLOW_LED)
-  palSetLineMode(LINE_OVERFLOW_LED, PAL_MODE_OUTPUT_PUSHPULL);
-#endif
-}
-
-static inline void pktWriteOverflowLED(uint8_t state) {
-#if defined(LINE_OVERFLOW_LED)
-  if(state != PAL_TOGGLE)
-    palWriteLine(LINE_OVERFLOW_LED, state);
-  else
-    palToggleLine(LINE_OVERFLOW_LED);
-#else
-  (void)state;
-#endif
-}
-
-static inline void pktUnsetLineModeOverflowLED(void) {
-#if defined(LINE_OVERFLOW_LED)
-  palSetLineMode(LINE_OVERFLOW_LED, PAL_MODE_UNCONNECTED);
-#endif
-}
-
-/**
- * @brief   For driving an indicator LED for PWM buffers exhausted.
- * @notes   These functions control the LED on a GPIO line if defined.
- *
- * @api
- */
-static inline void pktSetLineModeNoFIFOLED(void) {
-#if defined(LINE_NO_FIFO_LED)
-  palSetLineMode(LINE_NO_FIFO_LED, PAL_MODE_OUTPUT_PUSHPULL);
-#endif
-}
-
-static inline void pktWriteNoFIFOLED(uint8_t state) {
-#if defined(LINE_NO_FIFO_LED)
-  if(state != PAL_TOGGLE)
-    palWriteLine(LINE_NO_FIFO_LED, state);
-  else
-    palToggleLine(LINE_NO_FIFO_LED);
-#else
-  (void)state;
-#endif
-}
-
-static inline void pktUnsetLineModeNoFIFOLED(void) {
-#if defined(LINE_NO_FIFO_LED)
-  palSetLineMode(LINE_NO_FIFO_LED, PAL_MODE_UNCONNECTED);
-#endif
-}
-
-/**
- * @brief   For diagnostics only.
- * @notes   These functions control the mirroring of radio PWM data to a GPIO.
- *
- * @notapi
- */
-static inline void pktSetLineModePWMMirror(void) {
-#if defined(LINE_PWM_MIRROR)
-  palSetLineMode(LINE_PWM_MIRROR, PAL_MODE_OUTPUT_PUSHPULL);
-#endif
-}
-
-static inline void pktUnsetLineModePWMMirror(void) {
-#if defined(LINE_PWM_MIRROR)
-  palSetLineMode(LINE_PWM_MIRROR, PAL_MODE_UNCONNECTED);
-#endif
-}
-
-static inline void pktWritePWMMirror(uint8_t state) {
-#if defined(LINE_PWM_MIRROR)
-  if(state != PAL_TOGGLE)
-    palWriteLine(LINE_PWM_MIRROR, state);
-  else
-    palToggleLine(LINE_PWM_MIRROR);
-#else
-  (void)state;
-#endif
+    return PAL_INVALID;
 }
 
 /**

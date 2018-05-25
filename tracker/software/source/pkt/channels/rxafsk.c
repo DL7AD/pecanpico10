@@ -680,9 +680,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   tprio_t decoder_idle_priority = chThdGetPriorityX();
 
   /* Setup LED for decoder blinker. */
-  pktSetLineModeDecoderLED();
+  pktSetGPIOlineMode(LINE_DECODER_LED, PAL_MODE_OUTPUT_PUSHPULL);
 
-  pktWriteDecoderLED(PAL_HIGH);
+  pktWriteGPIOline(LINE_DECODER_LED, PAL_HIGH);
 
    /* Acknowledge open then wait for start or close of decoder. */
   pktAddEventFlags(myDriver, DEC_OPEN_EXEC);
@@ -707,13 +707,13 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           pktAddEventFlags(myDriver, DEC_CLOSE_EXEC);
           pktReleaseAFSKDecoder(myDriver);
           myDriver->decoder_state = DECODER_TERMINATED;
-          pktWriteDecoderLED(PAL_LOW);
+          pktWriteGPIOline(LINE_DECODER_LED, PAL_LOW);
           chThdExit(MSG_OK);
           /* Something went wrong if we arrive here. */
           chSysHalt("ThdExit");
         }
         /* Toggle decoder LED in wait state. */
-        pktWriteDecoderLED(PAL_TOGGLE);
+        pktWriteGPIOline(LINE_DECODER_LED, PAL_TOGGLE);
         continue;
       }
 
@@ -742,11 +742,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                              (void *)&myRadioFIFO,
                              TIME_MS2I(DECODER_POLL_TIME));
         if(fifo_msg != MSG_OK) {
-          /* Give decoder active blink if we've been idle for > cycle time. */
+          /* Give decoder LED a quick blink if we've been idle for > cycle time. */
           if(led_count < DECODER_LED_POLL_PULSE)
-            pktWriteDecoderLED(PAL_HIGH);
+            pktWriteGPIOline(LINE_DECODER_LED, PAL_HIGH);
           if(--led_count < 0) {
-            pktWriteDecoderLED(PAL_LOW);
+            pktWriteGPIOline(LINE_DECODER_LED, PAL_LOW);
             led_count = DECODER_LED_POLL_CYCLE;
           }
           /*
@@ -814,7 +814,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* Increase thread priority. */
         (void)chThdSetPriority(DECODER_RUN_PRIORITY);
         /* Turn on the decoder LED. */
-        pktWriteDecoderLED(PAL_HIGH);
+        pktWriteGPIOline(LINE_DECODER_LED, PAL_HIGH);
         break;
       } /* End case DECODER_SESSION_POLL. */
 
@@ -891,11 +891,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /* Check for change of frame state. */
           switch(myDriver->frame_state) {
           case FRAME_SEARCH:
-            pktWriteDecoderLED(PAL_TOGGLE);
+            pktWriteGPIOline(LINE_DECODER_LED, PAL_TOGGLE);
             continue;
           case FRAME_OPEN:
           case FRAME_DATA:
-            pktWriteDecoderLED(PAL_HIGH);
+            pktWriteGPIOline(LINE_DECODER_LED, PAL_HIGH);
             continue;
           case FRAME_RESET:
           case FRAME_CLOSE: {
@@ -923,8 +923,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
       /* This case is set when an error status. */
       case DECODER_ERROR: {
-        //pktAddEventFlags(myHandler, EVT_DECODER_ERROR);
-        //myDriver->active_demod_object->status |= EVT_DECODER_ERROR;
         myDriver->decoder_state = DECODER_SUSPEND;
         break;
       } /* End case DECODER_ERROR. */
@@ -933,7 +931,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /*
          * Return PWM FIFO to pool if there is one active.
          */
-
         radio_cca_fifo_t *myFIFO = myDriver->active_demod_object;
         if(myFIFO != NULL) {
 
@@ -957,8 +954,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* Reset the correlation decoder and its filters. */
         pktResetAFSKDecoder(myDriver);
 
-        /* Turn off blue LED and reset time interval. */
-        pktWriteDecoderLED(PAL_LOW);
+        /* Turn off decoder and reset time interval. */
+        pktWriteGPIOline(LINE_DECODER_LED, PAL_LOW);
         led_count = 0;
 
         (void)chThdSetPriority(decoder_idle_priority);
@@ -1026,7 +1023,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           evtf = chEvtWaitAnyTimeout(DEC_SUSPEND_EXIT,
           TIME_US2I(DECODER_SUSPEND_TIME));
           if(++led_count >= DECODER_LED_RATE_SUSPEND) {
-            pktWriteDecoderLED(PAL_TOGGLE);
+            pktWriteGPIOline(LINE_DECODER_LED, PAL_TOGGLE);
             led_count = 0;
           }
         } while(evtf == 0);

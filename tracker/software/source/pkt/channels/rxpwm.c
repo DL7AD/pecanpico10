@@ -105,32 +105,35 @@ ICUDriver *pktAttachICU(radio_unit_t radio_id) {
   icuObjectInit(myICU);
 
   /* The RX_DATA input is routed to ICU timer.
-   * Set in portab.h
+   * Set in portab.c
    */
   pktSetLineModeICU();
 
   /* If using PWM mirror to output to a diagnostic port. */
-  pktSetLineModePWMMirror();
+  pktSetGPIOlineMode(LINE_PWM_MIRROR, PAL_MODE_OUTPUT_PUSHPULL);
 
   /* Initialise the timers. */
   chVTObjectInit(&myICU->cca_timer);
   chVTObjectInit(&myICU->icu_timer);
   chVTObjectInit(&myICU->pwm_timer);
 
-  /* Configure ports. */
-  pktSetLineModeCCA();
+  /**
+  * @brief   Set up GPIO port where the NIRQ from the radio is connected.
+  * @notes   The NIRQ line is set in the radio to output the CCA condition.
+  */
+  pktSetGPIOlineMode(LINE_CCA, PAL_MODE_INPUT_PULLUP);
 
   /* Setup the squelch LED. */
-  pktSetLineModeSquelchLED();
-  pktWriteSquelchLED(PAL_LOW);
+  pktSetGPIOlineMode(LINE_SQUELCH_LED, PAL_MODE_OUTPUT_PUSHPULL);
+  pktWriteGPIOline(LINE_SQUELCH_LED, PAL_LOW);
 
   /* Setup the overflow LED. */
-  pktSetLineModeOverflowLED();
-  pktWriteOverflowLED(PAL_LOW);
+  pktSetGPIOlineMode(LINE_OVERFLOW_LED, PAL_MODE_OUTPUT_PUSHPULL);
+  pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_LOW);
 
   /* Setup the no FIFO LED. */
-  pktSetLineModeNoFIFOLED();
-  pktWriteNoFIFOLED(PAL_LOW);
+  pktSetGPIOlineMode(LINE_NO_FIFO_LED, PAL_MODE_OUTPUT_PUSHPULL);
+  pktWriteGPIOline(LINE_NO_FIFO_LED, PAL_LOW);
 
   return myICU;
 }
@@ -154,16 +157,16 @@ void pktDetachICU(ICUDriver *myICU) {
   icuStop(myICU);
 
   /* Disable the squelch LED. */
-  pktUnsetLineModeSquelchLED();
+  pktUnsetGPIOlineMode(LINE_SQUELCH_LED);
 
   /* Disable overflow LED. */
-  pktUnsetLineModeOverflowLED();
+  pktUnsetGPIOlineMode(LINE_OVERFLOW_LED);
 
   /* Disable no FIFO LED. */
-  pktUnsetLineModeNoFIFOLED();
+  pktUnsetGPIOlineMode(LINE_NO_FIFO_LED);
 
   /* If using PWM mirror disable diagnostic port. */
-  pktUnsetLineModePWMMirror();
+  pktUnsetGPIOlineMode(PAL_MODE_OUTPUT_PUSHPULL);
 }
 
 /**
@@ -200,7 +203,8 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
   /*
    * Turn off the squelch LED.
    */
-  pktWriteSquelchLED(PAL_LOW);
+  //pktWriteSquelchLED(PAL_LOW);
+  pktWriteGPIOline(LINE_SQUELCH_LED, PAL_LOW);
 
   /* Stop the ICU notification (callback). */
   icuDisableNotificationsI(myICU);
@@ -216,8 +220,12 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
 #endif
     msg_t qs = pktWritePWMQueueI(myQueue, pack);
     if(qs == MSG_TIMEOUT) {
-      /* No space to write in-band flag. */
-      pktWriteOverflowLED(PAL_HIGH);
+      /*
+       * No space to write in-band flag.
+       * This may be due to a pending ICU interrupt?
+       * In any case flag the error.
+       */
+      pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
       myDemod->active_radio_object->status |= EVT_PWM_QUEUE_OVERRUN;
       pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_OVERRUN);
     }
@@ -251,7 +259,8 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   packet_svc_t *myHandler = myDemod->packet_handler;
 
   /* Turn on the squelch LED. */
-  pktWriteSquelchLED(PAL_HIGH);
+  //pktWriteSquelchLED(PAL_HIGH);
+  pktWriteGPIOline(LINE_SQUELCH_LED, PAL_HIGH);
 
   /* Turn off the overflow LED. */
   //pktWriteOverflowLED(PAL_LOW);
@@ -276,7 +285,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
     icuDisableNotificationsI(myICU);
 
     /* Turn on the FIFO out LED. */
-    pktWriteNoFIFOLED(PAL_HIGH);
+    pktWriteGPIOline(LINE_NO_FIFO_LED, PAL_HIGH);
     return;
   }
 
@@ -551,7 +560,8 @@ void pktRadioCCAInput(ICUDriver *myICU) {
 void pktRadioICUWidth(ICUDriver *myICU) {
   (void)myICU;
 #if defined(LINE_PWM_MIRROR)
-  pktWritePWMMirror(PAL_LOW);
+  //pktWritePWMMirror(PAL_LOW);
+  pktWriteGPIOline(LINE_PWM_MIRROR, PAL_LOW);
 #endif
 }
 
@@ -571,7 +581,8 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    * See halconf.h for the definition.
    */
 #if defined(LINE_PWM_MIRROR)
-  pktWritePWMMirror(PAL_HIGH);
+  //pktWritePWMMirror(PAL_HIGH);
+  pktWriteGPIOline(LINE_PWM_MIRROR, PAL_HIGH);
 #endif
   AFSKDemodDriver *myDemod = myICU->link;
 
@@ -612,7 +623,8 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
      * Queue has no space remaining for PWM data.
      * Close channel and write in-band flag.
      */
-    pktWriteOverflowLED(PAL_HIGH);
+    //pktWriteOverflowLED(PAL_HIGH);
+    pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
     pktClosePWMChannelI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);
   }
   /* Write message is OK or TIMEOUT in which case channel has been closed. */
