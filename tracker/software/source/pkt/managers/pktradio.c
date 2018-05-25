@@ -129,7 +129,9 @@ THD_FUNCTION(pktRadioManager, arg) {
       case MOD_AFSK: {
         pktAcquireRadio(radio, TIME_INFINITE);
 
-        /* TODO: Move these 446x calls into abstracted LLD. */
+        /* TODO: Move and aggregate these 446x calls into abstracted LLD.
+         * pktLLDenableReceive(...)
+         */
         Si446x_setBandParameters(radio,
                                  task_object->base_frequency,
                                  task_object->step_hz);
@@ -143,7 +145,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         /* TODO: If decoder is not running error out. */
 
         pktStartDecoder(radio);
-        //handler->rx_active = true;
+
         /* Allow transmit requests. */
         pktReleaseRadio(radio);
         break;
@@ -183,7 +185,7 @@ THD_FUNCTION(pktRadioManager, arg) {
 
       /* Give each send a sequence number. */
       ++handler->radio_tx_config.tx_seq_num;
-      pktPauseReception(radio);
+      pktPauseDecoding(radio);
       if(pktLLDsendPacket(task_object)) {
         /*
          * Keep count of active sends.
@@ -204,7 +206,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       /* Send failed so release send packet object(s) and task object. */
       packet_t pp = task_object->packet_out;
       pktReleaseBufferChain(pp);
-      pktResumeReception(radio);
+      pktResumeDecoding(radio);
       break;
     } /* End case PKT_RADIO_TX. */
 
@@ -271,29 +273,28 @@ THD_FUNCTION(pktRadioManager, arg) {
       /* Get thread exit code a free memory. */
       msg_t send_msg = chThdWait(task_object->thread);
 
+      //if(send_msg != MSG_OK) {
+      if(send_msg == MSG_TIMEOUT) {
+        TRACE_ERROR("SI   > Transmit timeout");
+      }
+      if(send_msg == MSG_RESET) {
+        TRACE_ERROR("SI   > Transmit failed to start");
+      }
+      //}
       bool rxok = true;
       /* If no transmissions pending then enable RX or shutdown. */
       if(--handler->tx_count == 0) {
         if(pktIsReceivePaused(radio)) {
           rxok = pktLLDresumeReceive(radio);
-          pktResumeReception(radio);
+          if(!rxok) {
+            TRACE_ERROR("SI   > Receive failed to resume after transmit");
+          }
+          pktResumeDecoding(radio);
         } else {
           /* TODO: Implement LLD function for this. */
           Si446x_shutdown(radio);
         }
-      }
-
-      if(send_msg != MSG_OK) {
-        if(send_msg == MSG_TIMEOUT) {
-          TRACE_ERROR("SI   > Transmit timeout");
-        }
-        if(send_msg == MSG_RESET) {
-          TRACE_ERROR("SI   > Transmit failed to start");
-        }
-      }
-      if(!rxok) {
-        TRACE_ERROR("SI   > Receive failed to resume after transmit");
-      }
+      } /* Else more TX tasks outstanding so let those complete. */
       break;
     } /* End case PKT_RADIO_TX_THREAD */
 
@@ -311,7 +312,9 @@ THD_FUNCTION(pktRadioManager, arg) {
   chThdExit(MSG_OK);
 }
 
-
+/**
+ * Create the radio manager thread.
+ */
 thread_t *pktRadioManagerCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
@@ -408,7 +411,7 @@ msg_t pktGetRadioTaskObject(radio_unit_t radio,
 
 /**
  * @brief   Submit a radio command to the task manager.
- * @post    A task object is created and submitted to the radio manager.
+ * @post    A task object is populated and submitted to the radio manager.
  *
  * @param[in]   radio   radio unit ID.
  * @param[in]   object  radio task object to be submitted.
@@ -698,7 +701,9 @@ bool pktLLDresumeReceive(const radio_unit_t radio) {
   radio_ch_t chan = handler->radio_rx_config.channel;
   radio_squelch_t rssi = handler->radio_rx_config.squelch;
   mod_t mod = handler->radio_rx_config.type;
-  return Si4464_resumeReceive(radio, freq, step, chan, rssi, mod);
+  bool result = Si4464_resumeReceive(radio, freq, step, chan, rssi, mod);
+  //pktResumeDecoding(radio);
+  return result;
 }
 
 /** @} */

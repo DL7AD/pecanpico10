@@ -984,7 +984,7 @@ msg_t OV5640_LockResourcesForCapture(void) {
     return msg;
   }
   I2C_Lock();
-  pktPauseReception(PKT_RADIO_1);
+  pktPauseDecoding(PKT_RADIO_1);
   /* Hold TRACE output on USB. */
   if(isUSBactive())
     chMtxLock(&trace_mtx);
@@ -999,7 +999,7 @@ void OV5640_UnlockResourcesForCapture(void) {
   if(isUSBactive())
     chMtxUnlock(&trace_mtx);
   I2C_Unlock();
-  pktResumeReception(PKT_RADIO_1);
+  pktResumeDecoding(PKT_RADIO_1);
   pktReleaseRadio(PKT_RADIO_1);
 }
 

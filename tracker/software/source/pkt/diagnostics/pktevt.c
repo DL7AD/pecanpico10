@@ -46,9 +46,9 @@ eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(1));
     if(flags & EVT_AX25_BUFFER_FULL) {
       TRACE_WARN("PKT  > AX25 receive buffer full");
     }
-/*    if(flags & EVT_DECODER_ERROR) {
-      TRACE_ERROR("PKT  > Decoder error");
-    }*/
+    if(flags & EVT_PWM_QUEUE_OVERRUN) {
+      TRACE_ERROR("PKT  > PWM queue overrun");
+    }
     if(flags & EVT_PWM_UNKNOWN_INBAND) {
       TRACE_ERROR("PKT  > Unknown PWM in-band flag");
     }

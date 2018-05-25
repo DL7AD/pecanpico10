@@ -210,15 +210,16 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
     input_queue_t *myQueue = &myDemod->active_radio_object->radio_pwm_queue;
     /* End of data flag. */
 #if USE_12_BIT_PWM == TRUE
-    byte_packed_pwm_t pack = {{0, reason, 0}};
+    byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, reason, 0}};
 #else
-    byte_packed_pwm_t pack = {{0, reason}};
+    byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, reason}};
 #endif
     msg_t qs = pktWritePWMQueueI(myQueue, pack);
-    if(qs != MSG_OK) {
+    if(qs == MSG_TIMEOUT) {
+      /* No space to write in-band flag. */
       pktWriteOverflowLED(PAL_HIGH);
-      myDemod->active_radio_object->status |= EVT_PWM_QUEUE_FULL;
-      pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_FULL);
+      myDemod->active_radio_object->status |= EVT_PWM_QUEUE_OVERRUN;
+      pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_OVERRUN);
     }
     /* Release the decoder thread if waiting. */
     chBSemSignalI(&myDemod->active_radio_object->sem);
@@ -227,6 +228,7 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
   } else {
     pktAddEventFlagsI(myHandler, evt);
   }
+  /* Return to ready state (inactive). */
   myDemod->icustate = PKT_PWM_READY;
 }
 
@@ -388,7 +390,7 @@ void pktICUInactivityTimeout(ICUDriver *myICU) {
 }
 
 /**
- * @brief   Stop all ICU associated timer.
+ * @brief   Stop all ICU associated timers.
  * @notes   Will be called when the packet channel is stopped.
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
@@ -468,8 +470,11 @@ void pktRadioCCATrailTimer(ICUDriver *myICU) {
     case PAL_LOW: {
       /*
        * The decoder operates asynchronously to and usually slower than PWM.
-       * When the decoder ends it returns its FIFO object to the pool.
-       * Closing PWM sets the FIFO management semaphore.
+       * Hence the decoder is responsible for releasing the PWM FIFO object.
+       * Prior to releasing the FIFO the decoder waits on the FIFO semaphore.
+       * Closing PWM from here sets the FIFO management semaphore.
+       * This caters for the case where the decoder finishes first.
+       * This can happen if the sender uses a long HDLC packet tail.
        */
       pktClosePWMChannelI(myICU, EVT_RADIO_CCA_CLOSE, PWM_TERM_CCA_CLOSE);
       break;
@@ -599,12 +604,18 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
     return;
   }
 
-  /* Check and write ICU values if OK. */
+  /* Write ICU data to PWM queue. */
   msg_t qs = pktQueuePWMDataI(myICU);
-  if(qs != MSG_OK) {
+
+  if(qs == MSG_RESET) {
+    /*
+     * Queue has no space remaining for PWM data.
+     * Close channel and write in-band flag.
+     */
     pktWriteOverflowLED(PAL_HIGH);
     pktClosePWMChannelI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);
   }
+  /* Write message is OK or TIMEOUT in which case channel has been closed. */
   chSysUnlockFromISR();
   return;
 }

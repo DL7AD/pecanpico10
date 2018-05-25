@@ -138,7 +138,7 @@ extern "C" {
  *
  * @api
  */
-#define pktPauseReception(radio) pktStopDecoder(radio)
+#define pktPauseDecoding(radio) pktStopDecoder(radio)
 
 /**
  * @brief   Alias for convenience of pktStartDecoder.
@@ -147,7 +147,7 @@ extern "C" {
  *
  * @api
  */
-#define pktResumeReception(radio) pktStartDecoder(radio)
+#define pktResumeDecoding(radio) pktStartDecoder(radio)
 
 #endif /* PKT_MANAGERS_PKTRADIO_H_ */
 

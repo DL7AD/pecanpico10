@@ -34,7 +34,10 @@
 #define MAX_PWM_BITS    16
 #endif
 
-/* PWM stream terminate reason codes. */
+/* PWM stream in-band prefix. */
+#define PWM_IN_BAND_PREFIX      0
+
+/* PWM stream terminate in-band reason codes. */
 #define PWM_TERM_CCA_CLOSE      0
 #define PWM_TERM_QUEUE_FULL     1
 #define PWM_TERM_ICU_OVERFLOW   2
@@ -196,9 +199,11 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
  * @return              The operation status.
  * @retval MSG_OK       The PWM data has been queued.
  * @retval MSG_TIMEOUT  The queue is already full.
- * @retval MSG_RESET    Queue space would be exhausted so an OVF
- *                      flag is written in place of PWM data
- *                      unless the data is an EOT flag.
+ * @retval MSG_RESET    The data is not an in-band flag.
+ *                      Queue space would be exhausted.
+ *                      The data is not written.
+ *                      Leaving space for in-band to be written by caller.
+ *
  * @api
  */
 static inline msg_t pktWritePWMQueueI(input_queue_t *queue,
@@ -208,32 +213,23 @@ static inline msg_t pktWritePWMQueueI(input_queue_t *queue,
   if(iqGetEmptyI(queue) < qsz) {
     return MSG_TIMEOUT;
   }
-  msg_t ret_val = MSG_OK;
+
+  /* Check if this is the last available slot. */
   if(iqGetEmptyI(queue) == qsz) {
 
-    /* TODO: Define in band data flags 0 & 1. */
-#if USE_12_BIT_PWM == TRUE
-    if((pack.pwm.impulse + pack.pwm.valley + pack.pwm.xtn) != 0) {
-      byte_packed_pwm_t eob = {{0, 1, 0}}; /* OVF flag. */
-      pack = eob;
-      ret_val = MSG_RESET;
+    /* Check in-band data flag. */
+    if(pack.pwm.impulse != PWM_IN_BAND_PREFIX) {
+      return MSG_RESET;
     }
   }
-#else
-  if((pack.pwm.impulse + pack.pwm.valley) != 0) {
-    byte_packed_pwm_t eob = {{0, 1}}; /* OVF flag. */
-    pack = eob;
-    ret_val = MSG_RESET;
-  }
-}
-  #endif
+  /* Have space for PWM data. */
   uint8_t b;
   for(b = 0; b < sizeof(pack.bytes); b++) {
     msg_t result = iqPutI(queue, pack.bytes[b]);
     if(result != MSG_OK)
       return result;
   }
-  return ret_val;
+  return MSG_OK;
 }
 
 /*===========================================================================*/

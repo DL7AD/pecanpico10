@@ -182,9 +182,9 @@ void pktEnablePWM(AFSKDemodDriver *myDriver) {
 
 /**
  * @brief   Disables PWM stream from radio.
- * @post    The ICU capture is stopped.
+ * @post    The PWM channel is closed.
+ * @post    All PWM related timers are stopped.
  * @post    The port for CCA input is disabled.
- * @post    The PWM buffer reference is removed.
  * @post    The ICU remains ready to be restarted.
  *
  * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
@@ -847,7 +847,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 #endif
 
           /* look for "in band" signal in radio data. */
-          if(radio.pwm.impulse == 0) {
+          if(radio.pwm.impulse == PWM_IN_BAND_PREFIX) {
             switch(radio.pwm.valley) {
             case PWM_TERM_DECODE_ENDED:
             case PWM_TERM_DECODE_STOP:
