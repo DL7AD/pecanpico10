@@ -118,8 +118,8 @@ ICUDriver *pktAttachICU(radio_unit_t radio_id) {
   chVTObjectInit(&myICU->pwm_timer);
 
   /**
-  * @brief   Set up GPIO port where the NIRQ from the radio is connected.
-  * @notes   The NIRQ line is set in the radio to output the CCA condition.
+  * Set up GPIO port where the NIRQ from the radio is connected.
+  * The NIRQ line is configured in the radio to output the CCA condition.
   */
   pktSetGPIOlineMode(LINE_CCA, PAL_MODE_INPUT_PULLUP);
 
@@ -621,13 +621,12 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
   if(qs == MSG_RESET) {
     /*
      * Queue has no space remaining for PWM data.
+     * A reserved slot for in-band remains.
      * Close channel and write in-band flag.
      */
-    //pktWriteOverflowLED(PAL_HIGH);
     pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
     pktClosePWMChannelI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);
   }
-  /* Write message is OK or TIMEOUT in which case channel has been closed. */
   chSysUnlockFromISR();
   return;
 }

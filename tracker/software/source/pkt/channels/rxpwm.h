@@ -197,37 +197,26 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
  * @param[in] pack      PWM packed data object.
  *
  * @return              The operation status.
- * @retval MSG_OK       The PWM data has been queued.
- * @retval MSG_TIMEOUT  The queue is already full.
- * @retval MSG_RESET    The data is not an in-band flag.
- *                      Queue space would be exhausted.
- *                      The data is not written.
- *                      Leaving space for in-band to be written by caller.
+ * @retval MSG_OK       The PWM entry has been queued.
+ * @retval MSG_TIMEOUT  The queue is full.
+ * @retval MSG_RESET    The last queue slot is reserved for in-band signaling.
+ *                      The data is not an in-band signal.
  *
  * @api
  */
 static inline msg_t pktWritePWMQueueI(input_queue_t *queue,
                                      byte_packed_pwm_t pack) {
-  size_t qsz = sizeof(pack.bytes);
-  /* Check for required space. */
-  if(iqGetEmptyI(queue) < qsz) {
-    return MSG_TIMEOUT;
-  }
 
-  /* Check if this is the last available slot. */
-  if(iqGetEmptyI(queue) == qsz) {
-
-    /* Check in-band data flag. */
-    if(pack.pwm.impulse != PWM_IN_BAND_PREFIX) {
+  /* Check if there is only one slot left. */
+  if(iqGetEmptyI(queue) == sizeof(byte_packed_pwm_t)) {
+    if(pack.bytes[0] != PWM_IN_BAND_PREFIX)
       return MSG_RESET;
-    }
   }
-  /* Have space for PWM data. */
-  uint8_t b;
-  for(b = 0; b < sizeof(pack.bytes); b++) {
-    msg_t result = iqPutI(queue, pack.bytes[b]);
-    if(result != MSG_OK)
-      return result;
+
+  /* Data is normal PWM or an in-band. */
+  for(uint8_t b = 0; b < sizeof(pack.bytes); b++) {
+    if(MSG_TIMEOUT == iqPutI(queue, pack.bytes[b]))
+      return MSG_TIMEOUT;
   }
   return MSG_OK;
 }
