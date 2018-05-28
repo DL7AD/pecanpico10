@@ -59,8 +59,8 @@ const conf_t conf_flash_default = {
         .thread_conf = {
             .active = false,
             .cycle = CYCLE_CONTINUOUSLY,
-            .init_delay = TIME_S2I(300),
-            .send_spacing = TIME_S2I(30)
+            .init_delay = TIME_S2I(90),
+            .send_spacing = TIME_S2I(0)
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -74,7 +74,7 @@ const conf_t conf_flash_default = {
         .path = "",
 
         // Image settings
-        .res = RES_QVGA,
+        .res = RES_VGA,
         .quality = 4,
         .buf_size = 40 * 1024,
         .redundantTx = false

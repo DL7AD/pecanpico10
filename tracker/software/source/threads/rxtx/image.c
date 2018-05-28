@@ -404,10 +404,6 @@ static bool transmit_image_packets(const uint8_t *image,
     /*
      * Next encode packets.
      * Packet burst send is available if redundant TX is not requested.
-     * Limiting the number of packets in a burst is important.
-     * Else APRS-IS may drop fast arriving packets.
-     * Also having a send_spacing > 0 is important.
-     * This allows APRS-IS time to forward packets from its buffer.
      */
     uint8_t buffers = fmin((NUMBER_COMMON_PKT_BUFFERS / 2),
                            MAX_BUFFERS_FOR_BURST_SEND);
@@ -646,9 +642,8 @@ THD_FUNCTION(imgThread, arg) {
     char code_s[100];
     pktDisplayFrequencyCode(conf->radio_conf.freq,
                                               code_s, sizeof(code_s));
-    TRACE_INFO("POS  > Do module POSITION cycle for %s on %s",
+    TRACE_INFO("POS  > Do module IMAGE cycle for %s on %s",
                conf->call, code_s);
-    //TRACE_INFO("IMG  > Do module IMAGE cycle");
     if(p_sleep(&conf->thread_conf.sleep_conf)) {
       /* Re-check every minute. */
       chThdSleep(TIME_S2I(60));
