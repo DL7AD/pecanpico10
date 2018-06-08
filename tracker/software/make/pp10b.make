@@ -213,7 +213,7 @@ CPPWARN = -Wall -Wextra -Wundef
 # List all user C define here, like -D_DEBUG=1
 UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4 -DSHELL_CMD_TEST_ENABLED=0 \
         -DSHELL_CMD_EXIT_ENABLED=1 -DUSB_TRACE_LEVEL=5 \
-        -DSHELL_CMD_MEM_ENABLED=0
+        -DSHELL_CMD_MEM_ENABLED=0 
         # -DDISABLE_HW_WATCHDOG=1
 
 # Define ASM defines here
@@ -235,6 +235,6 @@ ULIBS = -lm $(CMSISLIB)/libarm_cortexM4l_math.a
 RULESPATH = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC
 include $(RULESPATH)/rules.mk
 
-burn:
-    st-flash write build/$(PROJECT)/$(PROJECT).bin 0x08000000
+burn-$(PROJECT):
+	st-flash write build/$(PROJECT)/$(PROJECT).bin 0x08000000
 

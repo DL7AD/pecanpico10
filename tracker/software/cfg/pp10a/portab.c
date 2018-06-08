@@ -103,6 +103,20 @@ void pktSetLineModeICU(void) {
   palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
 }
 
+/*
+ * Read GPIO that are used for:
+ * a) general use or
+ * b) UART and s/w I2C external.
+ *
+ * @return State of lines regardless of general or specific use.
+ */
+uint8_t pktReadIOlines() {
+  return palReadLine(LINE_GPIO_PIN)
+      | palReadLine(LINE_IO_TXD) << 1
+      | palReadLine(LINE_IO_RXD) << 2;
+}
+
+
 void pktSerialStart(void) {
 #if ENABLE_EXTERNAL_I2C == FALSE
   pktConfigSerialDiag();
@@ -198,7 +212,7 @@ void sysConfigureCoreIO(void) {
  * Return a single radio parameter record pointer
  * The radio parameter picks a single records.
  * The current system does not work if the same radio is listed multiple times.
- * TODO: Have an enumerate and check radio array on startup.
+ * TODO: Have an enumeration and check radio array on startup.
  */
 radio_param_t *pktGetRadioParameters(radio_unit_t radio) {
   (void)radio;

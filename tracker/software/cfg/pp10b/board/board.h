@@ -244,12 +244,14 @@
  */
 
 // IO
-#define LINE_GPIO_PIN               PAL_LINE(GPIOA, 8U)
+#define LINE_GPIO_PIN1              PAL_LINE(GPIOA, 8U)
+#define LINE_GPIO_PIN2              PAL_LINE(GPIOC, 15U)
 #define LINE_IO_TXD                 PAL_LINE(GPIOB, 10U)
 #define LINE_IO_RXD                 PAL_LINE(GPIOC, 11U)
-#define LINE_IO1                    LINE_GPIO_PIN
+#define LINE_IO1                    LINE_GPIO_PIN1
 #define LINE_IO2                    LINE_IO_TXD
 #define LINE_IO3                    LINE_IO_RXD
+#define LINE_IO4                    LINE_GPIO_PIN2
 
 // LED
 #define LINE_IO_BLUE                PAL_LINE(GPIOC, 1U)
@@ -257,8 +259,8 @@
 
 
 // GPS
-#define LINE_GPS_EN                 PAL_LINE(GPIOA, 15U)
-#define LINE_GPS_RESET              PAL_LINE(GPIOB, 14U)
+#define LINE_GPS_EN                 PAL_LINE(GPIOC, 5U)
+#define LINE_GPS_RESET              PAL_LINE(GPIOA, 15U)
 #define LINE_GPS_TXD                PAL_LINE(GPIOB, 13U)
 #define LINE_GPS_RXD                PAL_LINE(GPIOB, 12U)
 #define LINE_GPS_TIMEPULSE          PAL_LINE(GPIOB, 15U)
@@ -275,7 +277,7 @@
 // Camera pins
 #define LINE_CAM_XCLK               PAL_LINE(GPIOC, 9U)
 #define LINE_CAM_PCLK               PAL_LINE(GPIOC, 6U)
-#define LINE_CAM_VSYNC              PAL_LINE(GPIOC, 5U)
+#define LINE_CAM_VSYNC              PAL_LINE(GPIOB, 14U)
 #define LINE_CAM_D2                 PAL_LINE(GPIOA, 0U)
 #define LINE_CAM_D3                 PAL_LINE(GPIOA, 1U)
 #define LINE_CAM_D4                 PAL_LINE(GPIOA, 2U)

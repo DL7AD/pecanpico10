@@ -91,14 +91,15 @@ typedef struct qCorrFilter {
   q31_t             hysteresis;
   tone_t            prior_demod;
   tone_t            current_demod;
-  dsp_phase_t       phase_correction;
-  dsp_phase_t       phase_delta;
-  dsp_phase_t       search_rate;
-  dsp_phase_t       pll_comb_filter[QCORR_PLL_COMB_SIZE];
-  dsp_phase_t       pll_locked_integrator;
 #if  USE_QCORR_FRACTIONAL_PLL == TRUE
   int32_t           symbol_pll;
   int32_t           prior_pll;
+#else
+  dsp_phase_t       phase_delta;
+  dsp_phase_t       phase_correction;
+  dsp_phase_t       search_rate;
+  dsp_phase_t       pll_comb_filter[QCORR_PLL_COMB_SIZE];
+  dsp_phase_t       pll_locked_integrator;
 #endif
 
 } qcorr_decoder_t;

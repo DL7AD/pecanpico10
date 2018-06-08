@@ -195,6 +195,7 @@ extern "C" {
   void pktPowerUpRadio(radio_unit_t radio);
   void pktPowerDownRadio(radio_unit_t radio);
   radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq);
+  uint8_t pktReadIOlines(void);
 #ifdef __cplusplus
 }
 #endif

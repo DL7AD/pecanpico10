@@ -235,6 +235,6 @@ ULIBS = -lm $(CMSISLIB)/libarm_cortexM4l_math.a
 RULESPATH = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC
 include $(RULESPATH)/rules.mk
 
-burn:
+burn-$(PROJECT):
 	st-flash write build/$(PROJECT)/$(PROJECT).bin 0x08000000
 

@@ -278,6 +278,7 @@ static inline void pktResyncAFSKDecoder(AFSKDemodDriver *myDriver) {
 
 extern float32_t pre_filter_coeff_f32[];
 extern float32_t mag_filter_coeff_f32[];
+extern AFSKDemodDriver AFSKD1;
 
 #ifdef __cplusplus
 extern "C" {

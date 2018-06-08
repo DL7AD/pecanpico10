@@ -164,12 +164,11 @@ void reset_qcorr_all(AFSKDemodDriver *driver) {
   decoder->prior_demod = TONE_NONE;
   decoder->current_demod = TONE_NONE;
 
-  decoder->phase_correction = 0;
-
 #if  USE_QCORR_FRACTIONAL_PLL == TRUE
   decoder->symbol_pll = 0/*(int32_t)-1*/;
-#endif
+#else
   decoder->search_rate = 0;
+  decoder->phase_correction = 0;
   /*
    * Reset phase drift analysis.
    */
@@ -182,7 +181,7 @@ void reset_qcorr_all(AFSKDemodDriver *driver) {
   for(i = QCORR_PLL_COMB_SIZE - 1; i > 0; i--) {
     decoder->pll_comb_filter[i] = 0;
   }
-
+#endif
 }
 
 /**
@@ -219,7 +218,7 @@ q31_t push_qcorr_sample(AFSKDemodDriver *myDriver, bit_t sample) {
 
 /**
  * @brief   Called at each new sample to process correlation.
- * @notes   The correlation filters are run for each tone and phase.
+ * @notes   The correlation filters are run for each tone and IQ phase.
  * @notes   The magnitude of each tone is calculated.
  * @notes   The comparative strength of symbol tones is evaluated and updated.
  * @notes   If the symbol is complete then HDLC decoding is enabled.
@@ -266,7 +265,10 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
 #endif
   }
 
-  /* Wait for initial data to appear from pre-filter. */
+  /*
+   * Wait for initial data to be valid from pre-filter.
+   * TODO: Review validity of this since and the next delay.
+   */
   if(++decoder->filter_valid <
       PRE_FILTER_NUM_TAPS + DECODE_FILTER_LENGTH)
     return false;
@@ -277,7 +279,7 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
   /* Filter magnitude. */
 #if USE_QCORR_MAG_LPF == TRUE
   filter_qcorr_magnitude(myDriver);
-  /* Delay filter ready by mag filter size + pre-filter size. */
+  /* Further delay result by mag filter size. */
   if(decoder->filter_valid <
       (decoder->input_filter->filter_instance->numTaps
           + MAG_FILTER_NUM_TAPS))
@@ -318,9 +320,13 @@ bool get_qcorr_symbol_timing(AFSKDemodDriver *myDriver) {
 
 #if USE_QCORR_FRACTIONAL_PLL == TRUE
   decoder->prior_pll = decoder->symbol_pll;
+  /* PLL increment is size of uint32_t / decimation rate. */
 #define PLL_INCREMENT (UINT_MAX / SYMBOL_DECIMATION)
   decoder->symbol_pll = (int32_t)((uint32_t)(decoder->symbol_pll) + PLL_INCREMENT);
-  /* Check the symbol period was reached and return status. */
+  /*
+   * Check if the symbol period was reached and return status.
+   * The symbol period is reached when the PLL counter wraps around.
+   */
   return ((decoder->symbol_pll < 0) && (decoder->prior_pll > 0));
 #else
   /*
@@ -382,6 +388,11 @@ void update_qcorr_pll(AFSKDemodDriver *myDriver) {
 #endif
 }
 
+#if USE_QCORR_FRACTIONAL_PLL != TRUE
+/*
+ * Unused code relating to CIC based PLL management.
+ * TODO: Deprecate or fix this to replace floating point accumulator PLL.
+ */
 void placeholder_qcorr_pll(AFSKDemodDriver *myDriver) {
   qcorr_decoder_t *decoder = myDriver->tone_decoder;
   /*
@@ -462,6 +473,7 @@ void placeholder_qcorr_pll(AFSKDemodDriver *myDriver) {
   }
   return;
 }
+#endif /* #if USE_QCORR_FRACTIONAL_PLL == TRUE */
 
 /**
  * @brief Calculate magnitudes.
@@ -570,7 +582,10 @@ void filter_qcorr_magnitude(AFSKDemodDriver *myDriver) {
 }
 
 /**
- * @brief Called evaluate the tone strengths in the filters.
+ * @brief Called to evaluate the tone strengths in the filters.
+ * @notes Hysteresis is applied such that an unclear result is no change.
+ * @notes This can/will happen as the tone transitions from one to the other.
+ * @post  The tone memory will be set to the current strongest at this sample.
  *
  * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure.
  *
@@ -581,7 +596,7 @@ void evaluate_qcorr_tone(AFSKDemodDriver *myDriver) {
   q31_t delta;
 
   /*
-   * Check if the prior symbol tone is different to the current symbol tone.
+   * Check if the prior tone detection differs to the current tone.
    */
 
 #if USE_QCORR_MAG_LPF == TRUE
