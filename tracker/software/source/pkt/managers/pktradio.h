@@ -118,6 +118,7 @@ extern "C" {
                                             const radio_mode_t mode);
   bool      pktLLDresumeReceive(const radio_unit_t radio);
   bool      pktLLDsendPacket(radio_task_object_t *rto);
+  void      pktLLDcaptureReceiveStrength(packet_svc_t *handler);
   void      pktScheduleSendComplete(radio_task_object_t *rto,
                                 thread_t *thread);
   void      pktStartDecoder(const radio_unit_t radio);

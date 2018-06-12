@@ -100,9 +100,9 @@ typedef struct packetHandlerData {
   radio_task_object_t       radio_rx_config;
 
   /**
-   * @brief Radio is running a continuous receive.
+   * @brief Radio signal strength captured on CCA.
    */
-  //bool                      rx_active;
+  radio_signal_t            rx_stength;
 
   /**
    * @brief Radio transmitter operating parameters.

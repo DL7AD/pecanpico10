@@ -706,4 +706,21 @@ bool pktLLDresumeReceive(const radio_unit_t radio) {
   return result;
 }
 
+/**
+ * @brief   Captures the current signal strength from the radio.
+ * @notes   This is the API interface to the radio LLD.
+ * @notes   Currently just map directly to 446x driver.
+ * @notes   In future would implement a lookup and VMT to access radio methods.
+ * @notes   The function should be called directly from the RX front end handler.
+ * @notes   Calling from a deferred level will not capture the instantaneous level.
+ *
+ * @param[in] handler pointer to packet handler object.
+ *
+ * @notapi
+ */
+void pktLLDcaptureReceiveStrength(packet_svc_t *handler) {
+
+  chDbgAssert(handler != NULL, "invalid handler");
+  handler->rx_stength = Si446x_getCurrentRSSI(handler->radio);
+}
 /** @} */

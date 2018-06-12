@@ -44,6 +44,9 @@
 #define PWM_TERM_NO_QUEUE       3
 #define PWM_TERM_DECODE_ENDED   4
 #define PWM_TERM_DECODE_STOP    5
+#define PWM_TERM_NO_DATA        6
+#define PWM_TERM_QUEUE_LOCK     7
+#define PWM_INFO_QUEUE_SWAP     8
 
 /* ICU will be stopped if no activity for this number of seconds. */
 #define ICU_INACTIVITY_TIMEOUT  60
@@ -113,21 +116,62 @@ typedef union {
                                  * PWM_DATA_SLOTS];
 } radio_pwm_buffer_t;
 
-/* PWM FIFO object with embedded queue shared between ICU and decoder. */
-typedef struct {
-  /* For safety keep clear - where pool stores its free link. */
-  struct pool_header        link;
-  /* TODO: The next becomes a pointer to a buffer obtained from the heap. */
 #if USE_HEAP_PWM_BUFFER == TRUE
-  radio_pwm_buffer_t        *packed_buffer;
-#else
-  /* Allocate a buffer in the queue object. */
-  radio_pwm_buffer_t        packed_buffer;
+/* Forward declare struct. */
+typedef struct PWMobject radio_pwm_object_t;
+
+typedef struct PWMobject {
+  radio_pwm_buffer_t        buffer;
+
+  /* In linked mode the reference to the next PWM queue is saved here.
+   * The decoder will continue to process linked PWM queues until completion.
+   */
+  input_queue_t             queue;
+  radio_pwm_object_t        *next;
+} radio_pwm_object_t;
 #endif
+
+/*
+ * PWM FIFO object. Path between ICU and decoder during an AFSK decode.
+ */
+typedef struct {
+  /* For safety keep clear - where FIFO pool stores its free link. */
+  struct pool_header        link;
+#if USE_HEAP_PWM_BUFFER == TRUE
+  /*
+   * There are two PWM object pointers.
+   * One for the radio (producer) side.
+   * And one for the decoder (consumer) side.
+   */
+  radio_pwm_object_t        *radio_pwm_queue;
+  radio_pwm_object_t        *decode_pwm_queue;
+#else
+  /* Allocate a PWM buffer in the queue object. */
+  radio_pwm_buffer_t        packed_buffer;
+
+  /*
+   * This is the current radio queue object.
+   * In single queue mode PWM is written to a single queue only.
+   * The queue has a single large buffer and used for the entire PWM session.
+   *
+   * In linked buffer mode PWM can chain multiple smaller input buffers.
+   * After getting a new PWM buffer object the queue is re-initialized.
+   * The queue fill with further PWM then continues.
+   * As PWM buffers are consumed by the decoder they are recycled back to the pool.
+   * The radio PWM can then re-use those buffers which in theory reduces memory utilisation.
+   */
   input_queue_t             radio_pwm_queue;
+#endif
+  /*
+   * The semaphore controls the release of the PWM buffer and FIFO resources.
+   * In non-linked mode the buffer is enclosed within the FIFO object.
+   * In linked mode the last PWM buffer is protected along with the FIFO.
+   * The semaphore prevents any release during trailing PWM buffering.
+   * Trailing PWM is not used but the object(s) are still in use by the radio.
+   */
   binary_semaphore_t        sem;
   volatile eventflags_t     status;
-} radio_cca_fifo_t;
+} radio_pwm_fifo_t;
 
 /*===========================================================================*/
 /* Module inline functions.                                                  */

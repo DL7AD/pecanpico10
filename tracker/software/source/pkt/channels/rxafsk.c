@@ -531,7 +531,7 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
 
   /* Create the dynamic objects FIFO for the PWM data queue. */
   myDriver->the_pwm_fifo = chFactoryCreateObjectsFIFO(myDriver->pwm_fifo_name,
-                                        sizeof(radio_cca_fifo_t),
+                                        sizeof(radio_pwm_fifo_t),
                                         NUMBER_PWM_FIFOS, sizeof(msg_t));
 
   chDbgAssert(myDriver->the_pwm_fifo != NULL, "failed to create PWM FIFO");
@@ -542,13 +542,29 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
 
 #if USE_HEAP_PWM_BUFFER == TRUE
   /*
-   * TODO: Create mailbox to receive PWM objects.
-   * Then create a thread to receive them and allocate CCM heap based PWM buffer.
+   * Create a memory pool of PWM queue objects in heap.
+   * 1. Allocate heap memory
+   * 2. Initialise pool manager
+   * 3. Load heap with pool objects
    */
 
-  /* Create a PWM FIFO name for this radio. */
-  chsnprintf(myDriver->pwm_mbox_name, sizeof(myDriver->pwm_mbox_name),
-             "%s%02i", PKT_PWM_MBOX_PREFIX, rid);
+  /*
+   * Get heap to accommodate buffer objects.
+   * The size of the allocation is:
+   *  Number of slots for individual PWM entries in each chainable buffer
+   *  Multiplied by the number of total chainable buffers to be allocated
+   */
+  myDriver->pwm_queue_heap = chHeapAlloc(NULL,
+        sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS);
+  chDbgAssert(myDriver->pwm_queue_heap != NULL, "failed to create PWM heap");
+  /* Initialize the memory pool to manage buffer objects. */
+  chPoolObjectInitAligned(&myDriver->pwm_buffer_pool,
+                          sizeof(radio_pwm_object_t),
+                          sizeof(msg_t), NULL);
+  /* Load the memory pool with buffer objects. */
+  chPoolLoadArray(&myDriver->pwm_buffer_pool,
+                  myDriver->pwm_queue_heap,
+                  PWM_DATA_BUFFERS);
 #endif
 
   /* Get the objects FIFO . */
@@ -610,9 +626,10 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
 
 /**
  * @brief   Release AFSK resources.
- *
+ * @pre     All PWM buffers and FIFO objects must be free.
  * @post    The ICU is stopped.
  * @post    The dynamic object FIFO for PWM is released.
+ * @post    The PWM queue pool heap is released.
  *
  * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
  *
@@ -629,20 +646,20 @@ void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver) {
   /* Detach ICU from this AFSK driver. */
   pktDetachICU(myDriver->icudriver);
 
+  /* Release the PWM FIFO. */
   chFactoryReleaseObjectsFIFO(myDriver->the_pwm_fifo);
   myDriver->the_pwm_fifo = NULL;
   myDriver->pwm_fifo_pool = NULL;
+
+#if USE_HEAP_PWM_BUFFER == TRUE
+  /*
+   *  No memory pool objects should be in use.
+   *  So just release the PWM pool heap.
+   */
+  chHeapFree(myDriver->pwm_queue_heap);
+  myDriver->pwm_queue_heap = NULL;
+#endif
 }
-
-/*===========================================================================*/
-/* AFSK dispatcher thread.                                                   */
-/* WIP as a dispatcher to assign buffers for PWM.                            */
-/*===========================================================================*/
-
-THD_FUNCTION(pktAFSKDispatcher, arg) {
-  (void)arg;
-} /* End thread. */
-
 
 /*===========================================================================*/
 /* AFSK Decoder thread.                                                      */
@@ -737,7 +754,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
       }  /* End case DECODER_IDLE. */
 
       case DECODER_POLL: {
-        radio_cca_fifo_t *myRadioFIFO;
+        radio_pwm_fifo_t *myRadioFIFO;
         msg_t fifo_msg = chFifoReceiveObjectTimeout(myDriver->pwm_fifo_pool,
                              (void *)&myRadioFIFO,
                              TIME_MS2I(DECODER_POLL_TIME));
@@ -761,6 +778,10 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
         /* Set current PWM queue object. */
         myDriver->active_demod_object = myRadioFIFO;
+#if USE_HEAP_PWM_BUFFER == TRUE
+        /* Set the decode queue/buffer pointer. */
+        myRadioFIFO->decode_pwm_queue = myRadioFIFO->radio_pwm_queue;
+#endif
 
         /* Check if prior packet buffer released. */
         chDbgCheck(myHandler->active_packet_object == NULL);
@@ -796,19 +817,12 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
          */
         //memset(myPktBuffer->buffer, 0x55, myPktBuffer->buffer_size);
 
-#if USE_HEAP_PWM_BUFFER == TRUE
-        /* TODO: Alternative is to run each decoder in a thread.
-         * That can be the thread that becomes the callback thread too.
-         * So instead of running decode in a single AFSK decode thread spawn one per PWM.
-         * Sounds like a good idea....
-         * Most of the code exists and can be refactored and migrated.
-         */
-#endif
         myDriver->decoder_state = DECODER_ACTIVE;
 
 #if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
           char buf[80];
-          int out = chsnprintf(buf, sizeof(buf),"\r\n======= START ===========\r\n");
+          int out = chsnprintf(buf, sizeof(buf),
+                               "\r\n======= START ===========\r\n");
           chnWrite(pkt_out, (uint8_t *)buf, out);
 #endif
         /* Increase thread priority. */
@@ -821,11 +835,17 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
       case DECODER_ACTIVE: {
         /*
          * We have a packet being processed.
-         * Wait for PWM data from shared queue.
+         * Get PWM data from PWM queue.
          */
-        input_queue_t *myQueue =
-            &myDriver->active_demod_object->radio_pwm_queue;
+        radio_pwm_fifo_t *myFIFO = myDriver->active_demod_object;
 
+#if USE_HEAP_PWM_BUFFER == TRUE
+        /* Get current PWM queue object address. */
+        input_queue_t *myQueue = &myFIFO->decode_pwm_queue->queue;
+#else
+        /* Use the common PWM -> decoder queue. */
+        input_queue_t *myQueue = &myFIFO->radio_pwm_queue;
+#endif
         chDbgAssert(myQueue != NULL, "no queue assigned");
 
         byte_packed_pwm_t data;
@@ -849,6 +869,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /* look for "in band" signal in radio data. */
           if(radio.pwm.impulse == PWM_IN_BAND_PREFIX) {
             switch(radio.pwm.valley) {
+            case PWM_TERM_NO_DATA:
             case PWM_TERM_DECODE_ENDED:
             case PWM_TERM_DECODE_STOP:
             case PWM_TERM_CCA_CLOSE: {
@@ -857,6 +878,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
               continue; /* From this case. */
             } /* End case 0. */
 
+            case PWM_TERM_QUEUE_LOCK:
             case PWM_TERM_ICU_OVERFLOW:
             case PWM_TERM_NO_QUEUE:
             case PWM_TERM_QUEUE_FULL: {
@@ -866,6 +888,26 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
               myDriver->decoder_state = DECODER_ERROR;
               continue; /* From this case. */
             } /* End case 1. */
+
+#if USE_HEAP_PWM_BUFFER == TRUE
+            case PWM_INFO_QUEUE_SWAP: {
+              /* Radio has made a queue switch due to full buffer. */
+              /* Get reference to next queue/buffer object. */
+              radio_pwm_object_t *nextObject = myFIFO->decode_pwm_queue->next;
+              if(nextObject != NULL) {
+                /*
+                 *  Release the now empty prior buffer object back to the pool.
+                 *  Switch to the next queue/buffer object for decoding.
+                 */
+                chPoolFree(&myDriver->pwm_buffer_pool, myFIFO->decode_pwm_queue);
+                myFIFO->decode_pwm_queue = nextObject;
+                myQueue = &nextObject->queue;
+              } else {
+                myDriver->decoder_state = DECODER_ERROR;
+              }
+              continue;
+            }
+#endif
 
             default: {
               /* Unknown flag from PWM. */
@@ -904,7 +946,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             }
           } /* End switch. */
         } /* End data == sizeof PWM. */
-        /* PWM data timeout. */
+
+
+        /* PWM stream wait timeout. */
         pktAddEventFlags(myHandler, EVT_PWM_STREAM_TIMEOUT);
         myDriver->active_demod_object->status |= EVT_PWM_STREAM_TIMEOUT;
         myDriver->decoder_state = DECODER_TIMEOUT;
@@ -931,12 +975,12 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /*
          * Return PWM FIFO to pool if there is one active.
          */
-        radio_cca_fifo_t *myFIFO = myDriver->active_demod_object;
+        radio_pwm_fifo_t *myFIFO = myDriver->active_demod_object;
         if(myFIFO != NULL) {
 
           /*
-           * Wait for queue object to be released by PWM.
-           * Normally this is the case.
+           * Wait for FIFO object to be released by PWM.
+           * Normally this will not suspend as decoding is slow.
            * If can be a forced release by semaphore reset.
            * TODO: This may happen if the watchdog system forces reset.
            * TBD.
@@ -944,10 +988,16 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           (void)chBSemWait(&myFIFO->sem);
 
 #if USE_HEAP_PWM_BUFFER == TRUE
-          /* Release the buffer memory back to the heap. */
-          chHeapFree(myFIFO->packed_buffer);
+          /* Release queue/buffer objects back to the pool. */
+          radio_pwm_object_t *object = myFIFO->decode_pwm_queue;
+          radio_pwm_object_t *next;
+          do {
+            next = object->next;
+            chPoolFree(&myDriver->pwm_buffer_pool, object);
+          } while((object = next) != NULL);
 #endif
           myDriver->active_demod_object = NULL;
+          /* Session is now closed. Release the FIFO object. */
           chFifoReturnObject(myDriver->pwm_fifo_pool, myFIFO);
         }
 
@@ -1015,7 +1065,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         } /* Active packet object != NULL. */
         myDriver->decoder_state = DECODER_RESET;
         break;
+
         /*
+         * TODO: Deprecate
          * Only exit suspend on posted event.
          */
         eventmask_t evtf;

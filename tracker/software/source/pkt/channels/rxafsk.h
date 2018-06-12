@@ -212,6 +212,19 @@ typedef struct AFSK_data {
    */
   rx_icu_state_t            icustate;
 
+  /**
+   * @brief PWM queue heap memory.
+   */
+  void                      *pwm_queue_heap;
+
+  /**
+   * @brief PWM buffer object pool manager.
+   */
+  memory_pool_t             pwm_buffer_pool;
+
+  /**
+   * @brief PWM FIFO manager name.
+   */
   char                      pwm_fifo_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
 
   /**
@@ -227,12 +240,12 @@ typedef struct AFSK_data {
   /**
    * @brief Current radio PWM fifo object.
    */
-  radio_cca_fifo_t          *active_radio_object;
+  radio_pwm_fifo_t          *active_radio_object;
 
   /**
    * @brief Current demod PWM fifo object.
    */
-  radio_cca_fifo_t          *active_demod_object;
+  radio_pwm_fifo_t          *active_demod_object;
 
   /**
    * @brief current symbol frequency.

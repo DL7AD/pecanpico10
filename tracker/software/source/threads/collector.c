@@ -75,7 +75,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
 
   /*
    * Switch on GPS if...
-   * Position/time is requested by a service and power is available.
+   *  position/time is requested by a service and power is available.
    */
   uint16_t batt = stm32_get_vbat();
   if(batt < conf_sram.gps_on_vbat) {

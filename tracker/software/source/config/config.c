@@ -168,12 +168,8 @@ const conf_t conf_flash_default = {
             // If valid position is not stored then default lat, lon and alt will be used.
             // If RTC time is invalid then GPS will be enabled to get time.
             // Once RTC is set then GPS is released and can be switched off.
-            // This will be the case if no other position thread is using it.
+            // This will be the case if no other position thread is using GPS.
             .gps = false,
-            // A set location if GPS not enabled or unable to acquire lock.
-            //.lat = -337331175, // Degrees (expressed in 1e-7 form)
-            //.lon = 1511143478, // Degrees (expressed in 1e-7 form)
-            //.alt = 144, // Altitude in metres
             // How often to send telemetry config (TODO: Move out to global level)
             .tel_enc_cycle = TIME_S2I(60 * 60 * 2)
         },

@@ -121,8 +121,16 @@
 #define USE_HEAP_PWM_BUFFER         FALSE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
+#if USE_HEAP_PWM_BUFFER == TRUE
+#define NUMBER_PWM_FIFOS            3U
+/* Number of PWM data entries per queue object. */
+#define PWM_DATA_SLOTS              200
+/* Number of PWM queue objects in total. */
+#define PWM_DATA_BUFFERS            10
+#else
 #define NUMBER_PWM_FIFOS            3U
 #define PWM_DATA_SLOTS              6000
+#endif
 
 /* Number of frame receive buffers. */
 #define NUMBER_RX_PKT_BUFFERS        3U
