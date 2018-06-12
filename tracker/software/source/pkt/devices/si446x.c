@@ -27,9 +27,9 @@ static const SPIConfig ls_spicfg = {
     .cr1    = SPI_CR1_MSTR
 };
 
-static void Si446x_write(const uint8_t* txData, uint32_t len) {
+static bool Si446x_write(const uint8_t* txData, uint32_t len) {
     // Transmit data by SPI
-  /* TODO: Add radio unit ID and get specific radio SPI driver. */
+    /* TODO: Add radio unit ID and get specific radio SPI driver. */
     uint8_t null_spi[len];
 
     /* Acquire bus and then start SPI. */
@@ -37,12 +37,20 @@ static void Si446x_write(const uint8_t* txData, uint32_t len) {
     spiStart(PKT_RADIO_SPI, &ls_spicfg);
 
     /* Poll for CTS. */
+    uint8_t timeout = 100;
     uint8_t rx_ready[] = {Si446x_READ_CMD_BUFF, 0x00};
     do {
       spiSelect(PKT_RADIO_SPI);
       spiExchange(PKT_RADIO_SPI, 1, rx_ready, &rx_ready[1]);
       spiUnselect(PKT_RADIO_SPI);
-    } while(rx_ready[1] != Si446x_COMMAND_CTS);
+      if(timeout != 100)
+        chThdSleep(TIME_MS2I(1));
+    } while(rx_ready[1] != Si446x_COMMAND_CTS && timeout--);
+
+    if(!timeout) {
+      TRACE_ERROR("SI   > CTS not received");
+      return false;
+    }
 
     /* Transfer data. Discard read back. */
     spiSelect(PKT_RADIO_SPI);
@@ -52,14 +60,16 @@ static void Si446x_write(const uint8_t* txData, uint32_t len) {
     /* Stop SPI and relinquish bus. */
     spiStop(PKT_RADIO_SPI);
     spiReleaseBus(PKT_RADIO_SPI);
+
+    return true;
 }
 
 /**
  * Read data from Si446x. First CTS is polled.
  */
-static void Si446x_read(const uint8_t* txData, uint32_t txlen, uint8_t* rxData, uint32_t rxlen) {
+static bool Si446x_read(const uint8_t* txData, uint32_t txlen, uint8_t* rxData, uint32_t rxlen) {
     // Transmit data by SPI
-  /* TODO: Add radio unit ID and get SPI configuration accordingly. */
+    /* TODO: Add radio unit ID and get SPI configuration accordingly. */
     uint8_t null_spi[txlen];
 
     /* Acquire bus and then start SPI. */
@@ -67,27 +77,43 @@ static void Si446x_read(const uint8_t* txData, uint32_t txlen, uint8_t* rxData, 
     spiStart(PKT_RADIO_SPI, &ls_spicfg);
 
     /* Poll for CTS. */
+    uint8_t timeout = 100;
     uint8_t rx_ready[] = {Si446x_READ_CMD_BUFF, 0x00};
     do {
       spiSelect(PKT_RADIO_SPI);
       spiExchange(PKT_RADIO_SPI, 1, rx_ready, &rx_ready[1]);
       spiUnselect(PKT_RADIO_SPI);
-    } while(rx_ready[1] != Si446x_COMMAND_CTS);
+      if(timeout != 100)
+        chThdSleep(TIME_MS2I(1));
+    } while(rx_ready[1] != Si446x_COMMAND_CTS && timeout--);
+
+    if(!timeout) {
+      TRACE_ERROR("SI   > CTS not received");
+      return false;
+    }
 
     /* Write data. Discard read back. */
     spiSelect(PKT_RADIO_SPI);
     spiExchange(PKT_RADIO_SPI, txlen, txData, null_spi);
 
     /* Poll for read data. */
+    timeout = 100;
     do {
       spiUnselect(PKT_RADIO_SPI);
       spiSelect(PKT_RADIO_SPI);
       spiExchange(PKT_RADIO_SPI, rxlen, rx_ready, rxData);
-    } while(rxData[1] != Si446x_COMMAND_CTS);
+    } while(rxData[1] != Si446x_COMMAND_CTS && timeout--);
+
+    if(!timeout) {
+      TRACE_ERROR("SI   > CTS not received");
+      return false;
+    }
 
     /* Stop SPI and relinquish bus. */
     spiStop(PKT_RADIO_SPI);
     spiReleaseBus(PKT_RADIO_SPI);
+
+    return true;
 }
 
 static void Si446x_setProperty8(uint16_t reg, uint8_t val) {
