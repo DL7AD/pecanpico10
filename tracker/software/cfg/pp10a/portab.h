@@ -131,7 +131,7 @@
 /* Number of PWM data entries per queue object. */
 #define PWM_DATA_SLOTS              200
 /* Number of PWM queue objects in total. */
-#define PWM_DATA_BUFFERS            10
+#define PWM_DATA_BUFFERS            90
 #else
 #define NUMBER_PWM_FIFOS            3U
 #define PWM_DATA_SLOTS              6000

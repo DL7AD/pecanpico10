@@ -691,48 +691,60 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
   /* TODO: WIP to generalize by parsing out the port # and operation. */
   if(!strcmp(argv[0], "io1:1")) {
     TRACE_INFO("RX   > Message: GPIO set IO1 HIGH");
-    palSetLineMode(LINE_IO1, PAL_MODE_OUTPUT_PUSHPULL);
-    palSetLine(LINE_IO1);
+    pktSetGPIOlineMode(LINE_IO1, PAL_MODE_OUTPUT_PUSHPULL);
+    pktWriteGPIOline(LINE_IO1, PAL_HIGH);
     return MSG_OK;
   }
 
   if(!strcmp(argv[0], "io1:0")) {
     TRACE_INFO("RX   > Message: GPIO set IO1 LOW");
-    palSetLineMode(LINE_IO1, PAL_MODE_OUTPUT_PUSHPULL);
-    palClearLine(LINE_IO1);
+    pktSetGPIOlineMode(LINE_IO1, PAL_MODE_OUTPUT_PUSHPULL);
+    pktWriteGPIOline(LINE_IO1, PAL_LOW);
     return MSG_OK;
   }
 
-#if ENABLE_EXTERNAL_I2C != TRUE
-
   if(!strcmp(argv[0], "io2:1")) {
     TRACE_INFO("RX   > Message: GPIO set IO2 HIGH");
-    palSetLineMode(LINE_IO2, PAL_MODE_OUTPUT_PUSHPULL);
-    palSetLine(LINE_IO2);
+    pktSetGPIOlineMode(LINE_IO2, PAL_MODE_OUTPUT_PUSHPULL);
+    pktWriteGPIOline(LINE_IO2, PAL_HIGH);
     return MSG_OK;
   }
 
   if(!strcmp(argv[0], "io2:0")) {
     TRACE_INFO("RX   > Message: GPIO set IO2 LOW");
-    palSetLineMode(LINE_IO2, PAL_MODE_OUTPUT_PUSHPULL);
-    palClearLine(LINE_IO2);
+    pktSetGPIOlineMode(LINE_IO2, PAL_MODE_OUTPUT_PUSHPULL);
+    pktWriteGPIOline(LINE_IO2, PAL_LOW);
     return MSG_OK;
   }
 
   if(!strcmp(argv[0], "io3:1")) {
     TRACE_INFO("RX   > Message: GPIO set IO3 HIGH");
-    palSetLineMode(LINE_IO3, PAL_MODE_OUTPUT_PUSHPULL);
-    palSetLine(LINE_IO3);
+    pktSetGPIOlineMode(LINE_IO3, PAL_MODE_OUTPUT_PUSHPULL);
+    pktWriteGPIOline(LINE_IO3, PAL_HIGH);
     return MSG_OK;
   }
 
   if(!strcmp(argv[0], "io3:0")) {
     TRACE_INFO("RX   > Message: GPIO set IO3 LOW");
-    palSetLineMode(LINE_IO3, PAL_MODE_OUTPUT_PUSHPULL);
-    palClearLine(LINE_IO3);
+    pktSetGPIOlineMode(LINE_IO3, PAL_MODE_OUTPUT_PUSHPULL);
+    pktWriteGPIOline(LINE_IO3, PAL_LOW);
     return MSG_OK;
   }
-#endif
+
+
+  if(!strcmp(argv[0], "io4:1")) {
+    TRACE_INFO("RX   > Message: GPIO set IO4 HIGH");
+    pktSetGPIOlineMode(LINE_IO4, PAL_MODE_OUTPUT_PUSHPULL);
+    pktWriteGPIOline(LINE_IO4, PAL_HIGH);
+    return MSG_OK;
+  }
+
+  if(!strcmp(argv[0], "io4:0")) {
+    TRACE_INFO("RX   > Message: GPIO set IO4 LOW");
+    pktSetGPIOlineMode(LINE_IO4, PAL_MODE_OUTPUT_PUSHPULL);
+    pktWriteGPIOline(LINE_IO4, PAL_LOW);
+    return MSG_OK;
+  }
 
   /* TODO: Parse out IO number and reduce above and below ugly DRY code. */
   packet_t pp;
@@ -742,8 +754,9 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
       /* TODO: Need to read mode and if not output then report as "input" etc. */
       chsnprintf(buf, sizeof(buf),
                      "IO1 is %s ",
-                     (palReadLine(LINE_IO1) == PAL_HIGH) ? "HIGH" : "LOW");
-      TRACE_INFO("RX   > Message: GPIO query IO1 is %s", (palReadLine(LINE_IO1) == PAL_HIGH) ? "HIGH" : "LOW");
+                     (pktReadGPIOline(LINE_IO1) == PAL_HIGH) ? "HIGH" : "LOW");
+      TRACE_INFO("RX   > Message: GPIO query IO1 is %s",
+                 (pktReadGPIOline(LINE_IO1) == PAL_HIGH) ? "HIGH" : "LOW");
       pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
       if(pp == NULL) {
         TRACE_WARN("RX   > No free packet objects or badly formed message");
@@ -752,14 +765,14 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
       break;
     }
 
-#if ENABLE_EXTERNAL_I2C != TRUE
     if(!strcmp(argv[0], "io2:?")) {
       char buf[AX25_MAX_APRS_MSG_LEN + 1];
       /* TODO: Need to read mode and if not output then report as "input" etc. */
       chsnprintf(buf, sizeof(buf),
                      "IO2 is %s ",
-                     (palReadLine(LINE_IO2) == PAL_HIGH) ? "HIGH" : "LOW");
-      TRACE_INFO("RX   > Message: GPIO query IO2 is %s", (palReadLine(LINE_IO2) == PAL_HIGH) ? "HIGH" : "LOW");
+                     (pktReadGPIOline(LINE_IO2) == PAL_HIGH) ? "HIGH" : "LOW");
+      TRACE_INFO("RX   > Message: GPIO query IO2 is %s",
+                 (pktReadGPIOline(LINE_IO2) == PAL_HIGH) ? "HIGH" : "LOW");
       pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
       if(pp == NULL) {
         TRACE_WARN("RX   > No free packet objects or badly formed message");
@@ -773,8 +786,25 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
       /* TODO: Need to read mode and if not output then report as "input" etc. */
       chsnprintf(buf, sizeof(buf),
                      "IO3 is %s ",
-                     (palReadLine(LINE_IO3) == PAL_HIGH) ? "HIGH" : "LOW");
-      TRACE_INFO("RX   > Message: GPIO query IO3 is %s", (palReadLine(LINE_IO3) == PAL_HIGH) ? "HIGH" : "LOW");
+                     (pktReadGPIOline(LINE_IO3) == PAL_HIGH) ? "HIGH" : "LOW");
+      TRACE_INFO("RX   > Message: GPIO query IO3 is %s",
+                 (pktReadGPIOline(LINE_IO3) == PAL_HIGH) ? "HIGH" : "LOW");
+      pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
+      if(pp == NULL) {
+        TRACE_WARN("RX   > No free packet objects or badly formed message");
+        return MSG_ERROR;
+      }
+      break;
+    }
+
+    if(!strcmp(argv[0], "io4:?")) {
+      char buf[AX25_MAX_APRS_MSG_LEN + 1];
+      /* TODO: Need to read mode and if not output then report as "input" etc. */
+      chsnprintf(buf, sizeof(buf),
+                     "IO4 is %s ",
+                     (pktReadGPIOline(LINE_IO4) == PAL_HIGH) ? "HIGH" : "LOW");
+      TRACE_INFO("RX   > Message: GPIO query IO4 is %s",
+                 (pktReadGPIOline(LINE_IO4) == PAL_HIGH) ? "HIGH" : "LOW");
       pp = aprs_encode_message(id->call, id->path, id->src, buf, false);
       if(pp == NULL) {
         TRACE_WARN("RX   > No free packet objects or badly formed message");
@@ -784,7 +814,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
     }
     /* No known IO port found. */
     return MSG_ERROR;
-#endif
+
   } while(true);
   if(!transmitOnRadio(pp,
               id->freq,
@@ -1280,21 +1310,15 @@ packet_t aprs_encode_telemetry_configuration(const char *originator,
                                              uint8_t type) {
 	switch(type) {
 		case 0:	return aprs_encode_message(originator, path, destination,
-#if     ENABLE_EXTERNAL_I2C == TRUE
-		      "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure,IO1", false);
-#else
-              "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure,IO1,IO2,IO3", false);
-#endif
+                 "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure,"
+                 "IO1,IO2,IO3,IO4", false);
 		case 1: return aprs_encode_message(originator, path, destination,
-#if     ENABLE_EXTERNAL_I2C == TRUE
-		      "UNIT.V,V,W,degC,Pa,1", false);
-#else
-              "UNIT.V,V,W,degC,Pa,1,1,1", false);
-#endif
+                 "UNIT.V,V,W,degC,Pa,1,1,1,1", false);
 		case 2: return aprs_encode_message(originator, path, destination,
-                 "EQNS.0,0.001,0,0,0.001,0,0,0.001,-4.096,0,0.1,-100,0,12.5,500", false);
+                 "EQNS.0,0.001,0,0,0.001,0,0,0.001,"
+                 "-4.096,0,0.1,-100,0,12.5,500", false);
 		case 3: return aprs_encode_message(originator, path, destination,
-                 "BITS.11111111,Pecan Pico", false);
+                 "BITS.1111,Pecan Pico", false);
 		default: return NULL;
 	}
 }
