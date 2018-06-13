@@ -10,6 +10,7 @@
 #include "commands.h"
 #include "pflash.h"
 #include "ublox.h"
+#include <string.h>
 
 static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
 
@@ -26,6 +27,7 @@ const ShellCommand commands[] = {
     {"mem", usb_cmd_ccm_heap},
 #endif
     {"sats", usb_cmd_get_gps_sat_info},
+    {"error_list", usb_cmd_get_error_list},
 	{NULL, NULL}
 };
 
@@ -282,5 +284,24 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
                     conf_sram.aprs.digi.radio_conf.cca);
 
 	chprintf(chp, "Message sent!\r\n");
+}
+
+void usb_cmd_get_error_list(BaseSequentialStream *chp, int argc, char *argv[])
+{
+	(void)argc;
+	(void)argv;
+
+	uint8_t cntr = 0;
+	for(uint8_t i=0; i<ERROR_LIST_SIZE; i++)
+	{
+		if(strlen((char*)error_list[i]) > 0) {
+			chprintf(chp, "%s\r\n", error_list[i]);
+			cntr++;
+		}
+	}
+
+	if(!cntr) {
+		chprintf(chp, "No errors recorded\r\n");
+	}
 }
 

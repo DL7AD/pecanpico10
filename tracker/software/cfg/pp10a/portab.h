@@ -123,7 +123,7 @@
  * Stratgey: Allocate PWM buffers from a CCM heap/pool.
  * Requires some special handling in PWM and AFSK decoder TBI.
  */
-#define USE_HEAP_PWM_BUFFER         TRUE
+#define USE_HEAP_PWM_BUFFER         FALSE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
 #if USE_HEAP_PWM_BUFFER == TRUE
