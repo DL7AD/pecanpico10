@@ -242,9 +242,9 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
  *
  * @return              The operation status.
  * @retval MSG_OK       The PWM entry has been queued.
- * @retval MSG_TIMEOUT  The queue is full.
- * @retval MSG_RESET    The last queue slot is reserved for in-band signaling.
- *                      The data is not an in-band signal.
+ * @retval MSG_RESET    One slot remains which is reserved for an in-band signal.
+ * @retval MSG_TIMEOUT  The queue is full for normal PWM data writes.
+ *
  *
  * @api
  */
@@ -253,7 +253,9 @@ static inline msg_t pktWritePWMQueueI(input_queue_t *queue,
 
   /* Check if there is only one slot left. */
   if(iqGetEmptyI(queue) == sizeof(byte_packed_pwm_t)) {
-    if(pack.bytes[0] != PWM_IN_BAND_PREFIX)
+    array_min_pwm_counts_t data;
+    pktUnpackPWMData(pack, &data);
+    if(data.pwm.impulse != PWM_IN_BAND_PREFIX)
       return MSG_RESET;
   }
 

@@ -554,8 +554,14 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
    *  Number of slots for individual PWM entries in each chainable buffer
    *  Multiplied by the number of total chainable buffers to be allocated
    */
+#if USE_CCM_BASED_HEAP == TRUE
+  extern memory_heap_t *ccm_heap;
+  myDriver->pwm_queue_heap = chHeapAlloc(ccm_heap,
+        sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS);
+#else
   myDriver->pwm_queue_heap = chHeapAlloc(NULL,
         sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS);
+#endif
   chDbgAssert(myDriver->pwm_queue_heap != NULL, "failed to create PWM heap");
   /* Initialize the memory pool to manage buffer objects. */
   chPoolObjectInitAligned(&myDriver->pwm_buffer_pool,
@@ -891,7 +897,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
 #if USE_HEAP_PWM_BUFFER == TRUE
             case PWM_INFO_QUEUE_SWAP: {
-              /* Radio has made a queue switch due to full buffer. */
+              /* Radio made a queue switch due to full buffer. */
               /* Get reference to next queue/buffer object. */
               radio_pwm_object_t *nextObject = myFIFO->decode_pwm_queue->next;
               if(nextObject != NULL) {
@@ -903,6 +909,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                 myFIFO->decode_pwm_queue = nextObject;
                 myQueue = &nextObject->queue;
               } else {
+                /* Reset state will release the queue/buffer object. */
                 myDriver->decoder_state = DECODER_ERROR;
               }
               continue;

@@ -663,7 +663,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
   msg_t qs = pktQueuePWMDataI(myICU);
 
   if(qs == MSG_RESET) {
-    /* Space for only one entry remains in the buffer. */
+    /* Data not written. Space for one in-band entry available. */
 #if USE_HEAP_PWM_BUFFER == TRUE
     /* Get another queue/buffer object. */
     radio_pwm_object_t *pwm_object = chPoolAllocI(&myDemod->pwm_buffer_pool);
@@ -680,23 +680,23 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
       /* The new object has no following object yet. */
       pwm_object->next = NULL;
 
-      /* Write the in-band queue swap flag. */
+      /* Write the in-band queue swap message. */
   #if USE_12_BIT_PWM == TRUE
       byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INFO_QUEUE_SWAP, 0}};
   #else
       byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INFO_QUEUE_SWAP}};
   #endif
       msg_t qs = pktWritePWMQueueI(&myObject->queue, pack);
-      if(qs == MSG_TIMEOUT) {
+/*      if(qs == MSG_TIMEOUT) {
         pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
         pktClosePWMChannelI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);
         chSysUnlockFromISR();
         return;
-      }
-      /* Switch the new object into use. */
+      }*/
+      /* Set the new object as the PWM queue/buffer. */
       myDemod->active_radio_object->radio_pwm_queue = pwm_object;
 
-      /* Write the PWM to the new buffer. */
+      /* Write the PWM data to the new buffer. */
       qs = pktQueuePWMDataI(myICU);
       if(qs == MSG_OK) {
         chSysUnlockFromISR();
@@ -707,7 +707,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 
     /*
      * Queue has space for one entry only.
-     * Close channel and write in-band flag indicating queue full.
+     * Close channel and write in-band message indicating queue full.
      */
     pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
     pktClosePWMChannelI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);

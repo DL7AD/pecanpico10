@@ -119,11 +119,13 @@
 #define USE_12_BIT_PWM              FALSE
 
 /*
- * TODO: This will save a lot of system heap as PWM buffers are large
- * Stratgey: Allocate PWM buffers from a CCM heap/pool.
- * Requires some special handling in PWM and AFSK decoder TBI.
+ * Allocate PWM buffers from a CCM heap/pool.
+ * Requires fragmented queue/buffer objects.
+ * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
+ * Decoder side swaps queue/buffer on in-band message and reticulates prior queue/buffer to pool.
  */
-#define USE_HEAP_PWM_BUFFER         FALSE
+#define USE_HEAP_PWM_BUFFER         TRUE
+#define USE_CCM_BASED_HEAP          TRUE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
 #if USE_HEAP_PWM_BUFFER == TRUE
@@ -131,7 +133,7 @@
 /* Number of PWM data entries per queue object. */
 #define PWM_DATA_SLOTS              200
 /* Number of PWM queue objects in total. */
-#define PWM_DATA_BUFFERS            90
+#define PWM_DATA_BUFFERS            30
 #else
 #define NUMBER_PWM_FIFOS            3U
 #define PWM_DATA_SLOTS              6000
