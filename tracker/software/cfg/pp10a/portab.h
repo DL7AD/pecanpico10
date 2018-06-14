@@ -68,6 +68,7 @@
 #define LINE_DECODER_LED            LINE_IO_BLUE
 #define LINE_SQUELCH_LED            PAL_NOLINE
 #define LINE_NO_FIFO_LED            PAL_NOLINE
+#define LINE_NO_BUFF_LED            PAL_NOLINE
 
 /* Diagnostic PWM mirror port. */
 #define LINE_PWM_MIRROR             PAL_NOLINE
@@ -124,7 +125,7 @@
  * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
  * Decoder side swaps queue/buffer on in-band message and reticulates prior queue/buffer to pool.
  */
-#define USE_HEAP_PWM_BUFFER         TRUE
+#define USE_HEAP_PWM_BUFFER         FALSE
 #define USE_CCM_BASED_HEAP          TRUE
 
 /* Definitions for ICU FIFO implemented using chfactory. */

@@ -239,8 +239,13 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
       myDemod->active_radio_object->status |= EVT_PWM_QUEUE_OVERRUN;
       pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_OVERRUN);
     }
-    /* Release the decoder thread if waiting. */
+    /* Allow the decoder thread to release the stream FIFO object. */
     chBSemSignalI(&myDemod->active_radio_object->sem);
+
+#if USE_HEAP_PWM_BUFFER == TRUE
+    /* Remove the PWM object reference. */
+    myDemod->active_radio_object->radio_pwm_queue = NULL;
+#endif
     /* Remove object reference. */
     myDemod->active_radio_object = NULL;
   } else {
@@ -276,7 +281,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
      * Shouldn't happen unless CCA has not triggered an EXTI trailing edge.
      * For now just flag that an error condition happened.
      */
-    pktClosePWMChannelI(myICU, EVT_RADIO_CCA_FIFO_ERR, PWM_TERM_NO_QUEUE);
+    pktClosePWMChannelI(myICU, EVT_RADIO_CCA_FIFO_ERR, PWM_TERM_QUEUE_ERR);
     return;
   }
   /* Normal CCA handling. */
@@ -306,38 +311,40 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
    * The object is set as the current radio PWM side object.
    * This will be replaced as PWM arrives and the buffer becomes full.
    *
-   * The initial memory pool object is set in the queue for the decoder.
-   * The control object is then sent to the decoder via the FIFO mailbox.
-   *
    * As PWM data arrives the memory pool object buffer is filled with PWM data.
    * When the current buffer is full a new object is obtained from the pool.
-   * The queue is initialized and points to the objects internal buffer.
+   * The embedded queue is initialized and points to the objects internal buffer.
    * The new object is chained to the prior buffer object.
    * The pointer is updated to point to the new object
    *
    * The PWM interrupt handler then continues to fill the new buffer.
-   * As the decoder completes a pool buffer it frees the object back to the pool.
    *
    * Each memory pool object contains:
-   * 1. An input queue object
+   * 1. An embedded input queue object
    * 2. A buffer associated with the input queue
-   * 3. A pointer to the next memory pool object (or NULL if none)
+   * 3. A pointer to the next object (or NULL if none)
    *
    */
+
   radio_pwm_object_t *pwm_object = chPoolAllocI(&myDemod->pwm_buffer_pool);
   if(pwm_object == NULL) {
     /*
      * Failed to get a PWM buffer object.
      * Post an event and disable ICU.
      */
+    chFifoReturnObjectI(myDemod->pwm_fifo_pool, myFIFO);
+    myDemod->active_radio_object = NULL;
     pktAddEventFlagsI(myHandler, EVT_PWM_BUFFER_FAIL);
     icuDisableNotificationsI(myICU);
+    /* Turn on the PWM buffer out LED. */
+    pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_HIGH);
     return;
   }
+  pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_LOW);
   /* No linked queue object yet. */
   pwm_object->next = NULL;
 
-  /* Save this object as the first in this session. */
+  /* Save this object as the one currently receiving PWM. */
   myFIFO->radio_pwm_queue = pwm_object;
 
   /*
@@ -487,6 +494,7 @@ void pktRadioCCALeadTimer(ICUDriver *myICU) {
       break;
       }
 
+    /* CCA still high so open PWM channel now it is validated. */
     case PAL_HIGH: {
       pktOpenPWMChannelI(myICU, EVT_RADIO_CCA_OPEN);
       break;
@@ -673,11 +681,15 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
                          (*pwm_object).buffer.pwm_bytes,
                          sizeof(radio_pwm_buffer_t),
                          NULL, NULL);
-      /* Link the new object to the prior object. */
+
+      /*
+       * Link the new object in read sequence after the prior object.
+       * Set the new object as the PWM write target.
+       */
       radio_pwm_object_t *myObject =
           myDemod->active_radio_object->radio_pwm_queue;
       myObject->next = pwm_object;
-      /* The new object has no following object yet. */
+      myObject = pwm_object;
       pwm_object->next = NULL;
 
       /* Write the in-band queue swap message. */
@@ -744,17 +756,13 @@ void PktRadioICUOverflow(ICUDriver *myICU) {
  * @brief   Converts ICU data and posts to the PWM queue.
  * @pre     The ICU driver is linked to a demod driver (pointer to driver).
  * @details Byte values of packed PWM data are written into an input queue.
- *          The operation will succeed if sufficient queue space is available.
- *          If the queue will become full then an in-band QOV flag is written.
- *          In that case PWM data will not be queued unless it was an EOD flag.
  *
  * @param[in] myICU      pointer to the ICU driver structure
  *
  * @return              The operation status.
  * @retval MSG_OK       The PWM data has been queued.
  * @retval MSG_TIMEOUT  The queue is already full.
- * @retval MSG_RESET    Queue space would be exhausted so a QOV
- *                      flag is written in place of PWM data.
+ * @retval MSG_RESET    Queue has one slot left and the data is not an in-band.
  *
  * @iclass
  */

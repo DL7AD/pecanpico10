@@ -103,8 +103,6 @@
 #define DEC_COMMAND_STOP        EVENT_MASK(EVT_PRIORITY_BASE + 1)
 #define DEC_COMMAND_CLOSE       EVENT_MASK(EVT_PRIORITY_BASE + 2)
 #define DEC_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 3)
-#define DEC_SUSPEND_EXIT        EVENT_MASK(EVT_PRIORITY_BASE + 4)
-
 
 /* Reserved system event broadcast IDs (set mask in user threads level). */
 #define USB_SHELL_EVT           EVT_PRIORITY_BASE + 0

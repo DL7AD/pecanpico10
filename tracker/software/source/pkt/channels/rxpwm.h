@@ -41,7 +41,7 @@
 #define PWM_TERM_CCA_CLOSE      0
 #define PWM_TERM_QUEUE_FULL     1
 #define PWM_TERM_ICU_OVERFLOW   2
-#define PWM_TERM_NO_QUEUE       3
+#define PWM_TERM_QUEUE_ERR      3
 #define PWM_TERM_DECODE_ENDED   4
 #define PWM_TERM_DECODE_STOP    5
 #define PWM_TERM_NO_DATA        6
