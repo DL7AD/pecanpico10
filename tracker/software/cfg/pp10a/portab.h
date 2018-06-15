@@ -123,9 +123,10 @@
  * Allocate PWM buffers from a CCM heap/pool.
  * Requires fragmented queue/buffer objects.
  * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
- * Decoder side swaps queue/buffer on in-band message and reticulates prior queue/buffer to pool.
+ * Decoder side swaps queue/buffer on in-band message.
+ * The prior PWM buffer is returned to the pool.
  */
-#define USE_HEAP_PWM_BUFFER         FALSE
+#define USE_HEAP_PWM_BUFFER         TRUE
 #define USE_CCM_BASED_HEAP          TRUE
 
 /* Definitions for ICU FIFO implemented using chfactory. */

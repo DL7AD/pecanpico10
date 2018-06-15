@@ -139,12 +139,15 @@ typedef struct {
   struct pool_header        link;
 #if USE_HEAP_PWM_BUFFER == TRUE
   /*
-   * There are two PWM object pointers.
+   * There are two PWM object pointers in a PWM stream record.
    * One for the radio (producer) side.
    * And one for the decoder (consumer) side.
    */
   radio_pwm_object_t        *radio_pwm_queue;
   radio_pwm_object_t        *decode_pwm_queue;
+  uint8_t                   in_use;
+  uint8_t                   rlsd;
+  uint8_t                   peak;
 #else
   /* Allocate a PWM buffer in the queue object. */
   radio_pwm_buffer_t        packed_buffer;
@@ -226,10 +229,8 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
   duration |= ((min_icucnt_t)(src.pwm.xtn & 0xF0U) << 4);
   dest->pwm.valley = duration;
 #else
-  min_icucnt_t duration = src.pwm.impulse;
-  dest->pwm.impulse = duration;
-  duration = src.pwm.valley;
-  dest->pwm.valley = duration;
+  dest->pwm.impulse = src.pwm.impulse;
+  dest->pwm.valley = src.pwm.valley;
 #endif
 }
 

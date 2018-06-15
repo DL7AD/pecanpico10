@@ -346,11 +346,14 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
 
   /* Save this object as the one currently receiving PWM. */
   myFIFO->radio_pwm_queue = pwm_object;
-
+  myFIFO->in_use = 1;
+  myFIFO->peak = 0;
+  myFIFO->rlsd = 0;
+  myFIFO->decode_pwm_queue = pwm_object;
   /*
-   * Initialize the radio queue object.
-   * Set the user defined link to point to the buffer object.
-   * This is used in the decoder to get the buffer object link field.
+   * Initialize the queue object.
+   * TODO: Use the user defined link to point to the buffer object.
+   * This would allow removal of the buffer object link field.
    */
   iqObjectInit(&pwm_object->queue,
                      (*pwm_object).buffer.pwm_bytes,
@@ -602,10 +605,7 @@ void pktRadioCCAInput(ICUDriver *myICU) {
  */
 void pktRadioICUWidth(ICUDriver *myICU) {
   (void)myICU;
-#if defined(LINE_PWM_MIRROR)
-  //pktWritePWMMirror(PAL_LOW);
   pktWriteGPIOline(LINE_PWM_MIRROR, PAL_LOW);
-#endif
 }
 
 /**
@@ -623,9 +623,8 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    *
    * See halconf.h for the definition.
    */
-#if defined(LINE_PWM_MIRROR)
   pktWriteGPIOline(LINE_PWM_MIRROR, PAL_HIGH);
-#endif
+
   AFSKDemodDriver *myDemod = myICU->link;
 
   chSysLockFromISR();
@@ -684,28 +683,28 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 
       /*
        * Link the new object in read sequence after the prior object.
-       * Set the new object as the PWM write target.
+       * Set the next link to NULL.
        */
       radio_pwm_object_t *myObject =
           myDemod->active_radio_object->radio_pwm_queue;
       myObject->next = pwm_object;
-      myObject = pwm_object;
       pwm_object->next = NULL;
 
-      /* Write the in-band queue swap message. */
+      myDemod->active_radio_object->in_use++;
+      uint8_t out = (myDemod->active_radio_object->in_use
+          - myDemod->active_radio_object->rlsd);
+      if(out > myDemod->active_radio_object->peak)
+        myDemod->active_radio_object->peak = out;
+
+      /* Write the in-band queue swap message to the current object. */
   #if USE_12_BIT_PWM == TRUE
       byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INFO_QUEUE_SWAP, 0}};
   #else
       byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INFO_QUEUE_SWAP}};
   #endif
       msg_t qs = pktWritePWMQueueI(&myObject->queue, pack);
-/*      if(qs == MSG_TIMEOUT) {
-        pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
-        pktClosePWMChannelI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);
-        chSysUnlockFromISR();
-        return;
-      }*/
-      /* Set the new object as the PWM queue/buffer. */
+
+      /* Set the new object as the active PWM queue/buffer. */
       myDemod->active_radio_object->radio_pwm_queue = pwm_object;
 
       /* Write the PWM data to the new buffer. */
