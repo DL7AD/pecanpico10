@@ -902,20 +902,21 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* Look for "in band" message in radio data. */
         if(radio.pwm.impulse == PWM_IN_BAND_PREFIX) {
           switch(radio.pwm.valley) {
-          case PWM_TERM_DECODE_ENDED:
           case PWM_TERM_DECODE_STOP:
-          case PWM_TERM_CCA_CLOSE: {
+          case PWM_TERM_DECODE_ENDED: {
             /* End of data flag from PWM. */
-            myDriver->decoder_state = DECODER_CLOSE;
+            myDriver->decoder_state = DECODER_RESET;
             continue; /* Enclosing state switch. */
           } /* End case 0. */
 
+          case PWM_TERM_CCA_CLOSE:
           case PWM_TERM_NO_DATA:
           case PWM_TERM_QUEUE_LOCK:
           case PWM_TERM_ICU_OVERFLOW:
           case PWM_TERM_QUEUE_ERR:
           case PWM_TERM_QUEUE_FULL: {
-            /* PWM (producer side) errors.
+            /* PWM (producer side) events.
+             * The decoder should have detected a closing flag ahead of these.
              * PWM side has set the global event for this.
              * The packet won't be valid so don't dispatch.
              */
