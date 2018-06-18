@@ -168,11 +168,11 @@ typedef struct radioBand {
   radio_freq_t  def_aprs;
 } radio_band_t;
 
-typedef struct radioParam {
+typedef struct radioConfig {
   radio_unit_t  unit;
   radio_type_t  type;
   radio_band_t  *band[NUM_BANDS_PER_RADIO];
-} radio_param_t;
+} radio_config_t;
 
 /*===========================================================================*/
 /* Module macros.                                                            */

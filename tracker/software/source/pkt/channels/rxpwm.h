@@ -42,11 +42,12 @@
 #define PWM_TERM_QUEUE_FULL     1
 #define PWM_TERM_ICU_OVERFLOW   2
 #define PWM_TERM_QUEUE_ERR      3
-#define PWM_TERM_DECODE_ENDED   4
+#define PWM_ACK_DECODE_END      4
 #define PWM_TERM_DECODE_STOP    5
 #define PWM_TERM_NO_DATA        6
 #define PWM_TERM_QUEUE_LOCK     7
 #define PWM_INFO_QUEUE_SWAP     8
+#define PWM_ACK_DECODE_ERROR    9
 
 /* ICU will be stopped if no activity for this number of seconds. */
 #define ICU_INACTIVITY_TIMEOUT  60

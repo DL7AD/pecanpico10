@@ -833,7 +833,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           chFactoryReleaseObjectsFIFO(pkt_fifo);
           pktAddEventFlags(myHandler, EVT_AX25_NO_BUFFER);
           myDriver->active_demod_object->status |=
-              EVT_AX25_NO_BUFFER | EVT_PWM_QUEUE_LOCK;
+              EVT_AX25_NO_BUFFER;
           myDriver->decoder_state = DECODER_ERROR;
           break;
         }
@@ -903,17 +903,35 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         if(radio.pwm.impulse == PWM_IN_BAND_PREFIX) {
           switch(radio.pwm.valley) {
           case PWM_TERM_DECODE_STOP:
-          case PWM_TERM_DECODE_ENDED: {
-            /* End of data flag from PWM. */
+            /*
+             *  The decoder has issued a stop to PWM.
+             *  The radio side PWM acks the close with this in-band message.
+             *  This case can execute where a stream is queued by PWM..
+             *   but not yet opened by the decoder.
+             *  Can happen during transition from decoder reset to idle state.
+             */
+          case PWM_ACK_DECODE_END: {
+            /*
+             * Decoder set decode end.
+             * The radio PWM side puts an in-band message in the open stream.
+             * This case should never execute.
+             * The decoder will have entered close state already.
+             * TODO: Deprecate this case.
+             */
             myDriver->decoder_state = DECODER_RESET;
             continue; /* Enclosing state switch. */
           } /* End case 0. */
 
           case PWM_TERM_CCA_CLOSE:
+            /* If CCA ends before the decoder sees a closing flag. */
           case PWM_TERM_NO_DATA:
+            /* If there is no PWM radio data within a timeout. */
           case PWM_TERM_QUEUE_LOCK:
+            /* If the PWM queue is locked by the decoder (AX25 buffer full). */
           case PWM_TERM_ICU_OVERFLOW:
+            /* If the ICU overflows while PWM is being received. */
           case PWM_TERM_QUEUE_ERR:
+            /* If there is still a PWM stream open when a new CCA is validated. */
           case PWM_TERM_QUEUE_FULL: {
             /* PWM (producer side) events.
              * The decoder should have detected a closing flag ahead of these.
@@ -1016,7 +1034,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /*
          * Lock the PWM queue to stop any further radio data being written.
          */
-        myDriver->active_demod_object->status |= EVT_PWM_QUEUE_LOCK;
+        myDriver->active_demod_object->status |= EVT_AFSK_DECODE_ERROR;
 
         /* Copy latest status into packet buffer object. */
         myHandler->active_packet_object->status =
@@ -1097,7 +1115,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /*
            * Indicate AFSK decode done & lock the PWM queue.
            */
-          eventflags_t evtf = EVT_AFSK_DECODE_DONE | EVT_PWM_QUEUE_LOCK;
+          eventflags_t evtf = EVT_AFSK_DECODE_DONE;
           myDriver->active_demod_object->status |= evtf;
 
           /* Copy latest status into packet buffer object. */

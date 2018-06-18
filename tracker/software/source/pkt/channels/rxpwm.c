@@ -214,7 +214,7 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
   /* Stop the ICU notification (callback). */
   icuDisableNotificationsI(myICU);
   if(myDemod->active_radio_object != NULL) {
-    myDemod->active_radio_object->status |= (EVT_PWM_QUEUE_LOCK | evt);
+    myDemod->active_radio_object->status |= (EVT_PWM_STREAM_CLOSED | evt);
     pktAddEventFlagsI(myHandler, evt);
 #if USE_HEAP_PWM_BUFFER == TRUE
     input_queue_t *myQueue =
@@ -281,7 +281,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
      * Shouldn't happen unless CCA has not triggered an EXTI trailing edge.
      * For now just flag that an error condition happened.
      */
-    pktClosePWMChannelI(myICU, EVT_RADIO_CCA_FIFO_ERR, PWM_TERM_QUEUE_ERR);
+    pktClosePWMChannelI(myICU, EVT_PWM_FIFO_REMNANT, PWM_TERM_QUEUE_ERR);
     return;
   }
   /* Normal CCA handling. */
@@ -499,7 +499,7 @@ void pktRadioCCALeadTimer(ICUDriver *myICU) {
 
     /* CCA still high so open PWM channel now it is validated. */
     case PAL_HIGH: {
-      pktOpenPWMChannelI(myICU, EVT_RADIO_CCA_OPEN);
+      pktOpenPWMChannelI(myICU, EVT_PWM_STREAM_OPEN);
       break;
     }
   }
@@ -531,7 +531,7 @@ void pktRadioCCATrailTimer(ICUDriver *myICU) {
        * This caters for the case where the decoder finishes first.
        * This may happen if the sender uses a long HDLC packet tail.
        */
-      pktClosePWMChannelI(myICU, EVT_RADIO_CCA_CLOSE, PWM_TERM_CCA_CLOSE);
+      pktClosePWMChannelI(myICU, EVT_PWM_STREAM_CLOSE, PWM_TERM_CCA_CLOSE);
       break;
       }
 
@@ -645,24 +645,24 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
   /*
    * Check if decoding has already finished while ICU is still active.
    * The decoder terminates a frame on the first trailing HDLC flag.
-   * If CPU is fast (FPU enabled) it might finish decode before ICU stops.
+   * If CPU is fast (FPU enabled) it might finish decode before PWM stops.
    * A long sequence of trailing HDLC flags or junk after a frame close
-   *  flag may cause trailing ICU activity.
+   *  flag may cause trailing PWM activity.
    *
    */
   if((myDemod->active_radio_object->status & EVT_AFSK_DECODE_DONE) != 0) {
-    pktClosePWMChannelI(myICU, EVT_PWM_STREAM_CLOSED, PWM_TERM_DECODE_ENDED);
+    pktClosePWMChannelI(myICU, EVT_NONE, PWM_ACK_DECODE_END);
     chSysUnlockFromISR();
     return;
   }
 
   /*
-   * Check if the PWM queue has been locked by the decoder.
-   * This will happen when an error (such as no AX25 buffer) occurs.
+   * Check if the the decoder encountered an error condition.
+   * This will happen when no AX25 buffer is available or overflows.
    * Close the PWM stream and wait for next radio CCA.
    */
-  if((myDemod->active_radio_object->status & EVT_PWM_QUEUE_LOCK) != 0) {
-    pktClosePWMChannelI(myICU, EVT_PWM_QUEUE_LOCK, PWM_TERM_QUEUE_LOCK);
+  if((myDemod->active_radio_object->status & EVT_AFSK_DECODE_ERROR) != 0) {
+    pktClosePWMChannelI(myICU, EVT_NONE, PWM_ACK_DECODE_ERROR);
     chSysUnlockFromISR();
     return;
   }

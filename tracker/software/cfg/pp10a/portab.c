@@ -49,7 +49,7 @@ typedef struct SysProviders {
 
 } providers_t;
 
-const radio_param_t radio_list[NUM_PKT_RADIOS] = {
+const radio_config_t radio_list[NUM_PKT_RADIOS] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
     .type = SI4464,
@@ -214,7 +214,7 @@ void sysConfigureCoreIO(void) {
  * The current system does not work if the same radio is listed multiple times.
  * TODO: Have an enumeration and check radio array on startup.
  */
-radio_param_t *pktGetRadioParameters(radio_unit_t radio) {
+radio_config_t *pktGetRadioParameters(radio_unit_t radio) {
   (void)radio;
   return NULL;
 }

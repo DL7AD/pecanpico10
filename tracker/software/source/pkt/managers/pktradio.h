@@ -30,6 +30,9 @@
 #define RADIO_TASK_QUEUE_MAX            10
 
 #define NUM_BANDS_PER_RADIO             2
+
+#define PKT_RADIO_MANAGER_TASK_KILL     TRUE
+
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
@@ -46,7 +49,9 @@ typedef enum radioCommand {
   PKT_RADIO_RX_STOP,
   PKT_RADIO_TX_SEND,
   PKT_RADIO_RX_CLOSE,
-  PKT_RADIO_TX_THREAD
+  PKT_RADIO_TX_THREAD,
+  PKT_RADIO_MGR_CLOSE,
+  PKT_RADIO_RX_RSSI
 } radio_command_t;
 
 /**
@@ -54,7 +59,9 @@ typedef enum radioCommand {
  */
 typedef struct radioTask radio_task_object_t;
 typedef struct packetHandlerData packet_svc_t;
-typedef struct radioParam radio_param_t;
+typedef struct radioConfig radio_config_t;
+typedef struct radioSettings radio_settings_t;
+typedef struct radioAction radio_action_t;
 
 /**
  * @brief           Radio task notification callback type.
@@ -64,6 +71,30 @@ typedef struct radioParam radio_param_t;
 typedef void (*radio_task_cb_t)(radio_task_object_t *task_object);
 
 #include "ax25_pad.h"
+
+struct radioSettings {
+  mod_t                     type;
+  radio_freq_t              base_frequency;
+  channel_hz_t              step_hz;
+  radio_ch_t                channel;
+  radio_squelch_t           squelch;
+};
+
+struct radioAction {
+  radio_command_t           command;
+  radio_task_cb_t           callback;
+  msg_t                     result;
+  thread_t                  *thread;
+  char                      tx_thd_name[16];
+  packet_svc_t              *handler;
+  packet_t                  packet_out;
+};
+
+struct radioTaskx {
+  radio_settings_t          settings;
+  radio_action_t            action;
+};
+
 /**
  * @brief       Radio task object.
  * @details     queue object submitted via FIFO or radio task requests.
@@ -80,6 +111,7 @@ struct radioTask {
   radio_task_cb_t           callback;
   msg_t                     result;
   thread_t                  *thread;
+  /* TODO: Create thread name in the radio unit thread itself. */
   char                      tx_thd_name[16];
   packet_svc_t              *handler;
   packet_t                  packet_out;
@@ -93,7 +125,7 @@ struct radioTask {
 /*===========================================================================*/
 
 
-//extern const radio_param_t radio_list[NUM_PKT_RADIOS];
+//extern const radio_config_t radio_list[NUM_PKT_RADIOS];
 
 #ifdef __cplusplus
 extern "C" {

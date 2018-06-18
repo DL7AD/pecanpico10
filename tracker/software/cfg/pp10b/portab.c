@@ -65,7 +65,7 @@ typedef struct SysProviders {
 
 } providers_t;
 
-const radio_param_t radio_list[NUM_PKT_RADIOS] = {
+const radio_config_t radio_list[NUM_PKT_RADIOS] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
     .type = SI4464,
