@@ -33,6 +33,7 @@ static dataPoint_t* lastDataPoint;
 static bool threadStarted = false;
 static uint8_t useGPS = 0;
 static uint8_t useCFG = 0;
+static uint8_t bme280_error;
 
 /**
   * Returns most recent data point which is complete.
@@ -41,7 +42,7 @@ dataPoint_t* getLastDataPoint(void) {
 	return lastDataPoint;
 }
 
-/*
+/**
  *
  */
 void waitForNewDataPoint(void) {
@@ -51,7 +52,7 @@ void waitForNewDataPoint(void) {
 }
 
 /**
- * @brief   Determine best fallback position when GPS not operable.
+ * @brief   Determine best fallback data when GPS not operable.
  * @post    The provided data point (record) is updated.
  *
  * @param[in]   tp      pointer to current @p datapoint structure
@@ -67,7 +68,9 @@ static void getPositionFallback(dataPoint_t* tp, dataPoint_t* ltp) {
   tp->gps_time = date2UnixTimestamp(&time);
 
   /* Good RTC does not mean GPS fix is good but... */
-  if(hasGPSacquiredLock(ltp) || ltp->gps_state == GPS_FIXED) {
+  if(hasGPSacquiredLock(ltp)
+      || ltp->gps_state == GPS_FIXED
+      || ltp->gps_state == GPS_LOG) {
     tp->gps_lat = ltp->gps_lat;
     tp->gps_lon = ltp->gps_lon;
     tp->gps_alt = ltp->gps_alt;
@@ -96,7 +99,7 @@ static void getPositionFallback(dataPoint_t* tp, dataPoint_t* ltp) {
  * @param[in]	ltp		pointer to prior @p datapoint structure
  * @param[in]   timeout time limit to wait for acquisition
  *
- * @api
+ * @notapi
  */
 static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
                            sysinterval_t timeout) {
@@ -228,7 +231,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
  *
  * @param[in]   tp   pointer to a @p datapoint structure
  *
- * @api
+ * @notapi
  */
 static void measureVoltage(dataPoint_t* tp)
 {
@@ -237,8 +240,6 @@ static void measureVoltage(dataPoint_t* tp)
 
 	pac1720_get_avg(&tp->pac_vbat, &tp->pac_vsol, &tp->pac_pbat, &tp->pac_psol);
 }
-
-static uint8_t bme280_error;
 
 /**
  * @brief   Get sensor status and save in datapoint.
@@ -319,7 +320,7 @@ void getSensors(dataPoint_t* tp) {
  * @param[in]   tp   pointer to a @p datapoint structure
  * @param[out]  tp   gpio field is updated with current GPIO states.
  *
- * @api
+ * @notapi
  */
 static void getGPIO(dataPoint_t* tp) {
   tp->gpio = pktReadIOlines();
