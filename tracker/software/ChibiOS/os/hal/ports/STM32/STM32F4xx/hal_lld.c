@@ -234,15 +234,9 @@ void stm32_clock_init(void) {
 #endif /* STM32_ACTIVATE_PLL */
 
 #if STM32_ACTIVATE_PLLI2S
-#if defined(STM32F413xx)
   /* PLLI2S activation.*/
   RCC->PLLI2SCFGR = STM32_PLLI2SR | STM32_PLLI2SN | STM32_PLLI2SP |
-                    STM32_I2SSRC | STM32_PLLI2SQ | STM32_PLLI2SM;
-#else
-  /* PLLI2S activation.*/
-  RCC->PLLI2SCFGR = STM32_PLLI2SR | STM32_PLLI2SN | STM32_PLLI2SP |
-                    STM32_PLLI2SQ | STM32_PLLI2SM;
-#endif
+                    STM32_PLLI2SSRC | STM32_PLLI2SQ | STM32_PLLI2SM;
   RCC->CR |= RCC_CR_PLLI2SON;
 
   /* Waiting for PLL lock.*/
@@ -261,19 +255,18 @@ void stm32_clock_init(void) {
     ;
 #endif /* STM32_ACTIVATE_PLLSAI */
 
-#if defined(STM32F413xx)
   /* Other clock-related settings (dividers, MCO etc).*/
-  RCC->CFGR = STM32_MCO2PRE | STM32_MCO2SEL | STM32_MCO1PRE | STM32_MCO1SEL |
-              STM32_RTCPRE | STM32_PPRE2 | STM32_PPRE1 |
-              STM32_HPRE;
-#else
-  /* Other clock-related settings (dividers, MCO etc).*/
+#if !defined(STM32F413xx)
   RCC->CFGR = STM32_MCO2PRE | STM32_MCO2SEL | STM32_MCO1PRE | STM32_MCO1SEL |
               STM32_I2SSRC | STM32_RTCPRE | STM32_PPRE2 | STM32_PPRE1 |
               STM32_HPRE;
+#else
+  RCC->CFGR = STM32_MCO2PRE | STM32_MCO2SEL | STM32_MCO1PRE | STM32_MCO1SEL |
+                              STM32_RTCPRE | STM32_PPRE2 | STM32_PPRE1 |
+              STM32_HPRE;
 #endif
 
-#if defined(STM32F446xx)
+#if STM32_HAS_RCC_DCKCFGR
   /* DCKCFGR register initialization, note, must take care of the _OFF
    pseudo settings.*/
   {
@@ -284,50 +277,29 @@ void stm32_clock_init(void) {
 #if STM32_SAI1SEL != STM32_SAI1SEL_OFF
     dckcfgr |= STM32_SAI1SEL;
 #endif
-#if STM32_PLLSAIDIVR != STM32_PLLSAIDIVR_OFF
+#if (STM32_ACTIVATE_PLLSAI == TRUE) &&                                      \
+    (STM32_PLLSAIDIVR != STM32_PLLSAIDIVR_OFF)
     dckcfgr |= STM32_PLLSAIDIVR;
 #endif
-#if STM32_TIMPRE == STM32_TIMPRE_HCLK
-    dckcfgr |= STM32_TIMPRE_HCLK;
+#if defined(STM32F469xx) || defined(STM32F479xx)
+  /* Special case, in those devices STM32_CK48MSEL is located in the
+     DCKCFGR register.*/
+    dckcfgr |= STM32_CK48MSEL;
 #endif
-    RCC->DCKCFGR = dckcfgr | STM32_PLLI2SDIVQ | STM32_PLLSAIDIVQ;
+#if !defined(STM32F413xx)
+    RCC->DCKCFGR = dckcfgr |
+                   STM32_TIMPRE | STM32_PLLSAIDIVR |
+                   STM32_PLLSAIDIVQ | STM32_PLLI2SDIVQ;
+#else
+    RCC->DCKCFGR = dckcfgr |
+                   STM32_TIMPRE |
+                   STM32_PLLDIVR | STM32_PLLI2SDIVR;
+#endif
   }
-  RCC->DCKCFGR2 = STM32_CK48MSEL;
-#elif defined(STM32F469xx) || defined(STM32F479xx)
-  /* DCKCFGR register initialization, note, must take care of the _OFF
-   pseudo settings.*/
-  {
-    uint32_t dckcfgr = 0;
-#if STM32_SAI2SEL != STM32_SAI2SEL_OFF
-    dckcfgr |= STM32_SAI2SEL;
 #endif
-#if STM32_SAI1SEL != STM32_SAI1SEL_OFF
-    dckcfgr |= STM32_SAI1SEL;
-#endif
-#if STM32_PLLSAIDIVR != STM32_PLLSAIDIVR_OFF
-    dckcfgr |= STM32_PLLSAIDIVR;
-#endif
-    RCC->DCKCFGR = dckcfgr | STM32_PLLI2SDIVQ | STM32_PLLSAIDIVQ | 
-                   STM32_CK48MSEL;
-  }
-#elif defined(STM32F413xx)
-  /* DCKCFGR register initialization. */
-  {
-    uint32_t dckcfgr = 0;
-#if STM32_SAI2SEL != STM32_SAI2SEL_OFF
-    dckcfgr |= STM32_SAI2SEL;
-#endif
-#if STM32_SAI1SEL != STM32_SAI1SEL_OFF
-    dckcfgr |= STM32_SAI1SEL;
-#endif
-#if STM32_PLLSAIDIVR != STM32_PLLSAIDIVR_OFF
-    dckcfgr |= STM32_PLLSAIDIVR;
-#endif
-#if STM32_TIMPRE == STM32_TIMPRE_HCLK
-    dckcfgr |= STM32_TIMPRE_HCLK;
-#endif
-    RCC->DCKCFGR = dckcfgr | STM32_PLLI2SDIVQ | STM32_PLLSAIDIVQ;
-  }
+
+#if STM32_HAS_RCC_DCKCFGR2
+  /* DCKCFGR2 register initialization.*/
   RCC->DCKCFGR2 = STM32_CK48MSEL;
 #endif
 

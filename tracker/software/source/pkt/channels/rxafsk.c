@@ -685,7 +685,11 @@ uint8_t pktReleasePWMbuffers(AFSKDemodDriver *myDriver) {
     return 0;
   radio_pwm_object_t *next;
   do {
+#if USE_PWM_QUEUE_LINK == TRUE
+    next = qGetLink(&object->queue);
+#else
     next = object->next;
+#endif
     chPoolFree(&myDriver->pwm_buffer_pool, object);
     myDriver->active_demod_object->rlsd++;
   } while((object = next) != NULL);
@@ -946,7 +950,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           case PWM_INFO_QUEUE_SWAP: {
             /* Radio made a queue swap (filled the buffer). */
             /* Get reference to next queue/buffer object. */
+#if USE_PWM_QUEUE_LINK == TRUE
+            radio_pwm_object_t *nextObject = qGetLink(&myFIFO->decode_pwm_queue->queue);
+#else
             radio_pwm_object_t *nextObject = myFIFO->decode_pwm_queue->next;
+#endif
             if(nextObject != NULL) {
               /*
                *  Release the now empty prior buffer object back to the pool.

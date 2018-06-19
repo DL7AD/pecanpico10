@@ -122,6 +122,7 @@
  */
 #define USE_HEAP_PWM_BUFFER         FALSE
 #define USE_CCM_BASED_HEAP          TRUE
+#define USE_PWM_QUEUE_LINK          TRUE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
 #if USE_HEAP_PWM_BUFFER == TRUE

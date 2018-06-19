@@ -193,6 +193,8 @@ cryerror_t cryLoadTransientKey(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @special
  */
@@ -237,6 +239,8 @@ cryerror_t cryEncryptAES(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @special
  */
@@ -284,6 +288,8 @@ cryerror_t cryDecryptAES(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -334,6 +340,8 @@ cryerror_t cryEncryptAES_ECB(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -385,6 +393,8 @@ cryerror_t cryDecryptAES_ECB(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -438,6 +448,8 @@ cryerror_t cryEncryptAES_CBC(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -491,6 +503,8 @@ cryerror_t cryDecryptAES_CBC(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -544,6 +558,8 @@ cryerror_t cryEncryptAES_CFB(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -598,6 +614,8 @@ cryerror_t cryDecryptAES_CFB(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -623,8 +641,7 @@ cryerror_t cryEncryptAES_CTR(CRYDriver *cryp,
   (void)size;
   (void)in;
   (void)out;
-  (void)nonce;
-  (void)cnt;
+  (void)iv;
 
   return CRY_ERR_INV_ALGO;
 #endif
@@ -653,6 +670,8 @@ cryerror_t cryEncryptAES_CTR(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -678,8 +697,7 @@ cryerror_t cryDecryptAES_CTR(CRYDriver *cryp,
   (void)size;
   (void)in;
   (void)out;
-  (void)nonce;
-  (void)cnt;
+  (void)iv;
 
   return CRY_ERR_INV_ALGO;
 #endif
@@ -713,6 +731,8 @@ cryerror_t cryDecryptAES_CTR(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -782,6 +802,8 @@ cryerror_t cryEncryptAES_GCM(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -841,6 +863,8 @@ cryerror_t cryDecryptAES_GCM(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @special
  */
@@ -886,6 +910,8 @@ cryerror_t cryEncryptDES(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @special
  */
@@ -933,6 +959,8 @@ cryerror_t cryDecryptDES(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -983,6 +1011,8 @@ cryerror_t cryEncryptDES_ECB(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1034,6 +1064,8 @@ cryerror_t cryDecryptDES_ECB(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1087,6 +1119,8 @@ cryerror_t cryEncryptDES_CBC(CRYDriver *cryp,
  * @retval CRY_ERR_INV_KEY_TYPE the selected key is invalid for this operation.
  * @retval CRY_ERR_INV_KEY_ID   if the specified key identifier is invalid
  *                              or refers to an empty key slot.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1128,6 +1162,8 @@ cryerror_t cryDecryptDES_CBC(CRYDriver *cryp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1161,6 +1197,8 @@ cryerror_t crySHA1Init(CRYDriver *cryp, SHA1Context *sha1ctxp) {
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1196,6 +1234,8 @@ cryerror_t crySHA1Update(CRYDriver *cryp, SHA1Context *sha1ctxp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1228,6 +1268,8 @@ cryerror_t crySHA1Final(CRYDriver *cryp, SHA1Context *sha1ctxp, uint8_t *out) {
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1261,6 +1303,8 @@ cryerror_t crySHA256Init(CRYDriver *cryp, SHA256Context *sha256ctxp) {
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1296,6 +1340,8 @@ cryerror_t crySHA256Update(CRYDriver *cryp, SHA256Context *sha256ctxp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1329,6 +1375,8 @@ cryerror_t crySHA256Final(CRYDriver *cryp, SHA256Context *sha256ctxp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1362,6 +1410,8 @@ cryerror_t crySHA512Init(CRYDriver *cryp, SHA512Context *sha512ctxp) {
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1397,6 +1447,8 @@ cryerror_t crySHA512Update(CRYDriver *cryp, SHA512Context *sha512ctxp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1431,6 +1483,8 @@ cryerror_t crySHA512Final(CRYDriver *cryp, SHA512Context *sha512ctxp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1465,6 +1519,8 @@ cryerror_t cryHMACSHA256Init(CRYDriver *cryp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1502,6 +1558,8 @@ cryerror_t cryHMACSHA256Update(CRYDriver *cryp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1537,6 +1595,8 @@ cryerror_t cryHMACSHA256Final(CRYDriver *cryp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1571,6 +1631,8 @@ cryerror_t cryHMACSHA512Init(CRYDriver *cryp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1608,6 +1670,8 @@ cryerror_t cryHMACSHA512Update(CRYDriver *cryp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */
@@ -1641,6 +1705,8 @@ cryerror_t cryHMACSHA512Final(CRYDriver *cryp,
  * @retval CRY_NOERROR          if the operation succeeded.
  * @retval CRY_ERR_INV_ALGO     if the operation is unsupported on this
  *                              device instance.
+ * @retval CRY_ERR_OP_FAILURE   if the operation failed, implementation
+ *                              dependent.
  *
  * @api
  */

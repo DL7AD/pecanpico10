@@ -51,6 +51,38 @@ void waitForNewDataPoint(void) {
 }
 
 /**
+ * @brief   Determine best fallback position when GPS not operable.
+ * @post    The provided data point (record) is updated.
+ *
+ * @param[in]   tp      pointer to current @p datapoint structure
+ * @param[in]   ltp     pointer to prior @p datapoint structure
+ *
+ * @notapi
+ */
+static void getPositionFallback(dataPoint_t* tp, dataPoint_t* ltp) {
+  ptime_t time;
+  getTime(&time);
+  if(time.year != RTC_BASE_YEAR) {
+  /* RTC has been set so OK to use RTC. */
+  tp->gps_time = date2UnixTimestamp(&time);
+
+  /* Good RTC does not mean GPS fix is good but... */
+  if(hasGPSacquiredLock(ltp) || ltp->gps_state == GPS_FIXED) {
+    tp->gps_lat = ltp->gps_lat;
+    tp->gps_lon = ltp->gps_lon;
+    tp->gps_alt = ltp->gps_alt;
+    return;
+  }
+  /* Clear data point data since the old data is of unknown validity. */
+  tp->gps_time = 0;
+  tp->gps_lat = 0;
+  tp->gps_lon = 0;
+  tp->gps_alt = 0;
+  tp->gps_state = GPS_ERROR;
+  }
+}
+
+/**
  * @brief   Acquire GPS position and time data.
  * @notes	The GPS is switched on only if a service requires it.
  * @notes	The GPS model used can be controlled by barometric pressure.
@@ -71,7 +103,6 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   sysinterval_t start = chVTGetSystemTime();
 
   gpsFix_t gpsFix = {0};
-  //memset(&gpsFix, 0, sizeof(gpsFix_t));
 
   /*
    * Switch on GPS if...
@@ -80,119 +111,113 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   uint16_t batt = stm32_get_vbat();
   if(batt < conf_sram.gps_on_vbat) {
     tp->gps_state = GPS_LOWBATT1;
-  } else {
+    getPositionFallback(tp, ltp);
+    return;
+  }
 
-    /* Switch on GPS
-     * If a Pa pressure is set then GPS model depends on BME reading.
-     * If BME is OK then stationary model will be used until Pa < airborne.
-     * Then airborne model will be set.
-     * If the BME is not OK then airborne model will be used immediately.
+  /* Try to switch on GPS. */
+  if(!GPS_Init()) {
+    GPS_Deinit();
+    tp->gps_state = GPS_ERROR;
+    getPositionFallback(tp, ltp);
+    return;
+  }
+  /* If a Pa pressure is set then GPS model depends on BME reading.
+   * If BME is OK then stationary model will be used until Pa < airborne.
+   * Then airborne model will be set.
+   * If the BME is not OK then airborne model will be used immediately.
+   */
+  bool dynamic = conf_sram.gps_pressure != 0;
+  TRACE_INFO("COLL > GPS %s in dynamic mode at %dPa", dynamic
+             ? "is" : "is not", conf_sram.gps_pressure);
+  /*
+   *  Search for GPS lock within the timeout period and while battery is good.
+   *  Search timeout=cycle-1sec (-3sec in order to keep synchronization)
+   */
+  do {
+    batt = stm32_get_vbat();
+    gps_set_model(dynamic);
+    gps_get_fix(&gpsFix);
+  } while(!isGPSLocked(&gpsFix)
+      && batt >= conf_sram.gps_off_vbat
+      && chVTIsSystemTimeWithin(start, start + timeout));
+
+  if(batt < conf_sram.gps_off_vbat) {
+    /*
+     * GPS was switched on but battery fell below threshold.
+     * Switch off GPS.
      */
-    bool dynamic = conf_sram.gps_pressure != 0;
-    TRACE_INFO("COLL > GPS %s in dynamic mode", dynamic ? "is" : "is not");
 
-    bool status = GPS_Init();
+    GPS_Deinit();
+    TRACE_WARN("COLL > GPS acquisition stopped due low battery");
+    tp->gps_state = GPS_LOWBATT2;
+    getPositionFallback(tp, ltp);
+    return;
 
-    if(status) {
-      // Search for lock as long as enough power is available
-      do {
-        batt = stm32_get_vbat();
-        gps_set_model(dynamic);
-        gps_get_fix(&gpsFix);
-      } while(!isGPSLocked(&gpsFix)
-          && batt >= conf_sram.gps_off_vbat
-          && chVTIsSystemTimeWithin(start, start + timeout)); // Do as long no GPS lock and within timeout, timeout=cycle-1sec (-3sec in order to keep synchronization)
+  }
+  if(!isGPSLocked(&gpsFix)) {
+    /*
+     * GPS was switched on but it failed to get a lock in timeout period.
+     * Keep GPS switched on.
+     */
+    TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
+    tp->gps_state = GPS_LOSS;
+    getPositionFallback(tp, ltp);
+    return;
+  }
 
-      if(batt < conf_sram.gps_off_vbat) { // GPS was switched on but prematurely switched off because the battery is low on power, switch off GPS
+  /*
+   * GPS locked successfully.
+   * Output SV info.
+   * Switch off GPS (unless cycle is less than 60 seconds).
+   */
+  gps_svinfo_t svinfo;
+  if(gps_get_sv_info(&svinfo, sizeof(svinfo))) {
+    TRACE_INFO("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d",
+               svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
 
-        GPS_Deinit();
-        TRACE_WARN("COLL > GPS sampling finished GPS LOW BATT");
-        tp->gps_state = GPS_LOWBATT2;
-
-      } else if(!isGPSLocked(&gpsFix)) { // GPS was switched on but it failed to get a lock, keep GPS switched on
-
-        TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
-        tp->gps_state = GPS_LOSS;
-
-      } else {
-        /*
-         * GPS locked successfully.
-         * Output SV info.
-         * Switch off GPS (unless cycle is less than 60 seconds)
-         *
-         */
-        gps_svinfo_t svinfo;
-        if(gps_get_sv_info(&svinfo, sizeof(svinfo))) {
-          TRACE_INFO("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d",
-                     svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
-
-          uint8_t i;
-          for(i = 0; i < svinfo.numCh; i++) {
-            gps_svchn_t *sat = &svinfo.svinfo[i];
-            TRACE_INFO("GPS  > Satellite info chn=%03d svid=%03d flags=0x%02x"
-                " quality=%02d cno=%03d elev=%03d azim=%06d, prRes=%06d",
-                 sat->chn, sat->svid, sat->flags, sat->flags,
-                 sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
-          }
-        } else {
-          TRACE_ERROR("GPS  > Error getting Space Vehicle info");
-        }
-
-        // Switch off GPS (if cycle time is more than 60 seconds)
-        if(timeout < TIME_S2I(60)) {
-          TRACE_INFO("COLL > Keep GPS switched on because cycle < 60sec");
-          tp->gps_state = GPS_LOCKED2;
-        } else if(conf_sram.gps_onper_vbat != 0 && batt >= conf_sram.gps_onper_vbat) {
-          TRACE_INFO("COLL > Keep GPS switched on because VBAT >= %dmV", conf_sram.gps_onper_vbat);
-          tp->gps_state = GPS_LOCKED2;
-        } else {
-          TRACE_INFO("COLL > Switching off GPS");
-          GPS_Deinit();
-          tp->gps_state = GPS_LOCKED1;
-        }
-
-        // Debug
-        TRACE_INFO("COLL > GPS sampling finished GPS LOCK");
-
-        // Calibrate RTC
-        setTime(&gpsFix.time);
-
-        // Take time from GPS
-        tp->gps_time = date2UnixTimestamp(&gpsFix.time);
-
-        // Set new GPS fix
-        tp->gps_lat = gpsFix.lat;
-        tp->gps_lon = gpsFix.lon;
-        tp->gps_alt = gpsFix.alt;
-
-        tp->gps_sats = gpsFix.num_svs;
-        tp->gps_pdop = (gpsFix.pdop+3)/5;
-      }
-
-    } else { // GPS communication error
-
-      GPS_Deinit();
-      tp->gps_state = GPS_ERROR;
-
+    uint8_t i;
+    for(i = 0; i < svinfo.numCh; i++) {
+      gps_svchn_t *sat = &svinfo.svinfo[i];
+      TRACE_INFO("GPS  > Satellite info chn=%03d svid=%03d flags=0x%02x"
+          " quality=%02d cno=%03d elev=%03d azim=%06d, prRes=%06d",
+           sat->chn, sat->svid, sat->flags, sat->flags,
+           sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
     }
+  } else {
+    TRACE_ERROR("GPS  > Error getting Space Vehicle info");
   }
 
+  /* Switch off GPS (if cycle time is more than 60 seconds). */
+  if(timeout < TIME_S2I(60)) {
+    TRACE_INFO("COLL > Keep GPS switched on because cycle < 60sec");
+    tp->gps_state = GPS_LOCKED2;
+  } else if(conf_sram.gps_onper_vbat != 0 && batt >= conf_sram.gps_onper_vbat) {
+    TRACE_INFO("COLL > Keep GPS switched on because VBAT >= %dmV", conf_sram.gps_onper_vbat);
+    tp->gps_state = GPS_LOCKED2;
+  } else {
+    TRACE_INFO("COLL > Switching off GPS");
+    GPS_Deinit();
+    tp->gps_state = GPS_LOCKED1;
+  }
+
+  // Debug
+  TRACE_INFO("COLL > GPS sampling finished GPS LOCK");
+
+  // Calibrate RTC
+  setTime(&gpsFix.time);
+
+  // Take time from GPS
+  tp->gps_time = date2UnixTimestamp(&gpsFix.time);
+
+  // Set new GPS fix
+  tp->gps_lat = gpsFix.lat;
+  tp->gps_lon = gpsFix.lon;
+  tp->gps_alt = gpsFix.alt;
+
+  tp->gps_sats = gpsFix.num_svs;
+  tp->gps_pdop = (gpsFix.pdop+3)/5;
   tp->gps_ttff = TIME_I2S(chVTGetSystemTime() - start); // Time to first fix
-
-  if(!hasGPSacquiredLock(tp)) { // We have had no valid GPS fix
-    // Take time from internal RTC
-    ptime_t time;
-    getTime(&time);
-    if(time.year != RTC_BASE_YEAR) {
-      /* RTC has been set so OK to use data. */
-      tp->gps_time = date2UnixTimestamp(&time);
-
-      // Take GPS fix from old lock
-      tp->gps_lat = ltp->gps_lat;
-      tp->gps_lon = ltp->gps_lon;
-      tp->gps_alt = ltp->gps_alt;
-    } /* Else don't set tp data since RTC is not valid. */
-  }
 }
 
 /**

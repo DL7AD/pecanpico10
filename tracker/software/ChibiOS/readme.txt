@@ -91,8 +91,22 @@
 *****************************************************************************
 
 *** Next ***
-- NEW: Added support for STM32F413, added ability to handle the TIMPRE bit
-       in the RCC_DKCFGR register.
+- NEW: Now chconf.h files have preprocessor checks around each definition,
+       this allows to override settings from makefiles.
+- NEW: Added new functions to I/O queues: qSetLink()(backported to 18.2.2).
+- NEW: Added new functions to objects fifos: chFifoReturnObjectS()(backported
+       to 18.2.2),
+       chFifoSendObjectAheadI(), chFifoSendObjectAheadS() and
+       chFifoSendObjectAhead()(backported to 18.2.2).
+- NEW: Added new functions to guarded pools: chGuardedPoolFreeS() and
+       chGuardedPoolAddS().
+- NEW: Added initializer sections for flash0...flash7 memory areas in
+       GCC Cortex-M linker scripts.
+- NEW: Added support for oversampling in STM32 ADCv3 driver.
+- NEW: Restructured the STM32F4xx HAL support, added support for STM32F413,
+       added ability to handle the TIMPRE bit, separated the clock tree in
+       two distinct implementation to reduce the proliferation of compiler
+       time conditionals, added more checks to the input parameters.
 - NEW: Added optional support for character match callback in the UART
        high level driver.
 - NEW: Change, chMtxGetNextMutexS() renamed to chMtxGetNextMutexX().
@@ -124,6 +138,23 @@
 - EX:  Updated LIS302DL to 1.1.0 (backported to 18.2.1).
 - EX:  Updated LPS25H to 1.1.0 (backported to 18.2.1).
 - EX:  Updated LSM303DLHC to 1.1.0 (backported to 18.2.1).
+- HAL: Fixed win32 simulator HAL broken because a typo (bug #954)(backported
+       to 18.2.2).
+- HAL: Fixed race condition in STM32 ADCv3 driver (bug #953)(backported to
+       18.2.2 and 17.6.5).
+- HAL: Fixed wrong registry entries for STM32F030x4 (bug #952)(backported
+       to 18.2.2).
+- HAL: Fixed Invalid divider settings in Serial and UART STM32 drivers
+       when USART_CR1_OVER8 is specified (bug #951)(backported to 18.2.2
+       and 17.6.5).
+- NIL: Fixed missing extern declaration in IAR Cortex-M port (bug #950)
+       (backported to 18.2.2 and 17.6.5).
+- HAL: Fixed ASCR register invalid handling in STM32 GPIOv3 driver (bug #949)
+       (backported to 18.2.2 and 17.6.5).
+- HAL: Fixed missing definition in UART driver (bug #948)(backported
+       to 18.2.2).
+- OTH: Fixed wrong macro check in GCC Cortex-M startup files (bug #947)
+       (backported to 18.2.2 and 17.6.5).
 - HAL: Fixed binary instead of logic operator in STM32F4 HAL (bug #946)
        (backported to 18.2.2 and 17.6.5).
 - HAL: Fixed Mikroe clicker 2 misaligned board file (bug #945)

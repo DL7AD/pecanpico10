@@ -128,7 +128,9 @@ typedef struct PWMobject {
    * The decoder will continue to process linked PWM queues until completion.
    */
   input_queue_t             queue;
+#if USE_PWM_QUEUE_LINK != TRUE
   radio_pwm_object_t        *next;
+#endif
 } radio_pwm_object_t;
 #endif
 

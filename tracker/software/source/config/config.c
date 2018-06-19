@@ -169,7 +169,7 @@ const conf_t conf_flash_default = {
             // If RTC time is invalid then GPS will be enabled to get time.
             // Once RTC is set then GPS is released and can be switched off.
             // This will be the case if no other position thread is using GPS.
-            .gps = false,
+            .gps = true,
             // How often to send telemetry config (TODO: Move out to global level)
             .tel_enc_cycle = TIME_S2I(60 * 60 * 2)
         },

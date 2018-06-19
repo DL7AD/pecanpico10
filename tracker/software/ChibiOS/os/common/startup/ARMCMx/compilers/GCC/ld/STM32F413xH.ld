@@ -20,9 +20,9 @@
  */
 MEMORY
 {
-    flash0  : org = 0x08000000, len = 384k      /* Program memory */
-    flash1  : org = 0x08060000, len = 128k      /* Configuration memory */
-    flash2  : org = 0x08080000, len = 1024k     /* Log memory */
+    flash0  : org = 0x08000000, len = 1536k     /* Program memory */
+    flash1  : org = 0x1FFF7800, len = 528       /* OTP memory */
+    flash2  : org = 0x00000000, len = 0
     flash3  : org = 0x00000000, len = 0
     flash4  : org = 0x00000000, len = 0
     flash5  : org = 0x00000000, len = 0
