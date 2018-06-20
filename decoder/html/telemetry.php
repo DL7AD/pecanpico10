@@ -80,6 +80,12 @@ function loadRecentData() {
 			$.each(tel[tel.length-1], function(key, d) {
 				switch(key) {
 
+					case 'sen_i1_press':
+					case 'sen_e1_press':
+					case 'sen_e2_press':
+                                                $('#' + key).text(number_format(d/10));
+                                                break;
+
 					case 'sen_i1_temp':
 					case 'sen_e1_temp':
 					case 'sen_e2_temp':
