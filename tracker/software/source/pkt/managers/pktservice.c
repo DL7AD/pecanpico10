@@ -277,7 +277,7 @@ bool pktServiceWakeup(const radio_unit_t radio) {
  * @return              status of operation.
  * @retval MSG_OK       if the open request was processed.
  * @retval MSG_TIMEOUT  if the open request timed out waiting for resources.
- * @retval MSG_RESET    if state is invalid or bad parameter is submitted.
+ * @retval MSG_RESET    if state is invalid or a bad parameter is submitted.
  *
  * @api
  */

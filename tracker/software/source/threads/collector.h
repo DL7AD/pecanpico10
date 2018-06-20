@@ -55,12 +55,11 @@ typedef struct {
 	int32_t gps_lat;		// Latitude in 10^(-7)° per unit
 	int32_t gps_lon;		// Longitude in 10^(-7)° per unit
 
-	// BME280 (on board)
+	// BME280 (on board i1 + off board e1 & e2)
 	uint32_t sen_i1_press;		// Airpressure in Pa*10 (in 0.1Pa)
 	uint32_t sen_e1_press;		// Airpressure in Pa*10 (in 0.1Pa)
 	uint32_t sen_e2_press;		// Airpressure in Pa*10 (in 0.1Pa)
 
-    // BME280 (off board)
 	int16_t sen_i1_temp;		// Temperature in 0.01°C per unit
 	int16_t sen_e1_temp;		// Temperature in 0.01°C per unit
 	int16_t sen_e2_temp;		// Temperature in 0.01°C per unit
@@ -77,7 +76,6 @@ typedef struct {
 	uint16_t reset;
 	uint32_t id;			// Serial ID
 	uint32_t gps_time;		// GPS time
-	//int8_t      gps_model;
 
 	uint32_t sys_time;		// System time (in seconds)
 	uint32_t sys_error;			// System error flags
@@ -118,8 +116,24 @@ void init_data_collector(void);
  *
  * @api
  */
-#define hasGPSacquiredLock(tp) (tp->gps_state == GPS_LOCKED1                 \
-                                || tp->gps_state == GPS_LOCKED2)
+#define hasGPSacquiredLock(dp) (dp->gps_state == GPS_LOCKED1                \
+                                || dp->gps_state == GPS_LOCKED2)
+
+/**
+ * @brief   Is position valid.
+ *
+ * @param[in] pointer to data point
+ *
+ * @returns result of check
+ * @retval  true if position data is valid
+ * @retval  false if position not valid
+ *
+ * @api
+ */
+#define isPositionValid(dp)   (dp->gps_state == GPS_LOCKED1                 \
+                                || dp->gps_state == GPS_LOCKED2             \
+                                || dp->gps_state == GPS_FIXED               \
+                                || dp->gps_state == GPS_LOG)
 
 #endif /* __COLLECTOR_H__ */
 

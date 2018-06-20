@@ -27,7 +27,7 @@ static const SPIConfig ls_spicfg = {
     .cr1    = SPI_CR1_MSTR
 };
 
-static void Si446x_write(const uint8_t* txData, uint32_t len) {
+static bool Si446x_write(const uint8_t* txData, uint32_t len) {
     // Transmit data by SPI
   /* TODO: Add radio unit ID and get specific radio SPI driver. */
     uint8_t null_spi[len];
@@ -37,13 +37,24 @@ static void Si446x_write(const uint8_t* txData, uint32_t len) {
     spiStart(PKT_RADIO_SPI, &ls_spicfg);
 
     /* Poll for CTS. */
+    uint8_t timeout = 100;
     uint8_t rx_ready[] = {Si446x_READ_CMD_BUFF, 0x00};
     do {
       spiSelect(PKT_RADIO_SPI);
       spiExchange(PKT_RADIO_SPI, 1, rx_ready, &rx_ready[1]);
       spiUnselect(PKT_RADIO_SPI);
-    } while(rx_ready[1] != Si446x_COMMAND_CTS);
+      if(timeout != 100)
+        chThdSleep(TIME_MS2I(1));
+    } while(rx_ready[1] != Si446x_COMMAND_CTS && timeout--);
 
+    if(!timeout) {
+      TRACE_ERROR("SI   > CTS not received");
+      /* Stop SPI and relinquish bus. */
+      spiStop(PKT_RADIO_SPI);
+      spiReleaseBus(PKT_RADIO_SPI);
+      return false;
+    }
+    
     /* Transfer data. Discard read back. */
     spiSelect(PKT_RADIO_SPI);
     spiExchange(PKT_RADIO_SPI, len, txData, null_spi);
@@ -52,42 +63,76 @@ static void Si446x_write(const uint8_t* txData, uint32_t len) {
     /* Stop SPI and relinquish bus. */
     spiStop(PKT_RADIO_SPI);
     spiReleaseBus(PKT_RADIO_SPI);
+    
+    return true;
 }
 
 /**
- * Read data from Si446x. First CTS is polled.
+ * Read data from Si446x.
  */
-static void Si446x_read(const uint8_t* txData, uint32_t txlen, uint8_t* rxData, uint32_t rxlen) {
+static bool Si446x_read(const uint8_t* txData, uint32_t txlen,
+                        uint8_t* rxData, uint32_t rxlen) {
     // Transmit data by SPI
   /* TODO: Add radio unit ID and get SPI configuration accordingly. */
+  /* Command readback to be discarded here. */
     uint8_t null_spi[txlen];
 
     /* Acquire bus and then start SPI. */
     spiAcquireBus(PKT_RADIO_SPI);
     spiStart(PKT_RADIO_SPI, &ls_spicfg);
 
-    /* Poll for CTS. */
+    /*
+     * Poll command buffer waiting for CTS from the READ_CMD_BUFF command.
+     * This command does not itself cause CTS to report busy.
+     * Allocate a buffer to use for CTS check.
+     */
+    uint8_t timeout = 100;
     uint8_t rx_ready[] = {Si446x_READ_CMD_BUFF, 0x00};
     do {
       spiSelect(PKT_RADIO_SPI);
       spiExchange(PKT_RADIO_SPI, 1, rx_ready, &rx_ready[1]);
       spiUnselect(PKT_RADIO_SPI);
-    } while(rx_ready[1] != Si446x_COMMAND_CTS);
+      if(timeout != 100)
+        chThdSleep(TIME_MS2I(1));
+    } while(rx_ready[1] != Si446x_COMMAND_CTS && timeout--);
 
-    /* Write data. Discard read back. */
+    if(!timeout) {
+      TRACE_ERROR("SI   > CTS not received");
+      /* Stop SPI (de-asserts select as well) and relinquish bus. */
+      spiStop(PKT_RADIO_SPI);
+      spiReleaseBus(PKT_RADIO_SPI);
+      return false;
+    }
+
+    /*
+     * Now write command and data. Discard the read back.
+     */
     spiSelect(PKT_RADIO_SPI);
     spiExchange(PKT_RADIO_SPI, txlen, txData, null_spi);
 
-    /* Poll for read data. */
+    /*
+     * Poll waiting for CTS again using the READ_CMD_BUFF command.
+     * Once CTS is received the response data is ready in the rx data buffer.
+     * The buffer contains the command, CTS and 0 - 16 bytes of response.
+     */
+    timeout = 100;
     do {
       spiUnselect(PKT_RADIO_SPI);
+      if(timeout != 100)
+        chThdSleep(TIME_MS2I(1));
       spiSelect(PKT_RADIO_SPI);
       spiExchange(PKT_RADIO_SPI, rxlen, rx_ready, rxData);
-    } while(rxData[1] != Si446x_COMMAND_CTS);
+    } while(rxData[1] != Si446x_COMMAND_CTS && timeout--);
 
-    /* Stop SPI and relinquish bus. */
+    /* Stop SPI (de-asserts select as well) and relinquish bus. */
     spiStop(PKT_RADIO_SPI);
     spiReleaseBus(PKT_RADIO_SPI);
+    
+   if(!timeout) {
+      TRACE_ERROR("SI   > CTS not received");
+      return false;
+    }
+    return true;
 }
 
 static void Si446x_setProperty8(uint16_t reg, uint8_t val) {
@@ -115,7 +160,7 @@ static void Si446x_setProperty32(uint16_t reg, uint8_t val1, uint8_t val2, uint8
  * oscillator voltage.
  * @param mv Oscillator voltage in mv
  */
-static void Si446x_init(radio_unit_t radio) {
+static void Si446x_init(const radio_unit_t radio) {
 
   TRACE_INFO("SI   > Init radio");
 
@@ -243,7 +288,7 @@ static void Si446x_init(radio_unit_t radio) {
     handler->radio_init = true;
 }
 
-void Si446x_conditional_init(radio_unit_t radio) {
+void Si446x_conditional_init(const radio_unit_t radio) {
 // Initialize radio
 
   packet_svc_t *handler = pktGetServiceObject(radio);
@@ -257,7 +302,7 @@ void Si446x_conditional_init(radio_unit_t radio) {
 /*
  *
  */
-bool Si446x_setBandParameters(radio_unit_t radio,
+bool Si446x_setBandParameters(const radio_unit_t radio,
                               radio_freq_t freq,
                               channel_hz_t step) {
 
@@ -266,7 +311,7 @@ bool Si446x_setBandParameters(radio_unit_t radio,
       /* If using geofence ignore channel and step for now. */
       step = 0;
   }
-  /* Check band is in range. */
+  /* Check frequency is in range of chip. */
   if(freq < 144000000UL || freq > 900000000UL)
     return false;
 
@@ -331,7 +376,7 @@ bool Si446x_setBandParameters(radio_unit_t radio,
     Si446x_write(set_modem_freq_dev_command, 7);
 }*/
 
-static void Si446x_setPowerLevel(int8_t level)
+static void Si446x_setPowerLevel(radio_pwr_t level)
 {
     // Set the Power
     uint8_t set_pa_pwr_lvl_property_command[] = {0x11, 0x22, 0x01, 0x01, level};
@@ -342,7 +387,7 @@ static void Si446x_setPowerLevel(int8_t level)
 
 /* =========================================================== Radio specific modulation settings =========================================================== */
 
-static void Si446x_setModemAFSK_TX(radio_unit_t radio) {
+static void Si446x_setModemAFSK_TX(const radio_unit_t radio) {
   /* TODO: Hardware mapping. */
   (void)radio;
     // Setup the NCO modulo and oversampling mode
@@ -368,7 +413,7 @@ static void Si446x_setModemAFSK_TX(radio_unit_t radio) {
     }
 }
 
-static void Si446x_setModemAFSK_RX(radio_unit_t radio) {
+static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   /* TODO: Hardware mapping. */
   (void)radio;
     // Setup the NCO modulo and oversampling mode
@@ -445,7 +490,7 @@ static void Si446x_setModem2FSK_TX(uint32_t speed)
     uint8_t i;
     for(i = 0; i < sizeof(coeff); i++) {
         uint8_t msg[] = {0x11, 0x20, 0x01, 0x17-i, coeff[i]};
-        Si446x_write(msg, 5);
+        Si446x_write(msg, sizeof(msg));
     }
 }
 
@@ -453,6 +498,7 @@ static void Si446x_setModem2FSK_TX(uint32_t speed)
 /* ====================================================================== Radio Settings ====================================================================== */
 
 static uint8_t __attribute__((unused)) Si446x_getChannel(void) {
+  /* TODO: add hardware mapping. */
     const uint8_t state_info[] = {Si446x_REQUEST_DEVICE_STATE};
     uint8_t rxData[4];
     Si446x_read(state_info, sizeof(state_info), rxData, sizeof(rxData));
@@ -462,13 +508,15 @@ static uint8_t __attribute__((unused)) Si446x_getChannel(void) {
 /* ======================================================================= Radio FIFO ======================================================================= */
 
 static void Si446x_writeFIFO(uint8_t *msg, uint8_t size) {
+  /* TODO: add hardware mapping. */
     uint8_t write_fifo[size+1];
-    write_fifo[0] = 0x66;
+    write_fifo[0] = Si446x_WRITE_TX_FIFO;
     memcpy(&write_fifo[1], msg, size);
     Si446x_write(write_fifo, size+1);
 }
 
 static uint8_t Si446x_getTXfreeFIFO(void) {
+  /* TODO: add hardware mapping. */
     const uint8_t fifo_info[] = {Si446x_FIFO_INFO, 0x00};
     uint8_t rxData[4];
     Si446x_read(fifo_info, sizeof(fifo_info), rxData, sizeof(rxData));
@@ -477,7 +525,17 @@ static uint8_t Si446x_getTXfreeFIFO(void) {
 
 /* ====================================================================== Radio States ====================================================================== */
 
-static uint8_t Si446x_getState(radio_unit_t radio) {
+radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio) {
+  /* TODO: add hardware mapping. */
+  (void)radio;
+  /* Get status. Leave any pending interrupts intact. */
+    const uint8_t status_info[] = {Si446x_GET_MODEM_STATUS, 0xEF};
+    uint8_t rxData[11];
+    Si446x_read(status_info, sizeof(status_info), rxData, sizeof(rxData));
+    return rxData[4];
+}
+
+static uint8_t Si446x_getState(const radio_unit_t radio) {
   /* TODO: add hardware mapping. */
   (void)radio;
     const uint8_t state_info[] = {Si446x_REQUEST_DEVICE_STATE};
@@ -486,7 +544,7 @@ static uint8_t Si446x_getState(radio_unit_t radio) {
     return rxData[2] & 0xF;
 }
 
-static void Si446x_setTXState(radio_unit_t radio, uint8_t chan, uint16_t size){
+static void Si446x_setTXState(const radio_unit_t radio, uint8_t chan, uint16_t size){
   /* TODO: add hardware mapping. */
   (void)radio;
     uint8_t change_state_command[] = {0x31, chan,
@@ -495,20 +553,21 @@ static void Si446x_setTXState(radio_unit_t radio, uint8_t chan, uint16_t size){
     Si446x_write(change_state_command, sizeof(change_state_command));
 }
 
-static void Si446x_setReadyState(radio_unit_t radio) {
+static void Si446x_setReadyState(const radio_unit_t radio) {
   /* TODO: add hardware mapping. */
   (void)radio;
     const uint8_t change_state_command[] = {0x34, 0x03};
     Si446x_write(change_state_command, sizeof(change_state_command));
 }
 
-static void Si446x_setRXState(radio_unit_t radio, uint8_t chan){
+static void Si446x_setRXState(const radio_unit_t radio, uint8_t chan){
   /* TODO: add hardware mapping. */
   (void)radio;
     const uint8_t change_state_command[] = {0x32, chan, 0x00, 0x00,
                                             0x00, 0x00, 0x08, 0x08};
     Si446x_write(change_state_command, sizeof(change_state_command));
 }
+
 
 void Si446x_shutdown(radio_unit_t radio) {
   TRACE_INFO("SI   > Shutdown radio %i", radio);
@@ -1271,18 +1330,18 @@ bool Si446x_blocSend2FSK(radio_task_object_t *rt) {
 
 /* ========================================================================== Misc ========================================================================== */
 
-static int16_t Si446x_getTemperature(radio_unit_t radio) {
+static int16_t Si446x_getTemperature(const radio_unit_t radio) {
   /* TODO: Add hardware selection. */
   (void)radio;
-  const uint8_t txData[2] = {0x14, 0x10};
+  const uint8_t txData[] = {Si446x_GET_ADC_READING, 0x10};
   uint8_t rxData[8];
-  Si446x_read(txData, 2, rxData, 8);
+  Si446x_read(txData, sizeof(txData), rxData, sizeof(rxData));
   uint16_t adc = rxData[7] | ((rxData[6] & 0x7) << 8);
   return (89900 * adc) / 4096 - 29300;
 }
 
 /* TODO: Abstract this by radio ID. */
-int16_t Si446x_getLastTemperature(radio_unit_t radio) {
+int16_t Si446x_getLastTemperature(const radio_unit_t radio) {
   if(lastTemp == 0x7FFF) { // Temperature was never measured => measure it now
     packet_svc_t *handler = pktGetServiceObject(radio);
 

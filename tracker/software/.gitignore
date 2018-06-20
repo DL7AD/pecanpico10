@@ -1,3 +1,14 @@
-/debug/
-/Copy of config.c
-/pkt-saved/
+# GNU MCU xPacks
+Includes/
+# Eclipse
+debug/
+.cproject
+.settings/
+.project
+*.launch
+.loadpath
+# Make system
+.dep/
+# MacOS
+.DS_Store
+.DS_Store?

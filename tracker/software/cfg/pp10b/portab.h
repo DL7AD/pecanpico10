@@ -45,21 +45,43 @@
 #define LINE_SPI_MISO               PAL_LINE(GPIOB, 4U)
 #define LINE_SPI_MOSI               PAL_LINE(GPIOB, 5U)
 
-#define Si446x_MIN_2M_FREQ	    	144000000				/* Minimum allowed frequency in Hz */
-#define Si446x_MAX_2M_FREQ			148000000				/* Maximum allowed frequency in Hz */
+#define BAND_MIN_2M_FREQ            144000000               /* Minimum allowed frequency in Hz */
+#define BAND_MAX_2M_FREQ            148000000               /* Maximum allowed frequency in Hz */
+#define BAND_STEP_2M_HZ             12500
+#define BAND_DEF_2M_APRS            144800000               /* Default frequency in Hz.        */
+#define BAND_MIN_70CM_FREQ          420000000               /* Minimum allowed frequency in Hz */
+#define BAND_MAX_70CM_FREQ          450000000               /* Maximum allowed frequency in Hz */
+#define BAND_STEP_70CM_HZ           25000
+#define BAND_DEF_70CM_APRS          439100000               /* Default frequency in Hz.        */
+
+#define DEFAULT_OPERATING_FREQ      144800000
+
+/* Si446x clock setup. */
 #define Si446x_CLK					STM32_HSECLK			/* Oscillator frequency in Hz */
 #define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
 
-//#define LINE_OVERFLOW_LED         LINE_LED3
+#define NUM_PKT_RADIOS              1
+#define NUM_BANDS_PER_RADIO         2
+
+/* LED status indicators (set to PAL_NOLINE if not available). */
+#define LINE_OVERFLOW_LED           PAL_NOLINE
 #define LINE_DECODER_LED            LINE_IO_BLUE
-//#define LINE_SQUELCH_LED            LINE_IO_GREEN
+#define LINE_SQUELCH_LED            PAL_NOLINE
+#define LINE_NO_FIFO_LED            PAL_NOLINE
+#define LINE_NO_BUFF_LED            PAL_NOLINE
+
+/* Diagnostic PWM mirror port. */
+#define LINE_PWM_MIRROR             PAL_NOLINE
 
 #define LINE_CCA                    LINE_RADIO_IRQ
 #define LINE_ICU                    LINE_RADIO_GPIO1
 
 //#define LINE_UART4_TX               PAL_LINE(GPIOA, 12U)
 //#define LINE_UART4_RX               PAL_LINE(GPIOA, 11U)
+
+/* The external port can be used for bit bang I2C. */
+#define ENABLE_EXTERNAL_I2C         FALSE
 
 #if ENABLE_EXTERNAL_I2C == FALSE
 #define LINE_USART3_TX              LINE_IO_TXD
@@ -75,6 +97,13 @@
 #define PWM_ICU                     ICUD4
 #define PWM_TIMER_CHANNEL           0
 
+/* If set to true, the USB interface will be switched on. The tracker is also switched to
+ * 3V, because USB would not work at 1.8V. Note that the transmission power is increased
+ * too when operating at 3V. This option will also run the STM32 at 48MHz (AHB) permanently
+ * because USB needs that speed, otherwise it is running at 6MHz which saves a lot of power.
+ */
+#define ACTIVATE_USB                TRUE
+
 /* ICU counter frequency. */
 /*
  * TODO: This should be calculated using SYSTEM CLOCK.
@@ -86,15 +115,26 @@
 #define USE_12_BIT_PWM              FALSE
 
 /*
- * TODO: This will save a lot of system heap as PWM buffers are large
- * Stratgey: Allocate PWM buffers from a CCM heap/pool.
- * Requires some special handling in PWM and AFSK decoder.
+ * Allocate PWM buffers from a CCM heap/pool.
+ * Requires fragmented queue/buffer objects.
+ * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
+ * Decoder side swaps queue/buffer on in-band message and reticulates prior queue/buffer to pool.
  */
 #define USE_HEAP_PWM_BUFFER         FALSE
+#define USE_CCM_BASED_HEAP          TRUE
+#define USE_PWM_QUEUE_LINK          TRUE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
+#if USE_HEAP_PWM_BUFFER == TRUE
+#define NUMBER_PWM_FIFOS            3U
+/* Number of PWM data entries per queue object. */
+#define PWM_DATA_SLOTS              200
+/* Number of PWM queue objects in total. */
+#define PWM_DATA_BUFFERS            10
+#else
 #define NUMBER_PWM_FIFOS            3U
 #define PWM_DATA_SLOTS              6000
+#endif
 
 /* Number of frame receive buffers. */
 #define NUMBER_RX_PKT_BUFFERS        3U
@@ -122,6 +162,19 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
+typedef struct radioBand {
+  radio_freq_t  start;
+  radio_freq_t  end;
+  channel_hz_t  step;
+  radio_freq_t  def_aprs;
+} radio_band_t;
+
+typedef struct radioConfig {
+  radio_unit_t  unit;
+  radio_type_t  type;
+  radio_band_t  *band[NUM_BANDS_PER_RADIO];
+} radio_config_t;
+
 /*===========================================================================*/
 /* Module macros.                                                            */
 /*===========================================================================*/
@@ -143,6 +196,8 @@ extern "C" {
   void pktWrite(uint8_t *buf, uint32_t len);
   void pktPowerUpRadio(radio_unit_t radio);
   void pktPowerDownRadio(radio_unit_t radio);
+  radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq);
+  uint8_t pktReadIOlines(void);
 #ifdef __cplusplus
 }
 #endif

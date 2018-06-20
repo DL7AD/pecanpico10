@@ -827,8 +827,8 @@ static void dma_interrupt(void *p, uint32_t flags) {
      * Else Safe to allow buffer to fill.
      * DMA DBM will switch buffers in h/w when this one is full.
      * Update non-active memory address register now.
-     * This is done at TCIF so that CT is known to be valid.
-     * Checking CT at TCIF is not good because of IRQ latency.
+     * This is done at HTIF so that CT is known to be valid.
+     * Checking state of CT at TCIF may be too late because of IRQ latency.
      * i.e. the DMA controller may have already changed CT before IRQ is serviced.
      */
     dma_control->capture_buffer += DMA_SEGMENT_SIZE;
@@ -984,7 +984,7 @@ msg_t OV5640_LockResourcesForCapture(void) {
     return msg;
   }
   I2C_Lock();
-  pktPauseReception(PKT_RADIO_1);
+  pktPauseDecoding(PKT_RADIO_1);
   /* Hold TRACE output on USB. */
   if(isUSBactive())
     chMtxLock(&trace_mtx);
@@ -999,7 +999,7 @@ void OV5640_UnlockResourcesForCapture(void) {
   if(isUSBactive())
     chMtxUnlock(&trace_mtx);
   I2C_Unlock();
-  pktResumeReception(PKT_RADIO_1);
+  pktResumeDecoding(PKT_RADIO_1);
   pktReleaseRadio(PKT_RADIO_1);
 }
 

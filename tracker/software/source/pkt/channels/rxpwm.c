@@ -74,6 +74,12 @@ const ICUConfig pwm_icucfg = {
 /* Module local functions.                                                   */
 /*===========================================================================*/
 
+
+THD_FUNCTION(pktPWMispatcher, arg) {
+  (void)arg;
+} /* End thread. */
+
+
 /*===========================================================================*/
 /* Module exported functions.                                                */
 /*===========================================================================*/
@@ -105,32 +111,35 @@ ICUDriver *pktAttachICU(radio_unit_t radio_id) {
   icuObjectInit(myICU);
 
   /* The RX_DATA input is routed to ICU timer.
-   * Set in portab.h
+   * Set in portab.c
    */
   pktSetLineModeICU();
 
   /* If using PWM mirror to output to a diagnostic port. */
-  pktSetLineModePWMMirror();
+  pktSetGPIOlineMode(LINE_PWM_MIRROR, PAL_MODE_OUTPUT_PUSHPULL);
 
   /* Initialise the timers. */
   chVTObjectInit(&myICU->cca_timer);
   chVTObjectInit(&myICU->icu_timer);
   chVTObjectInit(&myICU->pwm_timer);
 
-  /* Configure ports. */
-  pktSetLineModeCCA();
+  /**
+  * Set up GPIO port where the NIRQ from the radio is connected.
+  * The NIRQ line is configured in the radio to output the CCA condition.
+  */
+  pktSetGPIOlineMode(LINE_CCA, PAL_MODE_INPUT_PULLUP);
 
   /* Setup the squelch LED. */
-  pktSetLineModeSquelchLED();
-  pktWriteSquelchLED(PAL_LOW);
+  pktSetGPIOlineMode(LINE_SQUELCH_LED, PAL_MODE_OUTPUT_PUSHPULL);
+  pktWriteGPIOline(LINE_SQUELCH_LED, PAL_LOW);
 
   /* Setup the overflow LED. */
-  pktSetLineModeOverflowLED();
-  pktWriteOverflowLED(PAL_LOW);
+  pktSetGPIOlineMode(LINE_OVERFLOW_LED, PAL_MODE_OUTPUT_PUSHPULL);
+  pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_LOW);
 
   /* Setup the no FIFO LED. */
-  pktSetLineModeNoFIFOLED();
-  pktWriteNoFIFOLED(PAL_LOW);
+  pktSetGPIOlineMode(LINE_NO_FIFO_LED, PAL_MODE_OUTPUT_PUSHPULL);
+  pktWriteGPIOline(LINE_NO_FIFO_LED, PAL_LOW);
 
   return myICU;
 }
@@ -154,16 +163,16 @@ void pktDetachICU(ICUDriver *myICU) {
   icuStop(myICU);
 
   /* Disable the squelch LED. */
-  pktUnsetLineModeSquelchLED();
+  pktUnsetGPIOlineMode(LINE_SQUELCH_LED);
 
   /* Disable overflow LED. */
-  pktUnsetLineModeOverflowLED();
+  pktUnsetGPIOlineMode(LINE_OVERFLOW_LED);
 
   /* Disable no FIFO LED. */
-  pktUnsetLineModeNoFIFOLED();
+  pktUnsetGPIOlineMode(LINE_NO_FIFO_LED);
 
   /* If using PWM mirror disable diagnostic port. */
-  pktUnsetLineModePWMMirror();
+  pktUnsetGPIOlineMode(PAL_MODE_OUTPUT_PUSHPULL);
 }
 
 /**
@@ -200,33 +209,49 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
   /*
    * Turn off the squelch LED.
    */
-  pktWriteSquelchLED(PAL_LOW);
+  pktWriteGPIOline(LINE_SQUELCH_LED, PAL_LOW);
 
   /* Stop the ICU notification (callback). */
   icuDisableNotificationsI(myICU);
   if(myDemod->active_radio_object != NULL) {
-    myDemod->active_radio_object->status |= (EVT_PWM_QUEUE_LOCK | evt);
+    myDemod->active_radio_object->status |= (EVT_PWM_STREAM_CLOSED | evt);
     pktAddEventFlagsI(myHandler, evt);
+#if USE_HEAP_PWM_BUFFER == TRUE
+    input_queue_t *myQueue =
+        &myDemod->active_radio_object->radio_pwm_queue->queue;
+#else
     input_queue_t *myQueue = &myDemod->active_radio_object->radio_pwm_queue;
+#endif
     /* End of data flag. */
 #if USE_12_BIT_PWM == TRUE
-    byte_packed_pwm_t pack = {{0, reason, 0}};
+    byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, reason, 0}};
 #else
-    byte_packed_pwm_t pack = {{0, reason}};
+    byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, reason}};
 #endif
     msg_t qs = pktWritePWMQueueI(myQueue, pack);
-    if(qs != MSG_OK) {
-      pktWriteOverflowLED(PAL_HIGH);
-      myDemod->active_radio_object->status |= EVT_PWM_QUEUE_FULL;
-      pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_FULL);
+    if(qs == MSG_TIMEOUT) {
+      /*
+       * No space to write in-band flag.
+       * This may be due to a pending ICU interrupt?
+       * In any case flag the error.
+       */
+      pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
+      myDemod->active_radio_object->status |= EVT_PWM_QUEUE_OVERRUN;
+      pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_OVERRUN);
     }
-    /* Release the decoder thread if waiting. */
+    /* Allow the decoder thread to release the stream FIFO object. */
     chBSemSignalI(&myDemod->active_radio_object->sem);
+
+#if USE_HEAP_PWM_BUFFER == TRUE
+    /* Remove the PWM object reference. */
+    myDemod->active_radio_object->radio_pwm_queue = NULL;
+#endif
     /* Remove object reference. */
     myDemod->active_radio_object = NULL;
   } else {
     pktAddEventFlagsI(myHandler, evt);
   }
+  /* Return to ready state (inactive). */
   myDemod->icustate = PKT_PWM_READY;
 }
 
@@ -234,7 +259,7 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
  * @brief   Opens the PWM stream from the ICU.
  * @post    The ICU notification (callback) is enabled.
  * @post    If an error occurs the PWM is not started and state is unchanged.
- * @post    If the FIFO is empty the "no FIFO object" LED is lit.
+ * @post    If the FIFO is empty the "no FIFO object" LED is lit (if assigned).
  * @post    If no error occurs the timers associated with PWM are started.
  * @post    The seized FIFO is sent via the queue mailbox.
  * @post    The ICU state is set to active.
@@ -249,21 +274,18 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   packet_svc_t *myHandler = myDemod->packet_handler;
 
   /* Turn on the squelch LED. */
-  pktWriteSquelchLED(PAL_HIGH);
-
-  /* Turn off the overflow LED. */
-  //pktWriteOverflowLED(PAL_LOW);
+  pktWriteGPIOline(LINE_SQUELCH_LED, PAL_HIGH);
 
   if(myDemod->active_radio_object != NULL) {
     /* TODO: Work out correct handling. We should not have an open channel.
      * Shouldn't happen unless CCA has not triggered an EXTI trailing edge.
      * For now just flag that an error condition happened.
      */
-    pktClosePWMChannelI(myICU, EVT_RADIO_CCA_FIFO_ERR, PWM_TERM_NO_QUEUE);
+    pktClosePWMChannelI(myICU, EVT_PWM_FIFO_REMNANT, PWM_TERM_QUEUE_ERR);
     return;
   }
   /* Normal CCA handling. */
-  radio_cca_fifo_t *myFIFO = chFifoTakeObjectI(myDemod->pwm_fifo_pool);
+  radio_pwm_fifo_t *myFIFO = chFifoTakeObjectI(myDemod->pwm_fifo_pool);
   if(myFIFO == NULL) {
     myDemod->active_radio_object = NULL;
     /* No FIFO available.
@@ -274,57 +296,94 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
     icuDisableNotificationsI(myICU);
 
     /* Turn on the FIFO out LED. */
-    pktWriteNoFIFOLED(PAL_HIGH);
+    pktWriteGPIOline(LINE_NO_FIFO_LED, PAL_HIGH);
     return;
   }
 
+  /* Save the FIFO used for this PWM -> decoder session. */
   myDemod->active_radio_object = myFIFO;
+
+#if USE_HEAP_PWM_BUFFER == TRUE
+  /*
+   * The linked PWM queue system buffers PWM in chained queue/buffer pool objects.
+   * Once CCA is validated PWM buffering commences.
+   * A queue/buffer object is taken from the pool.
+   * The object is set as the current radio PWM side object.
+   * This will be replaced as PWM arrives and the buffer becomes full.
+   *
+   * As PWM data arrives the memory pool object buffer is filled with PWM data.
+   * When the current buffer is full a new object is obtained from the pool.
+   * The embedded queue is initialized and points to the objects internal buffer.
+   * The new object is chained to the prior buffer object.
+   * The pointer is updated to point to the new object
+   *
+   * The PWM interrupt handler then continues to fill the new buffer.
+   *
+   * Each memory pool object contains:
+   * 1. An embedded input queue object
+   * 2. A buffer associated with the input queue
+   * 3. A pointer to the next object (or NULL if none)
+   *
+   */
+
+  radio_pwm_object_t *pwm_object = chPoolAllocI(&myDemod->pwm_buffer_pool);
+  if(pwm_object == NULL) {
+    /*
+     * Failed to get a PWM buffer object.
+     * Post an event and disable ICU.
+     */
+    chFifoReturnObjectI(myDemod->pwm_fifo_pool, myFIFO);
+    myDemod->active_radio_object = NULL;
+    pktAddEventFlagsI(myHandler, EVT_PWM_BUFFER_FAIL);
+    icuDisableNotificationsI(myICU);
+    /* Turn on the PWM buffer out LED. */
+    pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_HIGH);
+    return;
+  }
+  pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_LOW);
+
+  /* Save this object as the one currently receiving PWM. */
+  myFIFO->radio_pwm_queue = pwm_object;
+  myFIFO->in_use = 1;
+  myFIFO->peak = 0;
+  myFIFO->rlsd = 0;
+  myFIFO->decode_pwm_queue = pwm_object;
+  /*
+   * Initialize the queue object.
+   * Set the user defined link to NULL.
+   * Using the embedded link allows removal of the buffer object link field.
+   */
+  iqObjectInit(&pwm_object->queue,
+                     (*pwm_object).buffer.pwm_bytes,
+                     sizeof(radio_pwm_buffer_t),
+                     NULL, NULL);
+
+#if USE_PWM_QUEUE_LINK != TRUE
+  /* No linked queue object yet. */
+  pwm_object->next = NULL;
+#endif
+#else
+  /* Non linked FIFOs have an embedded input queue with data buffer. */
+  iqObjectInit(&myFIFO->radio_pwm_queue,
+                     myFIFO->packed_buffer.pwm_bytes,
+                     sizeof(radio_pwm_buffer_t),
+                     NULL, NULL);
+#endif
 
   /* Clear event/status bits. */
   myFIFO->status = 0;
 
   /*
    * Initialize FIFO release control semaphore.
-   * The decoder thread waits on the semaphore before releasing  to pool.
+   * The decoder thread waits on the semaphore before releasing to pool.
    */
   chBSemObjectInit(&myFIFO->sem, true);
-
-#if USE_HEAP_PWM_BUFFER == TRUE
-  /*
-   * FIXME: Have to add buffer allocation thread and post request via MBX.
-   * Then defer ICU PWM queue fill until buffer assigned by thread.
-   * The thread will assign a buffer and post the queue object to the decoder.
-   */
-  radio_pwm_buffer_t *pwm_buffer = chHeapAlloc(NULL, sizeof(radio_pwm_buffer_t));
-  if(pwm_buffer == NULL) {
-    /* Failed to get PWM buffer. */
-    chFifoReturnObjectI(myDemod->pwm_fifo_pool, myFIFO);
-
-    /* Post an event and disable ICU. */
-    pktAddEventFlagsI(myHandler, EVT_PWM_BUFFER_FAIL);
-    icuDisableNotificationsI(myICU);
-    return;
-  }
-  /* Each FIFO entry has an embedded input queue. */
-  (void)iqObjectInit(&myFIFO->radio_pwm_queue,
-                     (*pwm_buffer).pwm_bytes,
-                     sizeof(radio_pwm_buffer_t),
-                     NULL , NULL);
-  myFIFO->packed_buffer = pwm_buffer;
-#else
-  /* Each FIFO entry has an embedded input queue with data buffer. */
-  (void)iqObjectInit(&myFIFO->radio_pwm_queue,
-                     myFIFO->packed_buffer.pwm_bytes,
-                     sizeof(radio_pwm_buffer_t),
-                     NULL , NULL);
-#endif
 
   /*
    * Set the status of this FIFO.
    * Send the FIFO entry to the decoder thread.
    */
   chFifoSendObjectI(myDemod->pwm_fifo_pool, myFIFO);
-/*  myFIFO->status |= EVT_PWM_FIFO_SENT;*/
 
   /*
    * Start the ICU activity timer.
@@ -388,7 +447,7 @@ void pktICUInactivityTimeout(ICUDriver *myICU) {
 }
 
 /**
- * @brief   Stop all ICU associated timer.
+ * @brief   Stop all ICU associated timers.
  * @notes   Will be called when the packet channel is stopped.
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
@@ -414,7 +473,7 @@ void pktPWMInactivityTimeout(ICUDriver *myICU) {
   chSysLockFromISR();
   AFSKDemodDriver *myDemod = myICU->link;
   if(myDemod->active_radio_object != NULL) {
-    pktClosePWMChannelI(myICU, EVT_PWM_NO_DATA, PWM_TERM_ICU_OVERFLOW);
+    pktClosePWMChannelI(myICU, EVT_PWM_NO_DATA, PWM_TERM_NO_DATA);
   }
   chSysUnlockFromISR();
 }
@@ -441,8 +500,9 @@ void pktRadioCCALeadTimer(ICUDriver *myICU) {
       break;
       }
 
+    /* CCA still high so open PWM channel now it is validated. */
     case PAL_HIGH: {
-      pktOpenPWMChannelI(myICU, EVT_RADIO_CCA_OPEN);
+      pktOpenPWMChannelI(myICU, EVT_PWM_STREAM_OPEN);
       break;
     }
   }
@@ -468,10 +528,13 @@ void pktRadioCCATrailTimer(ICUDriver *myICU) {
     case PAL_LOW: {
       /*
        * The decoder operates asynchronously to and usually slower than PWM.
-       * When the decoder ends it returns its FIFO object to the pool.
-       * Closing PWM sets the FIFO management semaphore.
+       * Hence the decoder is responsible for releasing the PWM FIFO object.
+       * Prior to releasing the FIFO the decoder waits on the FIFO semaphore.
+       * Closing PWM from here sets the FIFO management semaphore.
+       * This caters for the case where the decoder finishes first.
+       * This may happen if the sender uses a long HDLC packet tail.
        */
-      pktClosePWMChannelI(myICU, EVT_RADIO_CCA_CLOSE, PWM_TERM_CCA_CLOSE);
+      pktClosePWMChannelI(myICU, EVT_PWM_STREAM_CLOSE, PWM_TERM_CCA_CLOSE);
       break;
       }
 
@@ -545,9 +608,7 @@ void pktRadioCCAInput(ICUDriver *myICU) {
  */
 void pktRadioICUWidth(ICUDriver *myICU) {
   (void)myICU;
-#if defined(LINE_PWM_MIRROR)
-  pktWritePWMMirror(PAL_LOW);
-#endif
+  pktWriteGPIOline(LINE_PWM_MIRROR, PAL_LOW);
 }
 
 /**
@@ -565,9 +626,8 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    *
    * See halconf.h for the definition.
    */
-#if defined(LINE_PWM_MIRROR)
-  pktWritePWMMirror(PAL_HIGH);
-#endif
+  pktWriteGPIOline(LINE_PWM_MIRROR, PAL_HIGH);
+
   AFSKDemodDriver *myDemod = myICU->link;
 
   chSysLockFromISR();
@@ -586,23 +646,88 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
     return;
   }
   /*
-   * Check if decoder has already finished while ICU is still active.
+   * Check if decoding has already finished while ICU is still active.
    * The decoder terminates a frame on the first trailing HDLC flag.
-   * If CPU is fast (FPU enabled) it might finish decode before ICU stops.
+   * If CPU is fast (FPU enabled) it might finish decode before PWM stops.
    * A long sequence of trailing HDLC flags or junk after a frame close
-   * but before squelch close could cause trailing ICU activity.
+   *  flag may cause trailing PWM activity.
    *
    */
   if((myDemod->active_radio_object->status & EVT_AFSK_DECODE_DONE) != 0) {
-    pktClosePWMChannelI(myICU, EVT_PWM_STREAM_CLOSED, PWM_TERM_DECODE_ENDED);
+    pktClosePWMChannelI(myICU, EVT_NONE, PWM_ACK_DECODE_END);
     chSysUnlockFromISR();
     return;
   }
 
-  /* Check and write ICU values if OK. */
+  /*
+   * Check if the the decoder encountered an error condition.
+   * This will happen when no AX25 buffer is available or overflows.
+   * Close the PWM stream and wait for next radio CCA.
+   */
+  if((myDemod->active_radio_object->status & EVT_AFSK_DECODE_ERROR) != 0) {
+    pktClosePWMChannelI(myICU, EVT_NONE, PWM_ACK_DECODE_ERROR);
+    chSysUnlockFromISR();
+    return;
+  }
+  /* Write ICU data to PWM queue. */
   msg_t qs = pktQueuePWMDataI(myICU);
-  if(qs != MSG_OK) {
-    pktWriteOverflowLED(PAL_HIGH);
+
+  if(qs == MSG_RESET) {
+    /* Data not written. Space for one in-band entry available. */
+#if USE_HEAP_PWM_BUFFER == TRUE
+    /* Get another queue/buffer object. */
+    radio_pwm_object_t *pwm_object = chPoolAllocI(&myDemod->pwm_buffer_pool);
+    if(pwm_object != NULL) {
+      /* Initialize the new queue/buffer object. */
+      iqObjectInit(&pwm_object->queue,
+                         (*pwm_object).buffer.pwm_bytes,
+                         sizeof(radio_pwm_buffer_t),
+                         NULL, NULL);
+
+      /*
+       * Link the new object in read sequence after the prior object.
+       * The next link is set to NULL.
+       */
+      radio_pwm_object_t *myObject =
+          myDemod->active_radio_object->radio_pwm_queue;
+#if USE_PWM_QUEUE_LINK == TRUE
+      qSetLink(&myObject->queue, pwm_object);
+#else
+      myObject->next = pwm_object;
+      pwm_object->next = NULL;
+#endif
+
+      myDemod->active_radio_object->in_use++;
+      uint8_t out = (myDemod->active_radio_object->in_use
+          - myDemod->active_radio_object->rlsd);
+      if(out > myDemod->active_radio_object->peak)
+        myDemod->active_radio_object->peak = out;
+
+      /* Write the in-band queue swap message to the current object. */
+  #if USE_12_BIT_PWM == TRUE
+      byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INFO_QUEUE_SWAP, 0}};
+  #else
+      byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INFO_QUEUE_SWAP}};
+  #endif
+      msg_t qs = pktWritePWMQueueI(&myObject->queue, pack);
+
+      /* Set the new object as the active PWM queue/buffer. */
+      myDemod->active_radio_object->radio_pwm_queue = pwm_object;
+
+      /* Write the PWM data to the new buffer. */
+      qs = pktQueuePWMDataI(myICU);
+      if(qs == MSG_OK) {
+        chSysUnlockFromISR();
+        return;
+      }
+    }
+#endif
+
+    /*
+     * Queue has space for one entry only.
+     * Close channel and write in-band message indicating queue full.
+     */
+    pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
     pktClosePWMChannelI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);
   }
   chSysUnlockFromISR();
@@ -624,6 +749,7 @@ void PktRadioICUOverflow(ICUDriver *myICU) {
   packet_svc_t *myHandler = myDemod->packet_handler;
   pktAddEventFlagsI(myHandler, EVT_ICU_OVERFLOW);
   if(myDemod->active_radio_object != NULL) {
+    /* Close the channel and stop ICU notifications. */
     pktClosePWMChannelI(myICU, EVT_ICU_OVERFLOW, PWM_TERM_ICU_OVERFLOW);
   } else {
     /* Just stop the ICU notification. */
@@ -636,17 +762,13 @@ void PktRadioICUOverflow(ICUDriver *myICU) {
  * @brief   Converts ICU data and posts to the PWM queue.
  * @pre     The ICU driver is linked to a demod driver (pointer to driver).
  * @details Byte values of packed PWM data are written into an input queue.
- *          The operation will succeed if sufficient queue space is available.
- *          If the queue will become full then an in-band QOV flag is written.
- *          In that case PWM data will not be queued unless it was an EOD flag.
  *
  * @param[in] myICU      pointer to the ICU driver structure
  *
  * @return              The operation status.
  * @retval MSG_OK       The PWM data has been queued.
  * @retval MSG_TIMEOUT  The queue is already full.
- * @retval MSG_RESET    Queue space would be exhausted so a QOV
- *                      flag is written in place of PWM data.
+ * @retval MSG_RESET    Queue has one slot left and the data is not an in-band.
  *
  * @iclass
  */
@@ -657,7 +779,12 @@ msg_t pktQueuePWMDataI(ICUDriver *myICU) {
   AFSKDemodDriver *myDemod = myICU->link;
   chDbgAssert(myDemod != NULL, "no linked demod driver");
 
+#if USE_HEAP_PWM_BUFFER == TRUE
+  input_queue_t *myQueue =
+      &myDemod->active_radio_object->radio_pwm_queue->queue;
+#else
   input_queue_t *myQueue = &myDemod->active_radio_object->radio_pwm_queue;
+#endif
   chDbgAssert(myQueue != NULL, "no queue assigned");
 
   byte_packed_pwm_t pack;

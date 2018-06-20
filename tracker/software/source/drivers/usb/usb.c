@@ -34,7 +34,8 @@ void startUSB(void) {
 	sdu_chn_state = TERM_SDU_INIT;
 }
 
-/*
+/**
+ * @brief   Manage trace output and shell on Serial Over USB.
  *
  */
 void startSDU(void) {
@@ -43,7 +44,7 @@ void startSDU(void) {
   sduObjectInit(&SDU1);
   chEvtRegister(chnGetEventSource(&SDU1), &sdu1_el, USB_SDU1_EVT);
   sduStart(&SDU1, &serusbcfg);
-  sdu_chn_state = TERM_SDU_IDLE;
+  sdu_chn_state = TERM_SDU_START;
 }
 
 /**
@@ -66,27 +67,40 @@ void manageTraceAndShell(void) {
 
     switch(sdu_chn_state) {
     case TERM_SDU_INIT:
-      return;
+      break;
+
+    case TERM_SDU_START:
+      if(evtf & CHN_CONNECTED) {
+        sdu_chn_state = TERM_SDU_OUT;
+        chprintf(chp, "\r\n*** Terminal connected ***\r\n");
+        break;
+      }
+      if(evtf & CHN_DISCONNECTED) {
+        sdu_chn_state = TERM_SDU_IDLE;
+        break;
+      }
+      break;
 
     case TERM_SDU_IDLE: {
-      if(evtf == 0)
-        return;
+/*      if(evtf == 0)
+        break;*/
       if(evtf & CHN_CONNECTED) {
         sdu_chn_state = TERM_SDU_OUT;
         chprintf(chp, "\r\n*** Trace output enabled ***\r\n");
-        break;
+        //break;
       }
       break;
     } /* End case TERM_SDU_IDLE */
 
     case TERM_SDU_OUT: {
       if(evtf & CHN_DISCONNECTED) {
-        sdu_chn_state = TERM_SDU_IDLE;
-        return;
+        sdu_chn_state = TERM_SDU_START;
+        break;
       }
       if(evtf & CHN_INPUT_AVAILABLE) {
         /* Flush the input queue. */
-        while(chnGetTimeout((SerialUSBDriver *)chp, TIME_MS2I(100)) != STM_TIMEOUT);
+        while(chnGetTimeout((SerialUSBDriver *)chp,
+                            TIME_MS2I(100)) != STM_TIMEOUT);
         chprintf(chp, "\r\n*** Trace suspended - type ^D or use the "
             "'exit' command to resume trace ***\r\n");
         shellInit();
@@ -122,9 +136,9 @@ void manageTraceAndShell(void) {
     } /* End case TERM_SDU_SHELL */
 
     case TERM_SDU_EXIT: {
-        chThdWait(shelltp);
-        shelltp = NULL;
-        sdu_chn_state = TERM_SDU_IDLE;
+      chThdWait(shelltp);
+      shelltp = NULL;
+      sdu_chn_state = TERM_SDU_START;
       break;
     } /* End case TERM_SDU_EXIT */
 

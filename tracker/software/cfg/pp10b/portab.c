@@ -17,19 +17,33 @@
 
 #include "hal.h"
 #include "chprintf.h"
+#include "pkttypes.h"
 #include "portab.h"
 #include "usb.h"
+#include "types.h"
 #include <stdarg.h>
 
 /*===========================================================================*/
 /* Module local definitions.                                                 */
 /*===========================================================================*/
 
+const radio_band_t band_2m = {
+  .start    = BAND_MIN_2M_FREQ,
+  .end      = BAND_MAX_2M_FREQ,
+  .step     = BAND_STEP_2M_HZ,
+  .def_aprs = BAND_DEF_2M_APRS
+};
+
+const radio_band_t band_70cm = {
+  .start    = BAND_MIN_70CM_FREQ,
+  .end      = BAND_MAX_70CM_FREQ,
+  .step     = BAND_STEP_70CM_HZ,
+  .def_aprs = BAND_DEF_70CM_APRS
+};
+
 /*===========================================================================*/
 /* Module exported variables.                                                */
 /*===========================================================================*/
-
-//binary_semaphore_t diag_out_sem;
 
 /*===========================================================================*/
 /* Module local types.                                                       */
@@ -39,7 +53,6 @@
 /* Module local variables.                                                   */
 /*===========================================================================*/
 
-
 /*===========================================================================*/
 /* Module local functions.                                                   */
 /*===========================================================================*/
@@ -47,6 +60,21 @@
 /*===========================================================================*/
 /* Module exported functions.                                                */
 /*===========================================================================*/
+
+typedef struct SysProviders {
+
+} providers_t;
+
+const radio_config_t radio_list[NUM_PKT_RADIOS] = {
+  { /* Radio #1 */
+    .unit = PKT_RADIO_1,
+    .type = SI4464,
+    .band = {
+             (radio_band_t * const)&band_2m,
+              NULL
+            }
+  } /* End radio1 */
+};
 
 const SerialConfig debug_config = {
   115200,
@@ -108,6 +136,20 @@ int dbgPrintf(uint8_t level, const char *format, ...) {
 #endif
 }
 
+/*
+ * Read GPIO that are used for:
+ * a) general use or
+ * b) UART and s/w I2C external.
+ *
+ * @return State of lines regardless of general or specific use.
+ */
+uint8_t pktReadIOlines() {
+  return palReadLine(LINE_GPIO_PIN1)
+      | palReadLine(LINE_IO_TXD) << 1
+      | palReadLine(LINE_IO_RXD) << 2
+      | palReadLine(LINE_GPIO_PIN2);
+}
+
 void pktWrite(uint8_t *buf, uint32_t len) {
   chnWrite((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, buf, len);
 }
@@ -159,6 +201,27 @@ void sysConfigureCoreIO(void) {
   #if ACTIVATE_USB
   startUSB();
   #endif
+}
+
+/*
+ *
+ */
+radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq) {
+  /* Check validity. */
+  uint8_t radios = NUM_PKT_RADIOS/*sizeof(radio_list) / sizeof(radio_param_t)*/;
+  for(uint8_t i = 0; i < radios; i++) {
+    if(radio_list[i].unit != radio)
+      continue;
+    for(uint8_t x = 0; x < NUM_BANDS_PER_RADIO; x++) {
+      if(radio_list[i].band[x] == NULL)
+        /* No more bands in this radio. */
+          return FREQ_RADIO_INVALID;
+      if(radio_list[i].band[x]->start <= freq
+          && freq < radio_list[i].band[x]->end)
+        return freq;
+    } /* End for bands */
+  } /* End for radios*/
+  return FREQ_RADIO_INVALID;
 }
 
 /** @} */

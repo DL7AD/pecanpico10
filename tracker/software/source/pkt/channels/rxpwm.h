@@ -34,13 +34,20 @@
 #define MAX_PWM_BITS    16
 #endif
 
-/* PWM stream terminate reason codes. */
+/* PWM stream in-band prefix. */
+#define PWM_IN_BAND_PREFIX      0
+
+/* PWM stream terminate in-band reason codes. */
 #define PWM_TERM_CCA_CLOSE      0
 #define PWM_TERM_QUEUE_FULL     1
 #define PWM_TERM_ICU_OVERFLOW   2
-#define PWM_TERM_NO_QUEUE       3
-#define PWM_TERM_DECODE_ENDED   4
+#define PWM_TERM_QUEUE_ERR      3
+#define PWM_ACK_DECODE_END      4
 #define PWM_TERM_DECODE_STOP    5
+#define PWM_TERM_NO_DATA        6
+#define PWM_TERM_QUEUE_LOCK     7
+#define PWM_INFO_QUEUE_SWAP     8
+#define PWM_ACK_DECODE_ERROR    9
 
 /* ICU will be stopped if no activity for this number of seconds. */
 #define ICU_INACTIVITY_TIMEOUT  60
@@ -110,21 +117,67 @@ typedef union {
                                  * PWM_DATA_SLOTS];
 } radio_pwm_buffer_t;
 
-/* PWM FIFO object with embedded queue shared between ICU and decoder. */
-typedef struct {
-  /* For safety keep clear - where pool stores its free link. */
-  struct pool_header        link;
-  /* TODO: The next becomes a pointer to a buffer obtained from the heap. */
 #if USE_HEAP_PWM_BUFFER == TRUE
-  radio_pwm_buffer_t        *packed_buffer;
-#else
-  /* Allocate a buffer in the queue object. */
-  radio_pwm_buffer_t        packed_buffer;
+/* Forward declare struct. */
+typedef struct PWMobject radio_pwm_object_t;
+
+typedef struct PWMobject {
+  radio_pwm_buffer_t        buffer;
+
+  /* In linked mode the reference to the next PWM queue is saved here.
+   * The decoder will continue to process linked PWM queues until completion.
+   */
+  input_queue_t             queue;
+#if USE_PWM_QUEUE_LINK != TRUE
+  radio_pwm_object_t        *next;
 #endif
+} radio_pwm_object_t;
+#endif
+
+/*
+ * PWM FIFO object. Path between ICU and decoder during an AFSK decode.
+ */
+typedef struct {
+  /* For safety keep clear - where FIFO pool stores its free link. */
+  struct pool_header        link;
+#if USE_HEAP_PWM_BUFFER == TRUE
+  /*
+   * There are two PWM object pointers in a PWM stream record.
+   * One for the radio (producer) side.
+   * And one for the decoder (consumer) side.
+   */
+  radio_pwm_object_t        *radio_pwm_queue;
+  radio_pwm_object_t        *decode_pwm_queue;
+  uint8_t                   in_use;
+  uint8_t                   rlsd;
+  uint8_t                   peak;
+#else
+  /* Allocate a PWM buffer in the queue object. */
+  radio_pwm_buffer_t        packed_buffer;
+
+  /*
+   * This is the current radio queue object.
+   * In single queue mode PWM is written to a single queue only.
+   * The queue has a single large buffer and used for the entire PWM session.
+   *
+   * In linked buffer mode PWM can chain multiple smaller input buffers.
+   * After getting a new PWM buffer object the queue is re-initialized.
+   * The queue fill with further PWM then continues.
+   * As PWM buffers are consumed by the decoder they are recycled back to the pool.
+   * The radio PWM can then re-use those buffers which in theory reduces memory utilisation.
+   */
   input_queue_t             radio_pwm_queue;
+#endif
+  /*
+   * The semaphore controls the release of the PWM buffer and FIFO resources.
+   * In non-linked mode the buffer is enclosed within the FIFO object.
+   * In linked mode the last PWM buffer is protected along with the FIFO.
+   * The semaphore prevents any release during trailing PWM buffering.
+   * Trailing PWM is not used but the object(s) are still in use by the radio.
+   */
   binary_semaphore_t        sem;
   volatile eventflags_t     status;
-} radio_cca_fifo_t;
+} radio_pwm_fifo_t;
 
 /*===========================================================================*/
 /* Module inline functions.                                                  */
@@ -179,10 +232,8 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
   duration |= ((min_icucnt_t)(src.pwm.xtn & 0xF0U) << 4);
   dest->pwm.valley = duration;
 #else
-  min_icucnt_t duration = src.pwm.impulse;
-  dest->pwm.impulse = duration;
-  duration = src.pwm.valley;
-  dest->pwm.valley = duration;
+  dest->pwm.impulse = src.pwm.impulse;
+  dest->pwm.valley = src.pwm.valley;
 #endif
 }
 
@@ -194,46 +245,30 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
  * @param[in] pack      PWM packed data object.
  *
  * @return              The operation status.
- * @retval MSG_OK       The PWM data has been queued.
- * @retval MSG_TIMEOUT  The queue is already full.
- * @retval MSG_RESET    Queue space would be exhausted so an OVF
- *                      flag is written in place of PWM data
- *                      unless the data is an EOT flag.
+ * @retval MSG_OK       The PWM entry has been queued.
+ * @retval MSG_RESET    One slot remains which is reserved for an in-band signal.
+ * @retval MSG_TIMEOUT  The queue is full for normal PWM data writes.
+ *
+ *
  * @api
  */
 static inline msg_t pktWritePWMQueueI(input_queue_t *queue,
                                      byte_packed_pwm_t pack) {
-  size_t qsz = sizeof(pack.bytes);
-  /* Check for required space. */
-  if(iqGetEmptyI(queue) < qsz) {
-    return MSG_TIMEOUT;
-  }
-  msg_t ret_val = MSG_OK;
-  if(iqGetEmptyI(queue) == qsz) {
 
-    /* TODO: Define in band data flags 0 & 1. */
-#if USE_12_BIT_PWM == TRUE
-    if((pack.pwm.impulse + pack.pwm.valley + pack.pwm.xtn) != 0) {
-      byte_packed_pwm_t eob = {{0, 1, 0}}; /* OVF flag. */
-      pack = eob;
-      ret_val = MSG_RESET;
-    }
+  /* Check if there is only one slot left. */
+  if(iqGetEmptyI(queue) == sizeof(byte_packed_pwm_t)) {
+    array_min_pwm_counts_t data;
+    pktUnpackPWMData(pack, &data);
+    if(data.pwm.impulse != PWM_IN_BAND_PREFIX)
+      return MSG_RESET;
   }
-#else
-  if((pack.pwm.impulse + pack.pwm.valley) != 0) {
-    byte_packed_pwm_t eob = {{0, 1}}; /* OVF flag. */
-    pack = eob;
-    ret_val = MSG_RESET;
+
+  /* Data is normal PWM or an in-band. */
+  for(uint8_t b = 0; b < sizeof(pack.bytes); b++) {
+    if(MSG_TIMEOUT == iqPutI(queue, pack.bytes[b]))
+      return MSG_TIMEOUT;
   }
-}
-  #endif
-  uint8_t b;
-  for(b = 0; b < sizeof(pack.bytes); b++) {
-    msg_t result = iqPutI(queue, pack.bytes[b]);
-    if(result != MSG_OK)
-      return result;
-  }
-  return ret_val;
+  return MSG_OK;
 }
 
 /*===========================================================================*/

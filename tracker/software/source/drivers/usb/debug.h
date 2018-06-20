@@ -10,8 +10,13 @@
 #include "usbcfg.h"
 #include "usb.h"
 
+#define ERROR_LIST_LENGTH	64
+#define ERROR_LIST_SIZE		32
+
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
+extern char error_list[ERROR_LIST_SIZE][ERROR_LIST_LENGTH];
+extern uint8_t error_counter;
 extern mutex_t trace_mtx;
 extern const SerialConfig uart_config;
 extern uint8_t usb_trace_level;
@@ -41,7 +46,15 @@ extern uint8_t usb_trace_level;
 #define TRACE_INFO(format, args...)  if(usb_trace_level > 3) { TRACE_BASE(format, "     ", ##args) }
 #define TRACE_MON(format, args...)  if(usb_trace_level > 2) { TRACE_BASE(format, "     ", ##args) }
 #define TRACE_WARN(format, args...)  if(usb_trace_level > 1) { TRACE_BASE(format, "WARN ", ##args) }
-#define TRACE_ERROR(format, args...) if(usb_trace_level > 0) { TRACE_BASE(format, "ERROR", ##args) }
+#define TRACE_ERROR(format, args...) { \
+	if(usb_trace_level > 0) { \
+		TRACE_BASE(format, "ERROR", ##args); \
+	} \
+	\
+	uint8_t strcnt = chsnprintf(error_list[error_counter], ERROR_LIST_LENGTH, "[%8d.%03d] ", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000); \
+	chsnprintf(&error_list[error_counter][strcnt], ERROR_LIST_LENGTH-strcnt, (format), ##args); \
+	error_counter = (error_counter+1)%ERROR_LIST_SIZE; \
+}
 
 #if TRACE_TIME && TRACE_FILE
 #define TRACE_TAB "                                               "

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -14,10 +14,8 @@
     limitations under the License.
 */
 
-#ifndef _MCUCONF_H_
-#define _MCUCONF_H_
-
-//#include "config.h"
+#ifndef MCUCONF_H_
+#define MCUCONF_H_
 
 /*
  * STM32F4xx drivers configuration.
@@ -34,11 +32,15 @@
  */
 
 #define STM32F4xx_MCUCONF
+#define STM32F413_MCUCONF
 
 /*
  * HAL driver system settings.
  */
 #define STM32_NO_INIT                       FALSE
+#define STM32_PVD_ENABLE                    FALSE
+#define STM32_PLS                           STM32_PLS_LEV0
+#define STM32_BKPRAM_ENABLE                 FALSE
 #define STM32_HSI_ENABLED                   FALSE
 #define STM32_LSI_ENABLED                   TRUE
 #define STM32_HSE_ENABLED                   TRUE
@@ -54,6 +56,7 @@
 #define STM32_HPRE                          STM32_HPRE_DIV1
 #define STM32_PPRE1                         STM32_PPRE1_DIV1
 #define STM32_PPRE2                         STM32_PPRE2_DIV1
+#define STM32_PLLI2SSRC                     STM32_PLLI2SSRC_PLLSRC
 #define STM32_TIMPRE                        STM32_TIMPRE_PCLK
 #define STM32_RTCSEL                        STM32_RTCSEL_LSI
 #define STM32_RTCPRE_VALUE                  8
@@ -66,9 +69,7 @@
 #define STM32_PLLI2SN_VALUE                 192
 #define STM32_PLLI2SR_VALUE                 4
 #define STM32_PLLI2SQ_VALUE                 4
-#define STM32_PVD_ENABLE                    FALSE
-#define STM32_PLS                           STM32_PLS_LEV0
-#define STM32_BKPRAM_ENABLE                 FALSE
+
 
 
 
@@ -272,13 +273,11 @@
 #define STM32_USB_USE_OTG1                  TRUE
 #define STM32_USB_OTG1_IRQ_PRIORITY         14
 #define STM32_USB_OTG1_RX_FIFO_SIZE         512
-#define STM32_USB_OTG_THREAD_PRIO           LOWPRIO
-#define STM32_USB_OTG_THREAD_STACK_SIZE     128
-#define STM32_USB_OTGFIFO_FILL_BASEPRI      0
+#define STM32_USB_HOST_WAKEUP_DURATION      2
 
 /*
  * WDG driver system settings.
  */
 #define STM32_WDG_USE_IWDG                  TRUE
 
-#endif /* _MCUCONF_H_ */
+#endif /* MCUCONF_H_ */

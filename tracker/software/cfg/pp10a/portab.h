@@ -63,10 +63,17 @@
 #define NUM_PKT_RADIOS              1
 #define NUM_BANDS_PER_RADIO         2
 
-//#define LINE_OVERFLOW_LED         LINE_LED3
+/* LED status indicators (set to PAL_NOLINE if not available). */
+#define LINE_OVERFLOW_LED           PAL_NOLINE
 #define LINE_DECODER_LED            LINE_IO_BLUE
-//#define LINE_SQUELCH_LED            LINE_IO_GREEN
+#define LINE_SQUELCH_LED            PAL_NOLINE
+#define LINE_NO_FIFO_LED            PAL_NOLINE
+#define LINE_NO_BUFF_LED            PAL_NOLINE
 
+/* Diagnostic PWM mirror port. */
+#define LINE_PWM_MIRROR             PAL_NOLINE
+
+/* Radio ports. */
 #define LINE_CCA                    LINE_RADIO_IRQ
 #define LINE_ICU                    LINE_RADIO_GPIO1
 
@@ -113,15 +120,27 @@
 #define USE_12_BIT_PWM              FALSE
 
 /*
- * TODO: This will save a lot of system heap as PWM buffers are large
- * Stratgey: Allocate PWM buffers from a CCM heap/pool.
- * Requires some special handling in PWM and AFSK decoder TBI.
+ * Allocate PWM buffers from a CCM heap/pool.
+ * Requires fragmented queue/buffer objects.
+ * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
+ * Decoder side swaps queue/buffer on in-band message.
+ * The prior PWM buffer is returned to the pool.
  */
-#define USE_HEAP_PWM_BUFFER         FALSE
+#define USE_HEAP_PWM_BUFFER         TRUE
+#define USE_CCM_BASED_HEAP          TRUE
+#define USE_PWM_QUEUE_LINK          TRUE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
+#if USE_HEAP_PWM_BUFFER == TRUE
+#define NUMBER_PWM_FIFOS            3U
+/* Number of PWM data entries per queue object. */
+#define PWM_DATA_SLOTS              200
+/* Number of PWM queue objects in total. */
+#define PWM_DATA_BUFFERS            30
+#else
 #define NUMBER_PWM_FIFOS            3U
 #define PWM_DATA_SLOTS              6000
+#endif
 
 /* Number of frame receive buffers. */
 #define NUMBER_RX_PKT_BUFFERS        3U
@@ -132,7 +151,7 @@
  */
 #define NUMBER_COMMON_PKT_BUFFERS       10U
 #define RESERVE_BUFFERS_FOR_INTERNAL    2U
-#define MAX_BUFFERS_FOR_BURST_SEND      3U
+#define MAX_BUFFERS_FOR_BURST_SEND      5U
 #if (MAX_BUFFERS_FOR_BURST_SEND >                                            \
     (NUMBER_COMMON_PKT_BUFFERS - RESERVE_BUFFERS_FOR_INTERNAL))
 #warning "Can not allocate requested buffers for burst send - set to 50%"
@@ -159,11 +178,11 @@ typedef struct radioBand {
   radio_freq_t  def_aprs;
 } radio_band_t;
 
-typedef struct radioParam {
+typedef struct radioConfig {
   radio_unit_t  unit;
   radio_type_t  type;
   radio_band_t  *band[NUM_BANDS_PER_RADIO];
-} radio_param_t;
+} radio_config_t;
 
 /*===========================================================================*/
 /* Module macros.                                                            */
@@ -189,6 +208,7 @@ extern "C" {
   void pktPowerUpRadio(radio_unit_t radio);
   void pktPowerDownRadio(radio_unit_t radio);
   radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq);
+  uint8_t pktReadIOlines(void);
 #ifdef __cplusplus
 }
 #endif

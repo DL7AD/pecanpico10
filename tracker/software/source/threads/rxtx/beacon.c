@@ -74,10 +74,8 @@ THD_FUNCTION(bcnThread, arg) {
         last_conf_transmission += conf->digi.tel_enc_cycle;
       }
 
-      if(!(dataPoint->gps_state == GPS_FIXED
-          || dataPoint->gps_state == GPS_LOCKED1
-          || dataPoint->gps_state == GPS_LOCKED2)) {
-            TRACE_INFO("BCN  > Waiting for GPS data for position beacon");
+      while(!isPositionValid(dataPoint)) {
+            TRACE_INFO("BCN  > Waiting for position data for beacon");
             chThdSleep(TIME_S2I(60));
             continue;
       }
@@ -105,10 +103,11 @@ THD_FUNCTION(bcnThread, arg) {
         chThdSleep(TIME_S2I(5));
       }
 
+      TRACE_INFO("BCN  > Transmit recently heard direct");
       /*
        * Encode/Transmit APRSD packet.
        * This is a tracker originated message (not a reply to a request).
-       * The message will be sent to the base station if set.
+       * The message will be addressed to the base station if set.
        * Else send it to device identity.
        */
       char *call = conf_sram.aprs.base.enabled

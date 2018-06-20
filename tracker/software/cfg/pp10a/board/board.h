@@ -247,9 +247,16 @@
 #define LINE_GPIO_PIN               PAL_LINE(GPIOA, 8U)
 #define LINE_IO_TXD                 PAL_LINE(GPIOB, 10U)
 #define LINE_IO_RXD                 PAL_LINE(GPIOC, 11U)
+
+// APRS IO lines
 #define LINE_IO1                    LINE_GPIO_PIN
 #define LINE_IO2                    LINE_IO_TXD
 #define LINE_IO3                    LINE_IO_RXD
+#define LINE_IO4                    PAL_NOLINE
+#define LINE_IO5                    PAL_NOLINE
+#define LINE_IO6                    PAL_NOLINE
+#define LINE_IO7                    PAL_NOLINE
+#define LINE_IO8                    PAL_NOLINE
 
 // LED
 #define LINE_IO_BLUE                PAL_LINE(GPIOC, 1U)

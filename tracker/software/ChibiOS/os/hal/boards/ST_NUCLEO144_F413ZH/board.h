@@ -41,7 +41,7 @@
  * NOTE: LSE not fitted.
  */
 #if !defined(STM32_LSECLK)
-#define STM32_LSECLK                32768U
+#define STM32_LSECLK                0U
 #endif
 
 #if !defined(STM32_HSECLK)
@@ -124,16 +124,12 @@
 
 #define GPIOC_ARD_A1                0U
 #define GPIOC_ADC1_IN10             0U
-#define GPIOC_LPTIM1_IN1            0U
 #define GPIOC_ARD_A3                1U
 #define GPIOC_ADC1_IN11             1U
-#define GPIOC_LPTIM1_OUT            1U
 #define GPIOC_ZIO_A7                2U
 #define GPIOC_ADC1_IN12             2U
-#define GPIOC_LPTIM1_IN2            2U
 #define GPIOC_ARD_A2                3U
 #define GPIOC_ADC1_IN13             3U
-#define GPIOC_LPTIM1_ETR            3U
 #define GPIOC_ARD_A4                4U
 #define GPIOC_ADC1_IN14             4U
 #define GPIOC_ARD_A5                5U
@@ -390,16 +386,12 @@
 #define LINE_I2S2_SD                PAL_LINE(GPIOB, 15U)
 #define LINE_ARD_A1                 PAL_LINE(GPIOC, 0U)
 #define LINE_ADC1_IN10              PAL_LINE(GPIOC, 0U)
-#define LINE_LPTIM1_IN1             PAL_LINE(GPIOC, 0U)
 #define LINE_ARD_A3                 PAL_LINE(GPIOC, 1U)
 #define LINE_ADC1_IN11              PAL_LINE(GPIOC, 1U)
-#define LINE_LPTIM1_OUT             PAL_LINE(GPIOC, 1U)
 #define LINE_ZIO_A7                 PAL_LINE(GPIOC, 2U)
 #define LINE_ADC1_IN12              PAL_LINE(GPIOC, 2U)
-#define LINE_LPTIM1_IN2             PAL_LINE(GPIOC, 2U)
 #define LINE_ARD_A2                 PAL_LINE(GPIOC, 3U)
 #define LINE_ADC1_IN13              PAL_LINE(GPIOC, 3U)
-#define LINE_LPTIM1_ETR             PAL_LINE(GPIOC, 3U)
 #define LINE_ARD_A4                 PAL_LINE(GPIOC, 4U)
 #define LINE_ADC1_IN14              PAL_LINE(GPIOC, 4U)
 #define LINE_ARD_A5                 PAL_LINE(GPIOC, 5U)
@@ -785,10 +777,10 @@
 /*
  * GPIOC setup:
  *
- * PC0  - ARD_A1 ADC1_IN10 LPTIM1_IN1(input pullup).
- * PC1  - ARD_A3 ADC1_IN11 LPTIM1_OUT(input pullup).
- * PC2  - ZIO_A7 ADC1_IN12 LPTIM1_IN2(input pullup).
- * PC3  - ARD_A2 ADC1_IN13 LPTIM1_ETR(input pullup).
+ * PC0  - ARD_A1 ADC1_IN10          (input pullup).
+ * PC1  - ARD_A3 ADC1_IN11          (input pullup).
+ * PC2  - ZIO_A7 ADC1_IN12          (input pullup).
+ * PC3  - ARD_A2 ADC1_IN13          (input pullup).
  * PC4  - ARD_A4 ADC1_IN14          (input pullup).
  * PC5  - ARD_A5 ADC1_IN15          (input pullup).
  * PC6  - ZIO_D16 I2S2_MCK          (input pullup).
@@ -1340,7 +1332,7 @@
                                      PIN_ODR_HIGH(GPIOG_ZIO_D50) |          \
                                      PIN_ODR_HIGH(GPIOG_PIN4) |             \
                                      PIN_ODR_HIGH(GPIOG_PIN5) |             \
-                                     PIN_ODR_LOW(GPIOG_USB_GPIO_OUT) |      \
+                                     PIN_ODR_HIGH(GPIOG_USB_GPIO_OUT) |     \
                                      PIN_ODR_HIGH(GPIOG_USB_GPIO_IN) |      \
                                      PIN_ODR_HIGH(GPIOG_PIN8) |             \
                                      PIN_ODR_HIGH(GPIOG_ARD_D0) |           \

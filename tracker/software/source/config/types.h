@@ -178,9 +178,9 @@ typedef struct {
   bool              enabled;
   bool              beacon;
   bool              gps;
-  gps_coord_t       lat;
+/*  gps_coord_t       lat;
   gps_coord_t       lon;
-  gps_alt_t         alt;
+  gps_alt_t         alt;*/
   sysinterval_t     cycle;                 // Beacon interval (0: continously)
   sysinterval_t     tel_enc_cycle;
 
@@ -191,9 +191,11 @@ typedef struct {
   thread_conf_t     thread_conf;
   thd_rx_conf_t     rx;
   thd_digi_conf_t   digi;
-  thd_base_conf_t   base;                   // Base station receiving unsolicited sends
-
-  radio_freq_t      freq;                   // Default APRS frequency if no GPS
+  // Base station call sign for receipt of tracker initiated sends
+  // These are sends by the tracker which are not in response to a query.
+  thd_base_conf_t   base;
+  // Default APRS frequency if geolocation is not available (GPS offline)
+  radio_freq_t      freq;
 } thd_aprs_conf_t;
 
 typedef struct {
@@ -215,6 +217,12 @@ typedef struct {
   uint32_t          gps_pressure;           // Air pressure below which GPS is switched to airborne mode
   gps_hp_model_t    gps_low_alt;             // Model to use when air pressure is above gps_pa_threshold
   gps_lp_model_t    gps_high_alt;           // Model to use when air pressure is below gps_pa_threshold
+
+  // Default lat, lon and alt when GPS is not enabled or not operable
+  gps_coord_t       lat;
+  gps_coord_t       lon;
+  gps_alt_t         alt;
+
   uint32_t          magic;                  // Key that indicates if the flash is loaded or has been updated
   uint16_t          crc;                    // CRC to verify content
 } conf_t;

@@ -53,6 +53,8 @@ typedef uint8_t radio_squelch_t;
 
 typedef int8_t  radio_pwr_t;
 
+typedef int8_t  radio_signal_t;
+
 /**
  * @brief   Definition of radio unit ID.
  * @details Defines the radio unit used in configuring and enabling a radio.

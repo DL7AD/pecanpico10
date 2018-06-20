@@ -13,7 +13,7 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .thread_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(30)
         },
@@ -59,8 +59,8 @@ const conf_t conf_flash_default = {
         .thread_conf = {
             .active = false,
             .cycle = CYCLE_CONTINUOUSLY,
-            .init_delay = TIME_S2I(300),
-            .send_spacing = TIME_S2I(30)
+            .init_delay = TIME_S2I(90),
+            .send_spacing = TIME_S2I(0)
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -74,7 +74,7 @@ const conf_t conf_flash_default = {
         .path = "",
 
         // Image settings
-        .res = RES_QVGA,
+        .res = RES_VGA,
         .quality = 4,
         .buf_size = 40 * 1024,
         .redundantTx = false
@@ -90,7 +90,7 @@ const conf_t conf_flash_default = {
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = 145175000,
+            .freq = APRS_FREQ_AUSTRALIA,
             .mod = MOD_AFSK,
             .cca = 0x4F
         },
@@ -127,49 +127,56 @@ const conf_t conf_flash_default = {
     // APRS app
     .aprs = {
         .thread_conf = {
+            // The packet receive service is enabled if true
+            // Receive is resumed after any transmission
             .active = true,
             .init_delay = TIME_S2I(20)
         },
-        // Default APRS frequency when geofence not resolved
+        // The default APRS frequency when geofence is not resolved
         .freq = APRS_FREQ_AUSTRALIA,
         // The receive identity for APRS
         .rx = {
+            // Receive radio configuration
             .radio_conf = {
                 .freq = FREQ_APRS_DYNAMIC,
                 .mod = MOD_AFSK,
                 .rssi = 0x3F
             },
-            // App rx identity
+            // APRS identity used in message responses if digipeat is not enabled
             .call = "VK2GJ-4",
-            .symbol = SYM_BALLOON // Use this symbol in message responses
+            .symbol = SYM_ANTENNA
         },
-        // The digipeat transmit identity and messages responses
+        // The digipeat transmit identity
         .digi = {
+            .active = true,
+            // Transmit radio configuration
             .radio_conf = {
                 .freq = FREQ_APRS_RECEIVE,
                 .pwr = 0x7F,
                 .mod = MOD_AFSK,
                 .cca = 0x4F
             },
-            .active = true,
             // Digipeat identity
             .call = "VK2GJ-5",
             .path = "WIDE2-1",
             .symbol = SYM_DIGIPEATER,
-            .beacon = true, // Set to have digi beacon position and telem
-            .cycle = TIME_S2I(60 * 30), // Position and telem beacon interval
-            .gps = false, // Set to have digi use GPS for position
-            // A set location if GPS not enabled or unable to acquire lock.
-            .lat = -337331175, // Degrees (expressed in 1e-7 form)
-            .lon = 1511143478, // Degrees (expressed in 1e-7 form)
-            .alt = 144, // Altitude in metres
+            // Set to have digi beacon position, telemetry & APRSD information.
+            // This starts a BCN thread specifically for digi
+            .beacon = true,
+            .cycle = TIME_S2I(60 * 30), // Beacon interval
+            // Set true to have digi use GPS for position
+            // If valid position is not stored then default lat, lon and alt will be used.
+            // If RTC time is invalid then GPS will be enabled to get time.
+            // Once RTC is set then GPS is released and can be switched off.
+            // This will be the case if no other position thread is using GPS.
+            .gps = true,
             // How often to send telemetry config (TODO: Move out to global level)
             .tel_enc_cycle = TIME_S2I(60 * 60 * 2)
         },
         // The base station identity
         .base = {
             // Tracker originated messages will be sent to this call sign if enabled
-            .enabled = false,
+            .enabled = true,
             .call = "VK2GJ-7",
             .path = "WIDE2-1",
         },
@@ -186,6 +193,11 @@ const conf_t conf_flash_default = {
     .gps_pressure = 90000, // Air pressure (Pa) threshold for alt model switch
     .gps_low_alt = GPS_STATIONARY,
     .gps_high_alt = GPS_AIRBORNE_1G,
+
+    // A pre-set location if GPS never enabled or unable to acquire lock.
+    .lat = -337331175, // Degrees (expressed in 1e-7 form)
+    .lon = 1511143478, // Degrees (expressed in 1e-7 form)
+    .alt = 144, // Altitude in metres
 
     .magic = CONFIG_MAGIC_DEFAULT // Do not remove. This is the activation bit.
 };

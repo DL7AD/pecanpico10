@@ -41,12 +41,15 @@
  * Commands.
  */
 
-#define Si446x_READ_CMD_BUFF                      0x44
-#define Si446x_START_TX                           0x31
-#define Si446x_START_RX                           0x32
-#define Si446x_REQUEST_DEVICE_STATE               0x33
-#define Si446x_RX_HOP                             0x36
-#define Si446x_FIFO_INFO                          0x15
+#define Si446x_GET_ADC_READING          0x14
+#define Si446x_FIFO_INFO                0x15
+#define Si446x_GET_MODEM_STATUS         0x22
+#define Si446x_START_TX                 0x31
+#define Si446x_START_RX                 0x32
+#define Si446x_REQUEST_DEVICE_STATE     0x33
+#define Si446x_RX_HOP                   0x36
+#define Si446x_READ_CMD_BUFF            0x44
+#define Si446x_WRITE_TX_FIFO            0x66
 
 /* Defined response values. */
 
@@ -207,43 +210,42 @@ typedef struct {
   uint32_t phase;                  // Fixed point 9.7 (2PI = TABLE_SIZE)
   uint32_t packet_pos;             // Next bit to be sent out
   uint32_t current_sample_in_baud; // 1 bit = SAMPLES_PER_BAUD samples
-  uint8_t current_byte;
+  uint8_t  current_byte;
 } up_iterator_t;
 
 typedef struct radioTask radio_task_object_t;
 
 // Public methods
 
-int16_t Si446x_getLastTemperature(radio_unit_t radio);
-void Si446x_shutdown(radio_unit_t radio);
+int16_t Si446x_getLastTemperature(const radio_unit_t radio);
+void Si446x_shutdown(const radio_unit_t radio);
 void Si446x_sendAFSK(packet_t pp);
 bool Si446x_blocSendAFSK(radio_task_object_t *rto);
 void Si446x_send2FSK(packet_t pp);
 bool Si446x_blocSend2FSK(radio_task_object_t *rto);
 void Si446x_disableReceive(radio_unit_t radio);
 void Si446x_stopDecoder(void);
-bool Si4464_resumeReceive(radio_unit_t radio,
+bool Si4464_resumeReceive(const radio_unit_t radio,
                           radio_freq_t rx_frequency,
                           channel_hz_t rx_step,
                           radio_ch_t rx_chan,
                           radio_squelch_t rx_rssi,
                           mod_t rx_mod);
-bool Si446x_receiveNoLock(radio_unit_t radio,
+bool Si446x_receiveNoLock(const radio_unit_t radio,
                           radio_freq_t rx_frequency,
                           channel_hz_t rx_step,
                           radio_ch_t chan,
                           radio_squelch_t rssi,
                           mod_t mod);
-void Si446x_lockRadio(radio_mode_t mode);
-void Si446x_unlockRadio(radio_mode_t mode);
+void Si446x_lockRadio(const radio_mode_t mode);
+void Si446x_unlockRadio(const radio_mode_t mode);
 void Si446x_lockRadioByCamera(void);
 void Si446x_unlockRadioByCamera(void);
 void Si446x_conditional_init(radio_unit_t radio);
-bool Si446x_setBandParameters(radio_unit_t radio,
+bool Si446x_setBandParameters(const radio_unit_t radio,
                               radio_freq_t freq,
                               channel_hz_t step);
-
-
+radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
 
 extern void pktReleasePacketBuffer(packet_t pp);
 

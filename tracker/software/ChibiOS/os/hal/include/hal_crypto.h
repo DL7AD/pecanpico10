@@ -98,7 +98,8 @@ typedef enum {
   CRY_ERR_INV_ALGO = 1,                     /**< Invalid cypher/mode.       */
   CRY_ERR_INV_KEY_SIZE = 2,                 /**< Invalid key size.          */
   CRY_ERR_INV_KEY_TYPE = 3,                 /**< Invalid key type.          */
-  CRY_ERR_INV_KEY_ID = 4                    /**< Invalid key type.          */
+  CRY_ERR_INV_KEY_ID = 4,                   /**< Invalid key identifier.    */
+  CRY_ERR_OP_FAILURE = 5                    /**< Requested operation failed.*/
 } cryerror_t;
 
 /**
@@ -176,27 +177,43 @@ struct CRYDriver {
 #endif
 
 #if (HAL_CRY_USE_FALLBACK == FALSE) && (CRY_LLD_SUPPORTS_SHA1 == FALSE)
-/* Stub @p SHA1Context structure type declaration. It is not provided by the
-   LLD and the fallback is not enabled.*/
+/* Stub @p SHA1Context structure type declaration. It is not provided by
+   the LLD and the fallback is not enabled.*/
 typedef struct {
   uint32_t dummy;
 } SHA1Context;
 #endif
 
 #if (HAL_CRY_USE_FALLBACK == FALSE) && (CRY_LLD_SUPPORTS_SHA256 == FALSE)
-/* Stub @p SHA256Context structure type declaration. It is not provided by the
-   LLD and the fallback is not enabled.*/
+/* Stub @p SHA256Context structure type declaration. It is not provided by
+   the LLD and the fallback is not enabled.*/
 typedef struct {
   uint32_t dummy;
 } SHA256Context;
 #endif
 
 #if (HAL_CRY_USE_FALLBACK == FALSE) && (CRY_LLD_SUPPORTS_SHA512 == FALSE)
-/* Stub @p SHA512Context structure type declaration. It is not provided by the
-   LLD and the fallback is not enabled.*/
+/* Stub @p SHA512Context structure type declaration. It is not provided by
+   the LLD and the fallback is not enabled.*/
 typedef struct {
   uint32_t dummy;
 } SHA512Context;
+#endif
+
+#if (HAL_CRY_USE_FALLBACK == FALSE) && (CRY_LLD_SUPPORTS_HMAC_SHA256 == FALSE)
+/* Stub @p HMACSHA256Context structure type declaration. It is not provided by
+   the LLD and the fallback is not enabled.*/
+typedef struct {
+  uint32_t dummy;
+} HMACSHA256Context;
+#endif
+
+#if (HAL_CRY_USE_FALLBACK == FALSE) && (CRY_LLD_SUPPORTS_HMAC_SHA512 == FALSE)
+/* Stub @p HMACSHA512Context structure type declaration. It is not provided by
+   the LLD and the fallback is not enabled.*/
+typedef struct {
+  uint32_t dummy;
+} HMACSHA512Context;
 #endif
 
 /*===========================================================================*/

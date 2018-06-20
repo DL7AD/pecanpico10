@@ -57,69 +57,65 @@
  * The packet channel object holds the global events.
  * Events are broadcast to any listeners.
  */
-#define EVT_AX25_FRAME_RDY      EVENT_MASK(EVT_PRIORITY_BASE + 0)
-#define EVT_RADIO_CCA_GLITCH    EVENT_MASK(EVT_PRIORITY_BASE + 1)
-#define EVT_RADIO_CCA_CLOSE     EVENT_MASK(EVT_PRIORITY_BASE + 2)
-//#define EVT_DECODER_ERROR       EVENT_MASK(EVT_PRIORITY_BASE + 3)
+#define EVT_AX25_FRAME_RDY      EVENT_MASK(EVT_PRIORITY_BASE +  0)
+#define EVT_AX25_BUFFER_FULL    EVENT_MASK(EVT_PRIORITY_BASE +  1)
+#define EVT_AX25_CRC_ERROR      EVENT_MASK(EVT_PRIORITY_BASE +  2)
+#define EVT_AX25_NO_BUFFER      EVENT_MASK(EVT_PRIORITY_BASE +  3)
 
-#define EVT_AFSK_TERMINATED     EVENT_MASK(EVT_PRIORITY_BASE + 4)
-#define EVT_PWM_UNKNOWN_INBAND  EVENT_MASK(EVT_PRIORITY_BASE + 5)
-#define EVT_ICU_OVERFLOW        EVENT_MASK(EVT_PRIORITY_BASE + 6)
-#define EVT_PKT_FAILED_CB_THD   EVENT_MASK(EVT_PRIORITY_BASE + 7)
+#define EVT_AFSK_TERMINATED     EVENT_MASK(EVT_PRIORITY_BASE +  4)
+#define EVT_AFSK_START_FAIL     EVENT_MASK(EVT_PRIORITY_BASE +  5)
+#define EVT_AFSK_DECODE_ERROR   EVENT_MASK(EVT_PRIORITY_BASE +  6)
+#define EVT_AFSK_DECODE_DONE    EVENT_MASK(EVT_PRIORITY_BASE +  7)
 
-#define EVT_PWM_NO_DATA         EVENT_MASK(EVT_PRIORITY_BASE + 8)
-#define EVT_AFSK_START_FAIL     EVENT_MASK(EVT_PRIORITY_BASE + 9)
-#define EVT_RADIO_CCA_OPEN      EVENT_MASK(EVT_PRIORITY_BASE + 10)
+#define EVT_PWM_NO_DATA         EVENT_MASK(EVT_PRIORITY_BASE +  8)
+#define EVT_PWM_UNKNOWN_INBAND  EVENT_MASK(EVT_PRIORITY_BASE +  9)
+#define EVT_PWM_FIFO_EMPTY      EVENT_MASK(EVT_PRIORITY_BASE + 10)
 #define EVT_PWM_QUEUE_FULL      EVENT_MASK(EVT_PRIORITY_BASE + 11)
 
-#define EVT_PWM_FIFO_EMPTY      EVENT_MASK(EVT_PRIORITY_BASE + 12)
+#define EVT_PWM_STREAM_CLOSED   EVENT_MASK(EVT_PRIORITY_BASE + 12)
 #define EVT_PWM_STREAM_TIMEOUT  EVENT_MASK(EVT_PRIORITY_BASE + 13)
-#define EVT_PWM_QUEUE_LOCK      EVENT_MASK(EVT_PRIORITY_BASE + 14)
-#define EVT_PKT_DECODER_START   EVENT_MASK(EVT_PRIORITY_BASE + 15)
+#define EVT_PWM_QUEUE_OVERRUN   EVENT_MASK(EVT_PRIORITY_BASE + 14)
+#define EVT_PWM_BUFFER_FAIL     EVENT_MASK(EVT_PRIORITY_BASE + 15)
 
-#define EVT_PKT_CHANNEL_STOP    EVENT_MASK(EVT_PRIORITY_BASE + 16)
-#define EVT_RADIO_CCA_FIFO_ERR  EVENT_MASK(EVT_PRIORITY_BASE + 17)
-#define EVT_AX25_BUFFER_FULL    EVENT_MASK(EVT_PRIORITY_BASE + 18)
+#define EVT_PWM_STREAM_OPEN     EVENT_MASK(EVT_PRIORITY_BASE + 16)
+#define EVT_PWM_FIFO_REMNANT    EVENT_MASK(EVT_PRIORITY_BASE + 17)
+#define EVT_PWM_STREAM_CLOSE    EVENT_MASK(EVT_PRIORITY_BASE + 18)
 #define EVT_PKT_INVALID_FRAME   EVENT_MASK(EVT_PRIORITY_BASE + 19)
 
-#define EVT_AX25_CRC_ERROR      EVENT_MASK(EVT_PRIORITY_BASE + 20)
-#define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 21)
-#define EVT_AX25_NO_BUFFER      EVENT_MASK(EVT_PRIORITY_BASE + 22)
-#define EVT_ICU_SLEEP_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 23)
+#define EVT_PKT_FAILED_CB_THD   EVENT_MASK(EVT_PRIORITY_BASE + 20)
+#define EVT_PKT_BUFFER_MGR_FAIL EVENT_MASK(EVT_PRIORITY_BASE + 21)
+#define EVT_PKT_DECODER_START   EVENT_MASK(EVT_PRIORITY_BASE + 22)
+#define EVT_PKT_CBK_MGR_FAIL    EVENT_MASK(EVT_PRIORITY_BASE + 23)
 
-#define EVT_PWM_STREAM_CLOSED   EVENT_MASK(EVT_PRIORITY_BASE + 24)
+#define EVT_PKT_CHANNEL_STOP    EVENT_MASK(EVT_PRIORITY_BASE + 24)
 #define EVT_PKT_CHANNEL_CLOSE   EVENT_MASK(EVT_PRIORITY_BASE + 25)
 #define EVT_PKT_CHANNEL_OPEN    EVENT_MASK(EVT_PRIORITY_BASE + 26)
-#define EVT_AFSK_DECODE_DONE    EVENT_MASK(EVT_PRIORITY_BASE + 27)
+#define EVT_RADIO_CCA_GLITCH    EVENT_MASK(EVT_PRIORITY_BASE + 27)
 
 #define EVT_RADIO_CCA_SPIKE     EVENT_MASK(EVT_PRIORITY_BASE + 28)
-#define EVT_PKT_BUFFER_MGR_FAIL EVENT_MASK(EVT_PRIORITY_BASE + 29)
-#define EVT_PWM_BUFFER_FAIL     EVENT_MASK(EVT_PRIORITY_BASE + 30)
-#define EVT_PKT_CBK_MGR_FAIL    EVENT_MASK(EVT_PRIORITY_BASE + 31)
+#define EVT_ICU_SLEEP_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 29)
+#define EVT_ICU_OVERFLOW        EVENT_MASK(EVT_PRIORITY_BASE + 30)
+#define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 31)
 
 
-/* Decoder thread event IDs (sent from initiator to decoder). */
-/*TODO: These needs to be values and NOT bit shifted masks. */
-
+/* Decoder thread event masks (sent from initiator to decoder). */
 #define DEC_COMMAND_START       EVENT_MASK(EVT_PRIORITY_BASE + 0)
 #define DEC_COMMAND_STOP        EVENT_MASK(EVT_PRIORITY_BASE + 1)
 #define DEC_COMMAND_CLOSE       EVENT_MASK(EVT_PRIORITY_BASE + 2)
 #define DEC_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 3)
-#define DEC_SUSPEND_EXIT        EVENT_MASK(EVT_PRIORITY_BASE + 4)
-
 
 /* Reserved system event broadcast IDs (set mask in user threads level). */
 #define USB_SHELL_EVT           EVT_PRIORITY_BASE + 0
 #define USB_SDU1_EVT            EVT_PRIORITY_BASE + 16
 
-/* Response thread events (from decoder to initiator). */
+/* Response thread event masks (from decoder to initiator). */
 #define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 15)
 #define DEC_START_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 16)
 #define DEC_STOP_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 17)
 #define DEC_CLOSE_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 18)
 #define USR_COMMAND_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 19)
 
-/* Diagnostic events. */
+/* Diagnostic event masks. */
 #define EVT_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 20)
 #define EVT_PKT_OUT_END         EVENT_MASK(EVT_PRIORITY_BASE + 21)
 
@@ -146,6 +142,7 @@
 
 /* Extra GPIO value used in local GPIO set/clear/toggle functions. */
 #define PAL_TOGGLE              2U
+#define PAL_INVALID             -1
 
 /*===========================================================================*/
 /* Aerospace decoder subsystem includes.                                     */
@@ -191,166 +188,45 @@ extern "C" {
 /*===========================================================================*/
 
 /**
-* @brief   Define GPIO port where the NIRQ from the radio is connected.
-* @notes   The NIRQ line is set in the radio to output the CCA condition.
-*
-* @api
-*/
-static inline void pktSetLineModeCCA(void) {
-  palSetLineMode(LINE_CCA, PAL_MODE_INPUT_PULLUP);
-}
-
-/**
- * @brief   For driving an indicator LED for decoder status.
- * @notes   These functions control the LED on a GPIO line if defined.
+ * @brief   Generalized GPIO handling for optional IO.
+ * @notes   These functions are primarily for LED line control.
  *
  * @api
  */
-static inline void pktSetLineModeDecoderLED(void) {
-#if defined(LINE_DECODER_LED)
-  palSetLineMode(LINE_DECODER_LED, PAL_MODE_OUTPUT_PUSHPULL);
-#endif
+static inline void pktSetGPIOlineMode(ioline_t line, iomode_t mode) {
+  if(line != PAL_NOLINE)
+    palSetLineMode(line, mode);
 }
 
-static inline void pktUnsetLineModeDecoderLED(void) {
-#if defined(LINE_DECODER_LED)
-  palSetLineMode(LINE_DECODER_LED, PAL_MODE_UNCONNECTED);
-#endif
+static inline void pktUnsetGPIOlineMode(ioline_t line) {
+  if(line != PAL_NOLINE)
+    palSetLineMode(line, PAL_MODE_UNCONNECTED);
 }
 
-static inline void pktWriteDecoderLED(uint8_t state) {
-#if defined(LINE_DECODER_LED)
-  if(state != PAL_TOGGLE)
-    palWriteLine(LINE_DECODER_LED, state);
+static inline void pktWriteGPIOline(ioline_t line, uint8_t state) {
+  if(line != PAL_NOLINE) {
+    if(state != PAL_TOGGLE)
+      palWriteLine(line, state);
+    else
+      palToggleLine(line);
+  }
+}
+
+static inline int8_t pktReadGPIOline(ioline_t line) {
+  if(line != PAL_NOLINE)
+    return palReadLine(line);
   else
-    palToggleLine(LINE_DECODER_LED);
-#else
-  (void)state;
-#endif
+    return PAL_INVALID;
 }
 
 /**
- * @brief   For driving an indicator LED for PWM CCA asserted.
- * @notes   These functions control the LED on a GPIO line if defined.
- *
- * @api
- */
-static inline void pktSetLineModeSquelchLED(void) {
-#if defined(LINE_SQUELCH_LED)
-  palSetLineMode(LINE_SQUELCH_LED, PAL_MODE_OUTPUT_PUSHPULL);
-#endif
-}
-
-static inline void pktWriteSquelchLED(uint8_t state) {
-#if defined(LINE_SQUELCH_LED)
-  if(state != PAL_TOGGLE)
-    palWriteLine(LINE_SQUELCH_LED, state);
-  else
-    palToggleLine(LINE_SQUELCH_LED);
-#else
-  (void)state;
-#endif
-}
-
-static inline void pktUnsetLineModeSquelchLED(void) {
-#if defined(LINE_SQUELCH_LED)
-  palSetLineMode(LINE_SQUELCH_LED, PAL_MODE_UNCONNECTED);
-#endif
-}
-
-/**
- * @brief   For driving an indicator LED for PWM queue space exhausted.
- * @notes   These functions control the LED on a GPIO line if defined.
- *
- * @api
- */
-static inline void pktSetLineModeOverflowLED(void) {
-#if defined(LINE_OVERFLOW_LED)
-  palSetLineMode(LINE_OVERFLOW_LED, PAL_MODE_OUTPUT_PUSHPULL);
-#endif
-}
-
-static inline void pktWriteOverflowLED(uint8_t state) {
-#if defined(LINE_OVERFLOW_LED)
-  if(state != PAL_TOGGLE)
-    palWriteLine(LINE_OVERFLOW_LED, state);
-  else
-    palToggleLine(LINE_OVERFLOW_LED);
-#else
-  (void)state;
-#endif
-}
-
-static inline void pktUnsetLineModeOverflowLED(void) {
-#if defined(LINE_OVERFLOW_LED)
-  palSetLineMode(LINE_OVERFLOW_LED, PAL_MODE_UNCONNECTED);
-#endif
-}
-
-/**
- * @brief   For driving an indicator LED for PWM buffers exhausted.
- * @notes   These functions control the LED on a GPIO line if defined.
- *
- * @api
- */
-static inline void pktSetLineModeNoFIFOLED(void) {
-#if defined(LINE_NO_FIFO_LED)
-  palSetLineMode(LINE_NO_FIFO_LED, PAL_MODE_OUTPUT_PUSHPULL);
-#endif
-}
-
-static inline void pktWriteNoFIFOLED(uint8_t state) {
-#if defined(LINE_NO_FIFO_LED)
-  if(state != PAL_TOGGLE)
-    palWriteLine(LINE_NO_FIFO_LED, state);
-  else
-    palToggleLine(LINE_NO_FIFO_LED);
-#else
-  (void)state;
-#endif
-}
-
-static inline void pktUnsetLineModeNoFIFOLED(void) {
-#if defined(LINE_NO_FIFO_LED)
-  palSetLineMode(LINE_NO_FIFO_LED, PAL_MODE_UNCONNECTED);
-#endif
-}
-
-/**
- * @brief   For diagnostics only.
- * @notes   These functions control the mirroring of radio PWM data to a GPIO.
- *
- * @notapi
- */
-static inline void pktSetLineModePWMMirror(void) {
-#if defined(LINE_PWM_MIRROR)
-  palSetLineMode(LINE_PWM_MIRROR, PAL_MODE_OUTPUT_PUSHPULL);
-#endif
-}
-
-static inline void pktUnsetLineModePWMMirror(void) {
-#if defined(LINE_PWM_MIRROR)
-  palSetLineMode(LINE_PWM_MIRROR, PAL_MODE_UNCONNECTED);
-#endif
-}
-
-static inline void pktWritePWMMirror(uint8_t state) {
-#if defined(LINE_PWM_MIRROR)
-  if(state != PAL_TOGGLE)
-    palWriteLine(LINE_PWM_MIRROR, state);
-  else
-    palToggleLine(LINE_PWM_MIRROR);
-#else
-  (void)state;
-#endif
-}
-
-/**
- * @brief   Sends a command request to a radio.
+ * @brief   Sends a command request to the radio manager.
+ * @notes   The task descriptor is copied into a task object which is posted.
  * @post    The command object posted to the radio manager queue.
  *
  * @param[in]   radio   radio unit ID.
- * @param[in]   task    pointer to a task object.
+ * @param[in]   task    pointer to the task descriptor.
+ *                      this is usually a persistent descriptor in the handler.
  * @param[in]   cb      function to call with result (can be NULL).
  *
  * @api
