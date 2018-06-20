@@ -84,7 +84,7 @@ function loadRecentData() {
 }
 function loadImages() {
 	loadRecentData();
-	setInterval(loadRecentData, 1000);
+	setInterval(loadRecentData, 5000);
 }
 </script>
 </head>

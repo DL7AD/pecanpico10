@@ -91,7 +91,7 @@ def insert_image(db, receiver, call, data_b91):
 
 	# Find image ID (or generate new one)
 	_id = None
-	cur.execute("SELECT `id`,`packetID` FROM `image` WHERE `call` = %s AND `imageID` = %s AND `rxtime`+10*60 >= %s ORDER BY `rxtime` DESC LIMIT 1", (call, imageID, timd))
+	cur.execute("SELECT `id`,`packetID` FROM `image` WHERE `call` = %s AND `imageID` = %s AND `rxtime`+5*60 >= %s ORDER BY `rxtime` DESC LIMIT 1", (call, imageID, timd))
 	fetch = cur.fetchall()
 	if len(fetch):
 		_id = fetch[0][0]

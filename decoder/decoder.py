@@ -96,7 +96,7 @@ def received_data(data):
 	# Image/Log	(.*)\>APECAN(.*?):\{\{(I|L)(.*)
 
 	all = re.search("(.*)\>APECAN(.*?):", data)
-	pos = re.search("(.*)\>APECAN(.*?):\=(.{13})(.*?)\|(.*)\|", data)
+	pos = re.search("(.*)\>APECAN(.*?):[\=|!](.{13})(.*?)\|(.*)\|", data)
 	dat = re.search("(.*)\>APECAN(.*?):\{\{(I|L)(.*)", data)
 	dir = re.search("(.*)\>APECAN(.*?)::(.{9}):Directs=(.*)", data)
 
@@ -181,7 +181,7 @@ if args.device == 'I': # Source APRS-IS
 				print('Could not connect to APRS-IS: %s' % str(e))
 				print('Try again...')
 
-		time.sleep(0.1)
+		time.sleep(0.01)
 
 elif args.device is '-': # Source stdin
 
