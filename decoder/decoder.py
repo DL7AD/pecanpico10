@@ -91,20 +91,22 @@ db.cursor().execute("""
 
 """ Packet handler for received APRS packets"""
 def received_data(data):
-	# Parse line and detect data
-	# Position	(.*)\>APECAN(.*?):\=(.{13})(.*?)\|(.*)\|
-	# Image/Log	(.*)\>APECAN(.*?):\{\{(I|L)(.*)
 
-	all = re.search("(.*)\>APECAN(.*?):", data)
-	pos = re.search("(.*)\>APECAN(.*?):[\=|!](.{13})(.*?)\|(.*)\|", data)
-	dat = re.search("(.*)\>APECAN(.*?):\{\{(I|L)(.*)", data)
-	dir = re.search("(.*)\>APECAN(.*?)::(.{9}):Directs=(.*)", data)
+	data = data.strip()
+
+	# Parse line and detect data
+	callreg = "([A-Z]{2}[0-9][A-Z]{1,3}(?:-[0-9]{1,2})?)" # Callregex to filter bad igated packets
+
+	all = re.search("^" + callreg + "\>APECAN(.*?):", data)
+	pos = re.search("^" + callreg + "\>APECAN(.*?):[\=|!](.{13})(.*?)\|(.*)\|", data)
+	dat = re.search("^" + callreg + "\>APECAN(.*?):\{\{(I|L)(.*)", data)
+	dir = re.search("^" + callreg + "\>APECAN(.*?)::(.{9}):Directs=(.*)", data)
 
 	if pos or dat or dir:
 		# Debug
 		if args.verbose:
 			print('='*100)
-			print(data.strip())
+			print(data)
 			print('-'*100)
 
 		call = all.group(1).split(' ')[-1]
@@ -116,7 +118,7 @@ def received_data(data):
 			comm = pos.group(4)
 			position.insert_position(db, call, comm, 'pos')
 
-		elif dat: # Data packet
+		elif dat: # Data packet (Image or Logging)
 
 			typ  = dat.group(3)
 			data = dat.group(4)
@@ -142,32 +144,23 @@ if args.device == 'I': # Source APRS-IS
 		sys.exit(1)
 
 	wdg = time.time() + 10 # Connection watchdog
-	buf = ''
 	while True:
 		# Read data
 		try:
-			buf += tn.read_eager().decode('charmap')
+			buf = tn.read_until(b"\n").decode('charmap')
 		except EOFError: # Server has connection closed
 			wdg = 0 # Tell watchdog to restart connection
 		except UnicodeDecodeError:
 			pass
 
-		# Line handler
-		if '\n' in buf:
-			pbuf = buf.split('\n')
-			for i in range(len(pbuf)-1):
-				# Separate lines handled here
+		# Watchdog reload
+		if '# aprsc' in buf:
+			print('Ping from APRS-IS')
+			wdg = time.time() + 30
+			continue
 
-				# Watchdog reload
-				if '# aprsc' in pbuf[i]:
-					print('Ping from APRS-IS')
-					wdg = time.time() + 30
-					continue
-
-				# Data handling
-				received_data(pbuf[i])
-
-			buf = pbuf[-1]
+		# Data handling
+		received_data(buf)
 
 		# Watchdog reconnection
 		if wdg < time.time():
