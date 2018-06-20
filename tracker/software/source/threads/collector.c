@@ -57,32 +57,31 @@ void waitForNewDataPoint(void) {
  *
  * @param[in]   tp      pointer to current @p datapoint structure
  * @param[in]   ltp     pointer to prior @p datapoint structure
+ * @param[in]   state   state to set in current datapoint
  *
  * @notapi
  */
-static void getPositionFallback(dataPoint_t* tp, dataPoint_t* ltp) {
-  ptime_t time;
-  getTime(&time);
-  if(time.year != RTC_BASE_YEAR) {
-  /* RTC has been set so OK to use RTC. */
-  tp->gps_time = date2UnixTimestamp(&time);
-
-  /* Good RTC does not mean GPS fix is good but... */
+static void getPositionFallback(dataPoint_t* tp,
+                                dataPoint_t* ltp,
+                                gpsState_t state) {
+  tp->gps_state = state;
+  tp->gps_time = 0;
+  tp->gps_lat = 0;
+  tp->gps_lon = 0;
+  tp->gps_alt = 0;
   if(hasGPSacquiredLock(ltp)
       || ltp->gps_state == GPS_FIXED
       || ltp->gps_state == GPS_LOG) {
     tp->gps_lat = ltp->gps_lat;
     tp->gps_lon = ltp->gps_lon;
     tp->gps_alt = ltp->gps_alt;
-    return;
+    tp->gps_time = ltp->gps_time;
   }
-  /* Clear data point data since the old data is of unknown validity. */
-  tp->gps_time = 0;
-  tp->gps_lat = 0;
-  tp->gps_lon = 0;
-  tp->gps_alt = 0;
-  tp->gps_state = GPS_ERROR;
-  }
+  ptime_t time;
+  getTime(&time);
+  if(time.year != RTC_BASE_YEAR)
+    /* The RTC has been set so use RTC time. */
+    tp->gps_time = date2UnixTimestamp(&time);
 }
 
 /**
@@ -113,16 +112,14 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
    */
   uint16_t batt = stm32_get_vbat();
   if(batt < conf_sram.gps_on_vbat) {
-    tp->gps_state = GPS_LOWBATT1;
-    getPositionFallback(tp, ltp);
+    getPositionFallback(tp, ltp, GPS_LOWBATT1);
     return;
   }
 
   /* Try to switch on GPS. */
   if(!GPS_Init()) {
     GPS_Deinit();
-    tp->gps_state = GPS_ERROR;
-    getPositionFallback(tp, ltp);
+    getPositionFallback(tp, ltp, GPS_ERROR);
     return;
   }
   /* If a Pa pressure is set then GPS model depends on BME reading.
@@ -153,8 +150,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
 
     GPS_Deinit();
     TRACE_WARN("COLL > GPS acquisition stopped due low battery");
-    tp->gps_state = GPS_LOWBATT2;
-    getPositionFallback(tp, ltp);
+    getPositionFallback(tp, ltp, GPS_LOWBATT2);
     return;
 
   }
@@ -164,8 +160,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
      * Keep GPS switched on.
      */
     TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
-    tp->gps_state = GPS_LOSS;
-    getPositionFallback(tp, ltp);
+    getPositionFallback(tp, ltp, GPS_LOSS);
     return;
   }
 
@@ -303,6 +298,7 @@ void getSensors(dataPoint_t* tp) {
 	bme280_error |= 0x28;
 #endif
 	// Measure various temperature sensors
+	/* TODO: Add LLD API to radio. */
 	tp->stm32_temp = stm32_get_temp();
 	tp->si446x_temp = Si446x_getLastTemperature(PKT_RADIO_1);
 
