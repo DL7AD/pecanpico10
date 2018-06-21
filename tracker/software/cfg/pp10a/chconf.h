@@ -29,7 +29,6 @@
 #define _CHCONF_H_
 
 #define _CHIBIOS_RT_CONF_
-#define _CHIBIOS_RT_CONF_VER_5_0_
 #define _CHIBIOS_RT_CONF_VER_6_0_
 
 /*===========================================================================*/

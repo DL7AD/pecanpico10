@@ -63,11 +63,6 @@ typedef enum {
 	RES_MAX
 } resolution_t;
 
-/*typedef union {
-  radio_squelch_t   cca;
-  radio_squelch_t   rssi;
-} radio_sq_t;*/
-
 typedef struct {
   radio_pwr_t       pwr;
   radio_freq_t      freq;
@@ -99,47 +94,45 @@ typedef struct {
   sysinterval_t     init_delay;
   sysinterval_t     send_spacing;
   sleep_conf_t      sleep_conf;
-  sysinterval_t     cycle;				// Cycle time (0: continously)
+  sysinterval_t     cycle;				// Cycle time (0: continuously)
   sysinterval_t     duration;
 } thread_conf_t; // Thread
 
 typedef struct {
-  thread_conf_t     thread_conf;
+  thread_conf_t     svc_conf;
   radio_tx_conf_t   radio_conf;
-
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
   char              path[16];
   aprs_sym_t        symbol;
   bool              aprs_msg;
-  sysinterval_t     tel_enc_cycle;
+  // Default lat, lon and alt when fixed is enabled
+  bool              fixed;
+  gps_coord_t       lat;
+  gps_coord_t       lon;
+  gps_alt_t         alt;
 } thd_pos_conf_t;
 
 typedef struct {
-  thread_conf_t     thread_conf;
+  thread_conf_t     svc_conf;
   radio_tx_conf_t   radio_conf;
   bool              redundantTx;
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
   char              path[16];
-
   resolution_t      res;					// Picture resolution
   uint8_t           quality;				// SSDV Quality ranging from 0-7
   uint32_t          buf_size;		    	// SRAM buffer size for the picture
 } thd_img_conf_t;
 
 typedef struct {
-  thread_conf_t     thread_conf;
+  thread_conf_t     svc_conf;
   radio_tx_conf_t   radio_conf;
-
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
   char              path[16];
-
   uint8_t           density;				// Density of log points being sent out in 1/x (value 10 => 10%)
 } thd_log_conf_t;
-
-
 
 typedef struct {
   radio_rx_conf_t   radio_conf;
@@ -150,7 +143,6 @@ typedef struct {
 
 typedef struct {
   radio_tx_conf_t   radio_conf;
-
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
   char              path[16];
@@ -159,7 +151,6 @@ typedef struct {
 
 typedef struct {
   radio_tx_conf_t   radio_conf;
-
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
   char              path[16];
@@ -170,32 +161,24 @@ typedef struct {
 typedef struct {
   bool              active;                // Digipeater active flag
   radio_tx_conf_t   radio_conf;
-
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
   char              path[16];
   aprs_sym_t        symbol;
-  bool              enabled;
-  bool              beacon;
-  bool              gps;
-/*  gps_coord_t       lat;
-  gps_coord_t       lon;
-  gps_alt_t         alt;*/
-  sysinterval_t     cycle;                 // Beacon interval (0: continously)
-  sysinterval_t     tel_enc_cycle;
-
+  thd_pos_conf_t    beacon;
+  //sysinterval_t     tel_enc_cycle;
 } thd_digi_conf_t;
 
 /* APRS configuration. */
 typedef struct {
-  thread_conf_t     thread_conf;
+  thread_conf_t     svc_conf;
   thd_rx_conf_t     rx;
   thd_digi_conf_t   digi;
   // Base station call sign for receipt of tracker initiated sends
   // These are sends by the tracker which are not in response to a query.
-  thd_base_conf_t   base;
+  //thd_base_conf_t   base;
   // Default APRS frequency if geolocation is not available (GPS offline)
-  radio_freq_t      freq;
+  //radio_freq_t      freq;
 } thd_aprs_conf_t;
 
 typedef struct {
@@ -218,10 +201,12 @@ typedef struct {
   gps_hp_model_t    gps_low_alt;             // Model to use when air pressure is above gps_pa_threshold
   gps_lp_model_t    gps_high_alt;           // Model to use when air pressure is below gps_pa_threshold
 
-  // Default lat, lon and alt when GPS is not enabled or not operable
-  gps_coord_t       lat;
-  gps_coord_t       lon;
-  gps_alt_t         alt;
+  //APRS global
+  sysinterval_t     tel_enc_cycle;          // Cycle for sending of telemetry config headers
+  radio_freq_t      freq;                   // Default APRS frequency if geolocation not available
+  // Base station call sign for receipt of tracker initiated sends
+  // These are sends by the tracker which are not in response to a query.
+  thd_base_conf_t   base;
 
   uint32_t          magic;                  // Key that indicates if the flash is loaded or has been updated
   uint16_t          crc;                    // CRC to verify content

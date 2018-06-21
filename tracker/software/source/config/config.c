@@ -12,7 +12,7 @@ conf_t conf_sram;
 const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
-        .thread_conf = {
+        .svc_conf = {
             .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(30)
@@ -29,12 +29,12 @@ const conf_t conf_flash_default = {
         .symbol = SYM_ANTENNA,
         .aprs_msg = true,
         // How often to send telemetry config
-        .tel_enc_cycle = TIME_S2I(60 * 60)
+        //.tel_enc_cycle = TIME_S2I(60 * 60)
     },
 
     // Secondary position app
     .pos_sec = {
-        .thread_conf = {
+        .svc_conf = {
             .active = false,
             .cycle = TIME_S2I(180),
             .init_delay = TIME_S2I(60)
@@ -51,12 +51,12 @@ const conf_t conf_flash_default = {
         .symbol = SYM_BALLOON,
         .aprs_msg = true,
 
-        .tel_enc_cycle = TIME_S2I(0)
+        //.tel_enc_cycle = TIME_S2I(0)
     },
 
     // Primary image app
     .img_pri = {
-        .thread_conf = {
+        .svc_conf = {
             .active = false,
             .cycle = CYCLE_CONTINUOUSLY,
             .init_delay = TIME_S2I(90),
@@ -82,7 +82,7 @@ const conf_t conf_flash_default = {
 
     // Secondary image app
     .img_sec = {
-        .thread_conf = {
+        .svc_conf = {
             .active = false,
             .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(60 * 1),
@@ -107,7 +107,7 @@ const conf_t conf_flash_default = {
 
     // Log app
     .log = {
-        .thread_conf = {
+        .svc_conf = {
             .active = false,
             .cycle = TIME_S2I(10),
             .init_delay = TIME_S2I(5)
@@ -126,14 +126,12 @@ const conf_t conf_flash_default = {
 
     // APRS app
     .aprs = {
-        .thread_conf = {
+        .svc_conf = {
             // The packet receive service is enabled if true
             // Receive is resumed after any transmission
             .active = true,
             .init_delay = TIME_S2I(20)
         },
-        // The default APRS frequency when geofence is not resolved
-        .freq = APRS_FREQ_AUSTRALIA,
         // The receive identity for APRS
         .rx = {
             // Receive radio configuration
@@ -156,48 +154,48 @@ const conf_t conf_flash_default = {
                 .mod = MOD_AFSK,
                 .cca = 0x4F
             },
-            // Digipeat identity
+             .beacon = {
+               .svc_conf = {
+                  // The telemetry beacon service is enabled if true
+                  // Receive is resumed after any transmission
+                  .active = true,
+                  .init_delay = TIME_S2I(20),
+                  .cycle = TIME_S2I(60 * 30), // Beacon interval
+               },
+               .fixed = true, // Use fixed position data if true
+               .lat = -337331175, // Degrees (expressed in 1e-7 form)
+               .lon = 1511143478, // Degrees (expressed in 1e-7 form)
+               .alt = 144, // Altitude in metres
+            },
+            // Digipeat transmission identity
             .call = "VK2GJ-5",
             .path = "WIDE2-1",
-            .symbol = SYM_DIGIPEATER,
-            // Set to have digi beacon position, telemetry & APRSD information.
-            // This starts a BCN thread specifically for digi
-            .beacon = true,
-            .cycle = TIME_S2I(60 * 30), // Beacon interval
-            // Set true to have digi use GPS for position
-            // If valid position is not stored then default lat, lon and alt will be used.
-            // If RTC time is invalid then GPS will be enabled to get time.
-            // Once RTC is set then GPS is released and can be switched off.
-            // This will be the case if no other position thread is using GPS.
-            .gps = true,
-            // How often to send telemetry config (TODO: Move out to global level)
-            .tel_enc_cycle = TIME_S2I(60 * 60 * 2)
-        },
-        // The base station identity
-        .base = {
-            // Tracker originated messages will be sent to this call sign if enabled
-            .enabled = true,
-            .call = "VK2GJ-7",
-            .path = "WIDE2-1",
+            .symbol = SYM_DIGIPEATER
         },
     },
 
     // Global controls
     // Power control
     .keep_cam_switched_on = false,
-    .gps_on_vbat = 1000, // mV
-    .gps_off_vbat = 1000, // mV
-    .gps_onper_vbat = 1000, // mV
+    .gps_on_vbat = 3800, // mV
+    .gps_off_vbat = 3600, // mV
+    .gps_onper_vbat = 4000, // mV
 
     // GPS altitude model control (air pressure determined by on-board BME280)
     .gps_pressure = 90000, // Air pressure (Pa) threshold for alt model switch
     .gps_low_alt = GPS_STATIONARY,
     .gps_high_alt = GPS_AIRBORNE_1G,
 
-    // A pre-set location if GPS never enabled or unable to acquire lock.
-    .lat = -337331175, // Degrees (expressed in 1e-7 form)
-    .lon = 1511143478, // Degrees (expressed in 1e-7 form)
-    .alt = 144, // Altitude in metres
-
+    // How often to send telemetry config
+    .tel_enc_cycle = TIME_S2I(60 * 60 * 2),
+    // The default APRS frequency when geofence is not resolved
+    .freq = APRS_FREQ_AUSTRALIA,
+    // The base station identity
+    .base = {
+       // Tracker originated messages will be addressed to this call sign if enabled
+       .enabled = true,
+       .call = "VK2GJ-7",
+       .path = "WIDE2-1",
+    },
     .magic = CONFIG_MAGIC_DEFAULT // Do not remove. This is the activation bit.
 };

@@ -19,7 +19,7 @@ THD_FUNCTION(bcnThread, arg) {
   thd_aprs_conf_t* conf = (thd_aprs_conf_t *)arg;
 
   // Wait
-  if(conf->thread_conf.init_delay) chThdSleep(conf->thread_conf.init_delay);
+  if(conf->svc_conf.init_delay) chThdSleep(conf->svc_conf.init_delay);
 
   // Start data collector (if not running yet)
   init_data_collector();
@@ -29,22 +29,40 @@ THD_FUNCTION(bcnThread, arg) {
 
   // Set telemetry configuration transmission variables
   sysinterval_t last_conf_transmission =
-      chVTGetSystemTime() - conf->digi.tel_enc_cycle;
+      chVTGetSystemTime() - conf_sram.tel_enc_cycle;
   sysinterval_t time = chVTGetSystemTime();
 
+  /*
+   * Already waited for APRS start delay.
+   * Now wait for our further delay before starting.
+   */
+  sysinterval_t delay = conf->digi.beacon.svc_conf.init_delay;
+
+  chThdSleep(delay);
+
   while(true) {
+
     char code_s[100];
     pktDisplayFrequencyCode(conf->digi.radio_conf.freq,
                                               code_s, sizeof(code_s));
     TRACE_INFO("POS  > Do module BEACON cycle for %s on %s",
                conf->digi.call, code_s);
-
+#if USE_NEW_COLLECTOR == TRUE
+    extern thread_t *collector_thd;
+    /*
+     *  Pass pointer to beacon config to the collector thread.
+     *  TODO: return message should be pointer to latest updated datapoint?
+     */
+    dataPoint_t * dataPoint =
+        (dataPoint_t *)chMsgSend(collector_thd, (msg_t)&conf->digi.beacon);
+#else
     dataPoint_t* dataPoint = getLastDataPoint();
-    if(!p_sleep(&conf->thread_conf.sleep_conf)) {
+#endif
+    if(!p_sleep(&conf->svc_conf.sleep_conf)) {
 
       // Telemetry encoding parameter transmissions
-      if(conf->digi.tel_enc_cycle != 0 && last_conf_transmission
-          + conf->digi.tel_enc_cycle < chVTGetSystemTime()) {
+      if(conf_sram.tel_enc_cycle != 0 && last_conf_transmission
+          + conf_sram.tel_enc_cycle < chVTGetSystemTime()) {
 
         TRACE_INFO("BCN  > Transmit telemetry configuration");
 
@@ -71,7 +89,7 @@ THD_FUNCTION(bcnThread, arg) {
           }
           chThdSleep(TIME_S2I(5));
         }
-        last_conf_transmission += conf->digi.tel_enc_cycle;
+        last_conf_transmission += conf_sram.tel_enc_cycle;
       }
 
       while(!isPositionValid(dataPoint)) {
@@ -110,8 +128,8 @@ THD_FUNCTION(bcnThread, arg) {
        * The message will be addressed to the base station if set.
        * Else send it to device identity.
        */
-      char *call = conf_sram.aprs.base.enabled
-          ? conf_sram.aprs.base.call : conf->digi.call;
+      char *call = conf_sram.base.enabled
+          ? conf_sram.base.call : conf->digi.call;
 
       /*
        * Send message from this device.
@@ -119,8 +137,10 @@ THD_FUNCTION(bcnThread, arg) {
        * There is no acknowledgment requested.
        */
       packet = aprs_compose_aprsd_message(
-          conf->digi.call,
-          conf->base.path,
+          conf_sram.aprs.digi.call,
+          //conf->digi.call,
+          conf_sram.base.path,
+          //conf->base.path,
           call);
       if(packet == NULL) {
         TRACE_WARN("BCN  > No free packet objects "
@@ -139,7 +159,7 @@ THD_FUNCTION(bcnThread, arg) {
         chThdSleep(TIME_S2I(5));
       }
     } /* psleep */
-    time = waitForTrigger(time, conf->digi.cycle);
+    time = waitForTrigger(time, conf->digi.beacon.svc_conf.cycle);
   }
 }
 

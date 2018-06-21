@@ -578,10 +578,8 @@ bool gps_set_model(bool dynamic) {
 bool GPS_Init() {
 	// Initialize pins
 	TRACE_INFO("GPS  > Init GPS pins");
-	gps_enabled = true;
 	palSetLineMode(LINE_GPS_RESET, PAL_MODE_OUTPUT_PUSHPULL);	// GPS reset
 	palSetLineMode(LINE_GPS_EN, PAL_MODE_OUTPUT_PUSHPULL);		// GPS off
-
 
 	// Init UART
 	#if defined(UBLOX_USE_UART)
@@ -612,6 +610,7 @@ bool GPS_Init() {
 		TRACE_ERROR("GPS  > Communication Error [disable NMEA]");
 		return false;
 	}
+    gps_enabled = true;
 	return true;
 }
 

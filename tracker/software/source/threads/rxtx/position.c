@@ -20,7 +20,7 @@ THD_FUNCTION(posThread, arg)
 	thd_pos_conf_t* conf = (thd_pos_conf_t*)arg;
 
 	// Wait
-	if(conf->thread_conf.init_delay) chThdSleep(conf->thread_conf.init_delay);
+	if(conf->svc_conf.init_delay) chThdSleep(conf->svc_conf.init_delay);
 
 	// Start data collector (if not running yet)
 	init_data_collector();
@@ -30,7 +30,7 @@ THD_FUNCTION(posThread, arg)
 
 	// Set telemetry configuration transmission variables
 	sysinterval_t last_conf_transmission =
-	    chVTGetSystemTime() - conf->tel_enc_cycle;
+	    chVTGetSystemTime() - conf_sram.tel_enc_cycle;
 	sysinterval_t time = chVTGetSystemTime();
 
 	while(true) {
@@ -43,12 +43,12 @@ THD_FUNCTION(posThread, arg)
 		TRACE_INFO("POS  > Get last data point");
 		dataPoint_t* dataPoint = getLastDataPoint();
 
-		if(!p_sleep(&conf->thread_conf.sleep_conf)) {
+		if(!p_sleep(&conf->svc_conf.sleep_conf)) {
 			TRACE_INFO("POS  > Transmit position");
 
             // Telemetry encoding parameter transmission
-            if(conf->tel_enc_cycle != 0 && last_conf_transmission
-                + conf->tel_enc_cycle < chVTGetSystemTime()) {
+            if(conf_sram.tel_enc_cycle != 0 && last_conf_transmission
+                + conf_sram.tel_enc_cycle < chVTGetSystemTime()) {
 
                 TRACE_INFO("POS  > Transmit telemetry configuration");
 
@@ -76,7 +76,7 @@ THD_FUNCTION(posThread, arg)
                     chThdSleep(TIME_S2I(5));
                 }
 
-                last_conf_transmission += conf->tel_enc_cycle;
+                last_conf_transmission += conf_sram.tel_enc_cycle;
             }
 			// Encode/Transmit position packet
 			packet_t packet = aprs_encode_position_and_telemetry(conf->call,
@@ -106,8 +106,8 @@ THD_FUNCTION(posThread, arg)
              * The message will be sent to the base station if set.
              * Else send it to device identity.
              */
-            char *call = conf_sram.aprs.base.enabled
-                ? conf_sram.aprs.base.call : conf->call;
+            char *call = conf_sram.base.enabled
+                ? conf_sram.base.call : conf->call;
             /*
              * Send message from this device.
              * Use call sign and path as specified in base config.
@@ -134,7 +134,7 @@ THD_FUNCTION(posThread, arg)
               chThdSleep(TIME_S2I(5));
             }
 		}
-		time = waitForTrigger(time, conf->thread_conf.cycle);
+		time = waitForTrigger(time, conf->svc_conf.cycle);
 	}
 }
 

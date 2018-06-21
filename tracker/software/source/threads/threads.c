@@ -41,19 +41,26 @@ void start_user_threads(void)
 	// Copy 
 	memcpy(&conf_sram, conf_flash, sizeof(conf_t));
 
-	if(conf_sram.pos_pri.thread_conf.active) start_position_thread(&conf_sram.pos_pri);
-	if(conf_sram.pos_sec.thread_conf.active) start_position_thread(&conf_sram.pos_sec);
+	if(conf_sram.pos_pri.svc_conf.active)
+	  start_position_thread(&conf_sram.pos_pri);
+	if(conf_sram.pos_sec.svc_conf.active)
+	  start_position_thread(&conf_sram.pos_sec);
 
-	if(conf_sram.img_pri.thread_conf.active) start_image_thread(&conf_sram.img_pri);
-	if(conf_sram.img_sec.thread_conf.active) start_image_thread(&conf_sram.img_sec);
+	if(conf_sram.img_pri.svc_conf.active)
+	  start_image_thread(&conf_sram.img_pri);
+	if(conf_sram.img_sec.svc_conf.active)
+	  start_image_thread(&conf_sram.img_sec);
 
-	if(conf_sram.log.thread_conf.active) start_logging_thread(&conf_sram.log);
+	if(conf_sram.log.svc_conf.active)
+	  start_logging_thread(&conf_sram.log);
 
-    if(conf_sram.aprs.thread_conf.active && conf_sram.aprs.digi.beacon)
+    if(conf_sram.aprs.svc_conf.active
+        && conf_sram.aprs.digi.beacon.svc_conf.active) {
       start_beacon_thread(&conf_sram.aprs);
+    }
 
-	if(conf_sram.aprs.thread_conf.active) {
-	  chThdSleep(conf_sram.aprs.thread_conf.init_delay);
+	if(conf_sram.aprs.svc_conf.active) {
+	  chThdSleep(conf_sram.aprs.svc_conf.init_delay);
 	  start_aprs_threads(PKT_RADIO_1,
 	                  conf_sram.aprs.rx.radio_conf.freq,
 	                  0,

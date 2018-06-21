@@ -4,6 +4,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "ptime.h"
+#include "types.h"
 
 #define BME_STATUS_BITS         2
 #define BME_STATUS_MASK         0x3
@@ -22,6 +23,8 @@
 
 #define BMEE2_STATUS_SHIFT      BMEI1_STATUS_SHIFT + BME_STATUS)BITS
 #define BMEE2_STATUS_MASK       (BME_STATUS_MASK << BMEE2_STATUS_SHIFT)
+
+#define USE_NEW_COLLECTOR       TRUE
 
 typedef enum {
 	GPS_LOCKED1,	// The GPS is locked, the GPS has been switched off
@@ -95,7 +98,13 @@ typedef struct {
     uint8_t  gpio;    // GPIO states
 } dataPoint_t;
 
-void waitForNewDataPoint(void);
+
+/*typedef struct telemRequest {
+  dataPoint_t dp;
+  thd_pos_conf_t *conf;
+} telem_request_t;*/
+
+//void waitForNewDataPoint(void);
 dataPoint_t* getLastDataPoint(void);
 void getSensors(dataPoint_t* tp);
 void setSystemStatus(dataPoint_t* tp);

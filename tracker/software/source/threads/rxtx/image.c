@@ -480,8 +480,8 @@ static bool transmit_image_packets(const uint8_t *image,
         /* Transmit on radio will release the packet chain. */
       } else {
         // Packet spacing (delay)
-        if(conf->thread_conf.send_spacing)
-          chThdSleep(conf->thread_conf.send_spacing);
+        if(conf->svc_conf.send_spacing)
+          chThdSleep(conf->svc_conf.send_spacing);
       }
     }
       chThdSleep(TIME_MS2I(10)); // Leave other threads some time
@@ -631,7 +631,7 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 THD_FUNCTION(imgThread, arg) {
   thd_img_conf_t* conf = (thd_img_conf_t*)arg;
 
-  if(conf->thread_conf.init_delay) chThdSleep(conf->thread_conf.init_delay);
+  if(conf->svc_conf.init_delay) chThdSleep(conf->svc_conf.init_delay);
   TRACE_INFO("IMG  > Startup image thread");
 
   // Create buffer
@@ -644,7 +644,7 @@ THD_FUNCTION(imgThread, arg) {
                                               code_s, sizeof(code_s));
     TRACE_INFO("POS  > Do module IMAGE cycle for %s on %s",
                conf->call, code_s);
-    if(p_sleep(&conf->thread_conf.sleep_conf)) {
+    if(p_sleep(&conf->svc_conf.sleep_conf)) {
       /* Re-check every minute. */
       chThdSleep(TIME_S2I(60));
       continue;
@@ -660,7 +660,7 @@ THD_FUNCTION(imgThread, arg) {
       /* Allow time for other threads. */
       chThdSleep(TIME_MS2I(10));
       /* Try again at next run time. */
-      time = waitForTrigger(time, conf->thread_conf.cycle);
+      time = waitForTrigger(time, conf->svc_conf.cycle);
       continue;
     }
     /*
@@ -689,7 +689,7 @@ THD_FUNCTION(imgThread, arg) {
       /* Allow time for other threads. */
       chThdSleep(TIME_MS2I(10));
       /* Try again at next run time. */
-      time = waitForTrigger(time, conf->thread_conf.cycle);
+      time = waitForTrigger(time, conf->svc_conf.cycle);
       continue;
     }
 
@@ -737,7 +737,7 @@ THD_FUNCTION(imgThread, arg) {
     /* Allow minimum time for other threads. */
     chThdSleep(TIME_MS2I(10));
     /* Update next run time. */
-    time = waitForTrigger(time, conf->thread_conf.cycle);
+    time = waitForTrigger(time, conf->svc_conf.cycle);
   }
 }
 

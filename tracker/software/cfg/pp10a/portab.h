@@ -81,7 +81,7 @@
 //#define LINE_UART4_RX               PAL_LINE(GPIOA, 11U)
 
 /* The external port can be used for bit bang I2C. */
-#define ENABLE_EXTERNAL_I2C         FALSE
+#define ENABLE_EXTERNAL_I2C         TRUE
 
 #if ENABLE_EXTERNAL_I2C == FALSE
 #define LINE_USART3_TX              LINE_IO_TXD

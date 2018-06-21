@@ -86,10 +86,12 @@ const SerialConfig debug_config = {
 /*===========================================================================*/
 
 void pktConfigSerialDiag(void) {
+#if ENABLE_EXTERNAL_I2C == FALSE
   /* USART3 TX.       */
   palSetLineMode(LINE_USART3_TX, PAL_MODE_ALTERNATE(7));
   /* USART3 RX.       */
   palSetLineMode(LINE_USART3_RX, PAL_MODE_ALTERNATE(7));
+#endif
 }
 
 void pktConfigSerialPkt(void) {

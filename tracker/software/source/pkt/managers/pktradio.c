@@ -647,8 +647,8 @@ radio_freq_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
   /* FIXME: Default frequency in config to be per radio. */
   (void)radio;
   /* FIXME: INVALID relies on 0 in conf if no default set. */
-  if(conf_sram.aprs.freq != FREQ_RADIO_INVALID)
-    return conf_sram.aprs.freq;
+  if(conf_sram.freq != FREQ_RADIO_INVALID)
+    return conf_sram.freq;
   else
     return DEFAULT_OPERATING_FREQ;
 }

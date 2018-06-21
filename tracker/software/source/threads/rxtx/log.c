@@ -38,7 +38,7 @@ THD_FUNCTION(logThread, arg)
 {
 	thd_log_conf_t* conf = (thd_log_conf_t*)arg;
 
-	if(conf->thread_conf.init_delay) chThdSleep(conf->thread_conf.init_delay);
+	if(conf->svc_conf.init_delay) chThdSleep(conf->svc_conf.init_delay);
 	TRACE_INFO("LOG  > Startup logging thread");
 
 	sysinterval_t time = chVTGetSystemTime();
@@ -46,7 +46,7 @@ THD_FUNCTION(logThread, arg)
 	{
 		TRACE_INFO("LOG  > Do module LOG cycle");
 
-		if(!p_sleep(&conf->thread_conf.sleep_conf))
+		if(!p_sleep(&conf->svc_conf.sleep_conf))
 		{
 			// Get log from memory
 			dataPoint_t *log = getNextLogDataPoint(conf->density);
@@ -74,7 +74,7 @@ THD_FUNCTION(logThread, arg)
 			}
 		}
 
-		time = waitForTrigger(time, conf->thread_conf.cycle);
+		time = waitForTrigger(time, conf->svc_conf.cycle);
 	}
 }
 
