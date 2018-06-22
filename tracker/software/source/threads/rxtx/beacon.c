@@ -53,10 +53,17 @@ THD_FUNCTION(bcnThread, arg) {
 #endif
     if(!p_sleep(&conf->beacon.sleep_conf)) {
 
+      if(!isPositionValid(dataPoint)) {
+            TRACE_INFO("BCN  > Waiting for position data for"
+                " %s (GPS state=%d)", conf->call, dataPoint->gps_state);
+            chThdSleep(TIME_S2I(60));
+            continue;
+      }
+
       // Telemetry encoding parameter transmissions
       if(conf_sram.tel_enc_cycle != 0
     		  && chVTTimeElapsedSinceX(last_conf_transmission)
-      	  	  	  > conf_sram.tel_enc_cycle) {
+      	  	  	  >= conf_sram.tel_enc_cycle) {
         TRACE_INFO("BCN  > Transmit telemetry configuration");
 
         // Encode and transmit telemetry config packet
@@ -83,13 +90,6 @@ THD_FUNCTION(bcnThread, arg) {
           chThdSleep(TIME_S2I(5));
         }
         last_conf_transmission += conf_sram.tel_enc_cycle;
-      }
-
-      while(!isPositionValid(dataPoint)) {
-            TRACE_INFO("BCN  > Waiting for position data for %s (GPS state=%d)"
-                , conf->call, dataPoint->gps_state);
-            chThdSleep(TIME_S2I(60));
-            continue;
       }
 
       TRACE_INFO("BCN  > Transmit position and telemetry");
