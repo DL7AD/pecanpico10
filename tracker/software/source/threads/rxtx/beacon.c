@@ -54,9 +54,9 @@ THD_FUNCTION(bcnThread, arg) {
     if(!p_sleep(&conf->beacon.sleep_conf)) {
 
       // Telemetry encoding parameter transmissions
-      if(conf_sram.tel_enc_cycle != 0 && last_conf_transmission
-          + conf_sram.tel_enc_cycle < chVTGetSystemTime()) {
-
+      if(conf_sram.tel_enc_cycle != 0
+    		  && chVTTimeElapsedSinceX(last_conf_transmission)
+      	  	  	  > conf_sram.tel_enc_cycle) {
         TRACE_INFO("BCN  > Transmit telemetry configuration");
 
         // Encode and transmit telemetry config packet

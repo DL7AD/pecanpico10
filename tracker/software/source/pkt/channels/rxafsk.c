@@ -772,6 +772,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
       case DECODER_TERMINATED:
         /* Something went wrong if we arrive here. */
         chSysHalt("ThdExit");
+        break;
 
       case DECODER_IDLE: {
         /*

@@ -101,10 +101,11 @@ typedef struct {
 typedef struct {
   bool              active;
   sysinterval_t     init_delay;
-  sysinterval_t     send_spacing;
+  //sysinterval_t     send_spacing;
   sleep_conf_t      sleep_conf;
   sysinterval_t     cycle;              // Cycle time (0: continuously)
   sysinterval_t     duration;
+  sysinterval_t		gps_wait;			// Maximum time to wait for a fix
   // Default lat, lon and alt when fixed is enabled
   bool              fixed;
   gps_coord_t       lat;

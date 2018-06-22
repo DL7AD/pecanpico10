@@ -128,15 +128,18 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
    * If the BME is not OK then airborne model will be used immediately.
    */
   bool dynamic = conf_sram.gps_pressure != 0;
-  TRACE_INFO("COLL > GPS %s in dynamic mode at %dPa", dynamic
+  TRACE_INFO("COLL > GPS %s in dynamic mode switching at %dPa", dynamic
              ? "is" : "is not", conf_sram.gps_pressure);
   /*
    *  Search for GPS lock within the timeout period and while battery is good.
    *  Search timeout=cycle-1sec (-3sec in order to keep synchronization)
    */
+  uint32_t x = 0;
+  gps_set_model(dynamic);
   do {
     batt = stm32_get_vbat();
-    gps_set_model(dynamic);
+    if(++x % 30) gps_set_model(dynamic); // Set model periodically
+    chThdSleepMilliseconds(100);
     gps_get_fix(&gpsFix);
   } while(!isGPSLocked(&gpsFix)
       && batt >= conf_sram.gps_off_vbat
@@ -433,8 +436,7 @@ THD_FUNCTION(collectorThread, arg) {
   // Write data point to Flash memory
   flash_writeLogDataPoint(lastDataPoint);
 
-  // Determine cycle time and if GPS should be used.
-  sysinterval_t data_cycle_time = TIME_S2I(600); // Default.
+  sysinterval_t data_cycle_time;
 
   getTime(&time);
   if(time.year == RTC_BASE_YEAR) {
@@ -490,8 +492,16 @@ THD_FUNCTION(collectorThread, arg) {
       tp->gps_state = GPS_FIXED;
 
     } else {
-      /* Try GPS lock to get data. If lock not attained fallback data is set. */
+      /*
+       *  Try GPS lock to get data.
+       *  If lock not attained fallback data is set.
+       */
       TRACE_INFO("COLL > Acquire position using GPS");
+	  // Determine timeout waiting for lock.
+      if(config->beacon.gps_wait > TIME_S2I(63)) // Min 1 minute + 3S
+        data_cycle_time = config->beacon.gps_wait;
+      else
+        data_cycle_time = TIME_S2I(600); // Default.
       aquirePosition(tp, ltp, data_cycle_time - TIME_S2I(3));
     }
     tp->id = ++id; // Serial ID
