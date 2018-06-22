@@ -27,7 +27,7 @@ static dataPoint_t* flash_getNextFreeLogAddress(void) {
 /*
  *
  */
-dataPoint_t* flash_getNewestLogEntry(void) {
+/*dataPoint_t* flash_getNewestLogEntry(void) {
   dataPoint_t* last_tp = NULL;
   uint64_t last_id = 0x0;
   dataPoint_t* tp;
@@ -40,6 +40,19 @@ dataPoint_t* flash_getNewestLogEntry(void) {
     }
   }
   return last_tp;
+}*/
+
+/*
+ *
+ */
+dataPoint_t* flash_getNewestLogEntry(void) {
+  dataPoint_t* tp;
+  uint32_t i = 0;
+  while((tp = flash_getLogBuffer(i++)) != NULL) {
+    if(LOG_IS_EMPTY(tp))
+      break;
+  }
+  return (i > 1 && tp != NULL ? flash_getLogBuffer(i - 1) : NULL);
 }
 
 /*

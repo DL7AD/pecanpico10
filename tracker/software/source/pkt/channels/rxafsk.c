@@ -1064,9 +1064,14 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         radio_pwm_fifo_t *myFIFO = myDriver->active_demod_object;
         uint8_t u = myFIFO->in_use;
         uint8_t n = pktReleasePWMbuffers(myDriver);
+#if TRACE_PWM_BUFFER_STATS == TRUE
         TRACE_DEBUG("AFSK > PWM buffer use:"
             " allocated %d, consumed %d, released %d, peak lag %d",
             PWM_DATA_BUFFERS, u, n, myFIFO->peak);
+#else
+        (void)u;
+        (void)n;
+#endif
 #endif
         /* Reset will release the stream FIFO. */
         myDriver->decoder_state = DECODER_RESET;
@@ -1116,9 +1121,14 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         radio_pwm_fifo_t *myFIFO = myDriver->active_demod_object;
         uint8_t u = myFIFO->in_use;
         uint8_t n = pktReleasePWMbuffers(myDriver);
+#if TRACE_PWM_BUFFER_STATS == TRUE
         TRACE_DEBUG("AFSK > PWM buffer use:"
             " allocated %d, consumed %d, released %d, peak lag %d",
             PWM_DATA_BUFFERS, u, n, myFIFO->peak);
+#else
+        (void)u;
+        (void)n;
+#endif
 #endif
           /*
            * Indicate AFSK decode done & lock the PWM queue.

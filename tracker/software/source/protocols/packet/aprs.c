@@ -43,12 +43,12 @@ static heard_t heard_list[APRS_HEARD_LIST_SIZE];
 static bool dedupe_initialized;
 
 const conf_command_t command_list[] = {
-	{TYPE_INT,  "pos_pri.active",                sizeof(conf_sram.pos_pri.svc_conf.active),                   &conf_sram.pos_pri.svc_conf.active                  },
-	{TYPE_TIME, "pos_pri.init_delay",            sizeof(conf_sram.pos_pri.svc_conf.init_delay),               &conf_sram.pos_pri.svc_conf.init_delay              },
-	{TYPE_INT,  "pos_pri.sleep_conf.type",       sizeof(conf_sram.pos_pri.svc_conf.sleep_conf.type),          &conf_sram.pos_pri.svc_conf.sleep_conf.type         },
-	{TYPE_INT,  "pos_pri.sleep_conf.vbat_thres", sizeof(conf_sram.pos_pri.svc_conf.sleep_conf.vbat_thres),    &conf_sram.pos_pri.svc_conf.sleep_conf.vbat_thres   },
-	{TYPE_INT,  "pos_pri.sleep_conf.vsol_thres", sizeof(conf_sram.pos_pri.svc_conf.sleep_conf.vsol_thres),    &conf_sram.pos_pri.svc_conf.sleep_conf.vsol_thres   },
-	{TYPE_TIME, "pos_pri.cycle",                 sizeof(conf_sram.pos_pri.svc_conf.cycle),                    &conf_sram.pos_pri.svc_conf.cycle                   },
+	{TYPE_INT,  "pos_pri.active",                sizeof(conf_sram.pos_pri.beacon.active),                     &conf_sram.pos_pri.beacon.active                    },
+	{TYPE_TIME, "pos_pri.init_delay",            sizeof(conf_sram.pos_pri.beacon.init_delay),                 &conf_sram.pos_pri.beacon.init_delay                },
+	{TYPE_INT,  "pos_pri.sleep_conf.type",       sizeof(conf_sram.pos_pri.beacon.sleep_conf.type),            &conf_sram.pos_pri.beacon.sleep_conf.type           },
+	{TYPE_INT,  "pos_pri.sleep_conf.vbat_thres", sizeof(conf_sram.pos_pri.beacon.sleep_conf.vbat_thres),      &conf_sram.pos_pri.beacon.sleep_conf.vbat_thres     },
+	{TYPE_INT,  "pos_pri.sleep_conf.vsol_thres", sizeof(conf_sram.pos_pri.beacon.sleep_conf.vsol_thres),      &conf_sram.pos_pri.beacon.sleep_conf.vsol_thres     },
+	{TYPE_TIME, "pos_pri.cycle",                 sizeof(conf_sram.pos_pri.beacon.cycle),                      &conf_sram.pos_pri.beacon.cycle                     },
 	{TYPE_INT,  "pos_pri.pwr",                   sizeof(conf_sram.pos_pri.radio_conf.pwr),                    &conf_sram.pos_pri.radio_conf.pwr                   },
 	{TYPE_INT,  "pos_pri.freq",                  sizeof(conf_sram.pos_pri.radio_conf.freq),                   &conf_sram.pos_pri.radio_conf.freq                  },
     {TYPE_INT,  "pos_pri.mod",                   sizeof(conf_sram.pos_pri.radio_conf.mod),                    &conf_sram.pos_pri.radio_conf.mod                   },
@@ -58,12 +58,12 @@ const conf_command_t command_list[] = {
 	{TYPE_INT,  "pos_pri.symbol",                sizeof(conf_sram.pos_pri.symbol),                            &conf_sram.pos_pri.symbol                           },
     {TYPE_INT,  "pos_pri.aprs_msg",              sizeof(conf_sram.pos_pri.aprs_msg),                          &conf_sram.pos_pri.aprs_msg                         },
 
-	{TYPE_INT,  "pos_sec.active",                sizeof(conf_sram.pos_sec.svc_conf.active),                   &conf_sram.pos_sec.svc_conf.active                  },
-	{TYPE_TIME, "pos_sec.init_delay",            sizeof(conf_sram.pos_sec.svc_conf.init_delay),               &conf_sram.pos_sec.svc_conf.init_delay              },
-	{TYPE_INT,  "pos_sec.sleep_conf.type",       sizeof(conf_sram.pos_sec.svc_conf.sleep_conf.type),          &conf_sram.pos_sec.svc_conf.sleep_conf.type         },
-	{TYPE_INT,  "pos_sec.sleep_conf.vbat_thres", sizeof(conf_sram.pos_sec.svc_conf.sleep_conf.vbat_thres),    &conf_sram.pos_sec.svc_conf.sleep_conf.vbat_thres   },
-	{TYPE_INT,  "pos_sec.sleep_conf.vsol_thres", sizeof(conf_sram.pos_sec.svc_conf.sleep_conf.vsol_thres),    &conf_sram.pos_sec.svc_conf.sleep_conf.vsol_thres   },
-	{TYPE_TIME, "pos_sec.cycle",                 sizeof(conf_sram.pos_sec.svc_conf.cycle),                    &conf_sram.pos_sec.svc_conf.cycle                   },
+	{TYPE_INT,  "pos_sec.active",                sizeof(conf_sram.pos_sec.beacon.active),                     &conf_sram.pos_sec.beacon.active                    },
+	{TYPE_TIME, "pos_sec.init_delay",            sizeof(conf_sram.pos_sec.beacon.init_delay),                 &conf_sram.pos_sec.beacon.init_delay                },
+	{TYPE_INT,  "pos_sec.sleep_conf.type",       sizeof(conf_sram.pos_sec.beacon.sleep_conf.type),            &conf_sram.pos_sec.beacon.sleep_conf.type           },
+	{TYPE_INT,  "pos_sec.sleep_conf.vbat_thres", sizeof(conf_sram.pos_sec.beacon.sleep_conf.vbat_thres),      &conf_sram.pos_sec.beacon.sleep_conf.vbat_thres     },
+	{TYPE_INT,  "pos_sec.sleep_conf.vsol_thres", sizeof(conf_sram.pos_sec.beacon.sleep_conf.vsol_thres),      &conf_sram.pos_sec.beacon.sleep_conf.vsol_thres     },
+	{TYPE_TIME, "pos_sec.cycle",                 sizeof(conf_sram.pos_sec.beacon.cycle),                      &conf_sram.pos_sec.beacon.cycle                     },
 	{TYPE_INT,  "pos_sec.pwr",                   sizeof(conf_sram.pos_sec.radio_conf.pwr),                    &conf_sram.pos_sec.radio_conf.pwr                   },
 	{TYPE_INT,  "pos_sec.freq",                  sizeof(conf_sram.pos_sec.radio_conf.freq),                   &conf_sram.pos_sec.radio_conf.freq                  },
 	{TYPE_INT,  "pos_sec.mod",                   sizeof(conf_sram.pos_sec.radio_conf.mod),                    &conf_sram.pos_sec.radio_conf.mod                   },
@@ -127,28 +127,28 @@ const conf_command_t command_list[] = {
 	{TYPE_STR,  "log.path",                      sizeof(conf_sram.log.path),                                  &conf_sram.log.path                                 },
 	{TYPE_INT,  "log.density",                   sizeof(conf_sram.log.density),                               &conf_sram.log.density                              },
 
-	{TYPE_INT,  "aprs.active",                   sizeof(conf_sram.aprs.svc_conf.active),                      &conf_sram.aprs.svc_conf.active                     },
-	{TYPE_TIME, "aprs.init_delay",               sizeof(conf_sram.aprs.svc_conf.init_delay),                  &conf_sram.aprs.svc_conf.init_delay                 },
+	{TYPE_INT,  "aprs.rx.active",                sizeof(conf_sram.aprs.rx.svc_conf.active),                   &conf_sram.aprs.rx.svc_conf.active                  },
+	{TYPE_TIME, "aprs.rx.init_delay",            sizeof(conf_sram.aprs.rx.svc_conf.init_delay),               &conf_sram.aprs.rx.svc_conf.init_delay              },
 
 	{TYPE_INT,  "aprs.rx.freq",                  sizeof(conf_sram.aprs.rx.radio_conf.freq),                   &conf_sram.aprs.rx.radio_conf.freq                  },
 	{TYPE_INT,  "aprs.rx.mod",                   sizeof(conf_sram.aprs.rx.radio_conf.mod),                    &conf_sram.aprs.rx.radio_conf.mod                   },
 	{TYPE_INT,  "aprs.rx.speed",                 sizeof(conf_sram.aprs.rx.radio_conf.speed),                  &conf_sram.aprs.rx.radio_conf.speed                 },
     {TYPE_STR,  "aprs.rx.call",                  sizeof(conf_sram.aprs.rx.call),                              &conf_sram.aprs.rx.call                             },
 
-    {TYPE_INT,  "aprs.digi.active",              sizeof(conf_sram.aprs.digi.active),                          &conf_sram.aprs.digi.active                         },
-	{TYPE_INT,  "aprs.digi.freq",                sizeof(conf_sram.aprs.digi.radio_conf.freq),                 &conf_sram.aprs.digi.radio_conf.freq                },
-    {TYPE_INT,  "aprs.digi.pwr",                 sizeof(conf_sram.aprs.digi.radio_conf.pwr),                  &conf_sram.aprs.digi.radio_conf.pwr                 },
-    {TYPE_INT,  "aprs.digi.mod",                 sizeof(conf_sram.aprs.digi.radio_conf.mod),                  &conf_sram.aprs.digi.radio_conf.mod                 },
-	{TYPE_INT,  "aprs.digi.cca",                 sizeof(conf_sram.aprs.digi.radio_conf.cca),                  &conf_sram.aprs.digi.radio_conf.cca                 },
-    {TYPE_STR,  "aprs.digi.call",                sizeof(conf_sram.aprs.digi.call),                            &conf_sram.aprs.digi.call                           },
-    {TYPE_STR,  "aprs.digi.path",                sizeof(conf_sram.aprs.digi.path),                            &conf_sram.aprs.digi.path                           },
-    {TYPE_INT,  "aprs.digi.symbol",              sizeof(conf_sram.aprs.digi.symbol),                          &conf_sram.aprs.digi.symbol                         },
-    {TYPE_INT,  "aprs.digi.beacon",              sizeof(conf_sram.aprs.digi.beacon.svc_conf.active),          &conf_sram.aprs.digi.beacon.svc_conf.active         },
+    {TYPE_INT,  "aprs.digi",                     sizeof(conf_sram.aprs.digi),                                 &conf_sram.aprs.digi                                },
+	{TYPE_INT,  "aprs.tx.freq",                  sizeof(conf_sram.aprs.tx.radio_conf.freq),                   &conf_sram.aprs.tx.radio_conf.freq                  },
+    {TYPE_INT,  "aprs.tx.pwr",                   sizeof(conf_sram.aprs.tx.radio_conf.pwr),                    &conf_sram.aprs.tx.radio_conf.pwr                   },
+    {TYPE_INT,  "aprs.tx.mod",                   sizeof(conf_sram.aprs.tx.radio_conf.mod),                    &conf_sram.aprs.tx.radio_conf.mod                   },
+	{TYPE_INT,  "aprs.tx.cca",                   sizeof(conf_sram.aprs.tx.radio_conf.cca),                    &conf_sram.aprs.tx.radio_conf.cca                   },
+    {TYPE_STR,  "aprs.tx.call",                  sizeof(conf_sram.aprs.tx.call),                              &conf_sram.aprs.tx.call                             },
+    {TYPE_STR,  "aprs.tx.path",                  sizeof(conf_sram.aprs.tx.path),                              &conf_sram.aprs.tx.path                             },
+    {TYPE_INT,  "aprs.tx.symbol",                sizeof(conf_sram.aprs.tx.symbol),                            &conf_sram.aprs.tx.symbol                           },
 
-    {TYPE_INT,  "aprs.beacon.lat",               sizeof(conf_sram.aprs.digi.beacon.lat),                      &conf_sram.aprs.digi.beacon.lat                     },
-    {TYPE_INT,  "aprs.beacon.lon",               sizeof(conf_sram.aprs.digi.beacon.lon),                      &conf_sram.aprs.digi.beacon.lon                     },
-    {TYPE_INT,  "aprs.beacon.alt",               sizeof(conf_sram.aprs.digi.beacon.alt),                      &conf_sram.aprs.digi.beacon.alt                     },
-    {TYPE_INT,  "aprs.beacon.cycle",             sizeof(conf_sram.aprs.digi.beacon.svc_conf.cycle),           &conf_sram.aprs.digi.beacon.svc_conf.cycle          },
+    {TYPE_INT,  "aprs.beacon",                   sizeof(conf_sram.aprs.tx.beacon.active),                     &conf_sram.aprs.tx.beacon.active                    },
+    {TYPE_INT,  "aprs.beacon.lat",               sizeof(conf_sram.aprs.tx.beacon.lat),                        &conf_sram.aprs.tx.beacon.lat                       },
+    {TYPE_INT,  "aprs.beacon.lon",               sizeof(conf_sram.aprs.tx.beacon.lon),                        &conf_sram.aprs.tx.beacon.lon                       },
+    {TYPE_INT,  "aprs.beacon.alt",               sizeof(conf_sram.aprs.tx.beacon.alt),                        &conf_sram.aprs.tx.beacon.alt                       },
+    {TYPE_INT,  "aprs.beacon.cycle",             sizeof(conf_sram.aprs.tx.beacon.cycle),                      &conf_sram.aprs.tx.beacon.cycle                     },
 
     {TYPE_INT,  "keep_cam_switched_on",          sizeof(conf_sram.keep_cam_switched_on),                      &conf_sram.keep_cam_switched_on                     },
 	{TYPE_INT,  "gps_on_vbat",                   sizeof(conf_sram.gps_on_vbat),                               &conf_sram.gps_on_vbat                              },
@@ -849,9 +849,7 @@ msg_t aprs_send_position_response(aprs_identity_t *id,
   if(argc != 0)
     return MSG_ERROR;
 /*
- * TODO: This should just send a request to a TEL service.
- * The TEL service should then transmit config data at a spaced interval.
- * The same applies to BCN and POS threads which should also use a TEL service.
+ * TODO: This should just send a request to the collector service.
  */
   // Encode and transmit telemetry config first
   for(uint8_t type = 0; type < APRS_NUM_TELEM_GROUPS; type++) {
@@ -1126,19 +1124,19 @@ static bool aprs_decode_message(packet_t pp) {
   aprs_identity_t identity = {0};
 
   strcpy(identity.src, src);
-  strcpy(identity.call, conf_sram.aprs.digi.call);
+  strcpy(identity.call, conf_sram.aprs.tx.call);
   /* TODO: define a length for path. */
-  strcpy(identity.path, conf_sram.aprs.digi.path);
-  identity.symbol = conf_sram.aprs.digi.symbol;
-  identity.freq = conf_sram.aprs.digi.radio_conf.freq;
-  identity.pwr = conf_sram.aprs.digi.radio_conf.pwr;
-  identity.mod = conf_sram.aprs.digi.radio_conf.mod;
-  identity.cca = conf_sram.aprs.digi.radio_conf.cca;
+  strcpy(identity.path, conf_sram.aprs.tx.path);
+  identity.symbol = conf_sram.aprs.tx.symbol;
+  identity.freq = conf_sram.aprs.tx.radio_conf.freq;
+  identity.pwr = conf_sram.aprs.tx.radio_conf.pwr;
+  identity.mod = conf_sram.aprs.tx.radio_conf.mod;
+  identity.cca = conf_sram.aprs.tx.radio_conf.cca;
 
   /* Check which apps are enabled to accept APRS messages. */
   bool pos_pri = (strcmp(conf_sram.pos_pri.call, dest) == 0)
 	        && (conf_sram.pos_pri.aprs_msg)
-	        && (conf_sram.pos_pri.svc_conf.active);
+	        && (conf_sram.pos_pri.beacon.active);
 
   if(pos_pri) {
     strcpy(identity.call, conf_sram.pos_pri.call);
@@ -1148,7 +1146,7 @@ static bool aprs_decode_message(packet_t pp) {
 
   bool pos_sec = (strcmp(conf_sram.pos_sec.call, dest) == 0)
             && (conf_sram.pos_sec.aprs_msg)
-            && (conf_sram.pos_sec.svc_conf.active);
+            && (conf_sram.pos_sec.beacon.active);
   if(pos_sec) {
     strcpy(identity.call, conf_sram.pos_sec.call);
     strcpy(identity.path, conf_sram.pos_sec.path);
@@ -1156,7 +1154,7 @@ static bool aprs_decode_message(packet_t pp) {
   }
 
   bool aprs_rx = (strcmp(conf_sram.aprs.rx.call, dest) == 0)
-            && (conf_sram.aprs.svc_conf.active);
+            && (conf_sram.aprs.rx.svc_conf.active);
   if(aprs_rx) {
     strcpy(identity.call, conf_sram.aprs.rx.call);
     identity.symbol = conf_sram.aprs.rx.symbol;
@@ -1164,8 +1162,8 @@ static bool aprs_decode_message(packet_t pp) {
   }
 
   /* Even if the digi is not active respond on the digi (TX) call. */
-  bool aprs_tx = (strcmp(conf_sram.aprs.digi.call, dest) == 0)
-            && (conf_sram.aprs.svc_conf.active)
+  bool aprs_tx = (strcmp(conf_sram.aprs.tx.call, dest) == 0)
+            && (conf_sram.aprs.rx.svc_conf.active)
             /*&& (conf_sram.aprs.digi.active)*/;
   /* Default already set tx parameters. */
 
@@ -1285,18 +1283,18 @@ static void aprs_digipeat(packet_t pp) {
 
   if(!dedupe_check(pp, 0)) { // Last identical packet older than 10 seconds
     packet_t result = digipeat_match(0, pp, conf_sram.aprs.rx.call,
-                                     conf_sram.aprs.digi.call, alias_re,
+                                     conf_sram.aprs.tx.call, alias_re,
                                      wide_re, 0, preempt, NULL);
     if(result != NULL) { // Should be digipeated
       dedupe_remember(result, 0);
       /* If transmit fails the packet buffer is released. */
       if(!transmitOnRadio(result,
-                      conf_sram.aprs.digi.radio_conf.freq,
+                      conf_sram.aprs.tx.radio_conf.freq,
                       0,
                       0,
-                      conf_sram.aprs.digi.radio_conf.pwr,
-                      conf_sram.aprs.digi.radio_conf.mod,
-                      conf_sram.aprs.digi.radio_conf.cca)) {
+                      conf_sram.aprs.tx.radio_conf.pwr,
+                      conf_sram.aprs.tx.radio_conf.mod,
+                      conf_sram.aprs.tx.radio_conf.cca)) {
         TRACE_INFO("RX   > Failed to digipeat packet");
       } /* TX failed. */
     } /* Should be digipeated. */
@@ -1377,7 +1375,7 @@ void aprs_decode_packet(packet_t pp) {
   }
 
   // Digipeat packet
-  if(conf_sram.aprs.digi.active && digipeat) {
+  if(conf_sram.aprs.digi && digipeat) {
     aprs_digipeat(pp);
   }
 }

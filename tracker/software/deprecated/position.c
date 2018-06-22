@@ -20,7 +20,7 @@ THD_FUNCTION(posThread, arg)
 	thd_pos_conf_t* conf = (thd_pos_conf_t*)arg;
 
 	// Wait
-	if(conf->svc_conf.init_delay) chThdSleep(conf->svc_conf.init_delay);
+	if(conf->beacon.init_delay) chThdSleep(conf->beacon.init_delay);
 
 	// Start data collector (if not running yet)
 	init_data_collector();
@@ -43,7 +43,7 @@ THD_FUNCTION(posThread, arg)
 		TRACE_INFO("POS  > Get last data point");
 		dataPoint_t* dataPoint = getLastDataPoint();
 
-		if(!p_sleep(&conf->svc_conf.sleep_conf)) {
+		if(!p_sleep(&conf->beacon.sleep_conf)) {
 			TRACE_INFO("POS  > Transmit position");
 
             // Telemetry encoding parameter transmission
@@ -134,7 +134,7 @@ THD_FUNCTION(posThread, arg)
               chThdSleep(TIME_S2I(5));
             }
 		}
-		time = waitForTrigger(time, conf->svc_conf.cycle);
+		time = waitForTrigger(time, conf->beacon.cycle);
 	}
 }
 

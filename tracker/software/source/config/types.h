@@ -99,18 +99,27 @@ typedef struct {
 } thread_conf_t; // Thread
 
 typedef struct {
-  thread_conf_t     svc_conf;
+  bool              active;
+  sysinterval_t     init_delay;
+  sysinterval_t     send_spacing;
+  sleep_conf_t      sleep_conf;
+  sysinterval_t     cycle;              // Cycle time (0: continuously)
+  sysinterval_t     duration;
+  // Default lat, lon and alt when fixed is enabled
+  bool              fixed;
+  gps_coord_t       lat;
+  gps_coord_t       lon;
+  gps_alt_t         alt;
+} thd_bcn_conf_t; // Thread
+
+typedef struct {
+  thd_bcn_conf_t    beacon;
   radio_tx_conf_t   radio_conf;
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
   char              path[16];
   aprs_sym_t        symbol;
   bool              aprs_msg;
-  // Default lat, lon and alt when fixed is enabled
-  bool              fixed;
-  gps_coord_t       lat;
-  gps_coord_t       lon;
-  gps_alt_t         alt;
 } thd_pos_conf_t;
 
 typedef struct {
@@ -135,6 +144,7 @@ typedef struct {
 } thd_log_conf_t;
 
 typedef struct {
+  thread_conf_t     svc_conf;
   radio_rx_conf_t   radio_conf;
   aprs_sym_t        symbol;
   // Protocol
@@ -158,27 +168,20 @@ typedef struct {
   bool              enabled;
 } thd_base_conf_t;
 
-typedef struct {
+/*typedef struct {
   bool              active;                // Digipeater active flag
   radio_tx_conf_t   radio_conf;
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
   char              path[16];
   aprs_sym_t        symbol;
-  thd_pos_conf_t    beacon;
-  //sysinterval_t     tel_enc_cycle;
-} thd_digi_conf_t;
+} thd_digi_conf_t;*/
 
 /* APRS configuration. */
 typedef struct {
-  thread_conf_t     svc_conf;
   thd_rx_conf_t     rx;
-  thd_digi_conf_t   digi;
-  // Base station call sign for receipt of tracker initiated sends
-  // These are sends by the tracker which are not in response to a query.
-  //thd_base_conf_t   base;
-  // Default APRS frequency if geolocation is not available (GPS offline)
-  //radio_freq_t      freq;
+  bool              digi;
+  thd_pos_conf_t    tx;
 } thd_aprs_conf_t;
 
 typedef struct {
