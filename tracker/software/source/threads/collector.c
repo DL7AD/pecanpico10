@@ -460,8 +460,8 @@ THD_FUNCTION(collectorThread, arg) {
     /* Wait for a request from a client. */
     thread_t *caller = chMsgWait();
     /* Fetch the message. */
-    thd_pos_conf_t *config;
-    config = (thd_pos_conf_t *)chMsgGet(caller);
+    bcn_app_conf_t *config;
+    config = (bcn_app_conf_t *)chMsgGet(caller);
 
     TRACE_INFO("COLL > Respond to request for DATA COLLECTOR cycle");
 

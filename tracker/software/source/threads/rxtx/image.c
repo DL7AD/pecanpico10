@@ -287,7 +287,7 @@ bool reject_sec;
 
 static bool transmit_image_packet(const uint8_t *image,
                                   uint32_t image_len,
-                                  thd_img_conf_t* conf,
+                                  img_app_conf_t* conf,
                                   uint8_t image_id,
                                   uint16_t packet_id) {
 	ssdv_t ssdv;
@@ -358,7 +358,7 @@ static bool transmit_image_packet(const uint8_t *image,
  */
 static bool transmit_image_packets(const uint8_t *image,
                                    uint32_t image_len,
-                                   thd_img_conf_t* conf,
+                                   img_app_conf_t* conf,
                                    uint8_t image_id) {
 
   uint8_t pkt[SSDV_PKT_SIZE];
@@ -629,7 +629,7 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
  *
  */
 THD_FUNCTION(imgThread, arg) {
-  thd_img_conf_t* conf = (thd_img_conf_t*)arg;
+  img_app_conf_t* conf = (img_app_conf_t*)arg;
 
   if(conf->svc_conf.init_delay) chThdSleep(conf->svc_conf.init_delay);
   TRACE_INFO("IMG  > Startup image thread");
@@ -744,7 +744,7 @@ THD_FUNCTION(imgThread, arg) {
 /*
  *
  */
-void start_image_thread(thd_img_conf_t *conf)
+void start_image_thread(img_app_conf_t *conf)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
 	                                   THD_WORKING_AREA_SIZE(40 * 1024),

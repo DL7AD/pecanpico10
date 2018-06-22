@@ -17,7 +17,7 @@
  */
 THD_FUNCTION(posThread, arg)
 {
-	thd_pos_conf_t* conf = (thd_pos_conf_t*)arg;
+	bcn_app_conf_t* conf = (bcn_app_conf_t*)arg;
 
 	// Wait
 	if(conf->beacon.init_delay) chThdSleep(conf->beacon.init_delay);
@@ -141,7 +141,7 @@ THD_FUNCTION(posThread, arg)
 /*
  *
  */
-void start_position_thread(thd_pos_conf_t *conf)
+void start_position_thread(bcn_app_conf_t *conf)
 {
 	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(10*1024),
 	                                   "POS", LOWPRIO, posThread, conf);

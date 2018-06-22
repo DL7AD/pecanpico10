@@ -110,17 +110,17 @@ typedef struct {
   gps_coord_t       lat;
   gps_coord_t       lon;
   gps_alt_t         alt;
-} thd_bcn_conf_t; // Thread
+} telem_svc_conf_t; // Thread
 
 typedef struct {
-  thd_bcn_conf_t    beacon;
+  telem_svc_conf_t  beacon;
   radio_tx_conf_t   radio_conf;
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
   char              path[16];
   aprs_sym_t        symbol;
   bool              aprs_msg;
-} thd_pos_conf_t;
+} bcn_app_conf_t;
 
 typedef struct {
   thread_conf_t     svc_conf;
@@ -132,7 +132,7 @@ typedef struct {
   resolution_t      res;					// Picture resolution
   uint8_t           quality;				// SSDV Quality ranging from 0-7
   uint32_t          buf_size;		    	// SRAM buffer size for the picture
-} thd_img_conf_t;
+} img_app_conf_t;
 
 typedef struct {
   thread_conf_t     svc_conf;
@@ -141,7 +141,7 @@ typedef struct {
   char              call[AX25_MAX_ADDR_LEN];
   char              path[16];
   uint8_t           density;				// Density of log points being sent out in 1/x (value 10 => 10%)
-} thd_log_conf_t;
+} log_app_conf_t;
 
 typedef struct {
   thread_conf_t     svc_conf;
@@ -168,30 +168,22 @@ typedef struct {
   bool              enabled;
 } thd_base_conf_t;
 
-/*typedef struct {
-  bool              active;                // Digipeater active flag
-  radio_tx_conf_t   radio_conf;
-  // Protocol
-  char              call[AX25_MAX_ADDR_LEN];
-  char              path[16];
-  aprs_sym_t        symbol;
-} thd_digi_conf_t;*/
-
 /* APRS configuration. */
 typedef struct {
   thd_rx_conf_t     rx;
+  bool              aprs_msg;
   bool              digi;
-  thd_pos_conf_t    tx;
+  bcn_app_conf_t    tx;
 } thd_aprs_conf_t;
 
 typedef struct {
-  thd_pos_conf_t	pos_pri;				// Primary position thread configuration
-  thd_pos_conf_t	pos_sec;				// Secondary position thread configuration
+  bcn_app_conf_t	pos_pri;				// Primary position thread configuration
+  bcn_app_conf_t	pos_sec;				// Secondary position thread configuration
 
-  thd_img_conf_t	img_pri;				// Primary image thread configuration
-  thd_img_conf_t	img_sec;				// Secondary image thread configuration
+  img_app_conf_t	img_pri;				// Primary image thread configuration
+  img_app_conf_t	img_sec;				// Secondary image thread configuration
 
-  thd_log_conf_t	log;					// Log transmission configuration
+  log_app_conf_t	log;					// Log transmission configuration
   thd_aprs_conf_t   aprs;
 
   bool			    keep_cam_switched_on;	// Keep camera switched on and initialized, this makes image capturing faster but takes a lot of power over long time

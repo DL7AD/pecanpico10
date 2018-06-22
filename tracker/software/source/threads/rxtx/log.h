@@ -3,7 +3,7 @@
 
 #include "collector.h"
 
-void start_logging_thread(thd_log_conf_t *conf);
+void start_logging_thread(log_app_conf_t *conf);
 
 #endif
 

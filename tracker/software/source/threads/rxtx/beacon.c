@@ -16,7 +16,7 @@
  *
  */
 THD_FUNCTION(bcnThread, arg) {
-  thd_pos_conf_t* conf = (thd_pos_conf_t *)arg;
+  bcn_app_conf_t* conf = (bcn_app_conf_t *)arg;
 
   // Start data collector (if not running yet)
   init_data_collector();
@@ -160,7 +160,7 @@ THD_FUNCTION(bcnThread, arg) {
 /*
  *
  */
-void start_beacon_thread(thd_pos_conf_t *conf) {
+void start_beacon_thread(bcn_app_conf_t *conf) {
   thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(10*1024),
                                      "BCN", LOWPRIO, bcnThread, conf);
   if(!th) {

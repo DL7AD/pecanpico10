@@ -406,6 +406,7 @@ packet_t aprs_encode_stamped_position_and_telemetry(const char *callsign,
  * @param[in] path      path to use
  * @param[in] symbol    symbol for originator
  * @param[in] dataPoint position data object
+ * @param[in] extended  unused
  *
  * @return    encoded packet object pointer
  * @retval    NULL if encoding failed
@@ -1154,7 +1155,8 @@ static bool aprs_decode_message(packet_t pp) {
   }
 
   bool aprs_rx = (strcmp(conf_sram.aprs.rx.call, dest) == 0)
-            && (conf_sram.aprs.rx.svc_conf.active);
+            && (conf_sram.aprs.rx.svc_conf.active)
+            && (conf_sram.aprs.aprs_msg);
   if(aprs_rx) {
     strcpy(identity.call, conf_sram.aprs.rx.call);
     identity.symbol = conf_sram.aprs.rx.symbol;

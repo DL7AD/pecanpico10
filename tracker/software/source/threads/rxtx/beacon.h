@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void start_beacon_thread(thd_pos_conf_t *conf);
+  void start_beacon_thread(bcn_app_conf_t *conf);
 #ifdef __cplusplus
 }
 #endif

@@ -36,7 +36,7 @@ static dataPoint_t* getNextLogDataPoint(uint8_t density)
 
 THD_FUNCTION(logThread, arg)
 {
-	thd_log_conf_t* conf = (thd_log_conf_t*)arg;
+	log_app_conf_t* conf = (log_app_conf_t*)arg;
 
 	if(conf->svc_conf.init_delay) chThdSleep(conf->svc_conf.init_delay);
 	TRACE_INFO("LOG  > Startup logging thread");
@@ -78,7 +78,7 @@ THD_FUNCTION(logThread, arg)
 	}
 }
 
-void start_logging_thread(thd_log_conf_t *conf)
+void start_logging_thread(log_app_conf_t *conf)
 {
 	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(6*1024), "LOG", LOWPRIO, logThread, conf);
 	if(!th) {

@@ -3,6 +3,6 @@
 
 #include "types.h"
 
-void start_position_thread(const thd_pos_conf_t *conf);
+void start_position_thread(const bcn_app_conf_t *conf);
 
 #endif
