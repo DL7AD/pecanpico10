@@ -483,7 +483,7 @@ THD_FUNCTION(collectorThread, arg) {
        * Update set fixed position.
        * Time will be set in data below.
        */
-      TRACE_INFO("COLL > Using fixed location");
+      TRACE_INFO("COLL > Using fixed location for %s", config->call);
       tp->gps_alt = config->beacon.alt;
       tp->gps_lat = config->beacon.lat;
       tp->gps_lon = config->beacon.lon;
@@ -503,16 +503,18 @@ THD_FUNCTION(collectorThread, arg) {
         "%s Time %04d-%02d-%02d %02d:%02d:%02d\r\n"
         "%s Pos  %d.%05d %d.%05d Alt %dm\r\n"
         "%s Sats %d TTFF %dsec\r\n"
-        "%s ADC Vbat=%d.%03dV Vsol=%d.%03dV Pbat=%dmW\r\n"
-        "%s AIR p=%d.%01dPa T=%d.%02ddegC phi=%d.%01d%%\r\n"
-        "%s IOP IO1=%d IO2=%d IO3=%d IO4=%d",
+        "%s ADC  Vbat=%d.%03dV Vsol=%d.%03dV Pbat=%dmW\r\n"
+        "%s AIR  p=%d.%01dPa T=%d.%02ddegC phi=%d.%01d%%\r\n"
+        "%s IOP  IO1=%d IO2=%d IO3=%d IO4=%d\r\n"
+        "%s STN  %s",
         tp->id, tp->gps_state,
         TRACE_TAB, time.year, time.month, time.day, time.hour, time.minute, time.day,
         TRACE_TAB, tp->gps_lat/10000000, (tp->gps_lat > 0 ? 1:-1)*(tp->gps_lat/100)%100000, tp->gps_lon/10000000, (tp->gps_lon > 0 ? 1:-1)*(tp->gps_lon/100)%100000, tp->gps_alt,
         TRACE_TAB, tp->gps_sats, tp->gps_ttff,
         TRACE_TAB, tp->adc_vbat/1000, (tp->adc_vbat%1000), tp->adc_vsol/1000, (tp->adc_vsol%1000), tp->pac_pbat,
         TRACE_TAB, tp->sen_i1_press/10, tp->sen_i1_press%10, tp->sen_i1_temp/100, tp->sen_i1_temp%100, tp->sen_i1_hum/10, tp->sen_i1_hum%10,
-        TRACE_TAB, tp->gpio & 1, (tp->gpio >> 1) & 1, (tp->gpio >> 2) & 1, (tp->gpio >> 3) & 1
+        TRACE_TAB, tp->gpio & 1, (tp->gpio >> 1) & 1, (tp->gpio >> 2) & 1, (tp->gpio >> 3) & 1,
+        TRACE_TAB, config->call
     );
 
     // Write data point to Flash memory

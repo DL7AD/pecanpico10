@@ -16,7 +16,7 @@ const conf_t conf_flash_default = {
             .active = true,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
-            .fixed = false
+            .fixed = false // Add lat, lon alt fields if enabling fixed
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -28,7 +28,7 @@ const conf_t conf_flash_default = {
         .call = "VK2GJ-12",
         .path = "WIDE1-1",
         .symbol = SYM_ANTENNA,
-        .aprs_msg = true,
+        .aprs_msg = true, // Set true to enable APRS messages to be accepted on this call sign
     },
 
     // Secondary position app
@@ -37,7 +37,7 @@ const conf_t conf_flash_default = {
             .active = false,
             .cycle = TIME_S2I(180),
             .init_delay = TIME_S2I(60),
-            .fixed = false
+            .fixed = false // Add lat, lon alt fields if enabling fixed
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -49,7 +49,7 @@ const conf_t conf_flash_default = {
         .call = "VK2GJ-15",
         .path = "",
         .symbol = SYM_BALLOON,
-        .aprs_msg = true,
+        .aprs_msg = true,// Set true to enable APRS messages to be accepted on this call sign
     },
 
     // Primary image app
@@ -140,7 +140,8 @@ const conf_t conf_flash_default = {
             },
             // APRS identity used in message responses if digipeat is not enabled
             .call = "VK2GJ-4",
-            .symbol = SYM_ANTENNA
+            .symbol = SYM_ANTENNA,
+            .aprs_msg = false,
         },
         .digi = true,
         .tx = {
@@ -155,7 +156,6 @@ const conf_t conf_flash_default = {
            .call = "VK2GJ-5",
            .path = "WIDE2-1",
            .symbol = SYM_DIGIPEATER,
-           .aprs_msg = true,
            .beacon = {
              // The telemetry beacon service is enabled if true when RX and DIGI are enabled
              // Receive is resumed after any transmission
@@ -175,7 +175,7 @@ const conf_t conf_flash_default = {
     // Power control
     .keep_cam_switched_on = false,
     .gps_on_vbat = 3800, // mV
-    .gps_off_vbat = 3600, // mV
+    .gps_off_vbat = 3400, // mV
     .gps_onper_vbat = 4000, // mV
 
     // GPS altitude model control (air pressure determined by on-board BME280)
