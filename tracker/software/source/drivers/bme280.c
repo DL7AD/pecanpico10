@@ -58,7 +58,7 @@ void BME280_Init(bme280_t *handle, uint8_t id)
 			handle->i2c_read16 = &eI2C_read16;
 			handle->i2c_read16_LE = &eI2C_read16_LE;
 			handle->i2c_write8 = &eI2C_write8;
-			handle->i2c_address = id==1 ? 0x76 : 0x77;
+			handle->i2c_address = id==1 ? 0x77 : 0x76;
 			break;
 	}
 

@@ -41,16 +41,12 @@ THD_FUNCTION(bcnThread, arg) {
     pktDisplayFrequencyCode(conf->radio_conf.freq, code_s, sizeof(code_s));
     TRACE_INFO("POS  > Do module BEACON cycle for %s on %s",
                conf->call, code_s);
-#if USE_NEW_COLLECTOR == TRUE
     extern thread_t *collector_thd;
     /*
      *  Pass pointer to beacon config to the collector thread.
      */
     dataPoint_t * dataPoint =
         (dataPoint_t *)chMsgSend(collector_thd, (msg_t)conf);
-#else
-    dataPoint_t* dataPoint = getLastDataPoint();
-#endif
     if(!p_sleep(&conf->beacon.sleep_conf)) {
 
       if(!isPositionValid(dataPoint)) {

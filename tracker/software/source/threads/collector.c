@@ -263,7 +263,7 @@ void getSensors(dataPoint_t* tp) {
 		tp->sen_i1_hum = BME280_getHumidity(&handle);
 		tp->sen_i1_temp = BME280_getTemperature(&handle);
 	} else { // No internal BME280 found
-		TRACE_ERROR("COLL > Internal BME280 I1 not found");
+		TRACE_ERROR("COLL > Internal BME280 I1 not operational");
 		tp->sen_i1_press = 0;
 		tp->sen_i1_hum = 0;
 		tp->sen_i1_temp = 0;
@@ -271,6 +271,7 @@ void getSensors(dataPoint_t* tp) {
 	}
 
 #if     ENABLE_EXTERNAL_I2C == TRUE
+#if BMEE1_IS_FITTED == TRUE
 	// External BME280 Sensor 1
 	if(BME280_isAvailable(BME280_E1)) {
 		BME280_Init(&handle, BME280_E1);
@@ -278,13 +279,17 @@ void getSensors(dataPoint_t* tp) {
 		tp->sen_e1_hum = BME280_getHumidity(&handle);
 		tp->sen_e1_temp = BME280_getTemperature(&handle);
 	} else { // No external BME280 found
-		TRACE_WARN("COLL > External BME280 E1 not found");
+		TRACE_WARN("COLL > External BME280 E1 not operational");
 		tp->sen_e1_press = 0;
 		tp->sen_e1_hum = 0;
 		tp->sen_e1_temp = 0;
 		bme280_error |= 0x4;
 	}
+#else
+	bme280_error |= 0x8;
+#endif
 
+#if BMEE2_IS_FITTED == TRUE
 	// External BME280 Sensor 2
 	if(BME280_isAvailable(BME280_E2)) {
 		BME280_Init(&handle, BME280_E2);
@@ -292,12 +297,15 @@ void getSensors(dataPoint_t* tp) {
 		tp->sen_e2_hum = BME280_getHumidity(&handle);
 		tp->sen_e2_temp = BME280_getTemperature(&handle);
 	} else { // No external BME280 found
-		TRACE_WARN("COLL > External BME280 E2 not found");
+		TRACE_WARN("COLL > External BME280 E2 not operational");
 		tp->sen_e2_press = 0;
 		tp->sen_e2_hum = 0;
 		tp->sen_e2_temp = 0;
 		bme280_error |= 0x10;
 	}
+#else
+	bme280_error |= 0x20;
+#endif
 #else
 	/* Set status to "not fitted" for E1 & E2. */
 	bme280_error |= 0x28;
