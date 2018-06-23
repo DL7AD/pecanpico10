@@ -491,14 +491,15 @@ THD_FUNCTION(collectorThread, arg) {
       /*
        * Use fixed position data.
        * Update set fixed position.
-       * Time will be set in data below.
+       * Set GPS time from RTC.
        */
       TRACE_INFO("COLL > Using fixed location for %s", config->call);
       tp->gps_alt = config->beacon.alt;
       tp->gps_lat = config->beacon.lat;
       tp->gps_lon = config->beacon.lon;
       tp->gps_state = GPS_FIXED;
-
+      getTime(&time);
+      tp->gps_time = date2UnixTimestamp(&time);
     } else {
       /*
        *  Try GPS lock to get data.
@@ -515,7 +516,6 @@ THD_FUNCTION(collectorThread, arg) {
     tp->id = ++id; // Serial ID
 
     // Trace data
-    getTime(&time);
     unixTimestamp2Date(&time, tp->gps_time);
     TRACE_INFO( "COLL > New data point available (ID=%d, GPS state=%d)\r\n"
         "%s Time %04d-%02d-%02d %02d:%02d:%02d\r\n"

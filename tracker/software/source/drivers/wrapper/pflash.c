@@ -43,7 +43,8 @@ static dataPoint_t* flash_getNextFreeLogAddress(void) {
 }*/
 
 /*
- *
+ * Alternative version of flash_getNewestLogEntry(...)
+ * All that really needs to be found is the next EMPTY entry?
  */
 dataPoint_t* flash_getNewestLogEntry(void) {
   dataPoint_t* tp;

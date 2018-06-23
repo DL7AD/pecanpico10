@@ -45,11 +45,11 @@ THD_FUNCTION(bcnThread, arg) {
     /*
      *  Pass pointer to beacon config to the collector thread.
      */
-    dataPoint_t * dataPoint =
+    dataPoint_t *dataPoint =
         (dataPoint_t *)chMsgSend(collector_thd, (msg_t)conf);
     if(!p_sleep(&conf->beacon.sleep_conf)) {
 
-      if(!isPositionValid(dataPoint)) {
+      if(!isPositionValid(dataPoint) || dataPoint == NULL) {
             TRACE_INFO("BCN  > Waiting for position data for"
                 " %s (GPS state=%d)", conf->call, dataPoint->gps_state);
             chThdSleep(TIME_S2I(60));
