@@ -121,7 +121,9 @@ function loadRecentData() {
 							case 3: $('#' + key).html(colorize(COL_ORANGE, "Low Batt before switched on")); break;
 							case 4: $('#' + key).html(colorize(COL_ORANGE, "Low Batt while switched on")); break;
 							case 5: $('#' + key).html(colorize(COL_GREEN, "Data from memory")); break;
-							case 6: $('#' + key).html(colorize(COL_RED, "GPS communication error")); break;
+							case 6: $('#' + key).html(colorize(COL_RED, "GPS never locked")); break;
+							case 7: $('#' + key).html(colorize(COL_RED, "GPS communication error")); break;
+							case 8: $('#' + key).html(colorize(COL_RED, "GPS not used - fixed location set")); break;
 						}
 						break;
 
