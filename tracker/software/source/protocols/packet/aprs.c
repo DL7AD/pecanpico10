@@ -400,6 +400,7 @@ packet_t aprs_encode_stamped_position_and_telemetry(const char *callsign,
  * @notes  - Air pressure in Pascal
  * @notes  - Number of satellites being used
  * @notes  - Number of cycles where GPS has been lost (if applicable in cycle)
+ * @notes  - The contents of the datapoint passed in
  * @notes  - State of GPIO port(s)
  *
  * @param[in] callsign  origination call sign

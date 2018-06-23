@@ -120,18 +120,14 @@ THD_FUNCTION(bcnThread, arg) {
        */
       char *call = conf_sram.base.enabled
           ? conf_sram.base.call : conf->call;
-
+      char *path = conf_sram.base.enabled
+          ? conf_sram.base.path : conf->path;
       /*
        * Send message from this device.
        * Use call sign and path as specified in base config.
        * There is no acknowledgment requested.
        */
-      packet = aprs_compose_aprsd_message(
-          //conf_sram.aprs.tx.call,
-          conf->call,
-          conf_sram.base.path,
-          //conf->base.path,
-          call);
+      packet = aprs_compose_aprsd_message(conf->call, path, call);
       if(packet == NULL) {
         TRACE_WARN("BCN  > No free packet objects "
             "or badly formed APRSD message");

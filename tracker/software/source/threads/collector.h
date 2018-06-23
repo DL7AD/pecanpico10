@@ -24,8 +24,8 @@
 #define BMEE2_STATUS_SHIFT      BMEI1_STATUS_SHIFT + BME_STATUS)BITS
 #define BMEE2_STATUS_MASK       (BME_STATUS_MASK << BMEE2_STATUS_SHIFT)
 
-#define BMEE1_IS_FITTED         TRUE
-#define BMEE2_IS_FITTED         FALSE
+#define BME280_E1_IS_FITTED     FALSE
+#define BME280_E2_IS_FITTED     TRUE
 
 typedef enum {
 	GPS_LOCKED1,	// The GPS is locked, the GPS has been switched off

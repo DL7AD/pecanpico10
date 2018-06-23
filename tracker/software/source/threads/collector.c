@@ -271,7 +271,7 @@ void getSensors(dataPoint_t* tp) {
 	}
 
 #if     ENABLE_EXTERNAL_I2C == TRUE
-#if BMEE1_IS_FITTED == TRUE
+#if     BME280_E1_IS_FITTED == TRUE
 	// External BME280 Sensor 1
 	if(BME280_isAvailable(BME280_E1)) {
 		BME280_Init(&handle, BME280_E1);
@@ -285,11 +285,11 @@ void getSensors(dataPoint_t* tp) {
 		tp->sen_e1_temp = 0;
 		bme280_error |= 0x4;
 	}
-#else
+#else /* BME280_E1_IS_FITTED != TRUE */
 	bme280_error |= 0x8;
-#endif
+#endif /* BME280_E1_IS_FITTED == TRUE */
 
-#if BMEE2_IS_FITTED == TRUE
+#if     BME280_E2_IS_FITTED == TRUE
 	// External BME280 Sensor 2
 	if(BME280_isAvailable(BME280_E2)) {
 		BME280_Init(&handle, BME280_E2);
@@ -303,13 +303,14 @@ void getSensors(dataPoint_t* tp) {
 		tp->sen_e2_temp = 0;
 		bme280_error |= 0x10;
 	}
-#else
+#else /* BME280_E2_IS_FITTED != TRUE */
 	bme280_error |= 0x20;
-#endif
-#else
+#endif /* BME280_E2_IS_FITTED == TRUE */
+
+#else /*  ENABLE_EXTERNAL_I2C != TRUE */
 	/* Set status to "not fitted" for E1 & E2. */
 	bme280_error |= 0x28;
-#endif
+#endif /*  ENABLE_EXTERNAL_I2C == TRUE */
 	// Measure various temperature sensors
 	/* TODO: Add LLD API to radio. */
 	tp->stm32_temp = stm32_get_temp();
@@ -358,8 +359,8 @@ void setSystemStatus(dataPoint_t* tp) {
    * -  3:4  pac1720 status
    * -  5:7  OV5640 status
    * -  8:9  BMEi1 status (0 = OK, 1 = Fail, 2 = Not fitted)
-   * -  9:10 BMEe1 status (0 = OK, 1 = Fail, 2 = Not fitted)
-   * - 10:11 BMEe2 status (0 = OK, 1 = Fail, 2 = Not fitted)
+   * -  10:11 BMEe1 status (0 = OK, 1 = Fail, 2 = Not fitted)
+   * -  12:13 BMEe2 status (0 = OK, 1 = Fail, 2 = Not fitted)
    */
 	tp->sys_error = 0;
 

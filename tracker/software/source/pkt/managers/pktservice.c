@@ -54,7 +54,10 @@ static guarded_memory_pool_t _ccm_pool;
  */
 bool pktSystemInit(void) {
 
-  //#define intoCCM  __attribute__((section(".ram4")))  __attribute__((aligned(4)))
+//#define intoCCM  __attribute__((section(".ram4")))  __attribute__((aligned(4)))
+//static int CCMstart __attribute__((section(".ram4")));
+//extern uint32_t __ram4_start__;
+//extern uint32_t __ram4_size__;
 
 #if USE_CCM_FOR_PKT_HEAP == TRUE
   chDbgAssert(ccm_heap == NULL, "CCM heap already exists");
@@ -62,6 +65,7 @@ bool pktSystemInit(void) {
   if(ccm_heap == NULL) {
     ccm_heap = &_ccm_heap;
     chHeapObjectInit(ccm_heap, (void *)0x10000000, 0x10000);
+    //chHeapObjectInit(ccm_heap, (void *)__ram4_start__, (size_t)__ram4_size__);
   }
 
   /*

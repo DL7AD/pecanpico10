@@ -22,12 +22,20 @@
 bool BME280_isAvailable(uint8_t id)
 {
 	uint8_t val;
-	if((    (id == 0 && I2C_read8(0x77, BME280_REGISTER_CHIPID, &val))
-	     || (id >= 1 && eI2C_read8(id==1 ? 0x76 : 0x77, BME280_REGISTER_CHIPID, &val))
-	   ) && id < 3)
-		return val == 0x60;
-	else
-		return false;
+	switch(id) {
+	case BME280_I1:
+	  I2C_read8(0x77, BME280_REGISTER_CHIPID, &val);
+	  break;
+	case BME280_E1:
+      eI2C_read8(0x77, BME280_REGISTER_CHIPID, &val);
+	  break;
+	case BME280_E2:
+      eI2C_read8(0x76, BME280_REGISTER_CHIPID, &val);
+      break;
+	default:
+      return false;
+	}
+    return val == 0x60;
 }
 
 /**
@@ -43,7 +51,7 @@ void BME280_Init(bme280_t *handle, uint8_t id)
 	switch(id)
 	{
 		//Use internal I2C
-		case 0:
+		case BME280_I1:
 			handle->i2c_read8 = &I2C_read8;
 			handle->i2c_read16 = &I2C_read16;
 			handle->i2c_read16_LE = &I2C_read16_LE;
@@ -52,13 +60,13 @@ void BME280_Init(bme280_t *handle, uint8_t id)
 			break;
 
 		//Use external I2C
-		case 1:
-		case 2:
+		case BME280_E1:
+		case BME280_E2:
 			handle->i2c_read8 = &eI2C_read8;
 			handle->i2c_read16 = &eI2C_read16;
 			handle->i2c_read16_LE = &eI2C_read16_LE;
 			handle->i2c_write8 = &eI2C_write8;
-			handle->i2c_address = id==1 ? 0x77 : 0x76;
+			handle->i2c_address = id==BME280_E1 ? 0x77 : 0x76;
 			break;
 	}
 
