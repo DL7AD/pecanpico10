@@ -33,11 +33,7 @@ static void processPacket(uint8_t *buf, uint32_t len) {
   uint32_t ilen = ax25_get_info(pp, &c);
   if(ilen == 0) {
     TRACE_INFO("RX   > Invalid packet structure - dropped");
-#if USE_NEW_PKT_TX_ALLOC == TRUE
     pktReleasePacketBuffer(pp);
-#else
-    ax25_delete (pp);
-#endif
     return;
   }
   /* Output packet as text. */
@@ -51,11 +47,7 @@ static void processPacket(uint8_t *buf, uint32_t len) {
   else {
     TRACE_INFO("RX   > No addresses in packet - dropped");
   }
-#if USE_NEW_PKT_TX_ALLOC == TRUE
   pktReleasePacketBuffer(pp);
-#else
-  ax25_delete (pp);
-#endif
 }
 
 void mapCallback(pkt_data_object_t *pkt_buff) {
@@ -127,11 +119,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
 
   if(!pktIsTransmitOpen(radio)) {
     TRACE_WARN( "RAD  > Transmit is not open on radio");
-#if USE_NEW_PKT_TX_ALLOC == TRUE
     pktReleaseBufferChain(pp);
-#else
-    ax25_delete (pp);
-#endif
     return false;
   }
 
@@ -143,11 +131,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
   if(op_freq == FREQ_RADIO_INVALID) {
     TRACE_ERROR("RAD  > Transmit operating frequency of %d.%03d MHz is invalid",
                 op_freq/1000000, (op_freq%1000000)/1000);
-#if USE_NEW_PKT_TX_ALLOC == TRUE
       pktReleaseBufferChain(pp);
-#else
-      ax25_delete (pp);
-#endif
       return false;
   }
 
@@ -191,11 +175,7 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
     msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
     if(msg != MSG_OK) {
       TRACE_ERROR("RAD  > Failed to post radio task");
-#if USE_NEW_PKT_TX_ALLOC == TRUE
       pktReleaseBufferChain(pp);
-#else
-      ax25_delete (pp);
-#endif
       return false;
     }
 
@@ -205,11 +185,8 @@ bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
         "Pwr dBm, %s, %d byte",
                 base_freq/1000000, (base_freq%1000000)/1000, pwr,
                 getModulation(mod), len);
-#if USE_NEW_PKT_TX_ALLOC == TRUE
+
     pktReleaseBufferChain(pp);
-#else
-    ax25_delete (pp);
-#endif
     return false;
   }
   return true;

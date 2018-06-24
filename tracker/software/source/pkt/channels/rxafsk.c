@@ -49,7 +49,7 @@ float32_t mag_filter_coeff_f32[MAG_FILTER_NUM_TAPS] = {
 
 #if PRE_FILTER_GEN_COEFF == TRUE
 
-float32_t pre_filter_coeff_f32[PRE_FILTER_NUM_TAPS];
+float32_t pre_filter_coeff_f32[PRE_FILTER_NUM_TAPS] useCCM;
 
 #else
 /*
@@ -685,11 +685,7 @@ uint8_t pktReleasePWMbuffers(AFSKDemodDriver *myDriver) {
     return 0;
   radio_pwm_object_t *next;
   do {
-#if USE_PWM_QUEUE_LINK == TRUE
     next = qGetLink(&object->queue);
-#else
-    next = object->next;
-#endif
     chPoolFree(&myDriver->pwm_buffer_pool, object);
     myDriver->active_demod_object->rlsd++;
   } while((object = next) != NULL);
@@ -951,11 +947,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           case PWM_INFO_QUEUE_SWAP: {
             /* Radio made a queue swap (filled the buffer). */
             /* Get reference to next queue/buffer object. */
-#if USE_PWM_QUEUE_LINK == TRUE
             radio_pwm_object_t *nextObject = qGetLink(&myFIFO->decode_pwm_queue->queue);
-#else
-            radio_pwm_object_t *nextObject = myFIFO->decode_pwm_queue->next;
-#endif
             if(nextObject != NULL) {
               /*
                *  Release the now empty prior buffer object back to the pool.

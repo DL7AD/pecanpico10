@@ -120,7 +120,8 @@
 #define USE_12_BIT_PWM              FALSE
 
 /*
- * Allocate PWM buffers from a CCM heap/pool.
+ * Allocate PWM buffers from a heap/pool.
+ * The pool can be created in CCM if a heap is enabled.
  * Requires fragmented queue/buffer objects.
  * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
  * Decoder side swaps queue/buffer on in-band message.

@@ -210,17 +210,9 @@ int ax25memdebug_seq (packet_t this_p)
 
 #endif
 
-
-
 #define CLEAR_LAST_ADDR_FLAG  this_p->frame_data[this_p->num_addr*7-1] &= ~ SSID_LAST_MASK
 #define SET_LAST_ADDR_FLAG  this_p->frame_data[this_p->num_addr*7-1] |= SSID_LAST_MASK
 
-#if USE_NEW_PKT_TX_ALLOC != TRUE
-/* TODO: revise this to use the common heap. */
-static bool heapp_initialized = false;
-static memory_heap_t heapp;
-static uint8_t heapp_buf[16384];
-#endif
 
 /*------------------------------------------------------------------------------
  *
@@ -261,25 +253,14 @@ packet_t ax25_new (void) {
 #endif
 	}
 
-#if	USE_NEW_PKT_TX_ALLOC == TRUE
-#if USE_CCM_FOR_PKT_POOL == TRUE
-    extern guarded_memory_pool_t *ccm_pool;
-	this_p = chGuardedPoolAllocTimeout(ccm_pool, TIME_INFINITE);
-    TRACE_DEBUG("PKT  > Allocated buffer 0x%x, link 0x%x", this_p, ((struct pool_header *)(this_p))->next);
-#elif USE_CCM_FOR_PKT_HEAP == TRUE
+#if USE_CCM_HEAP_FOR_PKT == TRUE
+    /* Use CCM heap. */
     extern memory_heap_t *ccm_heap;
     this_p = chHeapAlloc(ccm_heap, sizeof (struct packet_s));
-#else
+#else /* USE_CCM_HEAP_FOR_PKT != TRUE */
+    /* Use system heap. */
     this_p = chHeapAlloc(NULL, sizeof (struct packet_s));
-#endif
-#else
-	if(!heapp_initialized) {
-		chHeapObjectInit(&heapp, (void*)heapp_buf, sizeof(heapp_buf));
-		heapp_initialized = true;
-	}
-
-	this_p = chHeapAlloc(&heapp, sizeof (struct packet_s));
-#endif
+#endif /* USE_CCM_HEAP_FOR_PKT == TRUE */
 
 	if (this_p == NULL) {
 	  TRACE_ERROR ("PKT  > Can't allocate memory in ax25_new.");
@@ -335,13 +316,7 @@ void ax25_delete (packet_t this_p)
 	
 	this_p->magic1 = 0;
 	this_p->magic1 = 0;
-#if USE_CCM_FOR_PKT_POOL == TRUE
-    extern guarded_memory_pool_t *ccm_pool;
-    TRACE_DEBUG("PKT  > Returning buffer 0x%x", this_p);
-	chGuardedPoolFree(ccm_pool, this_p);
-#else
 	chHeapFree(this_p);
-#endif
 }
 
 
@@ -654,14 +629,10 @@ packet_t ax25_from_frame (unsigned char *fbuf, uint16_t flen)
 	  return (NULL);
 	}
 
-#if USE_NEW_PKT_TX_ALLOC == TRUE
     msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
     /* If the semaphore is reset then exit. */
     if(msg == MSG_RESET)
       return NULL;
-#else
-    this_p = ax25_new();
-#endif
 	if(this_p == NULL)
 	  return NULL;
 
@@ -709,15 +680,10 @@ packet_t ax25_dup (packet_t copy_from)
 	int save_seq;
 	packet_t this_p;
 
-	
-#if USE_NEW_PKT_TX_ALLOC == TRUE
-    msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
+	msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
     /* If the semaphore is reset then exit. */
     if(msg == MSG_RESET)
       return NULL;
-#else
-    this_p = ax25_new();
-#endif
 	if(this_p == NULL)
 		return NULL;
 

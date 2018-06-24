@@ -358,17 +358,13 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
                      sizeof(radio_pwm_buffer_t),
                      NULL, NULL);
 
-#if USE_PWM_QUEUE_LINK != TRUE
-  /* No linked queue object yet. */
-  pwm_object->next = NULL;
-#endif
-#else
+#else /* USE_HEAP_PWM_BUFFER != TRUE */
   /* Non linked FIFOs have an embedded input queue with data buffer. */
   iqObjectInit(&myFIFO->radio_pwm_queue,
                      myFIFO->packed_buffer.pwm_bytes,
                      sizeof(radio_pwm_buffer_t),
                      NULL, NULL);
-#endif
+#endif /* USE_HEAP_PWM_BUFFER == TRUE */
 
   /* Clear event/status bits. */
   myFIFO->status = 0;
@@ -690,13 +686,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
        */
       radio_pwm_object_t *myObject =
           myDemod->active_radio_object->radio_pwm_queue;
-#if USE_PWM_QUEUE_LINK == TRUE
       qSetLink(&myObject->queue, pwm_object);
-#else
-      myObject->next = pwm_object;
-      pwm_object->next = NULL;
-#endif
-
       myDemod->active_radio_object->in_use++;
       uint8_t out = (myDemod->active_radio_object->in_use
           - myDemod->active_radio_object->rlsd);

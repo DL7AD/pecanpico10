@@ -121,6 +121,8 @@
 
 #define EVT_STATUS_CLEAR        EVT_NONE
 
+#define useCCM  __attribute__((section(".ram4")))
+
 /*
  * Diagnostic output definitions.
  * TODO: Deprecate.
