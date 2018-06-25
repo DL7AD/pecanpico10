@@ -535,6 +535,16 @@ radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio) {
     return rxData[4];
 }
 
+void Si446x_getPartInfo(const radio_unit_t radio, si446x_info_t *info) {
+  /* TODO: add hardware mapping. */
+  (void)radio;
+  /* Get status. Leave any pending interrupts intact. */
+    const uint8_t status_info[] = {Si446x_GET_PART_INFO};
+    //uint8_t rxData[10];
+    Si446x_read(status_info, sizeof(status_info), (uint8_t *)info, sizeof(si446x_info_t));
+    //return rxData[4];
+}
+
 static uint8_t Si446x_getState(const radio_unit_t radio) {
   /* TODO: add hardware mapping. */
   (void)radio;
@@ -724,7 +734,6 @@ bool Si446x_receiveNoLock(radio_unit_t radio,
   } else {
       TRACE_ERROR("SI   > Modulation type not supported in receive");
       TRACE_ERROR("SI   > abort reception");
-
       return false;
   }
 
@@ -801,7 +810,7 @@ void Si446x_pauseReceive(radio_unit_t radio) {
 /*
  *
  */
-static uint8_t Si446x_getUpsampledNRZIbits(up_iterator_t *upsampler,
+static uint8_t Si446x_getUpsampledNRZIbits(up_sampler_t *upsampler,
                                            uint8_t *buf) {
   uint8_t b = 0;
   for(uint8_t i = 0; i < 8; i++) {
@@ -828,8 +837,9 @@ static uint8_t Si446x_getUpsampledNRZIbits(up_iterator_t *upsampler,
   return b;
 }
 
-#define SI446X_EVT_TX_TIMEOUT      EVENT_MASK(0)
-
+/**
+ *
+ */
 static void Si446x_transmitTimeoutI(thread_t *tp) {
   /* The tell the thread to terminate. */
   chEvtSignal(tp, SI446X_EVT_TX_TIMEOUT);
@@ -928,7 +938,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     const uint8_t reset_fifo[] = {0x15, 0x01};
     Si446x_write(reset_fifo, 2);
 
-    up_iterator_t upsampler = {0};
+    up_sampler_t upsampler = {0};
     upsampler.phase_delta = PHASE_DELTA_1200;
 
     /* Maximum amount of FIFO data when using combined TX+RX (safe size). */
@@ -1193,7 +1203,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
     /*
      * Start/re-start transmission timeout timer for this packet.
-     * If the 446x gets locked up we'll exit TX and release packet object.
+     * If the 446x gets locked up we'll exit TX and release packet object(s).
      */
     chVTSet(&send_timer, TIME_S2I(10),
             (vtfunc_t)Si446x_transmitTimeoutI, chThdGetSelfX());
@@ -1361,4 +1371,3 @@ int16_t Si446x_getLastTemperature(const radio_unit_t radio) {
   return lastTemp;
 }
 
-//#endif

@@ -61,6 +61,7 @@ typedef int8_t  radio_signal_t;
  *
  */
 typedef enum radioUnit {
+  PKT_RADIO_NONE = 0,
   PKT_RADIO_1
 } radio_unit_t;
 

@@ -125,7 +125,7 @@ struct radioTask {
 /*===========================================================================*/
 
 
-//extern const radio_config_t radio_list[NUM_PKT_RADIOS];
+extern const radio_config_t *radio_list;
 
 #ifdef __cplusplus
 extern "C" {
@@ -143,6 +143,7 @@ extern "C" {
                                 thread_t *thread);
   msg_t     pktAcquireRadio(radio_unit_t radio, sysinterval_t timeout);
   void      pktReleaseRadio(radio_unit_t radio);
+  radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq);
   radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
                                             radio_freq_t base_freq,
                                             channel_hz_t step,
@@ -156,6 +157,9 @@ extern "C" {
   void      pktStartDecoder(const radio_unit_t radio);
   void      pktStopDecoder(const radio_unit_t radio);
   int       pktDisplayFrequencyCode(radio_freq_t code, char *buf, size_t size);
+  void      pktPowerUpRadio(radio_unit_t radio);
+  void      pktPowerDownRadio(radio_unit_t radio);
+  radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq);
 #ifdef __cplusplus
 }
 #endif

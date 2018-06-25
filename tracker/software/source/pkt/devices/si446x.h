@@ -1,3 +1,13 @@
+
+/**
+ * @file    si446x.h
+ * @brief   Silicon Labs radio driver.
+ *
+ * @addtogroup radio
+ * @details Radio driver definitions.
+ * @{
+ */
+
 #ifndef __si446x__H__
 #define __si446x__H__
 
@@ -5,7 +15,9 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-#define Si446x_LOCK_BY_SEMAPHORE    TRUE
+#define SI446X_EVT_TX_TIMEOUT           EVENT_MASK(0)
+
+#define Si446x_LOCK_BY_SEMAPHORE        TRUE
 
 #ifndef Si446x_CLK
 #error "Si446x_CLK is not defined which is needed for Si446x."
@@ -15,32 +27,19 @@
 #define Si446x_CLK_OFFSET 0
 #endif
 
-// Various macros
+/* Si4464 States. */
+#define Si446x_STATE_NOCHANGE           0
+#define Si446x_STATE_SLEEP              1
+#define Si446x_STATE_SPI_ACTIVE         2
+#define Si446x_STATE_READY              3
+#define Si446x_STATE_READY2             4
+#define Si446x_STATE_TX_TUNE            5
+#define Si446x_STATE_RX_TUNE            6
+#define Si446x_STATE_TX                 7
+#define Si446x_STATE_RX                 8
 
-#define Si446x_getGPIO0()           palReadLine(LINE_RADIO_GPIO0)
-#define Si446x_getGPIO1()           palReadLine(LINE_RADIO_GPIO1)
-#define Si446x_getCCA()             palReadLine(LINE_RADIO_IRQ)
-
- /* Frequency offset corrected oscillator frequency */
-#define Si446x_CCLK                 ((Si446x_CLK) + (Si446x_CLK_OFFSET)      \
-                                      * (Si446x_CLK) / 1000000)
-
-// Si4464 States
-
-#define Si446x_STATE_NOCHANGE       0
-#define Si446x_STATE_SLEEP          1
-#define Si446x_STATE_SPI_ACTIVE     2
-#define Si446x_STATE_READY          3
-#define Si446x_STATE_READY2         4
-#define Si446x_STATE_TX_TUNE        5
-#define Si446x_STATE_RX_TUNE        6
-#define Si446x_STATE_TX             7
-#define Si446x_STATE_RX             8
-
-/*
- * Commands.
- */
-
+/* Commands. */
+#define Si446x_GET_PART_INFO            0x01
 #define Si446x_GET_ADC_READING          0x14
 #define Si446x_FIFO_INFO                0x15
 #define Si446x_GET_MODEM_STATUS         0x22
@@ -52,7 +51,6 @@
 #define Si446x_WRITE_TX_FIFO            0x66
 
 /* Defined response values. */
-
 #define Si446x_COMMAND_CTS                        0xFF
 
 /*
@@ -184,8 +182,6 @@
 #define Si446x_FREQ_CONTROL_W_SIZE              0x4006
 #define Si446x_FREQ_CONTROL_VCOCNT_RX_ADJ       0x4007
 
-#define PKT_SI446X_APRS_CHANNEL                 94
-#define PKT_SI446X_SQUELCH_LEVEL                0x4F
 #define PKT_SI446X_NO_CCA_RSSI                  0xFF
 
 #define Si446x_FIFO_SEPARATE_SIZE                64
@@ -202,52 +198,89 @@
 #define PHASE_DELTA_2200    (((2 * 2200) << 16) / PLAYBACK_RATE)    /* Delta-phase per sample for 2200Hz tone */
 
 /*===========================================================================*/
+/* Module macros.                                                            */
+/*===========================================================================*/
+
+#define Si446x_getGPIO0()           palReadLine(LINE_RADIO_GPIO0)
+#define Si446x_getGPIO1()           palReadLine(LINE_RADIO_GPIO1)
+#define Si446x_getCCA()             palReadLine(LINE_RADIO_IRQ)
+
+ /* Frequency offset corrected oscillator frequency */
+#define Si446x_CCLK                 ((Si446x_CLK) + (Si446x_CLK_OFFSET)      \
+                                      * (Si446x_CLK) / 1000000)
+
+/*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
 typedef struct {
-  uint32_t phase_delta;            // 1200/2200 for standard AX.25
-  uint32_t phase;                  // Fixed point 9.7 (2PI = TABLE_SIZE)
-  uint32_t packet_pos;             // Next bit to be sent out
-  uint32_t current_sample_in_baud; // 1 bit = SAMPLES_PER_BAUD samples
-  uint8_t  current_byte;
-} up_iterator_t;
+  uint32_t  phase_delta;            // 1200/2200 for standard AX.25
+  uint32_t  phase;                  // Fixed point 9.7 (2PI = TABLE_SIZE)
+  uint32_t  packet_pos;             // Index of next bit to be sent out
+  uint32_t  current_sample_in_baud; // 1 bit = SAMPLES_PER_BAUD samples
+  uint8_t   current_byte;
+} up_sampler_t;
+
+/* Si446x part info. */
+typedef struct {
+  uint8_t   cmd;
+  uint8_t   cts;
+  uint8_t   chiprev;
+  uint16_t  part;
+  uint8_t   pbuild;
+  uint16_t  id;
+  uint8_t   customer;
+  uint8_t   romid;
+} si446x_info_t;
 
 typedef struct radioTask radio_task_object_t;
 
-// Public methods
-
-int16_t Si446x_getLastTemperature(const radio_unit_t radio);
-void Si446x_shutdown(const radio_unit_t radio);
-void Si446x_sendAFSK(packet_t pp);
-bool Si446x_blocSendAFSK(radio_task_object_t *rto);
-void Si446x_send2FSK(packet_t pp);
-bool Si446x_blocSend2FSK(radio_task_object_t *rto);
-void Si446x_disableReceive(radio_unit_t radio);
-void Si446x_stopDecoder(void);
-bool Si4464_resumeReceive(const radio_unit_t radio,
-                          radio_freq_t rx_frequency,
-                          channel_hz_t rx_step,
-                          radio_ch_t rx_chan,
-                          radio_squelch_t rx_rssi,
-                          mod_t rx_mod);
-bool Si446x_receiveNoLock(const radio_unit_t radio,
-                          radio_freq_t rx_frequency,
-                          channel_hz_t rx_step,
-                          radio_ch_t chan,
-                          radio_squelch_t rssi,
-                          mod_t mod);
-void Si446x_lockRadio(const radio_mode_t mode);
-void Si446x_unlockRadio(const radio_mode_t mode);
-void Si446x_lockRadioByCamera(void);
-void Si446x_unlockRadioByCamera(void);
-void Si446x_conditional_init(radio_unit_t radio);
-bool Si446x_setBandParameters(const radio_unit_t radio,
-                              radio_freq_t freq,
-                              channel_hz_t step);
-radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
+/*===========================================================================*/
+/* External declarations.                                                    */
+/*===========================================================================*/
 
 extern void pktReleasePacketBuffer(packet_t pp);
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+  int16_t Si446x_getLastTemperature(const radio_unit_t radio);
+  void Si446x_shutdown(const radio_unit_t radio);
+  void Si446x_sendAFSK(packet_t pp);
+  bool Si446x_blocSendAFSK(radio_task_object_t *rto);
+  void Si446x_send2FSK(packet_t pp);
+  bool Si446x_blocSend2FSK(radio_task_object_t *rto);
+  void Si446x_disableReceive(radio_unit_t radio);
+  void Si446x_stopDecoder(void);
+  bool Si4464_resumeReceive(const radio_unit_t radio,
+                            radio_freq_t rx_frequency,
+                            channel_hz_t rx_step,
+                            radio_ch_t rx_chan,
+                            radio_squelch_t rx_rssi,
+                            mod_t rx_mod);
+  bool Si446x_receiveNoLock(const radio_unit_t radio,
+                            radio_freq_t rx_frequency,
+                            channel_hz_t rx_step,
+                            radio_ch_t chan,
+                            radio_squelch_t rssi,
+                            mod_t mod);
+  void Si446x_lockRadio(const radio_mode_t mode);
+  void Si446x_unlockRadio(const radio_mode_t mode);
+  void Si446x_lockRadioByCamera(void);
+  void Si446x_unlockRadioByCamera(void);
+  void Si446x_conditional_init(radio_unit_t radio);
+  bool Si446x_setBandParameters(const radio_unit_t radio,
+                                radio_freq_t freq,
+                                channel_hz_t step);
+  radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
+  void Si446x_getPartInfo(const radio_unit_t radio, si446x_info_t *info);
+#ifdef __cplusplus
+}
+#endif
+
+/*===========================================================================*/
+/* Module inline functions.                                                  */
+/*===========================================================================*/
 
 static inline void Si446x_releaseSendObject(packet_t pp) {
   pktReleasePacketBuffer(pp);
@@ -255,3 +288,4 @@ static inline void Si446x_releaseSendObject(packet_t pp) {
 
 #endif /* __si446x__H__ */
 
+/** @} */

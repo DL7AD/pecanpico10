@@ -24,7 +24,7 @@
 
 #if MAG_FILTER_GEN_COEFF == TRUE
 
-float32_t mag_filter_coeff_f32[MAG_FILTER_NUM_TAPS];
+float32_t mag_filter_coeff_f32[MAG_FILTER_NUM_TAPS] useCCM;
 
 #else
 /*
@@ -551,8 +551,8 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
   /*
    * Get heap to accommodate buffer objects.
    * The size of the allocation is:
-   *  Number of slots for individual PWM entries in each chainable buffer
-   *  Multiplied by the number of total chainable buffers to be allocated
+   *  Number of slots for individual PWM entries in each buffer
+   *  Multiplied by the number of linkable buffers to be allocated
    */
 #if USE_CCM_BASED_HEAP == TRUE
   extern memory_heap_t *ccm_heap;

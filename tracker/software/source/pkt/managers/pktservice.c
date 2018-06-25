@@ -18,7 +18,7 @@
 /*===========================================================================*/
 
 memory_heap_t *ccm_heap = NULL;
-guarded_memory_pool_t *ccm_pool = NULL;
+//guarded_memory_pool_t *ccm_pool = NULL;
 
 /*===========================================================================*/
 /* Module local types.                                                       */

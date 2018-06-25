@@ -11,13 +11,12 @@
 /**
  * @brief   Initialize an NRZI stream iterator.
  * @post    The iterator is ready for use.
- * @notes   Preamble size is a fixed value currently.
  *
  * @param[in]   iterator    pointer to an @p iterator object.
  * @param[in]   pp          packet object reference pointer.
- * @param[in]   pre         length of HDLC (falgs) preamble
+ * @param[in]   pre         length of HDLC (flags) preamble
  * @param[in]   post        length of HDLC (flags) closing
- * @param[in]   tail        length of HDLC (0) tail flags
+ * @param[in]   tail        length of HDLC (0 data) tail flags
  * @param[in]   scramble    determines if scrambling (whitening) is applied.
  *
  * @api
@@ -173,6 +172,7 @@ static bool pktEncodeFrameData(tx_iterator_t *iterator) {
  * @retval  zero indicates the iterator is not initialized or is finished.
  * @retval  requested size is returned while encoding continues.
  * @retval  less than requested size is returned when encoding is ending.
+ *          Or...
  * @retval  number of bytes remaining to be encoded for quantity zero request.
  *
  * @api
