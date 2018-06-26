@@ -43,9 +43,9 @@ void start_user_threads(void)
 
 	/* TODO: Implement scheduler that will run threads based on schedule. */
 	if(conf_sram.pos_pri.beacon.active)
-	  start_beacon_thread(&conf_sram.pos_pri);
+	  start_beacon_thread(&conf_sram.pos_pri, "POS1");
 	if(conf_sram.pos_sec.beacon.active)
-	  start_beacon_thread(&conf_sram.pos_sec);
+	  start_beacon_thread(&conf_sram.pos_sec, "POS2");
 
 	if(conf_sram.img_pri.svc_conf.active)
 	  start_image_thread(&conf_sram.img_pri);
@@ -58,7 +58,7 @@ void start_user_threads(void)
     if(conf_sram.aprs.rx.svc_conf.active
         && conf_sram.aprs.digi
         && conf_sram.aprs.tx.beacon.active) {
-      start_beacon_thread(&conf_sram.aprs.tx);
+      start_beacon_thread(&conf_sram.aprs.tx, "BCN");
     }
 
 	if(conf_sram.aprs.rx.svc_conf.active) {

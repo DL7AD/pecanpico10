@@ -460,13 +460,13 @@ THD_FUNCTION(collectorThread, arg) {
     TRACE_INFO("COLL > Acquire time using GPS");
     if(aquirePosition(newDataPoint, lastDataPoint, gps_wait_time - TIME_S2I(3))) {
       /* Acquisition succeeded. */
-      TRACE_INFO("COLL > Time acquisition from GPS succeeded");
+      TRACE_INFO("COLL > Time update acquired from GPS");
       /* Update with freshly acquired data. */
       lastDataPoint = newDataPoint;
       GPS_Deinit();
     } else {
       /* Time is stale record. */
-      TRACE_INFO("COLL > Fresh time not acquired from GPS");
+      TRACE_INFO("COLL > Time update not acquired from GPS");
     }
   }
 

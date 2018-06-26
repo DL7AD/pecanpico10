@@ -26,6 +26,7 @@
 #include "radio.h"
 #include "flash.h"
 #include "image.h"
+#include "beacon.h"
 
 #define METER_TO_FEET(m) (((m)*26876) / 8192)
 
@@ -229,6 +230,8 @@ static char *aprs_parse_arguments(char *str, char **saveptr) {
  * @brief       Execute a command in an APRS message.
  * @notes       Known commands are in APRS command table.
  * @notes       Commands themselves return only MSG_OK or MSG_ERROR.
+ *
+ * @param[in]
  *
  * @return      result of command.
  * @retval      MSG_OK if the command completed.
@@ -851,8 +854,21 @@ msg_t aprs_send_position_response(aprs_identity_t *id,
   if(argc != 0)
     return MSG_ERROR;
 /*
- * TODO: This should just send a request to the collector service.
+ * Start a run once beacon thread.
+ * The identity data has a ref to the bcn_app_conf_t object of the call sign.
  */
+  bcn_app_conf_t aprsd;
+  if(id->beacon == NULL)
+    aprsd = conf_sram.aprs.tx;
+  else
+    aprsd = *id->beacon;
+  aprsd.run_once = true;
+  thread_t * th = start_beacon_thread(&aprsd, "APRSD");
+  if(th == NULL)
+    return MSG_ERROR;
+  return chThdWait(th);
+
+/*  //========================================================
   // Encode and transmit telemetry config first
   for(uint8_t type = 0; type < APRS_NUM_TELEM_GROUPS; type++) {
     packet_t packet = aprs_encode_telemetry_configuration(
@@ -897,7 +913,7 @@ msg_t aprs_send_position_response(aprs_identity_t *id,
     TRACE_ERROR("RX   > Transmit of APRSP failed");
     return MSG_ERROR;
   }
-  return MSG_OK;
+  return MSG_OK;*/
 }
 
 /**
@@ -1121,6 +1137,7 @@ static bool aprs_decode_message(packet_t pp) {
   /*
    *  Setup default responding app identity.
    *  Default identity id set to tx.
+   *  TODO: Rework this identity stuff... messy
    */
 
   aprs_identity_t identity = {0};
@@ -1134,6 +1151,7 @@ static bool aprs_decode_message(packet_t pp) {
   identity.pwr = conf_sram.aprs.tx.radio_conf.pwr;
   identity.mod = conf_sram.aprs.tx.radio_conf.mod;
   identity.cca = conf_sram.aprs.tx.radio_conf.cca;
+  identity.beacon = &conf_sram.aprs.tx;
 
   /* Check which apps are enabled to accept APRS messages. */
   bool pos_pri = (strcmp(conf_sram.pos_pri.call, dest) == 0)
@@ -1144,6 +1162,7 @@ static bool aprs_decode_message(packet_t pp) {
     strcpy(identity.call, conf_sram.pos_pri.call);
     strcpy(identity.path, conf_sram.pos_pri.path);
     identity.symbol = conf_sram.pos_pri.symbol;
+    identity.beacon = &conf_sram.pos_pri;
   }
 
   bool pos_sec = (strcmp(conf_sram.pos_sec.call, dest) == 0)
@@ -1153,6 +1172,7 @@ static bool aprs_decode_message(packet_t pp) {
     strcpy(identity.call, conf_sram.pos_sec.call);
     strcpy(identity.path, conf_sram.pos_sec.path);
     identity.symbol = conf_sram.pos_sec.symbol;
+    identity.beacon = &conf_sram.pos_sec;
   }
 
   bool aprs_rx = (strcmp(conf_sram.aprs.rx.call, dest) == 0)
@@ -1161,6 +1181,7 @@ static bool aprs_decode_message(packet_t pp) {
   if(aprs_rx) {
     strcpy(identity.call, conf_sram.aprs.rx.call);
     identity.symbol = conf_sram.aprs.rx.symbol;
+    identity.beacon = NULL;
     /* Other parameters come from tx identity. */
   }
 
