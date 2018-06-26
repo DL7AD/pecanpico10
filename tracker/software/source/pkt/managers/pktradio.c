@@ -679,6 +679,28 @@ radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
   return pktGetDefaultOperatingFrequency(radio);
 }
 
+/*
+ *
+ */
+radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq) {
+  /* Check validity. */
+  uint8_t radios = pktGetNumRadios();
+  const radio_config_t *list = pktGetRadioList();
+  for(uint8_t i = 0; i < radios; i++) {
+    if(list->unit == radio) {
+      for(uint8_t x = 0; x < NUM_BANDS_PER_RADIO; x++) {
+        if(list->band[x] == NULL)
+          /* Vacant band slot in this radio. */
+            continue;
+        if(list->band[x]->start <= freq
+            && freq < list->band[x]->end)
+          return freq;
+      }
+    } /* End for bands */
+  } /* End for radios*/
+  return FREQ_RADIO_INVALID;
+}
+
 /**
  * @brief   Compute an operating frequency.
  * @notes   All special frequency codes are resolved to an actual frequency.
@@ -734,6 +756,33 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
   radio_freq_t op_freq = base_freq + (step * chan);
 
   return pktCheckAllowedFrequency(radio, op_freq);
+}
+
+void pktPowerUpRadio(radio_unit_t radio) {
+  /* TODO: Implement hardware mapping. */
+  (void)radio;
+  /*
+   * NOTE: RADIO_CS and RADIO_SDN pins are configured in board.h
+   * RADIO_SDN is configured to open drain as it is pulled up on PCB by 100K.
+   * The radio powers up in SDN mode.
+   *
+   * CS is set as push-pull and initialized to HIGH.
+   */
+
+  // Power up transceiver
+  palClearLine(LINE_RADIO_SDN);   // Radio SDN low (power up transceiver)
+  chThdSleep(TIME_MS2I(10));      // Wait for transceiver to power up
+}
+
+void pktPowerDownRadio(radio_unit_t radio) {
+  /* TODO: Implement hardware mapping. */
+  (void)radio;
+
+  /*
+   * Put radio in shutdown mode.
+   * All registers are lost.
+   */
+  palSetLine(LINE_RADIO_SDN);
 }
 
 /**

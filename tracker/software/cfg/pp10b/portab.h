@@ -61,7 +61,7 @@
 #define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
 
-#define NUM_PKT_RADIOS              1
+//#define NUM_PKT_RADIOS              1
 #define NUM_BANDS_PER_RADIO         2
 
 /* LED status indicators (set to PAL_NOLINE if not available). */
@@ -87,9 +87,6 @@
 #define LINE_USART3_TX              LINE_IO_TXD
 #define LINE_USART3_RX              LINE_IO_RXD
 #endif
-
-//#define LINE_PWM_MIRROR             PAL_LINE(GPIOA, 8U)
-//#define LINE_GPIO_PIN               PAL_LINE(GPIOA, 8U)
 
 /**
  *  ICU related definitions.
@@ -120,19 +117,20 @@
  * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
  * Decoder side swaps queue/buffer on in-band message and reticulates prior queue/buffer to pool.
  */
-#define USE_HEAP_PWM_BUFFER         FALSE
+#define USE_HEAP_PWM_BUFFER         TRUE
 #define USE_CCM_BASED_HEAP          TRUE
-#define USE_PWM_QUEUE_LINK          TRUE
 #define TRACE_PWM_BUFFER_STATS      FALSE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
 #if USE_HEAP_PWM_BUFFER == TRUE
+/* Use factory FIFO as stream control with separate chained PWM buffers. */
 #define NUMBER_PWM_FIFOS            3U
 /* Number of PWM data entries per queue object. */
 #define PWM_DATA_SLOTS              200
 /* Number of PWM queue objects in total. */
-#define PWM_DATA_BUFFERS            10
+#define PWM_DATA_BUFFERS            30
 #else
+/* Use factory FIFO as stream control with integrated PWM buffer. */
 #define NUMBER_PWM_FIFOS            3U
 #define PWM_DATA_SLOTS              6000
 #endif
@@ -199,6 +197,8 @@ extern "C" {
   void pktPowerDownRadio(radio_unit_t radio);
   radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq);
   uint8_t pktReadIOlines(void);
+  uint8_t pktGetNumRadios(void);
+  const radio_config_t *pktGetRadioList(void);
 #ifdef __cplusplus
 }
 #endif

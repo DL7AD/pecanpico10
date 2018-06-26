@@ -65,7 +65,7 @@ typedef struct SysProviders {
 
 } providers_t;
 
-const radio_config_t radio_list[NUM_PKT_RADIOS] = {
+const radio_config_t radio_list[] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
     .type = SI4464,
@@ -73,7 +73,10 @@ const radio_config_t radio_list[NUM_PKT_RADIOS] = {
              (radio_band_t * const)&band_2m,
               NULL
             }
-  } /* End radio1 */
+  }, /* End radio1 */
+  {
+     .unit = PKT_RADIO_NONE
+  }
 };
 
 const SerialConfig debug_config = {
@@ -82,6 +85,22 @@ const SerialConfig debug_config = {
   0,
   0
 };
+
+/**
+ * Get number of radios for this board type.
+ */
+uint8_t pktGetNumRadios(void) {
+  uint8_t i = 0;
+  while(radio_list[i++].unit != PKT_RADIO_NONE);
+  return --i;
+}
+
+/**
+ * Return pointer to radio object array.
+ */
+const radio_config_t *pktGetRadioList(void) {
+  return radio_list;
+}
 
 void pktConfigSerialDiag(void) {
   /* USART3 TX.       */
@@ -154,32 +173,6 @@ void pktWrite(uint8_t *buf, uint32_t len) {
   chnWrite((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, buf, len);
 }
 
-void pktPowerUpRadio(radio_unit_t radio) {
-  /* TODO: Implement hardware mapping. */
-  (void)radio;
-  /*
-   * NOTE: RADIO_CS and RADIO_SDN pins are configured in board.h
-   * RADIO_SDN is configured to open drain as it is pulled up on PCB by 100K.
-   * The radio powers up in SDN mode.
-   *
-   * CS is set as push-pull and initialized to HIGH.
-   */
-
-  // Power up transceiver
-  palClearLine(LINE_RADIO_SDN);   // Radio SDN low (power up transceiver)
-  chThdSleep(TIME_MS2I(10));      // Wait for transceiver to power up
-}
-
-void pktPowerDownRadio(radio_unit_t radio) {
-  /* TODO: Implement hardware mapping. */
-  (void)radio;
-
-  /*
-   * Put radio in shutdown mode.
-   * All registers are lost.
-   */
-  palSetLine(LINE_RADIO_SDN);
-}
 
 void sysConfigureCoreIO(void) {
   /* Setup SPI3. */
@@ -201,27 +194,6 @@ void sysConfigureCoreIO(void) {
   #if ACTIVATE_USB
   startUSB();
   #endif
-}
-
-/*
- *
- */
-radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq) {
-  /* Check validity. */
-  uint8_t radios = NUM_PKT_RADIOS/*sizeof(radio_list) / sizeof(radio_param_t)*/;
-  for(uint8_t i = 0; i < radios; i++) {
-    if(radio_list[i].unit != radio)
-      continue;
-    for(uint8_t x = 0; x < NUM_BANDS_PER_RADIO; x++) {
-      if(radio_list[i].band[x] == NULL)
-        /* No more bands in this radio. */
-          return FREQ_RADIO_INVALID;
-      if(radio_list[i].band[x]->start <= freq
-          && freq < radio_list[i].band[x]->end)
-        return freq;
-    } /* End for bands */
-  } /* End for radios*/
-  return FREQ_RADIO_INVALID;
 }
 
 /** @} */

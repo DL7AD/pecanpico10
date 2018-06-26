@@ -65,6 +65,7 @@ typedef struct APRSIdentity {
   char              call[AX25_MAX_ADDR_LEN]; /**< @brief Destination call.  */
   char              path[APRS_PATH_LENGTH];  /**< @brief Path.              */
   aprs_sym_t        symbol;                  /**< @brief symbol.            */
+  bcn_app_conf_t    *beacon;
   /* Radio parameters. */
   radio_freq_t      freq;
   radio_pwr_t       pwr;

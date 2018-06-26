@@ -87,15 +87,16 @@ extern uint8_t usb_trace_level;
 }
 
 
-#if USE_CCM_FOR_PKT_POOL == TRUE
 /*
- * Memory pool integrity checking...
- */
+#if USE_CCM_FOR_PKT_POOL == TRUE
+
 static inline struct pool_header *pktSystemCheck(void) {
   extern guarded_memory_pool_t *ccm_pool;
   return ((struct pool_header *)(ccm_pool->pool.next))->next;
 }
-#elif USE_CCM_FOR_PKT_HEAP ==  TRUE
+#elif USE_CCM_HEAP_FOR_PKT ==  TRUE
+*/
+#if USE_CCM_HEAP_FOR_PKT ==  TRUE
 /*
  * Memory heap integrity checking...
  */

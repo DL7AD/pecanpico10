@@ -56,7 +56,10 @@ typedef mod_t encoding_type_t;
 
 #include "pktradio.h"
 
+/* Receive packet buffer. */
 typedef struct packetBuffer pkt_data_object_t;
+
+/* Receive packet buffer callback. */
 typedef void (*pkt_buffer_cb_t)(pkt_data_object_t *pkt_buffer);
 
 typedef struct packetBuffer {
@@ -191,9 +194,6 @@ typedef struct packetHandlerData {
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
-
-//#include "pktradio.h"
-
 
 extern packet_svc_t RPKTD1;
 

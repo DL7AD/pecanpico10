@@ -29,79 +29,79 @@
 /*===========================================================================*/
 
 /* Allocate the decoder main structure and the tone bins. */
-qcorr_decoder_t QCORR1;
-qcorr_tone_t qcorr_bins[QCORR_FILTER_BINS];
+qcorr_decoder_t QCORR1 useCCM;
+qcorr_tone_t qcorr_bins[QCORR_FILTER_BINS] useCCM;
 
 /**
  * @brief   AFSK_PWM_QFILTER pre-filter identifier.
  * @note    Allocate a pre-filter FIR record.
  */
 
-qfir_filter_t AFSK_PWM_QFILTER;
+qfir_filter_t AFSK_PWM_QFILTER useCCM;
 
 /*
  * Allocate data for prefilter FIR.
  */
-static arm_fir_instance_q31 pre_filter_instance_q31;
-static q31_t pre_filter_state_q31[PRE_FILTER_BLOCK_SIZE
-                                  + PRE_FILTER_NUM_TAPS - 1];
-static q31_t pre_filter_coeff_q31[PRE_FILTER_NUM_TAPS];
+arm_fir_instance_q31 pre_filter_instance_q31 useCCM;
+q31_t pre_filter_state_q31[PRE_FILTER_BLOCK_SIZE
+                                  + PRE_FILTER_NUM_TAPS - 1] useCCM;
+q31_t pre_filter_coeff_q31[PRE_FILTER_NUM_TAPS] useCCM;
 
 #if USE_QCORR_MAG_LPF == TRUE
 
 /* Allocate the FIR filter structures. */
-qfir_filter_t QFILT_M_MAG;
-qfir_filter_t QFILT_S_MAG;
+qfir_filter_t QFILT_M_MAG useCCM;
+qfir_filter_t QFILT_S_MAG useCCM;
 
 /*
 * Allocate data for mag FIR filter.
 */
-static q31_t mag_filter_coeff_q31[MAG_FILTER_NUM_TAPS];
+q31_t mag_filter_coeff_q31[MAG_FILTER_NUM_TAPS] useCCM;
 
-static arm_fir_instance_q31 m_mag_filter_instance_q31;
-static q31_t m_mag_filter_state_q31[MAG_FILTER_BLOCK_SIZE
-                                + MAG_FILTER_NUM_TAPS - 1];
+arm_fir_instance_q31 m_mag_filter_instance_q31 useCCM;
+q31_t m_mag_filter_state_q31[MAG_FILTER_BLOCK_SIZE
+                                + MAG_FILTER_NUM_TAPS - 1] useCCM;
 
-static arm_fir_instance_q31 s_mag_filter_instance_q31;
-static q31_t s_mag_filter_state_q31[MAG_FILTER_BLOCK_SIZE
-                                + MAG_FILTER_NUM_TAPS - 1];
+arm_fir_instance_q31 s_mag_filter_instance_q31 useCCM;
+q31_t s_mag_filter_state_q31[MAG_FILTER_BLOCK_SIZE
+                                + MAG_FILTER_NUM_TAPS - 1] useCCM;
 
 #endif /* USE_QCORR_MAG_LPF == TRUE */
 
 /* Mark and Space correlation filter instances. */
-qfir_filter_t QFILT_M_COS;
-qfir_filter_t QFILT_M_SIN;
+qfir_filter_t QFILT_M_COS useCCM;
+qfir_filter_t QFILT_M_SIN useCCM;
 
-qfir_filter_t QFILT_S_COS;
-qfir_filter_t QFILT_S_SIN;
+qfir_filter_t QFILT_S_COS useCCM;
+qfir_filter_t QFILT_S_SIN useCCM;
 
 /*
 * Allocate data for Mark and Space correlation filters.
 */
 
 /* q31 filter coefficient arrays. */
-static q31_t m_cos_filter_coeff_q31[DECODE_FILTER_LENGTH];
-static q31_t m_sin_filter_coeff_q31[DECODE_FILTER_LENGTH];
-static q31_t s_cos_filter_coeff_q31[DECODE_FILTER_LENGTH];
-static q31_t s_sin_filter_coeff_q31[DECODE_FILTER_LENGTH];
+q31_t m_cos_filter_coeff_q31[DECODE_FILTER_LENGTH] useCCM;
+q31_t m_sin_filter_coeff_q31[DECODE_FILTER_LENGTH] useCCM;
+q31_t s_cos_filter_coeff_q31[DECODE_FILTER_LENGTH] useCCM;
+q31_t s_sin_filter_coeff_q31[DECODE_FILTER_LENGTH] useCCM;
 
 /* q31 fir instance records. */
-static arm_fir_instance_q31 m_cos_filter_instance_q31;
-static arm_fir_instance_q31 m_sin_filter_instance_q31;
-static arm_fir_instance_q31 s_cos_filter_instance_q31;
-static arm_fir_instance_q31 s_sin_filter_instance_q31;
+arm_fir_instance_q31 m_cos_filter_instance_q31 useCCM;
+arm_fir_instance_q31 m_sin_filter_instance_q31 useCCM;
+arm_fir_instance_q31 s_cos_filter_instance_q31 useCCM;
+arm_fir_instance_q31 s_sin_filter_instance_q31 useCCM;
 
 #define QCORR_FILTER_BLOCK_SIZE 1U
 
 /* q31 filter state arrays. */
-static q31_t m_cos_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
-                                + DECODE_FILTER_LENGTH - 1];
-static q31_t m_sin_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
-                                + DECODE_FILTER_LENGTH - 1];
-static q31_t s_cos_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
-                                + DECODE_FILTER_LENGTH - 1];
-static q31_t s_sin_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
-                                + DECODE_FILTER_LENGTH - 1];
+q31_t m_cos_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
+                                + DECODE_FILTER_LENGTH - 1] useCCM;
+q31_t m_sin_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
+                                + DECODE_FILTER_LENGTH - 1] useCCM;
+q31_t s_cos_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
+                                + DECODE_FILTER_LENGTH - 1] useCCM;
+q31_t s_sin_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
+                                + DECODE_FILTER_LENGTH - 1] useCCM;
 
 
 

@@ -121,6 +121,7 @@ typedef struct {
   char              path[16];
   aprs_sym_t        symbol;
   bool              aprs_msg;
+  bool              run_once;
 } bcn_app_conf_t;
 
 typedef struct {

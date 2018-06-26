@@ -27,7 +27,7 @@ static dataPoint_t* flash_getNextFreeLogAddress(void) {
 /*
  *
  */
-/*dataPoint_t* flash_getNewestLogEntry(void) {
+dataPoint_t* flash_getNewestLogEntry(void) {
   dataPoint_t* last_tp = NULL;
   uint64_t last_id = 0x0;
   dataPoint_t* tp;
@@ -40,12 +40,13 @@ static dataPoint_t* flash_getNextFreeLogAddress(void) {
     }
   }
   return last_tp;
-}*/
+}
 
 /*
  * Alternative version of flash_getNewestLogEntry(...)
  * All that really needs to be found is the next EMPTY entry?
  */
+/*
 dataPoint_t* flash_getNewestLogEntry(void) {
   dataPoint_t* tp;
   uint32_t i = 0;
@@ -55,6 +56,7 @@ dataPoint_t* flash_getNewestLogEntry(void) {
   }
   return (i > 1 && tp != NULL ? flash_getLogBuffer(i - 1) : NULL);
 }
+*/
 
 /*
  *

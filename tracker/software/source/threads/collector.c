@@ -99,9 +99,12 @@ static void getPositionFallback(dataPoint_t* tp,
  * @param[in]	ltp		pointer to prior @p datapoint structure
  * @param[in]   timeout time limit to wait for acquisition
  *
+ * @return      state of GPS acquisition
+ * @retval      true    if a new position lock was attained.
+ * @retval      false   if no new lock attained and stored data used
  * @notapi
  */
-static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
+static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
                            sysinterval_t timeout) {
   sysinterval_t start = chVTGetSystemTime();
 
@@ -113,14 +116,14 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   uint16_t batt = stm32_get_vbat();
   if(batt < conf_sram.gps_on_vbat) {
     getPositionFallback(tp, ltp, GPS_LOWBATT1);
-    return;
+    return false;
   }
 
   /* Try to switch on GPS. */
   if(!GPS_Init()) {
     GPS_Deinit();
     getPositionFallback(tp, ltp, GPS_ERROR);
-    return;
+    return false;
   }
   /* If a Pa pressure is set then GPS model depends on BME reading.
    * If BME is OK then stationary model will be used until Pa < airborne.
@@ -148,13 +151,13 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   if(batt < conf_sram.gps_off_vbat) {
     /*
      * GPS was switched on but battery fell below threshold during acquisition.
-     * Switch off GPS and get fallback position data.
+     * Switch off GPS and set fallback position data.
      */
 
     GPS_Deinit();
     TRACE_WARN("COLL > GPS acquisition stopped due low battery");
     getPositionFallback(tp, ltp, GPS_LOWBATT2);
-    return;
+    return false;
 
   }
   if(!isGPSLocked(&gpsFix)) {
@@ -164,7 +167,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
      */
     TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
     getPositionFallback(tp, ltp, GPS_LOSS);
-    return;
+    return false;
   }
 
   /*
@@ -189,7 +192,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
     TRACE_ERROR("GPS  > Error getting Space Vehicle info");
   }
 
-  /* Switch off GPS (if cycle time is more than 60 seconds). */
+  /* Leave GPS on if cycle time is less than 60 seconds. */
   if(timeout < TIME_S2I(60)) {
     TRACE_INFO("COLL > Keep GPS switched on because cycle < 60sec");
     tp->gps_state = GPS_LOCKED2;
@@ -221,6 +224,7 @@ static void aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   tp->gps_sats = gpsFix.num_svs;
   tp->gps_pdop = (gpsFix.pdop+3)/5;
   tp->gps_ttff = TIME_I2S(chVTGetSystemTime() - start); // Time to first fix
+  return true;
 }
 
 /**
@@ -445,7 +449,7 @@ THD_FUNCTION(collectorThread, arg) {
   // Write data point to Flash memory
   flash_writeLogDataPoint(lastDataPoint);
 
-  sysinterval_t data_cycle_time;
+  sysinterval_t gps_wait_time;
 
   getTime(&time);
   if(time.year == RTC_BASE_YEAR) {
@@ -454,16 +458,15 @@ THD_FUNCTION(collectorThread, arg) {
     *  Enable the GPS and attempt a lock which results in setting the RTC.
     */
     TRACE_INFO("COLL > Acquire time using GPS");
-    aquirePosition(newDataPoint, lastDataPoint, data_cycle_time - TIME_S2I(3));
-    /* RTC is set in aquirePosition(...). */
-    if(hasGPSacquiredLock(newDataPoint)) {
+    if(aquirePosition(newDataPoint, lastDataPoint, gps_wait_time - TIME_S2I(3))) {
       /* Acquisition succeeded. */
-      TRACE_INFO("COLL > Time acquisition from GPS succeeded");
+      TRACE_INFO("COLL > Time update acquired from GPS");
       /* Update with freshly acquired data. */
       lastDataPoint = newDataPoint;
       GPS_Deinit();
     } else {
-      TRACE_INFO("COLL > Time not acquired from GPS");
+      /* Time is stale record. */
+      TRACE_INFO("COLL > Time update not acquired from GPS");
     }
   }
 
@@ -478,9 +481,6 @@ THD_FUNCTION(collectorThread, arg) {
 
     dataPoint_t* tp  = &dataPoints[(id+1) % 2]; // Current data point (the one which is processed now)
     dataPoint_t* ltp = &dataPoints[ id    % 2]; // Last data point
-
-    /* Clear remnant data. */
-    memset(tp, 0, sizeof(dataPoint_t));
 
     /* Gather telemetry and system status data. */
     measureVoltage(tp);
@@ -508,12 +508,18 @@ THD_FUNCTION(collectorThread, arg) {
        */
       TRACE_INFO("COLL > Acquire position using GPS");
 	  // Determine timeout waiting for lock.
-      if(config->beacon.gps_wait > TIME_S2I(63)) // Min 1 minute + 3S
-        data_cycle_time = config->beacon.gps_wait;
+      if(config->beacon.gps_wait > TIME_S2I(63)) // Minimum 1M + 3S
+        gps_wait_time = config->beacon.gps_wait;
       else
-        data_cycle_time = TIME_S2I(600); // Default.
-      aquirePosition(tp, ltp, data_cycle_time - TIME_S2I(3));
+        gps_wait_time = TIME_S2I(600); // Default 10 minutes.
+      if(aquirePosition(tp, ltp, gps_wait_time - TIME_S2I(3))) {
+        TRACE_INFO("COLL > Acquired fresh GPS data");
+      } else {
+        /* Historical data has been carried forward. */
+        TRACE_INFO("COLL > Unable to acquire fresh GPS data");
+      }
     }
+
     tp->id = ++id; // Serial ID
 
     // Trace data

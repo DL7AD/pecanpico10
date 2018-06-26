@@ -76,9 +76,7 @@
 
 #define AX25_MAX_APRS_MSG_LEN   67
 
-#define USE_NEW_PKT_TX_ALLOC    TRUE
-#define USE_CCM_FOR_PKT_HEAP    TRUE
-#define USE_CCM_FOR_PKT_POOL    FALSE
+#define USE_CCM_HEAP_FOR_PKT    TRUE
 
 #include "pkttypes.h"
 

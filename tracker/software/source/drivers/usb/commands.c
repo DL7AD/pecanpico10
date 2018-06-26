@@ -74,6 +74,7 @@ void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
     shellUsage(chp, "heap");
     return;
   }
+
   n = chHeapStatus(NULL, &total, &largest);
   chprintf(chp, "Core free memory : %u bytes"SHELL_NEWLINE_STR,
                                              chCoreGetStatusX());
@@ -82,15 +83,21 @@ void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
   chprintf(chp, "heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
   chprintf(chp, "heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
 
-#if USE_CCM_FOR_PKT_HEAP == TRUE
   extern memory_heap_t *ccm_heap;
+  if(ccm_heap == NULL) {
+    chprintf(chp, SHELL_NEWLINE_STR"CCM Heap not enabled"SHELL_NEWLINE_STR);
+    return;
+  }
+  extern uint8_t __ram4_free__[];
+  extern uint8_t __ram4_end__[];
 
+  chprintf(chp, SHELL_NEWLINE_STR"CCM heap : size %x starts at : %x"SHELL_NEWLINE_STR,
+           (__ram4_end__ - __ram4_free__), __ram4_free__);
   n = chHeapStatus(ccm_heap, &total, &largest);
   chprintf(chp, SHELL_NEWLINE_STR"CCM Heap"SHELL_NEWLINE_STR);
   chprintf(chp, "heap fragments   : %u"SHELL_NEWLINE_STR, n);
   chprintf(chp, "heap free total  : %u bytes"SHELL_NEWLINE_STR, total);
   chprintf(chp, "heap free largest: %u bytes"SHELL_NEWLINE_STR, largest);
-#endif
 }
 
 void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])

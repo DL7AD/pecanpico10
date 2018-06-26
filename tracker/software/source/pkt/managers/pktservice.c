@@ -18,7 +18,7 @@
 /*===========================================================================*/
 
 memory_heap_t *ccm_heap = NULL;
-guarded_memory_pool_t *ccm_pool = NULL;
+//guarded_memory_pool_t *ccm_pool = NULL;
 
 /*===========================================================================*/
 /* Module local types.                                                       */
@@ -28,10 +28,10 @@ guarded_memory_pool_t *ccm_pool = NULL;
 /* Module local variables.                                                   */
 /*===========================================================================*/
 
-#if USE_CCM_FOR_PKT_HEAP == TRUE
+#if USE_CCM_HEAP_FOR_PKT == TRUE
 static memory_heap_t _ccm_heap;
-#elif USE_CCM_FOR_PKT_POOL == TRUE
-static guarded_memory_pool_t _ccm_pool;
+/*#elif USE_CCM_FOR_PKT_POOL == TRUE
+static guarded_memory_pool_t _ccm_pool;*/
 #endif
 
 /*===========================================================================*/
@@ -45,50 +45,45 @@ static guarded_memory_pool_t _ccm_pool;
 
 /**
  * @brief   Initializes the packet system.
+ * @notes   Allocates a heap in remaining available CCM.
+ * @notes   Unless variables are allocated to CCM the heap will be all of CCM.
+ * @notes   Buffers (non DMA) are then allocated from the CCM heap.
  *
  *@return   result of operation.
  *@retval   true    system initialized.
  *@retval   false   initialization failed.
  *
- * @api
+ * @notapi
  */
 bool pktSystemInit(void) {
 
-//#define intoCCM  __attribute__((section(".ram4")))  __attribute__((aligned(4)))
-//static int CCMstart __attribute__((section(".ram4")));
-//extern uint32_t __ram4_start__;
-//extern uint32_t __ram4_size__;
+//#define useCCM  __attribute__((section(".ram4")))
+//static int example useCCM;
+  extern uint8_t __ram4_free__[];
+  extern uint8_t __ram4_end__[];
 
-#if USE_CCM_FOR_PKT_HEAP == TRUE
   chDbgAssert(ccm_heap == NULL, "CCM heap already exists");
-  /* Create heap in CCM. */
+  /*
+   * Create heap in CCM.
+   * Once created the CCM heap remains available.
+   * TODO: Move CCM heap creation to system level.
+   * Include in sysConfigureCoreIO(...) and rename that function. */
   if(ccm_heap == NULL) {
-    ccm_heap = &_ccm_heap;
-    chHeapObjectInit(ccm_heap, (void *)0x10000000, 0x10000);
-    //chHeapObjectInit(ccm_heap, (void *)__ram4_start__, (size_t)__ram4_size__);
+    /* CCM heap not created yet. */
+  ccm_heap = &_ccm_heap;
+  chHeapObjectInit(ccm_heap, (void *)__ram4_free__,
+                   (size_t)(__ram4_end__ - __ram4_free__));
   }
 
+#if USE_CCM_HEAP_FOR_PKT == TRUE
   /*
-   * Create common packet buffer control.
+   * Create common AX25 transmit packet buffer control.
    */
   if(pktInitBufferControl() == NULL) {
-    ccm_heap = NULL;
     return false;
   }
-  return true;
-#elif USE_CCM_FOR_PKT_POOL == TRUE
-  chDbgAssert(ccm_pool == NULL, "CCM guarded pool already exists");
-  if(ccm_pool == NULL) {
-    ccm_pool = &_ccm_pool;
-    chGuardedPoolObjectInitAligned(ccm_pool, sizeof(packet_gen_t), 4);
-    chGuardedPoolLoadArray(ccm_pool, (void *)0x10000000,
-                           NUMBER_COMMON_PKT_BUFFERS);
-    return true;
-  }
-  return false;
-#else
-  return true;
 #endif
+  return true;
 }
 
 /**
@@ -102,9 +97,6 @@ bool pktSystemInit(void) {
  */
 bool pktSystemDeinit(void) {
 
-  //#define intoCCM  __attribute__((section(".ram4")))  __attribute__((aligned(4)))
-
-#if USE_CCM_FOR_PKT_HEAP == TRUE
   /*
    * Remove common packet buffer control.
    */
@@ -113,32 +105,12 @@ bool pktSystemDeinit(void) {
 
   pktDeinitBufferControl();
 
-  /* Remove reference to heap in CCM. */
-  ccm_heap = NULL;
   return true;
-#elif USE_CCM_FOR_PKT_POOL == TRUE
-  chDbgAssert(ccm_pool != NULL, "CCM guarded pool does not exist");
-  if(ccm_pool == NULL) {
-    return false;
-  }
-  chSysLock();
-  chSemWaitTimeoutS(&ccm_pool->sem, TIME_INFINITE);
-  /*
-   *  Kick everyone off and set available buffers to zero.
-   *  Users need to look for MSG_RESET from wait.
-   */
-  chSemResetI(&ccm_pool->sem, 0);
-  chSchRescheduleS();
-  chSysUnlock();
-  return true;
-#else
-  return true;
-#endif
 }
 
 /**
  * @brief   Initializes packet handlers and starts the radio manager.
- * @note    The option to manage multiple radios is not yet implemented.
+ * @note    The option to manage multiple radios across the system is incomplete.
  * @note    Once initialized the transmit service is available.
  * @note    To activate receive requires an open to be made.
  *
@@ -949,6 +921,7 @@ void pktDeinitBufferControl() {
  */
 msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
 
+/*
 #if USE_CCM_FOR_PKT_POOL == TRUE
   (void)timeout;
   if(ccm_pool == NULL)
@@ -959,6 +932,7 @@ msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
   return MSG_OK;
 
 #else
+*/
   /* Check if the packet buffer semaphore already exists.
    * If so we get a pointer to it and get the semaphore.
    */
@@ -990,7 +964,7 @@ msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
   if(pp == NULL)
    return MSG_TIMEOUT;
   return MSG_OK;
-#endif
+/*#endif*/
 }
 
 /*
@@ -998,10 +972,12 @@ msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
  */
 void pktReleasePacketBuffer(packet_t pp) {
 
+/*
 #if USE_CCM_FOR_PKT_POOL == TRUE
   chDbgAssert(pp != NULL, "packet is invalid");
   ax25_delete(pp);
 #else
+*/
   /* Check if the packet buffer semaphore exists.
    * If not this is a system error.
    */
@@ -1018,27 +994,29 @@ void pktReleasePacketBuffer(packet_t pp) {
 
   /* Decrease factory ref count. */
   chFactoryReleaseSemaphore(dyn_sem);
-#endif
+/*#endif*/
 }
 
 /*
  * Send shares a common pool of buffers.
  */
 void pktReleaseBufferSemaphore(radio_unit_t radio) {
+/*
 #if USE_CCM_FOR_PKT_POOL != TRUE
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   chDbgAssert(handler != NULL, "invalid radio ID");
 
-  /*
+
    *  Release Semaphore.
    *  If this is the last radio using the semaphore it is released.
-   */
+
   chFactoryReleaseSemaphore(handler->tx_packet_sem);
   handler->tx_packet_sem = NULL;
 #else
+*/
   (void)radio;
-#endif
+/*#endif*/
 }
 
 /*

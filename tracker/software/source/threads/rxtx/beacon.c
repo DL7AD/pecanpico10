@@ -30,11 +30,12 @@ THD_FUNCTION(bcnThread, arg) {
       chVTGetSystemTime() - conf_sram.tel_enc_cycle;
   sysinterval_t time = chVTGetSystemTime();
 
-  /* Now wait for our delay before starting. */
-  sysinterval_t delay = conf->beacon.init_delay;
+  if(!conf->run_once) {
+    /* Now wait for our delay before starting. */
+    sysinterval_t delay = conf->beacon.init_delay;
 
-  chThdSleep(delay);
-
+    chThdSleep(delay);
+  }
   while(true) {
 
     char code_s[100];
@@ -145,6 +146,8 @@ THD_FUNCTION(bcnThread, arg) {
         chThdSleep(TIME_S2I(5));
       }
     } /* psleep */
+    if(conf->run_once)
+      chThdExit(MSG_OK);
     time = waitForTrigger(time, conf->beacon.cycle);
   }
 }
@@ -152,12 +155,13 @@ THD_FUNCTION(bcnThread, arg) {
 /*
  *
  */
-void start_beacon_thread(bcn_app_conf_t *conf) {
+thread_t * start_beacon_thread(bcn_app_conf_t *conf, const char *name) {
   thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(10*1024),
-                                     "BCN", LOWPRIO, bcnThread, conf);
+                                     name, LOWPRIO, bcnThread, conf);
   if(!th) {
     // Print startup error, do not start watchdog for this thread
     TRACE_ERROR("BCN  > Could not start thread (not enough memory available)");
   }
+  return th;
 }
 
