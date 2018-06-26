@@ -6,11 +6,10 @@ html, body {
 }
 .inner {
 	margin: 3px;
-	padding: 3px;
-	border: solid 1px #777777;
+	border: solid 1px #666666;
 }
 .call {
-	background-color: #DDDDDD;
+	background-color: #ccdaec;
 	padding: 5px;
 	margin: 4px 0;
 }
@@ -34,9 +33,52 @@ img {
 .pic img {
 	margin: 0;
 }
-td,th {
+table {
+	border-spacing: 0px;
+}
+telemetry div {
+	background-color: #ccdaec;
 	vertical-align: top;
 	text-align: left;
-	padding: 1px 0;
+	padding: 5px;
+	margin: 3px;
+	float: left;
+}
+telemetry div div {
+	background-color: rgba(255, 255, 255, 0.0);
+}
+
+telemetry div img {
+	margin: 0 2px;
+}
+
+.fat {
+	font-size: 20px;
+	font-weight: bold;
+}
+
+.wrapper {
+	display: flex;  
+	flex-flow: row wrap;
+	text-align: center;
+}
+
+.wrapper > * {
+	flex: 1 100%;
+}
+
+telemetry {
+	width: 600px;
 	margin: 0;
+}
+
+.side {
+	padding: 3px;
+}
+
+@media all and (min-width: 800px) {
+	.side { order: 1; width: 270px; float: left; }
+	.telemetry { order: 2; flex: 3 0px; min-width: 456px; max-width: 456px; }
+	.range {  order: 3; text-align: left; }
+	.chart { order: 4; flex: 3 0px; min-width: 456px; max-width: 456px; }
 }

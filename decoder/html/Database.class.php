@@ -38,7 +38,6 @@ class Database extends mysqli {
 				SELECT `call`,`rxtime` FROM `image`
 			) AS d
 			GROUP BY `call`
-			ORDER BY `rxtime` DESC
 		");
 		while($row = $query->fetch_assoc())
 			$tracker[] = new Tracker($row['call']);
