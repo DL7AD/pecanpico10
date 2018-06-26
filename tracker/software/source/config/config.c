@@ -174,8 +174,8 @@ const conf_t conf_flash_default = {
 
     // Power control
     .keep_cam_switched_on = false,
-    .gps_on_vbat = 3800, // mV
-    .gps_off_vbat = 3400, // mV
+    .gps_on_vbat = 3600, // mV
+    .gps_off_vbat = 3000, // mV
     .gps_onper_vbat = 4000, // mV
 
     // GPS altitude model control (air pressure determined by on-board BME280)

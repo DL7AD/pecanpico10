@@ -110,7 +110,7 @@ extern "C" {
   packet_t  aprs_compose_aprsd_message(const char *callsign, const char *path,
                                    const char *receiver);
   void      aprs_decode_packet(packet_t pp);
-  msg_t     aprs_send_position_response(aprs_identity_t *id,
+  msg_t     aprs_send_telemetry_response(aprs_identity_t *id,
                                   int argc, char *argv[]);
   msg_t     aprs_send_aprsd_message(aprs_identity_t *id,
                                         int argc, char *argv[]);

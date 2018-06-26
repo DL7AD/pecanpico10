@@ -58,7 +58,9 @@ const radio_config_t radio_list[] = {
               NULL
             }
   }, /* End radio1 */
-  {PKT_RADIO_NONE}
+  {
+     .unit = PKT_RADIO_NONE
+  }
 };
 
 

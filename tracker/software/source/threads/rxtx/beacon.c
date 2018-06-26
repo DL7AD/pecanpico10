@@ -30,12 +30,11 @@ THD_FUNCTION(bcnThread, arg) {
       chVTGetSystemTime() - conf_sram.tel_enc_cycle;
   sysinterval_t time = chVTGetSystemTime();
 
-  if(!conf->run_once) {
-    /* Now wait for our delay before starting. */
-    sysinterval_t delay = conf->beacon.init_delay;
+  /* Now wait for our delay before starting. */
+  sysinterval_t delay = conf->beacon.init_delay;
 
-    chThdSleep(delay);
-  }
+  chThdSleep(delay);
+
   while(true) {
 
     char code_s[100];

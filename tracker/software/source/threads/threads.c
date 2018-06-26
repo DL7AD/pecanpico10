@@ -69,5 +69,21 @@ void start_user_threads(void)
 	                  0,
 	                  conf_sram.aprs.rx.radio_conf.rssi);
 	}
+
+    /**
+     * General thread termination and cleanup.
+     * Called by the thread that is terminating.
+     */
+/*    void pktTerminateThread(thread_t *th) {
+      (void)th;
+    }*/
+
+	/**
+	 * General thread termination and cleanup.
+	 * Handled from the idle thread hook.
+	 */
+/*	void release_terminated_thread(thread_t *th) {
+	  (void)th;
+	}*/
 }
 

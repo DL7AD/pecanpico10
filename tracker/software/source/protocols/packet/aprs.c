@@ -178,7 +178,7 @@ const conf_command_t command_list[] = {
 const APRSCommand aprs_commands[] = {
     {"?aprsd", aprs_send_aprsd_message},
     {"?aprsh", aprs_send_aprsh_message},
-    {"?aprsp", aprs_send_position_response},
+    {"?aprsp", aprs_send_telemetry_response},
     {"?gpio", aprs_execute_gpio_command},
     {"?reset", aprs_execute_system_reset},
     {"?save", aprs_execute_config_save},
@@ -837,7 +837,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
 }
 
 /**
-* @brief       Request for position beacon to be sent
+* @brief       Request for telemetry beacon to be sent
 *
 * @param[in]   id      aprs node identity
 * @param[in]   argc    number of parameters
@@ -847,7 +847,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
 * @retval      MSG_OK if the command completed.
 * @retval      MSG_ERROR if there was an error.
 */
-msg_t aprs_send_position_response(aprs_identity_t *id,
+msg_t aprs_send_telemetry_response(aprs_identity_t *id,
                                 int argc, char *argv[]) {
   (void)argv;
 
@@ -863,6 +863,7 @@ msg_t aprs_send_position_response(aprs_identity_t *id,
   else
     aprsd = *id->beacon;
   aprsd.run_once = true;
+  aprsd.beacon.init_delay = 0;
   thread_t * th = start_beacon_thread(&aprsd, "APRSD");
   if(th == NULL)
     return MSG_ERROR;
@@ -1335,14 +1336,14 @@ packet_t aprs_encode_telemetry_configuration(const char *originator,
 	switch(type) {
 		case 0:	return aprs_encode_message(originator, path, destination,
                  "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure,"
-                 "IO1,IO2,IO3,IO4", false);
+                 "IO1,IO2,IO3,IO4,IO5,IO6,IO7,IO8", false);
 		case 1: return aprs_encode_message(originator, path, destination,
-                 "UNIT.V,V,W,degC,Pa,1,1,1,1", false);
+                 "UNIT.V,V,W,degC,Pa,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi", false);
 		case 2: return aprs_encode_message(originator, path, destination,
                  "EQNS.0,0.001,0,0,0.001,0,0,0.001,"
                  "-4.096,0,0.1,-100,0,12.5,500", false);
 		case 3: return aprs_encode_message(originator, path, destination,
-                 "BITS.1111,Pecan Pico", false);
+                 "BITS.11111111,Pecan Pico", false);
 		default: return NULL;
 	}
 }
