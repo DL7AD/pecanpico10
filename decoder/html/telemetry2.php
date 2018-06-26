@@ -73,7 +73,7 @@ function time_format(time) {
 }
 
 function get_alt(p) {
-	return '---'; // TODO: Implement pressure to altitude calculation
+	return Math.round((Math.pow(parseInt(p)/101325, -5.2561)-1) / 0.0068755856);
 }
 
 function loadRecentData() {
@@ -112,7 +112,7 @@ function loadRecentData() {
 					case 'sen_e2_temp':
 					case 'stm32_temp':
 					case 'si4464_temp':
-						$('#' + key).text(number_format(d/100, 1) + '°C');
+						$('#' + key).text(number_format(d/100, 2) + '°C');
 						break;
 
 					case 'gps_pdop':
@@ -122,7 +122,7 @@ function loadRecentData() {
 					case 'gps_lat':
 						s  = d < 0 ? "S" : "N";
 						s += Math.abs(d) < 100000000 ? "0" : "";
-						s += number_format(Math.abs(d)/10000000, 4) + "°";
+						s += number_format(Math.abs(d)/10000000, 5);
 						$('#' + key).text(s);
 						break;
 
@@ -130,7 +130,7 @@ function loadRecentData() {
 						s  = d < 0 ? "W" : "E";
 						s += Math.abs(d) < 100000000 ? "0" : "";
 						s += Math.abs(d) < 1000000000 ? "0" : "";
-						s += number_format(Math.abs(d)/10000000, 4) + "°";
+						s += number_format(Math.abs(d)/10000000, 5);
 						$('#' + key).text(s);
 						break;
 
@@ -268,7 +268,7 @@ function loadRecentData() {
 
 				var time = new Date(data['org'] == 'pos' ? data['rxtime']*1000 : data['gps_time']*1000);
 
-				if(last != null && time - last > range*1000/60 && time - last > 300000) { // Gap in the data set
+				if(last != null && time - last > range*1000/60) { // Gap in the data set
 					dataBattery.addRow([null, null, null, null]);
 					dataSolar.addRow([null, null, null, null]);
 					dataTemp.addRow([null,null,null,null,null,null]);
@@ -512,13 +512,13 @@ include "sidebar.inc.php";
 
 <div class="wrapper">
 	<telemetry class="inner telemetry">
-		<div style="width:168px;height:42px;">Call<br><span id="call" class="fat"></span></div>
-		<div style="width:120px;height:42px;">Reset<br><span id="reset" class="fat"></span></div>
-		<div style="width:120px;height:42px;">ID<br><span id="id" class="fat"></span></div>
-		<div style="width:250px;height:42px;">Time (RX)<br><span id="rxtime" class="fat"></span></div>
-		<div style="width:174px;height:42px;">Time (SYS)<br><span id="sys_time" class="fat"></span></div>
+		<div style="width:168px;">Call<br><span id="call" class="fat"></span></div>
+		<div style="width:120px;">Reset<br><span id="reset" class="fat"></span></div>
+		<div style="width:120px;">ID<br><span id="id" class="fat"></span></div>
+		<div style="width:250px;">Time (RX)<br><span id="rxtime" class="fat"></span></div>
+		<div style="width:174px;">Time (SYS)<br><span id="sys_time" class="fat"></span></div>
 
-		<div style="width:440px;height:135px;">
+		<div style="width:440px;">
 			Packets<br>
 			<table>
 				<tr>
@@ -547,7 +547,7 @@ include "sidebar.inc.php";
 
 
 	<telemetry class="inner telemetry">
-		<div style="width:440px;height:110px;background:url(power.png) no-repeat #ccdaec;">
+		<div style="width:440px;height:108px;background:url(power.png) no-repeat #ccdaec;">
 			<div style="margin-left:107px;margin-top:10px;width:70px;text-align:center;"><span id="pac_psol"></span>mW</div>
 			<div style="margin-left:80px;margin-top:10px;width:70px;text-align:center;"><span id="pac_pbat"></span>mW</div><br>
 
@@ -561,7 +561,7 @@ include "sidebar.inc.php";
 			</div>
 			<div style="margin-left:95px;margin-top:45px;">Power</div>
 		</div>
-		<div style="width:440px;height:125px;background:url(gnss.png) no-repeat #ccdaec;">
+		<div style="width:440px;height:123px;background:url(gnss.png) no-repeat #ccdaec;">
 			<div style="margin-left:75px;">
 				<b><span id="gps_lock" class="fat"></span></b>
 				<p><span id="gps_lat" class="fat"></span> <span id="gps_lon" class="fat"></span> <img src="arrow_up.png"><span id="gps_alt" class="fat"></span></p>
@@ -572,20 +572,15 @@ include "sidebar.inc.php";
 	</telemetry>
 
 	<telemetry class="inner telemetry">
-		<div style="width:440px;height:125px;">
+		<div style="width:440px;height:108px;">
+			Sensors:
 			<table>
 				<tr>
-					<td colspan="6">Sensors</td>
-					<td><b>CPU</b></td>
-				</tr>
-				<tr>
-					<td width="70"></td>
-					<td width="85">Airpress.</td>
-					<td width="60">Temp.</td>
-					<td width="40">Hum.</td>
-					<td width="60">FL</td>
-					<td width="20"></td>
-					<td><span id="stm32_temp"></span></td>
+					<td width="80"></td>
+					<td width="100">Airpressure</td>
+					<td width="70">Temp.</td>
+					<td width="70">Hum.</td>
+					<td width="70">FL</td>
 				</tr>
 				<tr>
 					<td><b>BME280<sub>I1</sub></b></td>
@@ -593,8 +588,6 @@ include "sidebar.inc.php";
 					<td><span id="sen_i1_temp"></span></td>
 					<td><span id="sen_i1_hum"></span></td>
 					<td><span id="sen_i1_alt"></span></td>
-					<td></td>
-					<td><b>Transceiver</b></td>
 				</tr>
 				<tr>
 					<td><b>BME280<sub>E1</sub></b></td>
@@ -602,8 +595,6 @@ include "sidebar.inc.php";
 					<td><span id="sen_e1_temp"></span></td>
 					<td><span id="sen_e1_hum"></span></td>
 					<td><span id="sen_e1_alt"></span></td>
-					<td></td>
-					<td><span id="si4464_temp"></span></td>
 				</tr>
 				<tr>
 					<td><b>BME280<sub>E2</sub></b></td>
@@ -611,19 +602,75 @@ include "sidebar.inc.php";
 					<td><span id="sen_e2_temp"></span></td>
 					<td><span id="sen_e2_hum"></span></td>
 					<td><span id="sen_e2_alt"></span></td>
-					<td></td>
-					<td><b>Light</b></td>
-				</tr>
-				<tr>
-					<td colspan="6"></td>
-					<td><span id="light_intensity"></span><sub>Cam</sub></td>
 				</tr>
 			</table>
+			<!--<table>
+				<tr>
+					<th>Temp.:</th>
+					<td></td>
+					<td><span id="stm32_temp"></span>°C<sub>STM</sub>, <span id="si4464_temp"></span>°C<sub>Si4464</sub></td>
+				</tr>
+				<tr>
+					<th>Light</th>
+					<td></td>
+					<td><span id="light_intensity"></span><sub>OV5640</sub></td>
+				</tr>
+			</table>-->
 		</div>
-		<div style="width:440px;height:110px;">
+		<div style="width:440px;height:123px;">
 
 		</div>
 	</telemetry>
+
+		<!--<table>
+			<tr>
+				<th width="70">Battery:</th>
+				<td></td>
+				<td>, <span id="pac_pbat"></span>mW<sub>PAC</sub></td>
+			</tr>
+			<tr>
+				<th>Solar:</th>
+				<td></td>
+				<td><span id="adc_vsol"></span>mV<sub>STM</sub>, <span id="pac_vsol"></span>mV<sub>PAC</sub>, <span id="pac_psol"></span>mW<sub>PAC</sub></td>
+			</tr>
+			<tr height="5"></tr>
+			<tr>
+				<th>GPS:</th>
+				<td></td>
+				<td>
+					<b><span id="gps_lock"></span></b><br>
+					<span id="gps_sats"></span> Sats, TTFF <span id="gps_ttff"></span>s, pDOP <span id="gps_pdop"></span><br>
+					Time: <span id="gps_time"></span><br>
+					<span id="gps_lat"></span> <span id="gps_lon"></span> <span id="gps_alt"></span>m
+				</td>
+			</tr>
+			<tr height="5"></tr>
+			<tr>
+				<th>Sensors:</th>
+				<td width="75">BME280<sub>I1</sub>:</td>
+				<td><span id="sen_i1_press"></span>Pa, <span id="sen_i1_temp"></span>°C, <span id="sen_i1_hum"></span>%</td>
+			</tr>
+			<tr>
+				<td></td>
+				<td>BME280<sub>E1</sub>:</td>
+				<td><span id="sen_e1_press"></span>Pa, <span id="sen_e1_temp"></span>°C, <span id="sen_e1_hum"></span>%</td>
+			</tr>
+			<tr>
+				<td></td>
+				<td>BME280<sub>E2</sub>:</td>
+				<td><span id="sen_e2_press"></span>Pa, <span id="sen_e2_temp"></span>°C, <span id="sen_e2_hum"></span>%</td>
+			</tr>
+			<tr>
+				<th>Temp.:</th>
+				<td></td>
+				<td><span id="stm32_temp"></span>°C<sub>STM</sub>, <span id="si4464_temp"></span>°C<sub>Si4464</sub></td>
+			</tr>
+			<tr>
+				<th>Light</th>
+				<td></td>
+				<td><span id="light_intensity"></span><sub>OV5640</sub></td>
+			</tr>
+		</table>-->
 
 
 

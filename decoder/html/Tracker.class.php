@@ -6,12 +6,16 @@ require_once "Image.class.php";
 class Tracker {
 
 	private $call;
+	private $lastActivity;
 
 	function __construct($call) {
 		$this->call = $call;
 	}
 
 	function getLastActivity() {
+		if(!is_null($this->lastActivity)) // Read from cache
+			return $this->lastActivity;
+
 		$act = array();
 
 		$query = Database::getInstance()->query("
@@ -29,7 +33,10 @@ class Tracker {
 		while($row = $query->fetch_assoc())
 			$act[$row['type']] = $row['lasttime'];
 
-		return $act;
+		$act['pkt'] = min($act);
+
+		$this->lastActivity = $act;
+		return $this->lastActivity;
 	}
 	function getPictures($from, $to=NULL) {
 		if(is_null($to))
