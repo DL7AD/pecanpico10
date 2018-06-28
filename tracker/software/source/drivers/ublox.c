@@ -49,12 +49,10 @@ bool gps_receive_byte(uint8_t *data) {
 		I2C_read8(UBLOX_MAX_ADDRESS, 0xFF, data);
 		return true;
 	}
-#else
-	if((*data = sdGetTimeout(&SD5, TIME_IMMEDIATE)) != MSG_TIMEOUT) {
-	  return true;
-	}
-#endif
     return false;
+#else
+	return sdReadTimeout(&SD5, data, 1, TIME_IMMEDIATE);
+#endif
 }
 
 /**

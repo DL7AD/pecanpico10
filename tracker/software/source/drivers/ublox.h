@@ -38,7 +38,8 @@ typedef enum {
 #define UBLOX_MAX_ADDRESS	    0x42
 
 // You can either use I2C (TRUE) or UART (FALSE)
-#define UBLOX_USE_I2C           TRUE
+#define UBLOX_USE_I2C           FALSE
+#define UBLOX_USE_UART          TRUE
 
 #define isGPSLocked(pos) ((pos)->type == 3 && (pos)->num_svs >= 4 && (pos)->fixOK == true)
 
