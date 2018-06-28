@@ -38,21 +38,29 @@ THD_FUNCTION(bcnThread, arg) {
 
     char code_s[100];
     pktDisplayFrequencyCode(conf->radio_conf.freq, code_s, sizeof(code_s));
-    TRACE_INFO("POS  > Do module BEACON cycle for %s on %s",
-               conf->call, code_s);
+    TRACE_INFO("POS  > Do module BEACON cycle for %s on %s%s",
+               conf->call, code_s, conf->run_once ? " (?aprsp response)" : "");
     extern thread_t *collector_thd;
     /*
      *  Pass pointer to beacon config to the collector thread.
      */
     dataPoint_t *dataPoint =
         (dataPoint_t *)chMsgSend(collector_thd, (msg_t)conf);
+    /* Continue here when collector responds. */
     if(!p_sleep(&conf->beacon.sleep_conf)) {
-
       if(!isPositionValid(dataPoint) || dataPoint == NULL) {
-            TRACE_INFO("BCN  > Waiting for position data for"
-                " %s (GPS state=%d)", conf->call, dataPoint->gps_state);
-            chThdSleep(TIME_S2I(60));
-            continue;
+        TRACE_INFO("BCN  > Waiting for position data for"
+            " %s (GPS state=%d)", conf->call, dataPoint->gps_state);
+        if(conf->run_once)
+          /* If this is run once don't retry. */
+          chThdExit(MSG_TIMEOUT);
+        if(isGPSbatteryOperable(dataPoint)) {
+          /* If the battery is good retry quickly.
+           * TODO: Rework and involve the p_sleep setting? */
+          chThdSleep(TIME_S2I(60));
+          continue;
+        }
+        /* Else battery weak so beacon fallback data (TX may fail). */
       }
 
       // Telemetry encoding parameter transmissions
@@ -150,7 +158,7 @@ THD_FUNCTION(bcnThread, arg) {
   }
 }
 
-/*
+/**
  *
  */
 thread_t * start_beacon_thread(bcn_app_conf_t *conf, const char *name) {

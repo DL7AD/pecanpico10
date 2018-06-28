@@ -14,7 +14,7 @@
 bool gps_enabled = false;
 int8_t gps_model = GPS_MODEL_UNSET;
 
-#if defined(UBLOX_USE_UART)
+#if defined(UBLOX_UART_CONNECTED)
 // Serial driver configuration for GPS
 const SerialConfig gps_config =
 {
@@ -49,10 +49,12 @@ bool gps_receive_byte(uint8_t *data) {
 		I2C_read8(UBLOX_MAX_ADDRESS, 0xFF, data);
 		return true;
 	}
-    return false;
-#else
+#elif defined(UBLOX_USE_UART)
 	return sdReadTimeout(&SD5, data, 1, TIME_IMMEDIATE);
+#else
+    (void) data;
 #endif
+    return false;
 }
 
 /**
@@ -580,7 +582,7 @@ bool GPS_Init() {
 	palSetLineMode(LINE_GPS_EN, PAL_MODE_OUTPUT_PUSHPULL);		// GPS off
 
 	// Init UART
-	#if defined(UBLOX_USE_UART)
+	#if defined(UBLOX_UART_CONNECTED)
     palSetLineMode(LINE_GPS_RXD, PAL_MODE_ALTERNATE(11));       // UART RXD
     palSetLineMode(LINE_GPS_TXD, PAL_MODE_ALTERNATE(11));       // UART TXD
 	TRACE_INFO("GPS  > Init GPS UART");

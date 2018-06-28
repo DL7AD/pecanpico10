@@ -865,10 +865,13 @@ msg_t aprs_send_telemetry_response(aprs_identity_t *id,
     aprsd = *id->beacon;
   aprsd.run_once = true;
   aprsd.beacon.init_delay = 0;
-  thread_t * th = start_beacon_thread(&aprsd, "APRSD");
+  thread_t *th = start_beacon_thread(&aprsd, "APRSD");
   if(th == NULL)
     return MSG_ERROR;
-  return chThdWait(th);
+  if(chThdWait(th) == MSG_TIMEOUT)
+    /* GPS acquisition timeout in beacon (no fix or battery insufficient). */
+    return MSG_ERROR;
+  return MSG_OK;
 
 /*  //========================================================
   // Encode and transmit telemetry config first

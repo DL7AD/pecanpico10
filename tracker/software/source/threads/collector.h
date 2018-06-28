@@ -135,15 +135,46 @@ void init_data_collector(void);
  * @param[in] pointer to data point
  *
  * @returns result of check
- * @retval  true if position data is valid
- * @retval  false if position not valid
+ * @retval  true if position data is from satellite or fixed.
+ * @retval  false if position not valid.
  *
  * @api
  */
-#define isPositionValid(dp)   (dp->gps_state == GPS_LOCKED1                 \
-                                || dp->gps_state == GPS_LOCKED2             \
-                                || dp->gps_state == GPS_FIXED               \
-                                || dp->gps_state == GPS_LOG)
+#define isPositionValid(dp)   (dp->gps_state == GPS_LOCKED1                  \
+                              || dp->gps_state == GPS_LOCKED2                \
+                              || dp->gps_state == GPS_FIXED                  \
+                              || dp->gps_state == GPS_LOG)
+
+/**
+ * @brief   Is position from a satellite.
+ * @notes   This is an alias for hasGPSacquiredLock
+ *
+ * @param[in] pointer to data point
+ *
+ * @returns result of check
+ * @retval  true if position data is from satellite
+ * @retval  false if position not satellite
+ *
+ * @api
+ */
+#define isPositionFromSV(dp) hasGPSacquiredLock(dp)
+
+/**
+ * @brief   Is GPS able to operate on battery.
+ *
+ * @param[in] pointer to data point
+ *
+ * @returns result of check
+ * @retval  true if battery operable
+ * @retval  false if not battery operable
+ *
+ * @api
+ */
+#define isGPSbatteryOperable(dp) (!(dp->gps_state == GPS_LOWBATT1           \
+                                 || dp->gps_state == GPS_LOWBATT2           \
+                                 || dp->gps_state == GPS_FIXED              \
+                                 || dp->gps_state == GPS_ERROR              \
+                                 || dp->gps_state == GPS_OFF))
 
 #endif /* __COLLECTOR_H__ */
 
