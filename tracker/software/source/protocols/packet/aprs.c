@@ -1,4 +1,4 @@
-/* trackuino copyright (C) 2010  EA5HAV Javi
+/* Certain parts from trackuino copyright (C) 2010  EA5HAV Javi
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,7 @@
 #include "flash.h"
 #include "image.h"
 #include "beacon.h"
+#include "threads.h"
 
 #define METER_TO_FEET(m) (((m)*26876) / 8192)
 

@@ -139,9 +139,9 @@
 #define NUMBER_RX_PKT_BUFFERS        3U
 
 /* Number of general AX25/APRS processing & frame send buffers. */
-#define NUMBER_COMMON_PKT_BUFFERS       10U
+#define NUMBER_COMMON_PKT_BUFFERS       15U
 #define RESERVE_BUFFERS_FOR_INTERNAL    2U
-#define MAX_BUFFERS_FOR_BURST_SEND      3U
+#define MAX_BUFFERS_FOR_BURST_SEND      5U
 #if (MAX_BUFFERS_FOR_BURST_SEND >                                            \
     (NUMBER_COMMON_PKT_BUFFERS - RESERVE_BUFFERS_FOR_INTERNAL))
 #warning "Can not allocate requested buffers for burst send - set to 50%"

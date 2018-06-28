@@ -31,9 +31,8 @@ THD_FUNCTION(bcnThread, arg) {
   sysinterval_t time = chVTGetSystemTime();
 
   /* Now wait for our delay before starting. */
-  sysinterval_t delay = conf->beacon.init_delay;
 
-  chThdSleep(delay);
+  chThdSleepUntil(chVTGetSystemTime() + conf->beacon.init_delay);
 
   while(true) {
 
@@ -96,7 +95,7 @@ THD_FUNCTION(bcnThread, arg) {
                                                            conf->symbol,
                                                            dataPoint, true);
       if(packet == NULL) {
-        TRACE_WARN("BCN  > No free packet objects"
+        TRACE_ERROR("BCN  > No free packet objects"
             " for position transmission");
       } else {
         if(!transmitOnRadio(packet,
@@ -129,7 +128,7 @@ THD_FUNCTION(bcnThread, arg) {
        */
       packet = aprs_compose_aprsd_message(conf->call, path, call);
       if(packet == NULL) {
-        TRACE_WARN("BCN  > No free packet objects "
+        TRACE_ERROR("BCN  > No free packet objects "
             "or badly formed APRSD message");
       } else {
         if(!transmitOnRadio(packet,
@@ -159,7 +158,7 @@ thread_t * start_beacon_thread(bcn_app_conf_t *conf, const char *name) {
                                      name, LOWPRIO, bcnThread, conf);
   if(!th) {
     // Print startup error, do not start watchdog for this thread
-    TRACE_ERROR("BCN  > Could not start thread (not enough memory available)");
+    TRACE_ERROR("BCN  > Could not start thread (insufficient memory)");
   }
   return th;
 }
