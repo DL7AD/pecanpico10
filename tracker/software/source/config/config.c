@@ -140,7 +140,7 @@ const conf_t conf_flash_default = {
             },
             // APRS identity used in message responses if digipeat is not enabled
             .call = "VK2GJ-4",
-            .symbol = SYM_ANTENNA,
+            .symbol = SYM_ANTENNA
         },
         .aprs_msg = false, // Set true to enable messages to be accepted on RX call sign
         .digi = true,
