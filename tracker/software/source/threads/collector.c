@@ -498,6 +498,9 @@ THD_FUNCTION(collectorThread, arg) {
       tp->gps_alt = config->beacon.alt;
       tp->gps_lat = config->beacon.lat;
       tp->gps_lon = config->beacon.lon;
+      tp->gps_sats = 0;
+      tp->gps_ttff = 0;
+      tp->gps_pdop = 0;
       tp->gps_state = GPS_FIXED;
       getTime(&time);
       tp->gps_time = date2UnixTimestamp(&time);
