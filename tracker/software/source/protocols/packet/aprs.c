@@ -872,53 +872,6 @@ msg_t aprs_send_telemetry_response(aprs_identity_t *id,
     /* GPS acquisition timeout in beacon (no fix or battery insufficient). */
     return MSG_ERROR;
   return MSG_OK;
-
-/*  //========================================================
-  // Encode and transmit telemetry config first
-  for(uint8_t type = 0; type < APRS_NUM_TELEM_GROUPS; type++) {
-    packet_t packet = aprs_encode_telemetry_configuration(
-        id->call,
-        id->path,
-        id->call,
-        type);
-    if(packet == NULL) {
-      TRACE_WARN("BCN  > No free packet objects for"
-          " telemetry config transmission");
-    } else {
-      if(!transmitOnRadio(packet,
-                          id->freq,
-                          0,
-                          0,
-                          id->pwr,
-                          id->mod,
-                          id->cca)) {
-        TRACE_ERROR("BCN  > Failed to transmit telemetry config");
-      }
-    }
-    chThdSleep(TIME_S2I(5));
-  }
-
-  TRACE_INFO("RX   > Message: Position query");
-  dataPoint_t* dataPoint = getLastDataPoint();
-  packet_t pp = aprs_encode_stamped_position_and_telemetry(id->call,
-                                     id->path,
-                                     id->symbol,
-                                     dataPoint);
-  if(pp == NULL) {
-    TRACE_WARN("RX   > No free packet objects or badly formed message");
-    return MSG_ERROR;
-  }
-  if(!transmitOnRadio(pp,
-                      id->freq,
-                      0,
-                      0,
-                      id->pwr,
-                      id->mod,
-                      id->cca)) {
-    TRACE_ERROR("RX   > Transmit of APRSP failed");
-    return MSG_ERROR;
-  }
-  return MSG_OK;*/
 }
 
 /**
