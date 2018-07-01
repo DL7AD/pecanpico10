@@ -161,10 +161,15 @@ function loadRecentData() {
 
 					case 'err_pac1720':
 						switch(d) {
-							case 0: $('#' + key).html(colorize(COL_GREEN, "OK")); break;
+							case 0: $('#' + key).text(''); break;
 							case 1:
-							case 3: $('#' + key).html(colorize(COL_RED, "Fail")); break;
-							case 2: $('#' + key).html(colorize(COL_RED, "Unreliable values")); break;
+							case 3:
+							case 2:
+								$('#pac_pbat').append('<div class="cross"></div>');
+								$('#pac_psol').append('<div class="cross"></div>');
+								$('#' + key).html(colorize(COL_RED, "PAC1720 Fail"));
+								$('#' + key).html(colorize(COL_RED, d == 2 ? "PAC1720<br>Unreliable values" : "<br>PAC1720 Fail"));
+								break;
 						}
 						break;
 
@@ -210,7 +215,7 @@ function loadRecentData() {
 
 					case 'pac_pbat':
 					case 'pac_psol':
-						$('#' + key).text(number_format(d/10, 1));
+						$('#' + key).text(number_format(d/10, 1) + 'mW');
 						break;
 
 					case 'sys_time':
@@ -512,7 +517,7 @@ include "sidebar.inc.php";
 
 <div class="wrapper">
 	<telemetry class="inner telemetry">
-		<div style="width:168px;height:42px;">Call<br><span id="call" class="fat"></span></div>
+		<div style="width:168px;height:42px;">Callsign<br><span id="call" class="fat"></span></div>
 		<div style="width:120px;height:42px;">Reset<br><span id="reset" class="fat"></span></div>
 		<div style="width:120px;height:42px;">ID<br><span id="id" class="fat"></span></div>
 		<div style="width:250px;height:42px;">Time (RX)<br><span id="rxtime" class="fat"></span></div>
@@ -547,20 +552,21 @@ include "sidebar.inc.php";
 
 
 	<telemetry class="inner telemetry">
-		<div style="width:440px;height:110px;background:url(power.png) no-repeat #ccdaec;">
-			<div style="margin-left:107px;margin-top:10px;width:70px;text-align:center;"><span id="pac_psol"></span>mW</div>
-			<div style="margin-left:80px;margin-top:10px;width:70px;text-align:center;"><span id="pac_pbat"></span>mW</div><br>
 
-			<div style="margin-left:0px;margin-top:25px;width:90px;text-align:center;">
+
+		<div style="width:440px;height:110px;background:url(power.png) no-repeat #ccdaec;">
+			<div style="position:relative;left:0px;top:0px;width:85px;">
 				<span id="adc_vsol"></span>mV<sub>STM</sub><br>
-				<span id="pac_vsol"></span>mV<sub>PAC</sub>
-			</div>
-			<div style="margin-left:85px;margin-top:25px;width:90px;text-align:center;">
+				<span id="pac_vsol"></span>mV<sub>PAC</sub><br><br>
 				<span id="adc_vbat"></span>mV<sub>STM</sub><br>
 				<span id="pac_vbat"></span>mV<sub>PAC</sub>
 			</div>
-			<div style="margin-left:95px;margin-top:45px;">Power</div>
+			<div style="position:relative;left:80px;top:10px;width:80px;text-align:center;"><span id="pac_psol"></span></div>
+			<div style="position:relative;left:-15px;top:60px;width:80px;text-align:center;"><span id="pac_pbat"></span></div>
+			<div style="position:relative;left:190px;top:35px;width:140px;"><b><span id="err_pac1720"></span></b></div>
 		</div>
+
+
 		<div style="width:440px;height:125px;background:url(gnss.png) no-repeat #ccdaec;">
 			<div style="margin-left:75px;">
 				<b><span id="gps_lock" class="fat"></span></b>
