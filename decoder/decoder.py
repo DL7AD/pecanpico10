@@ -153,14 +153,11 @@ if args.device == 'I': # Source APRS-IS
 		except UnicodeDecodeError:
 			pass
 
-		# Watchdog reload
-		if '# aprsc' in buf:
+		if '# aprsc' in buf: # Watchdog reload
 			print('Ping from APRS-IS')
 			wdg = time.time() + 30
-			continue
-
-		# Data handling
-		received_data(buf)
+		else: # Data handling
+			received_data(buf)
 
 		# Watchdog reconnection
 		if wdg < time.time():
