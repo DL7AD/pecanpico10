@@ -81,19 +81,19 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(60 * 1),
             .send_spacing = TIME_S2I(30)
         },
         .radio_conf = {
-            .pwr = 0x7F,
+            .pwr = 0x1F,
             .freq = APRS_FREQ_AUSTRALIA,
             .mod = MOD_AFSK,
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-14",
+        .call = "VK2GJ-12",
         .path = "",
 
         // Image settings
@@ -140,7 +140,7 @@ const conf_t conf_flash_default = {
             },
             // APRS identity used in message responses if digipeat is not enabled
             .call = "VK2GJ-4",
-            .symbol = SYM_ANTENNA,
+            .symbol = SYM_ANTENNA
         },
         .aprs_msg = false, // Set true to enable messages to be accepted on RX call sign
         .digi = true,
@@ -174,8 +174,8 @@ const conf_t conf_flash_default = {
 
     // Power control
     .keep_cam_switched_on = false,
-    .gps_on_vbat = 3800, // mV
-    .gps_off_vbat = 3400, // mV
+    .gps_on_vbat = 3600, // mV
+    .gps_off_vbat = 3000, // mV
     .gps_onper_vbat = 4000, // mV
 
     // GPS altitude model control (air pressure determined by on-board BME280)

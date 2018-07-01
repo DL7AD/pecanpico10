@@ -829,8 +829,10 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                                                             pkt_buffer_pool,
                                                             TIME_MS2I(100));
 
+        myHandler->active_packet_object = myPktBuffer;
+
         if(myPktBuffer == NULL) {
-          /* Decrease ref count on AX25 FIFO and stop PWM. */
+          /* Decrease ref count on AX25 FIFO. */
           chFactoryReleaseObjectsFIFO(pkt_fifo);
           pktAddEventFlags(myHandler, EVT_AX25_NO_BUFFER);
           myDriver->active_demod_object->status |=
@@ -1041,16 +1043,18 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         myHandler->active_packet_object->status =
             myDriver->active_demod_object->status;
 
-        /* Release the AX25 receive packet buffer object. */
-        objects_fifo_t *pkt_fifo =
-            chFactoryGetObjectsFIFO(myHandler->active_packet_object->pkt_factory);
+        if(  myHandler->active_packet_object != NULL) {
+          /* Release the AX25 receive packet buffer object. */
+          objects_fifo_t *pkt_fifo =
+              chFactoryGetObjectsFIFO(myHandler->active_packet_object->pkt_factory);
 
-        chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
+          chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
 
-        chFifoReturnObject(pkt_fifo, myHandler->active_packet_object);
+          chFifoReturnObject(pkt_fifo, myHandler->active_packet_object);
 
-        /* Forget the packet object. */
-        myHandler->active_packet_object = NULL;
+          /* Forget the packet object. */
+          myHandler->active_packet_object = NULL;
+        }
 
 #if USE_HEAP_PWM_BUFFER == TRUE
         /* Release PWM queue/buffer objects back to the pool. */

@@ -72,7 +72,7 @@ static void getPositionFallback(dataPoint_t* tp,
   tp->gps_lat = 0;
   tp->gps_lon = 0;
   tp->gps_alt = 0;
-  if(isPositionValid(ltp)) {
+  if(isPositionFromSV(ltp)) {
     tp->gps_lat = ltp->gps_lat;
     tp->gps_lon = ltp->gps_lon;
     tp->gps_alt = ltp->gps_alt;
@@ -388,7 +388,7 @@ void setSystemStatus(dataPoint_t* tp) {
   *
   */
 THD_FUNCTION(collectorThread, arg) {
-  (void)arg;
+  thread_t *caller = (thread_t *)arg;
 
   uint32_t id = 0;
 
@@ -437,42 +437,38 @@ THD_FUNCTION(collectorThread, arg) {
   } else {
     TRACE_INFO("COLL > No data point found in flash memory");
     /* State indicates that no valid stored position is available. */
+    lastDataPoint->gps_lat = 0;
+    lastDataPoint->gps_lon = 0;
+    lastDataPoint->gps_alt = 0;
+    lastDataPoint->gps_ttff = 0;
+    lastDataPoint->gps_pdop = 0;
+    lastDataPoint->gps_sats = 0;
     lastDataPoint->gps_state = GPS_OFF;
+
+    // Measure telemetry
+    measureVoltage(lastDataPoint);
+    getSensors(lastDataPoint);
+    getGPIO(lastDataPoint);
+    setSystemStatus(lastDataPoint);
+
+    // Write data point to Flash memory
+    flash_writeLogDataPoint(lastDataPoint);
   }
-
-  // Measure telemetry
-  measureVoltage(lastDataPoint);
-  getSensors(lastDataPoint);
-  getGPIO(lastDataPoint);
-  setSystemStatus(lastDataPoint);
-
-  // Write data point to Flash memory
-  flash_writeLogDataPoint(lastDataPoint);
-
-  sysinterval_t gps_wait_time;
-
+  /* Now check if the controller has been reset (RTC not set). */
   getTime(&time);
-  if(time.year == RTC_BASE_YEAR) {
-    /*
-    *  The RTC is not set.
-    *  Enable the GPS and attempt a lock which results in setting the RTC.
-    */
-    TRACE_INFO("COLL > Acquire time using GPS");
-    if(aquirePosition(newDataPoint, lastDataPoint, gps_wait_time - TIME_S2I(3))) {
-      /* Acquisition succeeded. */
-      TRACE_INFO("COLL > Time update acquired from GPS");
-      /* Update with freshly acquired data. */
-      lastDataPoint = newDataPoint;
-      GPS_Deinit();
-    } else {
-      /* Time is stale record. */
-      TRACE_INFO("COLL > Time update not acquired from GPS");
-    }
-  }
+  if(time.year == RTC_BASE_YEAR)
+    /* Let initializer know this is a cold start (power loss). */
+    (void)chMsgSend(caller, MSG_RESET);
+  else
+    (void)chMsgSend(caller, MSG_OK);
 
+  /*
+   * Done with initialization now.
+   * lastDataPoint becomes the first history entry for the loop.
+   */
   while(true) { /* Primary loop. */
     /* Wait for a request from a client. */
-    thread_t *caller = chMsgWait();
+    caller = chMsgWait();
     /* Fetch the message. */
     bcn_app_conf_t *config;
     config = (bcn_app_conf_t *)chMsgGet(caller);
@@ -488,6 +484,25 @@ THD_FUNCTION(collectorThread, arg) {
     getGPIO(tp);
     setSystemStatus(tp);
 
+    getTime(&time);
+    if(time.year == RTC_BASE_YEAR) {
+      /*
+      *  The RTC is not set.
+      *  Enable the GPS and attempt a lock which results in setting the RTC.
+      */
+      TRACE_INFO("COLL > Acquire time using GPS");
+      if(aquirePosition(newDataPoint, lastDataPoint, TIME_S2I(600))) {
+        /* Acquisition succeeded. */
+        TRACE_INFO("COLL > Time update acquired from GPS");
+        /* Update with freshly acquired data. */
+        lastDataPoint = newDataPoint;
+        GPS_Deinit();
+      } else {
+        /* Time is stale record. */
+        TRACE_INFO("COLL > Time update not acquired from GPS");
+      }
+    }
+
     if(config->beacon.fixed) {
       /*
        * Use fixed position data.
@@ -498,16 +513,21 @@ THD_FUNCTION(collectorThread, arg) {
       tp->gps_alt = config->beacon.alt;
       tp->gps_lat = config->beacon.lat;
       tp->gps_lon = config->beacon.lon;
+      tp->gps_sats = 0;
+      tp->gps_ttff = 0;
+      tp->gps_pdop = 0;
       tp->gps_state = GPS_FIXED;
       getTime(&time);
       tp->gps_time = date2UnixTimestamp(&time);
     } else {
+
       /*
        *  Try GPS lock to get data.
        *  If lock not attained fallback data is set.
        */
       TRACE_INFO("COLL > Acquire position using GPS");
 	  // Determine timeout waiting for lock.
+      sysinterval_t gps_wait_time;
       if(config->beacon.gps_wait > TIME_S2I(63)) // Minimum 1M + 3S
         gps_wait_time = config->beacon.gps_wait;
       else
@@ -563,14 +583,23 @@ void init_data_collector() {
     thread_t *th = chThdCreateFromHeap(NULL,
                                        THD_WORKING_AREA_SIZE(10*1024),
                                        "COL", LOWPRIO,
-                                       collectorThread, NULL);
+                                       collectorThread, chThdGetSelfX());
     collector_thd = th;
     if(!th) {
       // Print startup error, do not start watchdog for this thread
       TRACE_ERROR("COLL > Could not start"
           " thread (not enough memory available)");
     } else {
-      chThdSleep(TIME_MS2I(300)); // Wait a little bit until data collector has initialized first dataset
+      /* Wait for collector to start. */
+      thread_t *tp = chMsgWait();
+      msg_t msg = chMsgGet(tp);
+      if(msg == MSG_RESET) {
+        TRACE_INFO("COLL > Executed cold start");
+      }
+      else {
+        TRACE_INFO("COLL > Executed warm start");
+      }
+      chMsgRelease(tp, MSG_OK);
     }
   }
 }

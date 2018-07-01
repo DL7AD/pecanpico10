@@ -30,31 +30,37 @@ THD_FUNCTION(bcnThread, arg) {
       chVTGetSystemTime() - conf_sram.tel_enc_cycle;
   sysinterval_t time = chVTGetSystemTime();
 
-  if(!conf->run_once) {
-    /* Now wait for our delay before starting. */
-    sysinterval_t delay = conf->beacon.init_delay;
+  /* Now wait for our delay before starting. */
 
-    chThdSleep(delay);
-  }
+  chThdSleepUntil(chVTGetSystemTime() + conf->beacon.init_delay);
+
   while(true) {
 
     char code_s[100];
     pktDisplayFrequencyCode(conf->radio_conf.freq, code_s, sizeof(code_s));
-    TRACE_INFO("POS  > Do module BEACON cycle for %s on %s",
-               conf->call, code_s);
+    TRACE_INFO("POS  > Do module BEACON cycle for %s on %s%s",
+               conf->call, code_s, conf->run_once ? " (?aprsp response)" : "");
     extern thread_t *collector_thd;
     /*
      *  Pass pointer to beacon config to the collector thread.
      */
     dataPoint_t *dataPoint =
         (dataPoint_t *)chMsgSend(collector_thd, (msg_t)conf);
+    /* Continue here when collector responds. */
     if(!p_sleep(&conf->beacon.sleep_conf)) {
-
       if(!isPositionValid(dataPoint) || dataPoint == NULL) {
-            TRACE_INFO("BCN  > Waiting for position data for"
-                " %s (GPS state=%d)", conf->call, dataPoint->gps_state);
-            chThdSleep(TIME_S2I(60));
-            continue;
+        TRACE_INFO("BCN  > Waiting for position data for"
+            " %s (GPS state=%d)", conf->call, dataPoint->gps_state);
+        if(conf->run_once)
+          /* If this is run once don't retry. */
+          chThdExit(MSG_TIMEOUT);
+        if(isGPSbatteryOperable(dataPoint)) {
+          /* If the battery is good retry quickly.
+           * TODO: Rework and involve the p_sleep setting? */
+          chThdSleep(TIME_S2I(60));
+          continue;
+        }
+        /* Else battery weak so beacon fallback data (TX may fail). */
       }
 
       // Telemetry encoding parameter transmissions
@@ -97,7 +103,7 @@ THD_FUNCTION(bcnThread, arg) {
                                                            conf->symbol,
                                                            dataPoint, true);
       if(packet == NULL) {
-        TRACE_WARN("BCN  > No free packet objects"
+        TRACE_ERROR("BCN  > No free packet objects"
             " for position transmission");
       } else {
         if(!transmitOnRadio(packet,
@@ -130,7 +136,7 @@ THD_FUNCTION(bcnThread, arg) {
        */
       packet = aprs_compose_aprsd_message(conf->call, path, call);
       if(packet == NULL) {
-        TRACE_WARN("BCN  > No free packet objects "
+        TRACE_ERROR("BCN  > No free packet objects "
             "or badly formed APRSD message");
       } else {
         if(!transmitOnRadio(packet,
@@ -152,7 +158,7 @@ THD_FUNCTION(bcnThread, arg) {
   }
 }
 
-/*
+/**
  *
  */
 thread_t * start_beacon_thread(bcn_app_conf_t *conf, const char *name) {
@@ -160,7 +166,7 @@ thread_t * start_beacon_thread(bcn_app_conf_t *conf, const char *name) {
                                      name, LOWPRIO, bcnThread, conf);
   if(!th) {
     // Print startup error, do not start watchdog for this thread
-    TRACE_ERROR("BCN  > Could not start thread (not enough memory available)");
+    TRACE_ERROR("BCN  > Could not start thread (insufficient memory)");
   }
   return th;
 }

@@ -23,8 +23,7 @@ void start_essential_threads(void)
 	chThdSleep(TIME_MS2I(300));		// Wait for tracking manager to initialize
 }
 
-void start_user_threads(void)
-{
+void start_user_threads(void) {
 	conf_t *conf_flash = (conf_t*)0x08060000;
 	/* Check if a user update has been made to configuration in flash. */
 	if(conf_flash->magic != CONFIG_MAGIC_UPDATED) {
@@ -69,5 +68,35 @@ void start_user_threads(void)
 	                  0,
 	                  conf_sram.aprs.rx.radio_conf.rssi);
 	}
+}
+
+/**
+ * General thread termination and cleanup.
+ * Called by the thread that is terminating.
+ * A message is posted to the idle thread.
+ * Idle then releases the calling thread.
+ */
+void pktTerminateSelf(void) {
+  /* Post self thread to idle for termination cleanup. */
+  msg_t msg = chMsgSend(chSysGetIdleThreadX(), MSG_OK);
+  chThdExit(msg);
+}
+
+/**
+ * General thread termination and cleanup.
+ * Called from the idle thread hook.
+ */
+void pktIdleThread(void) {
+  chSysLock();
+  if(!chMsgIsPendingI(chThdGetSelfX())) {
+    chSysUnlock();
+    return;
+  }
+  /* Get the message from the terminating thread. */
+  chSysUnlock();
+  thread_t *tp = chMsgWait();
+  (void)chMsgGet(tp);
+  chMsgRelease(tp, MSG_OK);
+  (void)chThdWait(tp);
 }
 

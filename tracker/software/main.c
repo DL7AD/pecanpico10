@@ -26,8 +26,10 @@ int main(void) {
 
     chDbgAssert(pkt == true, "failed to init packet system");
 
+#if ACTIVATE_USB
     /* Start Serial Over USB. */
     startSDU();
+#endif
 
     /* Start serial channels if selected. */
     pktSerialStart();

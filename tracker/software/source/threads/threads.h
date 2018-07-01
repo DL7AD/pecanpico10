@@ -5,6 +5,12 @@
 
 void start_essential_threads(void);
 void start_user_threads(void);
+void pktTerminateSelf(void);
+void pktIdleThread(void);
+
+/*===========================================================================*/
+/* Module inline functions.                                                  */
+/*===========================================================================*/
 
 extern sysinterval_t watchdog_tracking; // Last update time for module TRACKING
 

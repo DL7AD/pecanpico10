@@ -14,7 +14,7 @@
 bool gps_enabled = false;
 int8_t gps_model = GPS_MODEL_UNSET;
 
-#if defined(UBLOX_USE_UART)
+#if defined(UBLOX_UART_CONNECTED)
 // Serial driver configuration for GPS
 const SerialConfig gps_config =
 {
@@ -32,7 +32,7 @@ void gps_transmit_string(uint8_t *cmd, uint8_t length) {
   gps_calc_ubx_csum(cmd, length);
 #if UBLOX_USE_I2C == TRUE
   I2C_writeN(UBLOX_MAX_ADDRESS, cmd, length);
-#elif defined(UBLOX_USE_UART)
+#elif defined(UBLOX_UART_CONNECTED)
   sdWrite(&SD5, cmd, length);
 #endif
 }
@@ -49,10 +49,10 @@ bool gps_receive_byte(uint8_t *data) {
 		I2C_read8(UBLOX_MAX_ADDRESS, 0xFF, data);
 		return true;
 	}
+#elif defined(UBLOX_UART_CONNECTED)
+	return sdReadTimeout(&SD5, data, 1, TIME_IMMEDIATE);
 #else
-	if((*data = sdGetTimeout(&SD5, TIME_IMMEDIATE)) != MSG_TIMEOUT) {
-	  return true;
-	}
+    (void) data;
 #endif
     return false;
 }
@@ -581,13 +581,15 @@ bool GPS_Init() {
 	palSetLineMode(LINE_GPS_RESET, PAL_MODE_OUTPUT_PUSHPULL);	// GPS reset
 	palSetLineMode(LINE_GPS_EN, PAL_MODE_OUTPUT_PUSHPULL);		// GPS off
 
-	// Init UART
-	#if defined(UBLOX_USE_UART)
+
+#if defined(UBLOX_UART_CONNECTED) && UBLOX_USE_I2C == FALSE
+    // Init and start UART
+    TRACE_INFO("GPS  > Init GPS UART");
     palSetLineMode(LINE_GPS_RXD, PAL_MODE_ALTERNATE(11));       // UART RXD
     palSetLineMode(LINE_GPS_TXD, PAL_MODE_ALTERNATE(11));       // UART TXD
-	TRACE_INFO("GPS  > Init GPS UART");
+
 	sdStart(&SD5, &gps_config);
-	#endif
+#endif
 
 	// Switch MOSFET
 	TRACE_INFO("GPS  > Power up GPS");
@@ -622,6 +624,14 @@ void GPS_Deinit(void)
 	// Switch MOSFET
 	TRACE_INFO("GPS  > Power down GPS");
 	palClearLine(LINE_GPS_EN);
+
+#if defined(UBLOX_UART_CONNECTED) && UBLOX_USE_I2C == FALSE
+    // Stop and deinit UART
+    TRACE_INFO("GPS  > Stop GPS UART");
+    sdStop(&SD5);
+    palSetLineMode(LINE_GPS_RXD, PAL_MODE_INPUT);       // UART RXD
+    palSetLineMode(LINE_GPS_TXD, PAL_MODE_INPUT);       // UART TXD
+#endif
     gps_model = GPS_MODEL_UNSET;
     gps_enabled = false;
 }
