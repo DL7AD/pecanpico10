@@ -226,7 +226,7 @@ int ax25memdebug_seq (packet_t this_p)
  *------------------------------------------------------------------------------*/
 
 packet_t ax25_new (void) {
-	struct packet_s *this_p;
+	struct TXpacket *this_p;
 
 
 #if DEBUG 
@@ -245,8 +245,6 @@ packet_t ax25_new (void) {
 	//if (new_count > delete_count + 100) {
 	if (new_count > delete_count + 256) {
 
-
-	  //TRACE_ERROR("Report to WB2OSZ - Memory leak for packet objects.  new=%d, delete=%d", new_count, delete_count);
 #if AX25MEMDEBUG
 	  // Force on debug option to gather evidence.
 	  ax25memdebug_set();
@@ -256,10 +254,10 @@ packet_t ax25_new (void) {
 #if USE_CCM_HEAP_FOR_PKT == TRUE
     /* Use CCM heap. */
     extern memory_heap_t *ccm_heap;
-    this_p = chHeapAlloc(ccm_heap, sizeof (struct packet_s));
+    this_p = chHeapAlloc(ccm_heap, sizeof (struct TXpacket));
 #else /* USE_CCM_HEAP_FOR_PKT != TRUE */
     /* Use system heap. */
-    this_p = chHeapAlloc(NULL, sizeof (struct packet_s));
+    this_p = chHeapAlloc(NULL, sizeof (struct TXpacket));
 #endif /* USE_CCM_HEAP_FOR_PKT == TRUE */
 
 	if (this_p == NULL) {
@@ -267,7 +265,7 @@ packet_t ax25_new (void) {
       return NULL;
 	}
 
-	memset(this_p, 0, sizeof(struct packet_s));
+	memset(this_p, 0, sizeof(struct TXpacket));
 
 	this_p->magic1 = MAGIC;
 	this_p->seq = last_seq_num;
@@ -689,7 +687,7 @@ packet_t ax25_dup (packet_t copy_from)
 
 	save_seq = this_p->seq;
 
-	memcpy (this_p, copy_from, sizeof (struct packet_s));
+	memcpy (this_p, copy_from, sizeof (struct TXpacket));
 	this_p->seq = save_seq;
 
 #if AX25MEMDEBUG
@@ -1804,7 +1802,7 @@ packet_t ax25_get_nextp (packet_t this_p)
  *
  *------------------------------------------------------------------------------*/
 
-void ax25_set_release_time (packet_t this_p, double release_time)
+/*void ax25_set_release_time (packet_t this_p, double release_time)
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
 		TRACE_ERROR("PKT  > Buffer overflow");
@@ -1812,7 +1810,7 @@ void ax25_set_release_time (packet_t this_p, double release_time)
 	}
 	
 	this_p->release_time = release_time;
-}
+}*/
 
 
 
@@ -1824,7 +1822,7 @@ void ax25_set_release_time (packet_t this_p, double release_time)
  *
  *------------------------------------------------------------------------------*/
 
-double ax25_get_release_time (packet_t this_p)
+/*double ax25_get_release_time (packet_t this_p)
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
 		TRACE_ERROR("PKT  > Buffer overflow");
@@ -1832,7 +1830,7 @@ double ax25_get_release_time (packet_t this_p)
 	}
 
 	return (this_p->release_time);
-}
+}*/
 
 
 /*------------------------------------------------------------------------------
@@ -1843,7 +1841,7 @@ double ax25_get_release_time (packet_t this_p)
  *
  *------------------------------------------------------------------------------*/
 
-void ax25_set_modulo (packet_t this_p, int modulo)
+/*void ax25_set_modulo (packet_t this_p, int modulo)
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
 		TRACE_ERROR("PKT  > Buffer overflow");
@@ -1851,11 +1849,7 @@ void ax25_set_modulo (packet_t this_p, int modulo)
 	}
 
 	this_p->modulo = modulo;
-}
-
-
-
-
+}*/
 
 /*------------------------------------------------------------------
  *

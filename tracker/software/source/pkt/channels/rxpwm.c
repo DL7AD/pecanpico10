@@ -527,8 +527,8 @@ void pktRadioCCATrailTimer(ICUDriver *myICU) {
        * Hence the decoder is responsible for releasing the PWM FIFO object.
        * Prior to releasing the FIFO the decoder waits on the FIFO semaphore.
        * Closing PWM from here sets the FIFO management semaphore.
-       * This caters for the case where the decoder finishes first.
-       * This may happen if the sender uses a long HDLC packet tail.
+       * This caters for the case where the decoder terminates stram processing first.
+       * This may happen if noise produces a long string of data.
        */
       pktClosePWMChannelI(myICU, EVT_PWM_STREAM_CLOSE, PWM_TERM_CCA_CLOSE);
       break;
@@ -660,7 +660,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    * This will happen when no AX25 buffer is available or overflows.
    * Close the PWM stream and wait for next radio CCA.
    */
-  if((myDemod->active_radio_object->status & EVT_AFSK_DECODE_ERROR) != 0) {
+  if((myDemod->active_radio_object->status & EVT_AFSK_DECODE_RESET) != 0) {
     pktClosePWMChannelI(myICU, EVT_NONE, PWM_ACK_DECODE_ERROR);
     chSysUnlockFromISR();
     return;
@@ -736,11 +736,11 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 void PktRadioICUOverflow(ICUDriver *myICU) {
   chSysLockFromISR();
   AFSKDemodDriver *myDemod = myICU->link;
-  packet_svc_t *myHandler = myDemod->packet_handler;
-  pktAddEventFlagsI(myHandler, EVT_ICU_OVERFLOW);
+/*  packet_svc_t *myHandler = myDemod->packet_handler;
+  pktAddEventFlagsI(myHandler, EVT_ICU_OVERFLOW);*/
   if(myDemod->active_radio_object != NULL) {
     /* Close the channel and stop ICU notifications. */
-    pktClosePWMChannelI(myICU, EVT_ICU_OVERFLOW, PWM_TERM_ICU_OVERFLOW);
+    pktClosePWMChannelI(myICU, EVT_NONE, PWM_TERM_ICU_OVERFLOW);
   } else {
     /* Just stop the ICU notification. */
     icuDisableNotificationsI(myICU);

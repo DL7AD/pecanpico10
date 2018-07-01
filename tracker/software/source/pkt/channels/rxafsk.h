@@ -111,7 +111,7 @@
 
 #define PKT_PWM_QUEUE_PREFIX        "pwmx_"
 #define PKT_PWM_MBOX_PREFIX         "pwmd_"
-#define PKT_AFSK_THREAD_NAME_PREFIX "afsk_"
+#define PKT_AFSK_THREAD_NAME_PREFIX "rxafsk_"
 
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */
@@ -144,9 +144,6 @@ typedef enum {
   DECODER_ACTIVE,
   DECODER_DISPATCH,
   DECODER_RESET,
-  DECODER_TIMEOUT,
-  DECODER_ERROR,
-  DECODER_CLOSE,
   DECODER_TERMINATED
 } afskdemodstate_t;
 

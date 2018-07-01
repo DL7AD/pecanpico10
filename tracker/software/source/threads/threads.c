@@ -76,7 +76,7 @@ void start_user_threads(void) {
  * A message is posted to the idle thread.
  * Idle then releases the calling thread.
  */
-void pktTerminateSelf(void) {
+void pktThdTerminateSelf(void) {
   /* Post self thread to idle for termination cleanup. */
   msg_t msg = chMsgSend(chSysGetIdleThreadX(), MSG_OK);
   chThdExit(msg);

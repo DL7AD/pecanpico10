@@ -51,9 +51,11 @@ THD_FUNCTION(bcnThread, arg) {
       if(!isPositionValid(dataPoint) || dataPoint == NULL) {
         TRACE_INFO("BCN  > Waiting for position data for"
             " %s (GPS state=%d)", conf->call, dataPoint->gps_state);
-        if(conf->run_once)
+        if(conf->run_once) {
           /* If this is run once don't retry. */
-          chThdExit(MSG_TIMEOUT);
+          chHeapFree(conf);
+          pktThdTerminateSelf();
+        }
         if(isGPSbatteryOperable(dataPoint)) {
           /* If the battery is good retry quickly.
            * TODO: Rework and involve the p_sleep setting? */
@@ -152,8 +154,10 @@ THD_FUNCTION(bcnThread, arg) {
         chThdSleep(TIME_S2I(5));
       }
     } /* psleep */
-    if(conf->run_once)
-      chThdExit(MSG_OK);
+    if(conf->run_once) {
+      chHeapFree(conf);
+      pktThdTerminateSelf();
+    }
     time = waitForTrigger(time, conf->beacon.cycle);
   }
 }

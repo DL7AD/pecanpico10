@@ -113,9 +113,10 @@
 
 /*
  * Allocate PWM buffers from a CCM heap/pool.
- * Requires fragmented queue/buffer objects.
+ * Implements fragmented queue/buffer objects.
  * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
- * Decoder side swaps queue/buffer on in-band message and reticulates prior queue/buffer to pool.
+ * Decoder side swaps queue/buffer on in-band message.
+ * The retired buffer is reticulated to the pool ready for re-use.
  */
 #define USE_HEAP_PWM_BUFFER         TRUE
 #define USE_CCM_BASED_HEAP          TRUE
@@ -136,7 +137,10 @@
 #endif
 
 /* Number of frame receive buffers. */
-#define NUMBER_RX_PKT_BUFFERS        3U
+#define NUMBER_RX_PKT_BUFFERS       3U
+#define USE_CCM_HEAP_RX_BUFFERS     FALSE
+
+#define PKT_RX_RLS_USE_NO_FIFO      FALSE
 
 /* Number of general AX25/APRS processing & frame send buffers. */
 #define NUMBER_COMMON_PKT_BUFFERS       15U
