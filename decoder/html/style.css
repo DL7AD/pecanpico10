@@ -82,3 +82,14 @@ telemetry {
 	.range {  order: 3; text-align: left; }
 	.chart { order: 4; flex: 3 0px; min-width: 456px; max-width: 456px; }
 }
+
+.cross {
+	position: absolute;
+	background: url(cross.png) no-repeat center;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	padding: 0;
+}
