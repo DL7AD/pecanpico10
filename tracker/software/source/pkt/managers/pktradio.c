@@ -94,12 +94,19 @@ THD_FUNCTION(pktRadioManager, arg) {
         pktAddEventFlags(handler, (EVT_PKT_BUFFER_MGR_FAIL));
         break;
       }
+#if PKT_RX_RLS_USE_NO_FIFO != TRUE
       /* Create callback manager. */
       if(pktCallbackManagerCreate(radio) == NULL) {
         pktAddEventFlags(handler, (EVT_PKT_CBK_MGR_FAIL));
         pktIncomingBufferPoolRelease(handler);
         break;
       }
+#else
+      /*
+       * Initialize the outstanding callback count.
+       */
+      handler->cb_count = 0;
+#endif
       /* Switch on modulation type. */
       switch(task_object->type) {
         case MOD_AFSK: {
@@ -256,7 +263,9 @@ THD_FUNCTION(pktRadioManager, arg) {
 
       /* Release packet services. */
       pktIncomingBufferPoolRelease(handler);
+#if PKT_RX_RLS_USE_NO_FIFO != TRUE
       pktCallbackManagerRelease(handler);
+#endif
 
       /*
        * Signal close completed for this session.

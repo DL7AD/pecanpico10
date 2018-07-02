@@ -725,6 +725,7 @@ THD_FUNCTION(pktCallback, arg) {
   pktReleaseDataBuffer(pkt_buffer);
 }
 
+#if PKT_RX_RLS_USE_NO_FIFO != TRUE
 /**
  * @brief   Process release of completed callbacks.
  * @notes   Release is initiated by posting the packet buffer to the queue.
@@ -736,7 +737,7 @@ THD_FUNCTION(pktCallback, arg) {
  * @post    Packet object is released (for this instance).
  * @post    If the FIFO is now unused it will be released.
  *
- * @param[in] arg radio unit ID.
+ * @param[in] arg pointer to packet service handler object.
  *
  * @return  status (MSG_OK) on exit.
  *
@@ -793,6 +794,7 @@ THD_FUNCTION(pktCompletion, arg) {
   }
   chThdExit(MSG_OK);
 }
+#endif
 
 /**
  * @brief   Create receive callback thread terminator.
@@ -1032,6 +1034,9 @@ thread_t *pktCallbackManagerCreate(radio_unit_t radio) {
   return cbh;
 }
 
+/**
+ *
+ */
 void pktIncomingBufferPoolRelease(packet_svc_t *handler) {
 
   /* Release the dynamic objects FIFO for the incoming packet data queue. */
@@ -1039,6 +1044,9 @@ void pktIncomingBufferPoolRelease(packet_svc_t *handler) {
   handler->the_packet_fifo = NULL;
 }
 
+/**
+ *
+ */
 void pktCallbackManagerRelease(packet_svc_t *handler) {
 
   /* Tell the callback terminator it should exit. */
@@ -1047,9 +1055,5 @@ void pktCallbackManagerRelease(packet_svc_t *handler) {
   /* Wait for it to terminate and release. */
   chThdWait(handler->cb_terminator);
 }
-
-/*void pktScheduleThreadRelease(thread_t *thread) {
-  (void)thread;
-}*/
 
 /** @} */

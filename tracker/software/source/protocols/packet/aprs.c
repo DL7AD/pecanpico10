@@ -444,9 +444,6 @@ packet_t aprs_encode_position_and_telemetry(const char *callsign,
 	uint32_t a1  = a / 91;
 	uint32_t a1r = a % 91;
 
-/*    ptime_t time;
-    unixTimestamp2Date(&time, dataPoint->gps_time);*/
-
 	char xmit[256];
     uint32_t len = chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:=",
                               callsign,
@@ -858,7 +855,8 @@ msg_t aprs_transmit_telemetry_response(aprs_identity_t *id,
    * Start a run once beacon thread.
    * The identity data has a ref to the bcn_app_conf_t object of the call sign.
    */
-  bcn_app_conf_t *aprsd = chHeapAlloc(NULL, sizeof(bcn_app_conf_t));
+  extern memory_heap_t *ccm_heap;
+  bcn_app_conf_t *aprsd = chHeapAlloc(ccm_heap, sizeof(bcn_app_conf_t));
   if(aprsd == NULL)
     return MSG_ERROR;
   if(id->beacon == NULL)
@@ -1292,7 +1290,7 @@ packet_t aprs_encode_telemetry_configuration(const char *originator,
                                              uint8_t type) {
 	switch(type) {
 		case 0:	return aprs_transmit_message(originator, path, destination,
-                 "PARM.Vbat,Vsol,Pbat,Temperature,Airpressure,"
+                 "PARM.Vbat,Vsol,Pbat,Temp,AirP,"
                  "IO1,IO2,IO3,IO4,IO5,IO6,IO7,IO8", false);
 		case 1: return aprs_transmit_message(originator, path, destination,
                  "UNIT.V,V,W,degC,Pa,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi", false);

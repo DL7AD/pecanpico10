@@ -123,17 +123,6 @@
 
 #define useCCM  __attribute__((section(".ram4")))
 
-/*
- * Diagnostic output definitions.
- * TODO: Deprecate.
- *
- */
-
-//#define NO_SUSPEND              1
-//#define RELEASE_ON_OUTPUT       2
-
-//#define SUSPEND_HANDLING        NO_SUSPEND
-
 #ifdef PKT_IS_TEST_PROJECT
 /* Define macro replacements for TRACE. */
 #define TRACE_DEBUG(format, args...) dbgPrintf(DBG_DEBUG, format, ##args)
@@ -141,6 +130,8 @@
 #define TRACE_WARN(format, args...) dbgPrintf(DBG_WARN, format, ##args)
 #define TRACE_ERROR(format, args...) dbgPrintf(DBG_ERROR, format, ##args)
 #endif
+
+#define PKT_THREAD_NAME_MAX     12
 
 /* Extra GPIO value used in local GPIO set/clear/toggle functions. */
 #define PAL_TOGGLE              2U

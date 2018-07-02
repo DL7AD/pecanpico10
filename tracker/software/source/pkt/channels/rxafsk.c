@@ -592,7 +592,8 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
              "%s%02i", PKT_AFSK_THREAD_NAME_PREFIX, rid);
 
   /* Create the AFSK decoder thread. */
-  myDriver->decoder_thd = chThdCreateFromHeap(NULL,
+  extern memory_heap_t *ccm_heap;
+  myDriver->decoder_thd = chThdCreateFromHeap(ccm_heap,
               THD_WORKING_AREA_SIZE(PKT_AFSK_DECODER_WA_SIZE),
               myDriver->decoder_name,
               NORMALPRIO - 10,

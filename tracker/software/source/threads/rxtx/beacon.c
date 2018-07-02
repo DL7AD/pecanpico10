@@ -1,6 +1,7 @@
 #include "ch.h"
 #include "hal.h"
 
+#include "beacon.h"
 #include "debug.h"
 #include "threads.h"
 #include "config.h"
@@ -72,7 +73,8 @@ THD_FUNCTION(bcnThread, arg) {
         TRACE_INFO("BCN  > Transmit telemetry configuration");
 
         // Encode and transmit telemetry config packet
-        for(uint8_t type = 0; type < APRS_NUM_TELEM_GROUPS; type++) {
+        uint8_t type = 0;
+        do {
           packet_t packet = aprs_encode_telemetry_configuration(
               conf->call,
               conf->path,
@@ -80,7 +82,7 @@ THD_FUNCTION(bcnThread, arg) {
               type);
           if(packet == NULL) {
             TRACE_WARN("BCN  > No free packet objects for"
-                " telemetry config transmission");
+                " telemetry config transmission %d", type);
           } else {
             if(!transmitOnRadio(packet,
                                 conf->radio_conf.freq,
@@ -89,11 +91,12 @@ THD_FUNCTION(bcnThread, arg) {
                                 conf->radio_conf.pwr,
                                 conf->radio_conf.mod,
                                 conf->radio_conf.cca)) {
+              /* Packet is released in transmitOnRadio. */
               TRACE_ERROR("BCN  > Failed to transmit telemetry config");
             }
           }
           chThdSleep(TIME_S2I(5));
-        }
+        } while(++type < APRS_NUM_TELEM_GROUPS);
         last_conf_transmission += conf_sram.tel_enc_cycle;
       }
 
@@ -166,8 +169,10 @@ THD_FUNCTION(bcnThread, arg) {
  *
  */
 thread_t * start_beacon_thread(bcn_app_conf_t *conf, const char *name) {
-  thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(10*1024),
-                                     name, LOWPRIO, bcnThread, conf);
+  extern memory_heap_t *ccm_heap;
+  thread_t *th = chThdCreateFromHeap(ccm_heap,
+                               THD_WORKING_AREA_SIZE(PKT_APRS_BEACON_WA_SIZE),
+                               name, LOWPRIO, bcnThread, conf);
   if(!th) {
     // Print startup error, do not start watchdog for this thread
     TRACE_ERROR("BCN  > Could not start thread (insufficient memory)");

@@ -157,7 +157,7 @@ typedef int16_t     dsp_phase_t;
  */
 typedef struct AFSK_data {
 
-  char                      decoder_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
+  char                      decoder_name[PKT_THREAD_NAME_MAX];
 
   /**
    * @brief pointer to the packet handler.

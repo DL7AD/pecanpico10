@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#define PKT_APRS_BEACON_WA_SIZE (5 * 1024)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
