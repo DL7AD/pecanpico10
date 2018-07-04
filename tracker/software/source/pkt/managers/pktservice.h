@@ -72,7 +72,11 @@ typedef struct packetBuffer {
   volatile eventflags_t     status;
   size_t                    buffer_size;
   size_t                    packet_size;
+#if USE_CCM_HEAP_RX_BUFFERS == TRUE
+  ax25char_t                *buffer;
+#else
   ax25char_t                buffer[PKT_RX_BUFFER_SIZE];
+#endif
 } pkt_data_object_t;
 
 
@@ -348,13 +352,13 @@ static inline pkt_data_object_t *pktTakeDataBuffer(packet_svc_t *handler,
                                                     objects_fifo_t *fifo,
                                                     systime_t timeout) {
   pkt_data_object_t *pkt_buffer = chFifoTakeObjectTimeout(fifo, timeout);
+  handler->active_packet_object = pkt_buffer;
   if(pkt_buffer != NULL) {
 
     /*
      * Packet buffer available.
-     * Save the object pointer.
      */
-    handler->active_packet_object = pkt_buffer;
+    //handler->active_packet_object = pkt_buffer;
 
     /* Initialize the object fields. */
     pkt_buffer->handler = handler;
@@ -365,6 +369,22 @@ static inline pkt_data_object_t *pktTakeDataBuffer(packet_svc_t *handler,
 
     /* Save the pointer to the packet factory for use when releasing object. */
     pkt_buffer->pkt_factory = handler->the_packet_fifo;
+#if USE_CCM_HEAP_RX_BUFFERS == TRUE
+    extern memory_heap_t *ccm_heap;
+    pkt_buffer->buffer = chHeapAlloc(ccm_heap, PKT_RX_BUFFER_SIZE);
+    if(pkt_buffer->buffer == NULL) {
+      /* No heap available. */
+      /* Return packet buffer object to free list. */
+      chFifoReturnObject(fifo, (pkt_data_object_t *)pkt_buffer);
+
+      /*
+       * Decrease FIFO reference counter (increased by decoder).
+       * FIFO will be destroyed when all references are released.
+       */
+      chFactoryReleaseObjectsFIFO(pkt_buffer->pkt_factory);
+      pkt_buffer = NULL;
+    }
+#endif
   }
   return pkt_buffer;
 }
@@ -391,14 +411,33 @@ static inline void pktReleaseDataBuffer(pkt_data_object_t *object) {
   objects_fifo_t *pkt_fifo = chFactoryGetObjectsFIFO(pkt_factory);
   chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
 
+#if USE_CCM_HEAP_RX_BUFFERS == TRUE
+  /* Free the packet buffer in the heap now. */
+  chHeapFree(object->buffer);
+#endif
 
   /* Is this a callback release? */
   if(object->cb_func != NULL) {
+#if PKT_RX_RLS_USE_NO_FIFO == TRUE
+    extern void pktThdTerminateSelf(void);
+    /*
+     * Free the object.
+     * Decrease the factory reference count.
+     * If the service is closed and all buffers freed then the FIFO is destroyed.
+     * Terminate this thread and have idle clean up memory.
+     */
+    chFifoReturnObject(pkt_fifo, object);
+    chFactoryReleaseObjectsFIFO(pkt_factory);
+    pktThdTerminateSelf();
+    /* We don't get to here. */
+#endif
     /*
      * For callback mode send the packet buffer to the FIFO queue.
      * It will be released in the collector thread.
      * The callback thread memory will be recovered.
      * The semaphore will be signaled.
+     * TODO: Release the FIFO here and send the thread to idle loop terminator.
+     * This will simplify the release mechanism and make the FIFO available sooner.
      */
     chSysLock();
     chFifoSendObjectI(pkt_fifo, object);

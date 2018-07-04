@@ -569,7 +569,11 @@ bool pktStoreBufferData(pkt_data_object_t *pkt_buffer, ax25char_t data) {
     return false;
   }
   /* Buffer space available. */
+#if USE_CCM_HEAP_RX_BUFFERS == TRUE
+  *((pkt_buffer->buffer) + pkt_buffer->packet_size++) = data;
+#else
   pkt_buffer->buffer[pkt_buffer->packet_size++] = data;
+#endif
   return true;
 }
 
@@ -714,13 +718,14 @@ THD_FUNCTION(pktCallback, arg) {
   pkt_buffer->cb_func(pkt_buffer);
 
   /*
-   * Upon return buffer is queued for release.
+   * Upon return the buffer control object is queued for release.
    * Thread is scheduled for destruction in pktReleaseDataBuffer(...).
-   * .i.e pktReleaseDataBuffer does not return for callback.
+   * .i.e pktReleaseDataBuffer does not return to callback.
    */
   pktReleaseDataBuffer(pkt_buffer);
 }
 
+#if PKT_RX_RLS_USE_NO_FIFO != TRUE
 /**
  * @brief   Process release of completed callbacks.
  * @notes   Release is initiated by posting the packet buffer to the queue.
@@ -732,7 +737,7 @@ THD_FUNCTION(pktCallback, arg) {
  * @post    Packet object is released (for this instance).
  * @post    If the FIFO is now unused it will be released.
  *
- * @param[in] arg radio unit ID.
+ * @param[in] arg pointer to packet service handler object.
  *
  * @return  status (MSG_OK) on exit.
  *
@@ -789,6 +794,7 @@ THD_FUNCTION(pktCompletion, arg) {
   }
   chThdExit(MSG_OK);
 }
+#endif
 
 /**
  * @brief   Create receive callback thread terminator.
@@ -873,7 +879,7 @@ dyn_semaphore_t *pktInitBufferControl() {
       chFactoryFindSemaphore(PKT_SEND_BUFFER_SEM_NAME);
 
   if(dyn_sem == NULL) {
-    /* Create the dynamic objects FIFO for the packet data queue. */
+    /* Create the semaphore for limiting the packet allocation. */
     dyn_sem = chFactoryCreateSemaphore(PKT_SEND_BUFFER_SEM_NAME,
                                        NUMBER_COMMON_PKT_BUFFERS);
 
@@ -921,18 +927,6 @@ void pktDeinitBufferControl() {
  */
 msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
 
-/*
-#if USE_CCM_FOR_PKT_POOL == TRUE
-  (void)timeout;
-  if(ccm_pool == NULL)
-    return MSG_TIMEOUT;
-  *pp = ax25_new();
-  if(pp == NULL)
-   return MSG_TIMEOUT;
-  return MSG_OK;
-
-#else
-*/
   /* Check if the packet buffer semaphore already exists.
    * If so we get a pointer to it and get the semaphore.
    */
@@ -945,7 +939,6 @@ msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
 
   if(dyn_sem == NULL)
     return MSG_TIMEOUT;
-
 
   /* Wait in queue for permission to allocate a buffer. */
   msg_t msg = chSemWaitTimeout(chFactoryGetSemaphore(dyn_sem), timeout);
@@ -964,20 +957,12 @@ msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
   if(pp == NULL)
    return MSG_TIMEOUT;
   return MSG_OK;
-/*#endif*/
 }
 
 /*
- * A common pool of AX25 buffers.
+ * A common pool of AX25 buffers used in TX and APRS.
  */
 void pktReleasePacketBuffer(packet_t pp) {
-
-/*
-#if USE_CCM_FOR_PKT_POOL == TRUE
-  chDbgAssert(pp != NULL, "packet is invalid");
-  ax25_delete(pp);
-#else
-*/
   /* Check if the packet buffer semaphore exists.
    * If not this is a system error.
    */
@@ -994,7 +979,6 @@ void pktReleasePacketBuffer(packet_t pp) {
 
   /* Decrease factory ref count. */
   chFactoryReleaseSemaphore(dyn_sem);
-/*#endif*/
 }
 
 /*
@@ -1050,6 +1034,9 @@ thread_t *pktCallbackManagerCreate(radio_unit_t radio) {
   return cbh;
 }
 
+/**
+ *
+ */
 void pktIncomingBufferPoolRelease(packet_svc_t *handler) {
 
   /* Release the dynamic objects FIFO for the incoming packet data queue. */
@@ -1057,6 +1044,9 @@ void pktIncomingBufferPoolRelease(packet_svc_t *handler) {
   handler->the_packet_fifo = NULL;
 }
 
+/**
+ *
+ */
 void pktCallbackManagerRelease(packet_svc_t *handler) {
 
   /* Tell the callback terminator it should exit. */
@@ -1065,9 +1055,5 @@ void pktCallbackManagerRelease(packet_svc_t *handler) {
   /* Wait for it to terminate and release. */
   chThdWait(handler->cb_terminator);
 }
-
-/*void pktScheduleThreadRelease(thread_t *thread) {
-  (void)thread;
-}*/
 
 /** @} */

@@ -5,7 +5,7 @@
 
 void start_essential_threads(void);
 void start_user_threads(void);
-void pktTerminateSelf(void);
+void pktThdTerminateSelf(void);
 void pktIdleThread(void);
 
 /*===========================================================================*/

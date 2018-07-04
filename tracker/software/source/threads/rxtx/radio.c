@@ -55,13 +55,7 @@ void mapCallback(pkt_data_object_t *pkt_buff) {
   ax25char_t *frame_buffer = pkt_buff->buffer;
   ax25size_t frame_size = pkt_buff->packet_size;
 
-  /* FIXME: This is a quick diagnostic implementation only. */
-/*
-#if DUMP_PACKET_TO_SERIAL == TRUE && ENABLE_EXTERNAL_I2C != TRUE
-  pktDiagnosticOutput(pkt_buff->handler, pkt_buff);
-#endif
-*/
-if(pktGetAX25FrameStatus(pkt_buff)) {
+  if(pktGetAX25FrameStatus(pkt_buff)) {
 
   /* Perform the callback. */
   processPacket(frame_buffer, frame_size);

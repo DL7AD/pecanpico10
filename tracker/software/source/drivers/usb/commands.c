@@ -275,7 +275,7 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
 	chprintf(chp, "Message: %s\r\n", m);
 
 	/* Send with ack request (last arg true). */
-	packet_t packet = aprs_encode_message(conf_sram.aprs.tx.call,
+	packet_t packet = aprs_transmit_message(conf_sram.aprs.tx.call,
 	                                      conf_sram.aprs.tx.path,
 	                                      argv[0], m, true);
     if(packet == NULL) {

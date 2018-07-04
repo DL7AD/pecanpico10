@@ -49,12 +49,12 @@ eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(1));
     if(flags & EVT_PWM_QUEUE_OVERRUN) {
       TRACE_ERROR("PKT  > PWM queue overrun");
     }
-    if(flags & EVT_PWM_UNKNOWN_INBAND) {
-      TRACE_ERROR("PKT  > Unknown PWM in-band flag");
+    if(flags & EVT_PWM_INVALID_INBAND) {
+      TRACE_ERROR("PKT  > Invalid PWM in-band flag");
     }
-    if(flags & EVT_ICU_OVERFLOW) {
+/*    if(flags & EVT_ICU_OVERFLOW) {
       TRACE_DEBUG("PKT  > PWM ICU overflow");
-    }
+    }*/
     if(flags & EVT_PWM_STREAM_TIMEOUT) {
       TRACE_WARN("PKT  > PWM stream timeout");
     }

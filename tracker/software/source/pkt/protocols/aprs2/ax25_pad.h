@@ -80,7 +80,7 @@
 
 #include "pkttypes.h"
 
-typedef struct packet_s {
+typedef struct TXpacket {
 
     /* for error checking. */
 	int magic1;
@@ -90,11 +90,11 @@ typedef struct packet_s {
 
     /* Time stamp in format returned by dtime_now(). */
     /* When to release from the SATgate mode delay queue. */
-	double release_time;
+	//double release_time;
 
 #define MAGIC 0x41583235
 
-	struct packet_s *nextp;	/* Pointer to next in queue. */
+	struct TXpacket *nextp;	/* Pointer to next in queue. */
 
     /* Number of addresses in frame. */
     /* Range of AX25_MIN_ADDRS .. AX25_MAX_ADDRS for AX.25. */
@@ -133,12 +133,6 @@ typedef struct packet_s {
 
 #define SSID_LAST_MASK	0x01
 
-	/* The transmit sequence number for this packet. */
-	//uint8_t         tx_seq;
-
-	/* TODO: Move this out of here... */
-	//char            tx_thd_name[16];
-
     /* Frame length without CRC. */
 	uint16_t         frame_len;
 
@@ -165,7 +159,7 @@ typedef struct packet_s {
  *
  * The actual implementation is not visible outside ax25_pad.c.
  */
-typedef struct packet_s *packet_t;
+typedef struct TXpacket *packet_t;
 
 typedef enum cmdres_e { cr_00 = 2, cr_cmd = 1, cr_res = 0, cr_11 = 3 } cmdres_t;
 
