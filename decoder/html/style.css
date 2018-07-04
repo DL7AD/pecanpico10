@@ -77,7 +77,7 @@ telemetry {
 }
 
 @media all and (min-width: 800px) {
-	.side { order: 1; width: 270px; float: left; }
+	.side { order: 1; width: 250px; float: left; }
 	.telemetry { order: 2; flex: 3 0px; min-width: 456px; max-width: 456px; }
 	.range {  order: 3; text-align: left; }
 	.chart { order: 4; flex: 3 0px; min-width: 456px; max-width: 456px; }

@@ -148,16 +148,13 @@ if args.device == 'I': # Source APRS-IS
 		# Read data
 		try:
 			buf = tn.read_until(b"\n").decode('charmap')
+			print(">> " + buf)
 		except EOFError: # Server has connection closed
-			wdg = 0 # Tell watchdog to restart connection
+			print("EOF ERROR")
+			wdg = 0 # Tell watchdog to reconnect
 		except UnicodeDecodeError:
+			print("UNICODE DECODE ERROR")
 			pass
-
-		if '# aprsc' in buf: # Watchdog reload
-			print('Ping from APRS-IS')
-			wdg = time.time() + 30
-		else: # Data handling
-			received_data(buf)
 
 		# Watchdog reconnection
 		if wdg < time.time():
@@ -170,6 +167,12 @@ if args.device == 'I': # Source APRS-IS
 			except Exception as e:
 				print('Could not connect to APRS-IS: %s' % str(e))
 				print('Try again...')
+
+		if '# aprsc' in buf: # Watchdog reload
+			print('Ping from APRS-IS')
+			wdg = time.time() + 30
+		else: # Data handling
+			received_data(buf)
 
 		time.sleep(0.01)
 

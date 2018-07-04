@@ -273,7 +273,7 @@ function loadRecentData() {
 
 				var time = new Date(data['org'] == 'pos' ? data['rxtime']*1000 : data['gps_time']*1000);
 
-				if(last != null && time - last > range*1000/60 && time - last > 300000) { // Gap in the data set
+				if(last != null && (time - last > range*1000/60 && time - last > 300000 || time <= last)) { // Gap in the data set
 					dataBattery.addRow([null, null, null, null]);
 					dataSolar.addRow([null, null, null, null]);
 					dataTemp.addRow([null,null,null,null,null,null]);
