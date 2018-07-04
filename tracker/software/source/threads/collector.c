@@ -33,10 +33,25 @@ static dataPoint_t* lastDataPoint;
 static bool threadStarted = false;
 static uint8_t bme280_error;
 
+/**
+ * Array for looking up model name
+ */
+static const char *state[] = {GPS_STATE_NAMES};
+
 /*===========================================================================*/
 /* Module external variables.                                                */
 /*===========================================================================*/
+
 thread_t *collector_thd;
+
+/**
+ * Get pointer to state name as string
+ */
+const char *get_gps_state_name(uint8_t index) {
+  if(index > GPS_STATE_MAX)
+    return "INVALID";
+  return state[index];
+}
 
 /**
   * Returns most recent data point which is complete.
@@ -175,6 +190,8 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
    * Output SV info.
    * Switch off GPS (unless cycle is less than 60 seconds).
    */
+  TRACE_INFO("GPS  > Lock acquired. Model in use is %s",
+             gps_get_model_name(gpsFix.model));
   gps_svinfo_t svinfo;
   if(gps_get_sv_info(&svinfo, sizeof(svinfo))) {
     TRACE_INFO("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d",
@@ -399,7 +416,7 @@ THD_FUNCTION(collectorThread, arg) {
   dataPoints[1].gps_time = date2UnixTimestamp(&time);
 
   lastDataPoint = &dataPoints[0];
-  dataPoint_t *newDataPoint = lastDataPoint++;
+  //dataPoint_t *newDataPoint = lastDataPoint++;
 
   // Get last data point from memory
   TRACE_INFO("COLL > Read last data point from flash memory");
@@ -491,12 +508,9 @@ THD_FUNCTION(collectorThread, arg) {
       *  Enable the GPS and attempt a lock which results in setting the RTC.
       */
       TRACE_INFO("COLL > Acquire time using GPS");
-      if(aquirePosition(newDataPoint, lastDataPoint, TIME_S2I(600))) {
+      if(aquirePosition(tp, ltp, TIME_S2I(600))) {
         /* Acquisition succeeded. */
         TRACE_INFO("COLL > Time update acquired from GPS");
-        /* Update with freshly acquired data. */
-        lastDataPoint = newDataPoint;
-        GPS_Deinit();
       } else {
         /* Time is stale record. */
         TRACE_INFO("COLL > Time update not acquired from GPS");
@@ -541,10 +555,13 @@ THD_FUNCTION(collectorThread, arg) {
     }
 
     tp->id = ++id; // Serial ID
-
+    extern uint8_t gps_model;
     // Trace data
     unixTimestamp2Date(&time, tp->gps_time);
-    TRACE_INFO( "COLL > New data point available (ID=%d, GPS state=%d)\r\n"
+    TRACE_INFO( "COLL > GPS status: state=%s model=%s)",
+                get_gps_state_name(tp->gps_state),
+                gps_get_model_name(gps_model));
+    TRACE_INFO( "COLL > New data point (ID=%d)\r\n"
         "%s Time %04d-%02d-%02d %02d:%02d:%02d\r\n"
         "%s Pos  %d.%05d %d.%05d Alt %dm\r\n"
         "%s Sats %d TTFF %dsec\r\n"
@@ -552,7 +569,7 @@ THD_FUNCTION(collectorThread, arg) {
         "%s AIR  p=%d.%01dPa T=%d.%02ddegC phi=%d.%01d%%\r\n"
         "%s IOP  IO1=%d IO2=%d IO3=%d IO4=%d\r\n"
         "%s STN  %s",
-        tp->id, tp->gps_state,
+        tp->id,
         TRACE_TAB, time.year, time.month, time.day, time.hour, time.minute, time.day,
         TRACE_TAB, tp->gps_lat/10000000, (tp->gps_lat > 0 ? 1:-1)*(tp->gps_lat/100)%100000, tp->gps_lon/10000000, (tp->gps_lon > 0 ? 1:-1)*(tp->gps_lon/100)%100000, tp->gps_alt,
         TRACE_TAB, tp->gps_sats, tp->gps_ttff,
