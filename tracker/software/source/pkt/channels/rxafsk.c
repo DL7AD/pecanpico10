@@ -913,7 +913,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
              */
             myDriver->decoder_state = DECODER_RESET;
             continue; /* Continue in main loop. */
-          }
+          } /* End case. */
 
           case PWM_ACK_DECODE_ERROR:
           case PWM_ACK_DECODE_END: {
@@ -928,8 +928,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             pktAddEventFlags(myHandler, EVT_PWM_INVALID_INBAND);
             myDriver->decoder_state = DECODER_RESET;
 
-            continue; /* Enclosing state switch. */
-          } /* End case 0. */
+            continue; /* Decoder state switch. */
+          } /* End case. */
 
             /* If CCA ends and the decoder has not validated any frame.
              * The PWM side has already posted a PWM_STREAM_CLOSE event.
@@ -941,27 +941,25 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
              */
           case PWM_TERM_NO_DATA:
 
-
-          //case PWM_TERM_QUEUE_LOCK:
-
             /* If the ICU timer overflows during PWM capture.
              * The PWM side has already posted a ICU_OVERFLOW event.
              */
           case PWM_TERM_ICU_OVERFLOW:
 
-            /* This is a debug error if a CCA is validated but a PWM is still active.
+            /* This is a debug error.
+             * CCA is validated but a PWM is still active.
              * The PWM side has already posted a PWM_FIFO_REMNANT event.
              */
           case PWM_TERM_QUEUE_ERR:
 
-            /* If there are no more PWM buffers available.
+            /* If there is no more PWM buffer space available.
              * The PWM side has already posted a PWM_QUEUE_FULL event.
              */
           case PWM_TERM_QUEUE_FULL: {
             /* Transit to RESET state where all buffers/objects are released. */
             myDriver->decoder_state = DECODER_RESET;
-            continue; /* Enclosing state switch. */
-          } /* End case 1. */
+            continue; /* Decoder state switch. */
+          } /* End case. */
 
 #if USE_HEAP_PWM_BUFFER == TRUE
           case PWM_INFO_QUEUE_SWAP: {
@@ -988,24 +986,22 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
               /* TODO: Need an EVT code freed up to add INVALID_SWAP. */
               myDriver->decoder_state = DECODER_RESET;
             }
-            continue;  /* Enclosing state switch. */
-          }
+            continue; /* Decoder state switch. */
+          } /* End case. */
 #endif
 
           default: {
             /* Unknown in-band message from PWM. */
             pktAddEventFlags(myHandler, EVT_PWM_INVALID_INBAND);
-            //myDriver->active_demod_object->status |= EVT_PWM_INVALID_INBAND;
             myDriver->decoder_state = DECODER_RESET;
             continue;  /* Enclosing state switch. */
             } /* End case default. */
-          } /* End switch. */
-          /* Execute primary loop switch on state. */
-          continue;
+          } /* End switch on in-band. */
+          continue; /* Decoder state switch. */
         } /* End if in-band. */
 
         /*
-         * Process the AFSK into HDLC bit and AX25 data.
+         * If not in-band the process the AFSK into an HDLC bit and AX25 data.
          */
         if(!pktProcessAFSK(myDriver, radio.array)) {
           /* AX25 character decoded but buffer is full.
@@ -1038,12 +1034,13 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           continue; /* From this case. */
           }
         } /* End switch. */
+        break; /* Keep GCC 7 happy. */
       } /* End case DECODER_ACTIVE. */
 
       /*
        * RESET readies the decoder for the next session.
-       * It frees all still active buffer/objects.
-       * Then the DSP system is reset prior to set state to IDLE.
+       * It frees any held buffers/objects.
+       * The DSP system is reset and then transition to IDLE.
        */
       case DECODER_RESET: {
         if(myHandler->active_packet_object != NULL) {
@@ -1059,7 +1056,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
           chFifoReturnObject(pkt_fifo, myHandler->active_packet_object);
 
-          /* Forget the buffer management object. */
+          /* Forget the AX25 buffer management object. */
           myHandler->active_packet_object = NULL;
         }
 
@@ -1119,6 +1116,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
       case DECODER_DISPATCH: {
         if(myHandler->active_packet_object != NULL) {
 
+          /* TODO: PWM chain is also released in RESET so this can be removed. */
 #if USE_HEAP_PWM_BUFFER == TRUE
           /* Release PWM queue/buffer objects back to the pool. */
           radio_pwm_fifo_t *myFIFO = myDriver->active_demod_object;
@@ -1134,7 +1132,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 #endif
 #endif
           /*
-           * Indicate AFSK decode done which also locks the PWM queue.
+           * Indicate AFSK decode done.
+           * If PWM is still being captured for this stream capture will cease.
            */
           eventflags_t evtf = EVT_AFSK_DECODE_DONE;
           myDriver->active_demod_object->status |= evtf;
@@ -1149,38 +1148,13 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /* Forget the packet object. */
           myHandler->active_packet_object = NULL;
 
-          /*
-           * Send events then update PWM/demod object status.
-           * (the PWM input side doesn't care about AX25 events actually...)
-           */
+          /* Send events then update demod object status. */
           pktAddEventFlags(myHandler, evtf);
           myDriver->active_demod_object->status |= evtf;
-
-#if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
-          event_listener_t p_listener;
-          chEvtRegisterMaskWithFlags(
-              chnGetEventSource ((SerialDriver *)pkt_out),
-              &p_listener, DEC_DIAG_OUT_END,
-              CHN_TRANSMISSION_END);
-          char buf[80];
-          int out = chsnprintf(buf, sizeof(buf),
-                   "\r\n======= END (%s) =========\r\n",
-                   (myDriver->active_demod_object->status & EVT_AFSK_INVALID_FRAME)
-                   ? "invalid frame"
-                   : (myDriver->active_demod_object->status & EVT_AX25_FRAME_RDY)
-                   ? "good CRC" : "bad CRC");
-          chnWrite(pkt_out, (uint8_t *)buf, out);
-          eventflags_t clear;
-          do {
-            clear = chEvtWaitAnyTimeout(DEC_DIAG_OUT_END, TIME_MS2I(100));
-          } while(clear != 0);
-          chEvtUnregister(chnGetEventSource ((SerialDriver *)pkt_out),
-                          &p_listener);
-#endif
         } /* Active packet object != NULL. */
         myDriver->decoder_state = DECODER_RESET;
         break;
-      } /* End case DECODER_SUSPEND. */
+      } /* End case DECODER_DISPATCH. */
     } /* End switch on decoder state. */
   } /* End thread while(true). */
 }

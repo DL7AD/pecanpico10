@@ -13,10 +13,21 @@ int main(void) {
 	chSysInit();				// Startup RTOS
 
     /* Setup core IO peripherals. */
-    sysConfigureCoreIO();
+    pktConfigureCoreIO();
 
 	// Init debugging (Serial debug port, LEDs)
 	DEBUG_INIT();
+
+#if ACTIVATE_USB
+	/*
+	 * TODO: Defer configure of USB mode.
+	 * Set D+ (LINE_USB_DP) as pushpull out and low in board.h.
+	 * Then delay here before ALT 10 for USB.
+	 */
+    /* Start Serial Over USB. */
+    startSDU();
+    TRACE_INFO("MAIN > USB startup");
+#endif
 
 	/*
 	 * Setup buffers in CCM if available.
@@ -26,12 +37,7 @@ int main(void) {
 
     chDbgAssert(pkt == true, "failed to init packet system");
 
-#if ACTIVATE_USB
-    /* Start Serial Over USB. */
-    startSDU();
-#endif
-
-    /* Start serial channels if selected. */
+    /* Start serial diagnostic channels if selected. */
     pktSerialStart();
 
     /* Create packet radio service. */
@@ -41,12 +47,13 @@ int main(void) {
       pktEnableEventTrace();
     }
 
-   TRACE_INFO("MAIN > Startup");
+   TRACE_INFO("MAIN > Starting threads");
 
 	// Startup threads
 	start_essential_threads();	// Startup required modules (tracking manager, watchdog)
 	start_user_threads();		// Startup optional modules (eg. POSITION, LOG, ...)
 
+	   TRACE_INFO("MAIN > Active");
 	while(true) {
       #if ACTIVATE_USB
           manageTraceAndShell();

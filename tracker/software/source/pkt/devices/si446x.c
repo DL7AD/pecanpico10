@@ -168,7 +168,10 @@ static void Si446x_init(const radio_unit_t radio) {
 
   chDbgAssert(handler != NULL, "invalid radio ID");
 
-  pktPowerUpRadio(radio);
+  //pktPowerUpRadio(radio);
+  Si446x_powerup(radio);
+  //palClearLine(LINE_RADIO_SDN);   // Radio SDN low (power up transceiver)
+  //chThdSleep(TIME_MS2I(10));      // Wait for transceiver to power up
 
     // Power up (send oscillator type)
     const uint8_t x3 = (Si446x_CCLK >> 24) & 0x0FF;
@@ -376,7 +379,7 @@ bool Si446x_setBandParameters(const radio_unit_t radio,
     Si446x_write(set_modem_freq_dev_command, 7);
 }*/
 
-static void Si446x_setPowerLevel(radio_pwr_t level)
+static void Si446x_setPowerLevel(const radio_pwr_t level)
 {
     // Set the Power
     uint8_t set_pa_pwr_lvl_property_command[] = {0x11, 0x22, 0x01, 0x01, level};
@@ -469,7 +472,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
     Si446x_setProperty8(Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);*/
 }
 
-static void Si446x_setModem2FSK_TX(uint32_t speed)
+static void Si446x_setModem2FSK_TX(const uint32_t speed)
 {
     // Setup the NCO modulo and oversampling mode
     uint32_t s = Si446x_CCLK / 10;
@@ -497,30 +500,32 @@ static void Si446x_setModem2FSK_TX(uint32_t speed)
 
 /* ====================================================================== Radio Settings ====================================================================== */
 
-static uint8_t __attribute__((unused)) Si446x_getChannel(void) {
+static uint8_t __attribute__((unused)) Si446x_getChannel(const radio_unit_t radio) {
   /* TODO: add hardware mapping. */
-    const uint8_t state_info[] = {Si446x_REQUEST_DEVICE_STATE};
-    uint8_t rxData[4];
-    Si446x_read(state_info, sizeof(state_info), rxData, sizeof(rxData));
-    return rxData[3];
+  (void)radio;
+  const uint8_t state_info[] = {Si446x_REQUEST_DEVICE_STATE};
+  uint8_t rxData[4];
+  Si446x_read(state_info, sizeof(state_info), rxData, sizeof(rxData));
+  return rxData[3];
 }
 
 /* ======================================================================= Radio FIFO ======================================================================= */
 
 static void Si446x_writeFIFO(uint8_t *msg, uint8_t size) {
   /* TODO: add hardware mapping. */
-    uint8_t write_fifo[size+1];
-    write_fifo[0] = Si446x_WRITE_TX_FIFO;
-    memcpy(&write_fifo[1], msg, size);
-    Si446x_write(write_fifo, size+1);
+  uint8_t write_fifo[size+1];
+  write_fifo[0] = Si446x_WRITE_TX_FIFO;
+  memcpy(&write_fifo[1], msg, size);
+  Si446x_write(write_fifo, size+1);
 }
 
-static uint8_t Si446x_getTXfreeFIFO(void) {
+static uint8_t Si446x_getTXfreeFIFO(const radio_unit_t radio) {
   /* TODO: add hardware mapping. */
-    const uint8_t fifo_info[] = {Si446x_FIFO_INFO, 0x00};
-    uint8_t rxData[4];
-    Si446x_read(fifo_info, sizeof(fifo_info), rxData, sizeof(rxData));
-    return rxData[3];
+  (void)radio;
+  const uint8_t fifo_info[] = {Si446x_FIFO_INFO, 0x00};
+  uint8_t rxData[4];
+  Si446x_read(fifo_info, sizeof(fifo_info), rxData, sizeof(rxData));
+  return rxData[3];
 }
 
 /* ====================================================================== Radio States ====================================================================== */
@@ -539,64 +544,78 @@ void Si446x_getPartInfo(const radio_unit_t radio, si446x_info_t *info) {
   /* TODO: add hardware mapping. */
   (void)radio;
   /* Get status. Leave any pending interrupts intact. */
-    const uint8_t status_info[] = {Si446x_GET_PART_INFO};
-    //uint8_t rxData[10];
-    Si446x_read(status_info, sizeof(status_info), (uint8_t *)info, sizeof(si446x_info_t));
-    //return rxData[4];
+  const uint8_t status_info[] = {Si446x_GET_PART_INFO};
+  Si446x_read(status_info, sizeof(status_info), (uint8_t *)info,
+              sizeof(si446x_info_t));
 }
 
 static uint8_t Si446x_getState(const radio_unit_t radio) {
   /* TODO: add hardware mapping. */
   (void)radio;
-    const uint8_t state_info[] = {Si446x_REQUEST_DEVICE_STATE};
-    uint8_t rxData[4];
-    Si446x_read(state_info, sizeof(state_info), rxData, sizeof(rxData));
-    return rxData[2] & 0xF;
+  const uint8_t state_info[] = {Si446x_REQUEST_DEVICE_STATE};
+  uint8_t rxData[4];
+  Si446x_read(state_info, sizeof(state_info), rxData, sizeof(rxData));
+  return rxData[2] & 0xF;
 }
 
 static void Si446x_setTXState(const radio_unit_t radio, uint8_t chan, uint16_t size){
   /* TODO: add hardware mapping. */
   (void)radio;
-    uint8_t change_state_command[] = {0x31, chan,
-                                      (Si446x_STATE_READY << 4),
-                                      (size >> 8) & 0x1F, size & 0xFF};
-    Si446x_write(change_state_command, sizeof(change_state_command));
+  uint8_t change_state_command[] = {0x31, chan,
+                                    (Si446x_STATE_READY << 4),
+                                    (size >> 8) & 0x1F, size & 0xFF};
+  Si446x_write(change_state_command, sizeof(change_state_command));
 }
 
 static void Si446x_setReadyState(const radio_unit_t radio) {
   /* TODO: add hardware mapping. */
   (void)radio;
-    const uint8_t change_state_command[] = {0x34, 0x03};
-    Si446x_write(change_state_command, sizeof(change_state_command));
+  const uint8_t change_state_command[] = {0x34, 0x03};
+  Si446x_write(change_state_command, sizeof(change_state_command));
 }
 
 static void Si446x_setRXState(const radio_unit_t radio, uint8_t chan){
   /* TODO: add hardware mapping. */
   (void)radio;
-    const uint8_t change_state_command[] = {0x32, chan, 0x00, 0x00,
-                                            0x00, 0x00, 0x08, 0x08};
-    Si446x_write(change_state_command, sizeof(change_state_command));
+  const uint8_t change_state_command[] = {0x32, chan, 0x00, 0x00,
+                                          0x00, 0x00, 0x08, 0x08};
+  Si446x_write(change_state_command, sizeof(change_state_command));
 }
 
+/**
+ *
+ */
+void Si446x_powerup(const radio_unit_t radio) {
+  TRACE_INFO("SI   > Power up radio %i", radio);
+  packet_svc_t *handler = pktGetServiceObject(radio);
 
-void Si446x_shutdown(radio_unit_t radio) {
+  chDbgAssert(handler != NULL, "invalid radio ID");
+  palClearLine(LINE_RADIO_SDN);   // Radio SDN low (power up transceiver)
+  chThdSleep(TIME_MS2I(10));      // Wait for transceiver to power up
+}
+
+/**
+ *
+ */
+void Si446x_shutdown(const radio_unit_t radio) {
   TRACE_INFO("SI   > Shutdown radio %i", radio);
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   chDbgAssert(handler != NULL, "invalid radio ID");
 
-  pktPowerDownRadio(radio);
+  //pktPowerDownRadio(radio);
+  palSetLine(LINE_RADIO_SDN);
   handler->radio_init = false;
 }
 
 /* ====================================================================== Radio TX/RX ======================================================================= */
 
-/*
+/**
  * Get CCA over measurement interval.
  * Algorithm counts CCA pulses per millisecond (in systick time slices).
  * If more than one pulse per millisecond is counted then CCA is not true.
  */
-static bool Si446x_checkCCAthreshold(radio_unit_t radio, uint8_t ms) {
+static bool Si446x_checkCCAthreshold(const radio_unit_t radio, uint8_t ms) {
   /* TODO: Hardware mapping of radio. */
   (void)radio;
   uint16_t cca = 0;
@@ -612,10 +631,10 @@ static bool Si446x_checkCCAthreshold(radio_unit_t radio, uint8_t ms) {
   return cca > ms;
 }
 
-/*
+/**
  * Wait for a clear time slot and initiate packet transmission.
  */
-static bool Si446x_transmit(radio_unit_t radio,
+static bool Si446x_transmit(const radio_unit_t radio,
                             radio_freq_t freq,
                             channel_hz_t step,
                             radio_ch_t chan,
@@ -699,7 +718,7 @@ static bool Si446x_transmit(radio_unit_t radio,
 /*
  *
  */
-bool Si446x_receiveNoLock(radio_unit_t radio,
+bool Si446x_receiveNoLock(const radio_unit_t radio,
                           radio_freq_t freq,
                           channel_hz_t step,
                           radio_ch_t channel,
@@ -754,7 +773,7 @@ bool Si446x_receiveNoLock(radio_unit_t radio,
  * return true if RX was enabled and/or resumed OK.
  * return false if RX was not enabled.
  */
-bool Si4464_resumeReceive(radio_unit_t radio,
+bool Si4464_resumeReceive(const radio_unit_t radio,
                           radio_freq_t rx_frequency,
                           channel_hz_t rx_step,
                           radio_ch_t rx_chan,
@@ -786,7 +805,7 @@ bool Si4464_resumeReceive(radio_unit_t radio,
 /*
  *
  */
-void Si446x_disableReceive(radio_unit_t radio) {
+void Si446x_disableReceive(const radio_unit_t radio) {
   /* FIXME: */
   if(Si446x_getState(radio) == Si446x_STATE_RX) {
     //rx_frequency = 0;
@@ -797,7 +816,7 @@ void Si446x_disableReceive(radio_unit_t radio) {
 /*
  *
  */
-void Si446x_pauseReceive(radio_unit_t radio) {
+void Si446x_pauseReceive(const radio_unit_t radio) {
   /* FIXME: Should provide status. */
   if(Si446x_getState(radio) == Si446x_STATE_RX) {
     Si446x_setReadyState(radio);
@@ -865,7 +884,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     pktReleaseBufferChain(pp);
 
     /* Schedule thread and task object memory release. */
-    pktScheduleSendComplete(rto, chThdGetSelfX());
+    pktLLDradioSendComplete(rto, chThdGetSelfX());
 
     /* Exit thread. */
     chThdExit(MSG_RESET);
@@ -920,7 +939,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       pktReleaseBufferChain(pp);
 
       /* Schedule thread and task object memory release. */
-      pktScheduleSendComplete(rto, chThdGetSelfX());
+      pktLLDradioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
       pktReleaseRadio(radio);
@@ -945,7 +964,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     uint8_t localBuffer[Si446x_FIFO_COMBINED_SIZE];
 
     /* Get the FIFO buffer amount currently available. */
-    uint8_t free = Si446x_getTXfreeFIFO();
+    uint8_t free = Si446x_getTXfreeFIFO(radio);
 
     /* Calculate initial FIFO fill. */
     uint16_t c = (all > free) ? free : all;
@@ -980,7 +999,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       /* Feed the FIFO while data remains to be sent. */
       while((all - c) > 0) {
         /* Get TX FIFO free count. */
-        uint8_t more = Si446x_getTXfreeFIFO();
+        uint8_t more = Si446x_getTXfreeFIFO(radio);
         /* Update the FIFO free low water mark. */
         lower = (more > lower) ? more : lower;
 
@@ -1054,7 +1073,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   rto->result = exit_msg;
 
   /* Finished send so schedule thread memory and task object release. */
-  pktScheduleSendComplete(rto, chThdGetSelfX());
+  pktLLDradioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
   pktReleaseRadio(radio);
@@ -1117,7 +1136,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     pktReleaseBufferChain(pp);
 
     /* Schedule thread and task object memory release. */
-    pktScheduleSendComplete(rto, chThdGetSelfX());
+    pktLLDradioSendComplete(rto, chThdGetSelfX());
 
     /* Exit thread. */
     chThdExit(MSG_RESET);
@@ -1177,7 +1196,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       rto->result = MSG_ERROR;
 
       /* Schedule thread and task object memory release. */
-      pktScheduleSendComplete(rto, chThdGetSelfX());
+      pktLLDradioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
       pktReleaseRadio(radio);
@@ -1196,7 +1215,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     Si446x_write(reset_fifo, 2);
 
     /* Get the FIFO buffer amount currently available. */
-    uint8_t free = Si446x_getTXfreeFIFO();
+    uint8_t free = Si446x_getTXfreeFIFO(radio);
 
     /* Calculate initial FIFO fill. */
     uint16_t c = (all > free) ? free : all;
@@ -1230,7 +1249,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       /* Feed the FIFO while data remains to be sent. */
       while((all - c) > 0) {
         /* Get TX FIFO free count. */
-        uint8_t more = Si446x_getTXfreeFIFO();
+        uint8_t more = Si446x_getTXfreeFIFO(radio);
         /* Update the FIFO free low water mark. */
         lower = (more > lower) ? more : lower;
 
@@ -1301,7 +1320,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   rto->result = exit_msg;
 
   /* Finished send so schedule thread memory and task object release. */
-  pktScheduleSendComplete(rto, chThdGetSelfX());
+  pktLLDradioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
   pktReleaseRadio(radio);

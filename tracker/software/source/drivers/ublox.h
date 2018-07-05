@@ -9,7 +9,9 @@
 #include "hal.h"
 #include "ptime.h"
 
-#define GPS_MODEL_UNSET         -1
+/**
+ * @brief   GPS model values.
+ */
 #define GPS_MODEL_PORTABLE      0
 #define GPS_MODEL_STATIONARY    2
 #define GPS_MODEL_PEDESTRIAN    3
@@ -18,6 +20,20 @@
 #define GPS_MODEL_AIRBORNE1G    6
 #define GPS_MODEL_AIRBORNE2G    7
 #define GPS_MODEL_AIRBORNE4G    8
+
+
+/* Model limits. */
+//#define GPS_MODEL_UNSET         -1
+#define GPS_MODEL_MAX           GPS_MODEL_AIRBORNE4G
+
+/**
+ * @brief   GPS models as array of strings.
+ * @details Each element in an array initialized with this macro can be
+ *          indexed using a numeric GPS model value.
+ */
+#define GPS_MODEL_NAMES                                                     \
+  "PORTABLE", "NONE", "STATIONARY", "PEDESTRIAN", "AUTOMOTIVE", "SEA",      \
+  "AIRBORNE1G",  "AIRBORNE2G", "AIRBORNE4G"
 
 typedef enum {
   GPS_PORTABLE      = GPS_MODEL_PORTABLE,
@@ -75,6 +91,7 @@ typedef struct {
     int32_t alt;        // altitude in m, range 0m, up to ~40000m, clamped
     bool    fixOK;      // Flag that is set to true, when DOP is with the limits
     uint16_t pdop;      // Position DOP
+    uint8_t  model;     // Dynamic model
 } gpsFix_t;
 
 uint8_t gps_set_gps_only(void);
@@ -92,6 +109,7 @@ bool GPS_Init(void);
 void GPS_Deinit(void);
 uint32_t GPS_get_mcu_frequency(void);
 bool gps_calc_ubx_csum(uint8_t *mbuf, uint16_t mlen);
+const char *gps_get_model_name(uint8_t index);
 
 #endif
 

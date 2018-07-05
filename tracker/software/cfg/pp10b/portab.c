@@ -174,7 +174,7 @@ void pktWrite(uint8_t *buf, uint32_t len) {
 }
 
 
-void sysConfigureCoreIO(void) {
+void pktConfigureCoreIO(void) {
   /* Setup SPI3. */
   palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6)
                  | PAL_STM32_OSPEED_HIGHEST);     // SCK

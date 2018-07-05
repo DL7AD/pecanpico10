@@ -178,7 +178,7 @@ const conf_t conf_flash_default = {
     .gps_off_vbat = 3000, // mV
     .gps_onper_vbat = 4000, // mV
 
-    // GPS altitude model control (air pressure determined by on-board BME280)
+    // GPS altitude model control (air pressure controlled using on-board BME280)
     .gps_pressure = 90000, // Air pressure (Pa) threshold for alt model switch
     .gps_low_alt = GPS_STATIONARY,
     .gps_high_alt = GPS_AIRBORNE_1G,

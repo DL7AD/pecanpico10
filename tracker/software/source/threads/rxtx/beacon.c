@@ -47,6 +47,7 @@ THD_FUNCTION(bcnThread, arg) {
      */
     dataPoint_t *dataPoint =
         (dataPoint_t *)chMsgSend(collector_thd, (msg_t)conf);
+
     /* Continue here when collector responds. */
     if(!p_sleep(&conf->beacon.sleep_conf)) {
       if(!isPositionValid(dataPoint) || dataPoint == NULL) {
