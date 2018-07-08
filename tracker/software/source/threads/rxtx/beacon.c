@@ -54,13 +54,14 @@ THD_FUNCTION(bcnThread, arg) {
         TRACE_INFO("BCN  > Waiting for position data for"
             " %s (GPS state=%d)", conf->call, dataPoint->gps_state);
         if(conf->run_once) {
-          /* If this is run once don't retry. */
+          /* If this is run once so don't retry. */
           chHeapFree(conf);
           pktThdTerminateSelf();
         }
         if(isGPSbatteryOperable(dataPoint)) {
           /* If the battery is good retry quickly.
-           * TODO: Rework and involve the p_sleep setting? */
+           * TODO: Rework and involve the p_sleep setting?
+           * Limit to a number of retries? */
           chThdSleep(TIME_S2I(60));
           continue;
         }

@@ -182,11 +182,9 @@ const char *get_gps_state_name(uint8_t index);
  *
  * @api
  */
-#define isGPSbatteryOperable(dp) (!(dp->gps_state == GPS_LOWBATT1           \
-                                 || dp->gps_state == GPS_LOWBATT2           \
-                                 || dp->gps_state == GPS_FIXED              \
-                                 || dp->gps_state == GPS_ERROR              \
-                                 || dp->gps_state == GPS_OFF))
+#define isGPSbatteryOperable(dp) (dp->gps_state == GPS_LOCKED1              \
+                                 || dp->gps_state == GPS_LOCKED2            \
+                                 || dp->gps_state == GPS_LOSS)
 
 #endif /* __COLLECTOR_H__ */
 

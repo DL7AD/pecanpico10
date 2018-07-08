@@ -12,6 +12,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "debug.h"
+#include "portab.h"
 
 #define SCL		LINE_IO_TXD /* SCL is connected to the TXD labeled line */
 #define SDA		LINE_IO_RXD /* SDA is connected to the RXD labeled line */

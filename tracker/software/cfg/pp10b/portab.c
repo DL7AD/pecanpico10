@@ -45,22 +45,6 @@ const radio_band_t band_70cm = {
 /* Module exported variables.                                                */
 /*===========================================================================*/
 
-/*===========================================================================*/
-/* Module local types.                                                       */
-/*===========================================================================*/
-
-/*===========================================================================*/
-/* Module local variables.                                                   */
-/*===========================================================================*/
-
-/*===========================================================================*/
-/* Module local functions.                                                   */
-/*===========================================================================*/
-
-/*===========================================================================*/
-/* Module exported functions.                                                */
-/*===========================================================================*/
-
 typedef struct SysProviders {
 
 } providers_t;
@@ -85,6 +69,22 @@ const SerialConfig debug_config = {
   0,
   0
 };
+
+/*===========================================================================*/
+/* Module local types.                                                       */
+/*===========================================================================*/
+
+/*===========================================================================*/
+/* Module local variables.                                                   */
+/*===========================================================================*/
+
+/*===========================================================================*/
+/* Module local functions.                                                   */
+/*===========================================================================*/
+
+/*===========================================================================*/
+/* Module exported functions.                                                */
+/*===========================================================================*/
 
 /**
  * Get number of radios for this board type.
@@ -113,8 +113,25 @@ void pktConfigSerialPkt(void) {
 
 }
 
+/**
+ * TODO: Move this into pktconf.h and use general GPIO to setup.
+ */
 void pktSetLineModeICU(void) {
   palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
+}
+
+/*
+ * Read GPIO that are used for:
+ * a) general use or
+ * b) UART and s/w I2C external.
+ *
+ * @return State of lines regardless of general or specific use.
+ */
+uint8_t pktReadIOlines() {
+  return palReadLine(LINE_GPIO_PIN1)
+      | palReadLine(LINE_IO_TXD) << 1
+      | palReadLine(LINE_IO_RXD) << 2
+      | palReadLine(LINE_GPIO_PIN2);
 }
 
 void pktSerialStart(void) {
@@ -155,24 +172,9 @@ int dbgPrintf(uint8_t level, const char *format, ...) {
 #endif
 }
 
-/*
- * Read GPIO that are used for:
- * a) general use or
- * b) UART and s/w I2C external.
- *
- * @return State of lines regardless of general or specific use.
- */
-uint8_t pktReadIOlines() {
-  return palReadLine(LINE_GPIO_PIN1)
-      | palReadLine(LINE_IO_TXD) << 1
-      | palReadLine(LINE_IO_RXD) << 2
-      | palReadLine(LINE_GPIO_PIN2);
-}
-
 void pktWrite(uint8_t *buf, uint32_t len) {
   chnWrite((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, buf, len);
 }
-
 
 void pktConfigureCoreIO(void) {
   /* Setup SPI3. */

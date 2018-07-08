@@ -63,7 +63,6 @@ const radio_config_t radio_list[] = {
   }
 };
 
-
 const SerialConfig debug_config = {
   115200,
   0,
@@ -79,7 +78,6 @@ const SerialConfig debug_config = {
 /* Module local variables.                                                   */
 /*===========================================================================*/
 
-
 /*===========================================================================*/
 /* Module local functions.                                                   */
 /*===========================================================================*/
@@ -87,19 +85,6 @@ const SerialConfig debug_config = {
 /*===========================================================================*/
 /* Module exported functions.                                                */
 /*===========================================================================*/
-
-void pktConfigSerialDiag(void) {
-#if ENABLE_EXTERNAL_I2C == FALSE
-  /* USART3 TX.       */
-  palSetLineMode(LINE_USART3_TX, PAL_MODE_ALTERNATE(7));
-  /* USART3 RX.       */
-  palSetLineMode(LINE_USART3_RX, PAL_MODE_ALTERNATE(7));
-#endif
-}
-
-void pktConfigSerialPkt(void) {
-
-}
 
 /**
  * Get number of radios for this board type.
@@ -115,6 +100,19 @@ uint8_t pktGetNumRadios(void) {
  */
 const radio_config_t *pktGetRadioList(void) {
   return radio_list;
+}
+
+void pktConfigSerialDiag(void) {
+#if ENABLE_EXTERNAL_I2C == FALSE
+  /* USART3 TX.       */
+  palSetLineMode(LINE_USART3_TX, PAL_MODE_ALTERNATE(7));
+  /* USART3 RX.       */
+  palSetLineMode(LINE_USART3_RX, PAL_MODE_ALTERNATE(7));
+#endif
+}
+
+void pktConfigSerialPkt(void) {
+
 }
 
 /**
@@ -136,7 +134,6 @@ uint8_t pktReadIOlines() {
       | palReadLine(LINE_IO_TXD) << 1
       | palReadLine(LINE_IO_RXD) << 2;
 }
-
 
 void pktSerialStart(void) {
 #if ENABLE_EXTERNAL_I2C == FALSE
@@ -200,17 +197,6 @@ void pktConfigureCoreIO(void) {
   #if ACTIVATE_USB
   startUSB();
   #endif
-}
-
-/*
- * Return a single radio parameter record pointer
- * The radio parameter picks a single records.
- * The current system does not work if the same radio is listed multiple times.
- * TODO: Have an enumeration and check radio array on startup.
- */
-radio_config_t *pktGetRadioParameters(radio_unit_t radio) {
-  (void)radio;
-  return NULL;
 }
 
 /** @} */

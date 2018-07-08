@@ -19,13 +19,17 @@
 
 #define Si446x_LOCK_BY_SEMAPHORE        TRUE
 
+/*
 #ifndef Si446x_CLK
 #error "Si446x_CLK is not defined which is needed for Si446x."
 #endif
+*/
 
+/*
 #ifndef Si446x_CLK_OFFSET
 #define Si446x_CLK_OFFSET 0
 #endif
+*/
 
 /* Si4464 States. */
 #define Si446x_STATE_NOCHANGE           0

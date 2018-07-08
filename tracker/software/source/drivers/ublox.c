@@ -10,6 +10,7 @@
 #include "debug.h"
 #include "config.h"
 #include "collector.h"
+#include "portab.h"
 
 bool gps_enabled = false;
 uint8_t gps_model = GPS_MODEL_PORTABLE;

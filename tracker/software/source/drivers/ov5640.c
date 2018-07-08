@@ -13,6 +13,7 @@
 #include "si446x.h"
 #include <string.h>
 #include "pktradio.h"
+#include "portab.h"
 
 static uint32_t lightIntensity;
 static uint8_t error;

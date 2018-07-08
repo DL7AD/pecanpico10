@@ -5,6 +5,7 @@
 #include "pac1720.h"
 #include "pi2c.h"
 #include <stdlib.h>
+#include "portab.h"
 
 #define ADC_NUM_CHANNELS	4		/* Amount of channels (solar, battery, temperature) */
 #define VCC_REF				3100	/* mV */
