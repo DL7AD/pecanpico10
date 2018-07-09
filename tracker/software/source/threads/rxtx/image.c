@@ -747,7 +747,7 @@ THD_FUNCTION(imgThread, arg) {
 void start_image_thread(img_app_conf_t *conf)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
-	                                   THD_WORKING_AREA_SIZE(40 * 1024),
+	                                   THD_WORKING_AREA_SIZE(30 * 1024),
 	                                   "IMG", LOWPRIO, imgThread, conf);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread

@@ -33,6 +33,72 @@
  */
 #define PKT_RADIO_SPI               &SPID3
 
+// Camera pins
+#define LINE_CAM_XCLK               PAL_LINE(GPIOC, 9U)
+#define LINE_CAM_PCLK               PAL_LINE(GPIOC, 6U)
+#define LINE_CAM_VSYNC              PAL_LINE(GPIOB, 14U)
+#define LINE_CAM_D2                 PAL_LINE(GPIOA, 0U)
+#define LINE_CAM_D3                 PAL_LINE(GPIOA, 1U)
+#define LINE_CAM_D4                 PAL_LINE(GPIOA, 2U)
+#define LINE_CAM_D5                 PAL_LINE(GPIOA, 3U)
+#define LINE_CAM_D6                 PAL_LINE(GPIOA, 4U)
+#define LINE_CAM_D7                 PAL_LINE(GPIOA, 5U)
+#define LINE_CAM_D8                 PAL_LINE(GPIOA, 6U)
+#define LINE_CAM_D9                 PAL_LINE(GPIOA, 7U)
+#define LINE_CAM_EN                 PAL_LINE(GPIOC, 7U)
+#define LINE_CAM_RESET              PAL_LINE(GPIOB, 0U)
+
+// SD Card pins
+#define LINE_SD_CS                  PAL_LINE(GPIOC, 0U)
+#define LINE_SD_DET                 PAL_LINE(GPIOC, 8U)
+
+// ADC
+#define LINE_ADC_VSOL               PAL_LINE(GPIOC, 2U)
+#define LINE_ADC_VBAT               PAL_LINE(GPIOB, 1U)
+#define LINE_ADC_VUSB               PAL_LINE(GPIOC, 4U)
+
+// USB
+#define LINE_USB_ID                 PAL_LINE(GPIOA, 10U)
+#define LINE_USB_VBUS               PAL_LINE(GPIOA,  9U)
+#define LINE_USB_DM                 PAL_LINE(GPIOA, 11U)
+#define LINE_USB_DP                 PAL_LINE(GPIOA, 12U)
+
+// LED
+#define LINE_IO_BLUE                PAL_LINE(GPIOC, 1U)
+#define LINE_IO_GREEN               PAL_LINE(GPIOC, 3U)
+
+// I2C
+#define LINE_I2C_SCL                PAL_LINE(GPIOB, 8U)
+#define LINE_I2C_SDA                PAL_LINE(GPIOB, 9U)
+
+// GPS
+#define LINE_GPS_EN                 PAL_LINE(GPIOC, 5U)
+#define LINE_GPS_RESET              PAL_LINE(GPIOA, 15U)
+#define LINE_GPS_TXD                PAL_LINE(GPIOB, 13U)
+#define LINE_GPS_RXD                PAL_LINE(GPIOB, 12U)
+#define LINE_GPS_TIMEPULSE          PAL_LINE(GPIOB, 15U)
+
+// IO
+#define LINE_GPIO_PIN1              PAL_LINE(GPIOA, 8U)
+#define LINE_GPIO_PIN2              PAL_LINE(GPIOC, 15U)
+#define LINE_IO_TXD                 PAL_LINE(GPIOB, 10U)
+#define LINE_IO_RXD                 PAL_LINE(GPIOC, 11U)
+
+// APRS IO lines
+#define LINE_IO1                    LINE_GPIO_PIN1
+#define LINE_IO2                    LINE_IO_TXD
+#define LINE_IO3                    LINE_IO_RXD
+#define LINE_IO4                    LINE_GPIO_PIN2
+#define LINE_IO5                    PAL_NOLINE
+#define LINE_IO6                    PAL_NOLINE
+#define LINE_IO7                    PAL_NOLINE
+#define LINE_IO8                    PAL_NOLINE
+
+// Hardware dependent settings
+#define Si446x_CLK                  STM32_HSECLK            /* Oscillator frequency in Hz */
+#define Si446x_CLK_OFFSET           22                      /* Oscillator frequency drift in ppm */
+#define Si446x_CLK_TCXO_EN          true                    /* Set this true, if a TCXO is used, false for XTAL */
+
 /*
  * Radio GPIO definitions.
  */
@@ -41,6 +107,11 @@
 #define LINE_RADIO_IRQ              PAL_LINE(GPIOD, 2U)
 #define LINE_RADIO_GPIO0            PAL_LINE(GPIOB, 7U)
 #define LINE_RADIO_GPIO1            PAL_LINE(GPIOB, 6U)
+#define LINE_SPI_SCK                PAL_LINE(GPIOB, 3U)
+#define LINE_SPI_MISO               PAL_LINE(GPIOB, 4U)
+#define LINE_SPI_MOSI               PAL_LINE(GPIOB, 5U)
+
+// SPI
 #define LINE_SPI_SCK                PAL_LINE(GPIOB, 3U)
 #define LINE_SPI_MISO               PAL_LINE(GPIOB, 4U)
 #define LINE_SPI_MOSI               PAL_LINE(GPIOB, 5U)
@@ -61,7 +132,6 @@
 #define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
 
-//#define NUM_PKT_RADIOS              1
 #define NUM_BANDS_PER_RADIO         2
 
 /* LED status indicators (set to PAL_NOLINE if not available). */
@@ -74,6 +144,7 @@
 /* Diagnostic PWM mirror port. */
 #define LINE_PWM_MIRROR             PAL_NOLINE
 
+/* Radio ports. */
 #define LINE_CCA                    LINE_RADIO_IRQ
 #define LINE_ICU                    LINE_RADIO_GPIO1
 
@@ -88,18 +159,19 @@
 #define LINE_USART3_RX              LINE_IO_RXD
 #endif
 
-/**
- *  ICU related definitions.
- */
-#define PWM_ICU                     ICUD4
-#define PWM_TIMER_CHANNEL           0
-
 /* If set to true, the USB interface will be switched on. The tracker is also switched to
  * 3V, because USB would not work at 1.8V. Note that the transmission power is increased
  * too when operating at 3V. This option will also run the STM32 at 48MHz (AHB) permanently
  * because USB needs that speed, otherwise it is running at 6MHz which saves a lot of power.
  */
 #define ACTIVATE_USB                TRUE
+
+/**
+ *  ICU related definitions.
+ */
+#define PWM_ICU                     ICUD4
+#define PWM_TIMER_CHANNEL           0
+#define PWM_ICU_CLK                 STM32_TIMCLK1
 
 /* ICU counter frequency. */
 /*
@@ -108,6 +180,10 @@
  */
 
 #define ICU_COUNT_FREQUENCY         6000000U
+
+#if ((PWM_ICU_CLK % ICU_COUNT_FREQUENCY) != 0)
+#error "Invalid ICU frequency for APBx clock setting"
+#endif
 
 #define USE_12_BIT_PWM              FALSE
 
@@ -142,8 +218,11 @@
 
 #define PKT_RX_RLS_USE_NO_FIFO      FALSE
 
-/* Number of general AX25/APRS processing & frame send buffers. */
-#define NUMBER_COMMON_PKT_BUFFERS       10U
+/*
+ * Number of general AX25/APRS processing & frame send buffers.
+ * Can configured as being in CCM to save system core memory use.
+ */
+ #define NUMBER_COMMON_PKT_BUFFERS       10U
 #define RESERVE_BUFFERS_FOR_INTERNAL    2U
 #define MAX_BUFFERS_FOR_BURST_SEND      5U
 #if (MAX_BUFFERS_FOR_BURST_SEND >                                            \
@@ -191,7 +270,7 @@ extern "C" {
 #endif
   void pktConfigSerialDiag(void);
   void pktConfigSerialPkt(void);
-  void sysConfigureCoreIO(void);
+  void pktConfigureCoreIO(void);
   void pktSetLineModeICU(void);
   void pktSerialStart(void);
   void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);

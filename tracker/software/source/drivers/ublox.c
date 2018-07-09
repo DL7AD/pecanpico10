@@ -10,9 +10,10 @@
 #include "debug.h"
 #include "config.h"
 #include "collector.h"
+#include "portab.h"
 
 bool gps_enabled = false;
-int8_t gps_model = GPS_MODEL_UNSET;
+uint8_t gps_model = GPS_MODEL_PORTABLE;
 
 #if defined(UBLOX_UART_CONNECTED)
 // Serial driver configuration for GPS
@@ -24,6 +25,20 @@ const SerialConfig gps_config =
 	0		// CR3 register
 };
 #endif
+
+/**
+ * Array for looking up model name
+ */
+static const char *model[] = {GPS_MODEL_NAMES};
+
+/**
+ * Get pointer to model name as string
+ */
+const char *gps_get_model_name(uint8_t index) {
+  if(index > GPS_MODEL_MAX)
+    return "INVALID";
+  return model[index];
+}
 
 /**
   * Transmits a string of bytes to the GPS
@@ -264,11 +279,11 @@ bool gps_get_fix(gpsFix_t *fix) {
       } else {
           fix->alt = (uint16_t)alt_tmp;
       }
-/*    }*/
-	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%02d.%02d model=%d",
+      fix->model = gps_model;
+	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%02d.%02d model=%s",
 		fix->time.year, fix->time.month, fix->time.day, fix->time.hour, fix->time.minute, fix->time.second,
 		fix->lat/10000000, (fix->lat > 0 ? 1:-1)*(fix->lat/100)%100000, fix->lon/10000000, (fix->lon > 0 ? 1:-1)*(fix->lon/100)%100000,
-		fix->alt, fix->num_svs, fix->fixOK, fix->pdop/100, fix->pdop%100, gps_model
+		fix->alt, fix->num_svs, fix->fixOK, fix->pdop/100, fix->pdop%100, gps_get_model_name(fix->model)
 	);
 
 	return true;
@@ -599,7 +614,7 @@ bool GPS_Init() {
 	// Wait for GPS startup
 	chThdSleep(TIME_S2I(1));
 
-	gps_model = GPS_MODEL_UNSET;
+	gps_model = GPS_MODEL_PORTABLE;
 	// Configure GPS
 	TRACE_INFO("GPS  > Transmit config to GPS");
 
@@ -632,7 +647,7 @@ void GPS_Deinit(void)
     palSetLineMode(LINE_GPS_RXD, PAL_MODE_INPUT);       // UART RXD
     palSetLineMode(LINE_GPS_TXD, PAL_MODE_INPUT);       // UART TXD
 #endif
-    gps_model = GPS_MODEL_UNSET;
+    gps_model = GPS_MODEL_PORTABLE;
     gps_enabled = false;
 }
 

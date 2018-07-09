@@ -244,12 +244,15 @@
  */
 
 // IO
+/*
 #define LINE_GPIO_PIN1              PAL_LINE(GPIOA, 8U)
 #define LINE_GPIO_PIN2              PAL_LINE(GPIOC, 15U)
 #define LINE_IO_TXD                 PAL_LINE(GPIOB, 10U)
 #define LINE_IO_RXD                 PAL_LINE(GPIOC, 11U)
+*/
 
 //APRS IO lines
+/*
 #define LINE_IO1                    LINE_GPIO_PIN1
 #define LINE_IO2                    LINE_IO_TXD
 #define LINE_IO3                    LINE_IO_RXD
@@ -258,29 +261,39 @@
 #define LINE_IO6                    PAL_NOLINE
 #define LINE_IO7                    PAL_NOLINE
 #define LINE_IO8                    PAL_NOLINE
+*/
 
 // LED
+/*
 #define LINE_IO_BLUE                PAL_LINE(GPIOC, 1U)
 #define LINE_IO_GREEN               PAL_LINE(GPIOC, 3U)
+*/
 
 
 // GPS
+/*
 #define LINE_GPS_EN                 PAL_LINE(GPIOC, 5U)
 #define LINE_GPS_RESET              PAL_LINE(GPIOA, 15U)
 #define LINE_GPS_TXD                PAL_LINE(GPIOB, 13U)
 #define LINE_GPS_RXD                PAL_LINE(GPIOB, 12U)
 #define LINE_GPS_TIMEPULSE          PAL_LINE(GPIOB, 15U)
+*/
 
 // I2C
+/*
 #define LINE_I2C_SCL                PAL_LINE(GPIOB, 8U)
 #define LINE_I2C_SDA                PAL_LINE(GPIOB, 9U)
+*/
 
 // SPI
+/*
 #define LINE_SPI_SCK                PAL_LINE(GPIOB, 3U)
 #define LINE_SPI_MISO               PAL_LINE(GPIOB, 4U)
 #define LINE_SPI_MOSI               PAL_LINE(GPIOB, 5U)
+*/
 
 // Camera pins
+/*
 #define LINE_CAM_XCLK               PAL_LINE(GPIOC, 9U)
 #define LINE_CAM_PCLK               PAL_LINE(GPIOC, 6U)
 #define LINE_CAM_VSYNC              PAL_LINE(GPIOB, 14U)
@@ -294,41 +307,50 @@
 #define LINE_CAM_D9                 PAL_LINE(GPIOA, 7U)
 #define LINE_CAM_EN                 PAL_LINE(GPIOC, 7U)
 #define LINE_CAM_RESET              PAL_LINE(GPIOB, 0U)
+*/
 
 // Radio pins
+/*
 #define LINE_RADIO_CS               PAL_LINE(GPIOC, 12U)
 #define LINE_RADIO_SDN              PAL_LINE(GPIOC, 10U)
 #define LINE_RADIO_IRQ              PAL_LINE(GPIOD, 2U)
 #define LINE_RADIO_GPIO0            PAL_LINE(GPIOB, 7U)
 #define LINE_RADIO_GPIO1            PAL_LINE(GPIOB, 6U)
+*/
 
 // SD Card pins
+/*
 #define LINE_SD_CS                  PAL_LINE(GPIOC, 0U)
 #define LINE_SD_DET                 PAL_LINE(GPIOC, 8U)
+*/
 
 // ADC
+/*
 #define LINE_ADC_VSOL               PAL_LINE(GPIOC, 2U)
 #define LINE_ADC_VBAT               PAL_LINE(GPIOB, 1U)
 #define LINE_ADC_VUSB               PAL_LINE(GPIOC, 4U)
+*/
 
 // USB
+/*
 #define LINE_USB_ID                 PAL_LINE(GPIOA, 10U)
 #define LINE_USB_VBUS               PAL_LINE(GPIOA,  9U)
 #define LINE_USB_DM                 PAL_LINE(GPIOA, 11U)
 #define LINE_USB_DP                 PAL_LINE(GPIOA, 12U)
+*/
 
 // Misc
 #define LINE_TCXO_EN                PAL_LINE(GPIOC, 13U)
 
 // Hardware dependent settings
 
-#define Si446x_MIN_FREQ				144000000				/* Minimum allowed frequency in Hz */
-#define Si446x_MAX_FREQ				148000000				/* Maximum allowed frequency in Hz */
-#define Si446x_BASE_FREQ            Si446x_MIN_FREQ
-#define Si446x_STEP_HZ              12500
-#define Si446x_CLK					STM32_HSECLK			/* Oscillator frequency in Hz */
-#define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
-#define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
+//#define Si446x_MIN_FREQ				144000000				/* Minimum allowed frequency in Hz */
+//#define Si446x_MAX_FREQ				148000000				/* Maximum allowed frequency in Hz */
+//#define Si446x_BASE_FREQ            Si446x_MIN_FREQ
+//#define Si446x_STEP_HZ              12500
+//#define Si446x_CLK					STM32_HSECLK			/* Oscillator frequency in Hz */
+//#define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
+//#define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
 
 
 /*

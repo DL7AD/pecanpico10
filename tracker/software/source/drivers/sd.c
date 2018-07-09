@@ -2,6 +2,7 @@
 #include "hal.h"
 #include "ff.h"
 #include "debug.h"
+#include "portab.h"
 //#include "config.h"
 
 MMCDriver MMCD1;
@@ -129,3 +130,45 @@ bool writeBufferToFile(const char *filename, const uint8_t *buffer, uint32_t len
 	return gres;
 }
 
+#if HAL_USE_SDC || defined(__DOXYGEN__)
+/**
+ * @brief   SDC card detection.
+ */
+bool sdc_lld_is_card_inserted(SDCDriver *sdcp) {
+
+  (void)sdcp;
+  /* TODO: Fill the implementation.*/
+  return true;
+}
+
+/**
+ * @brief   SDC card write protection detection.
+ */
+bool sdc_lld_is_write_protected(SDCDriver *sdcp) {
+
+  (void)sdcp;
+  /* TODO: Fill the implementation.*/
+  return false;
+}
+#endif /* HAL_USE_SDC */
+
+#if HAL_USE_MMC_SPI || defined(__DOXYGEN__)
+/**
+ * @brief   MMC_SPI card detection.
+ */
+bool mmc_lld_is_card_inserted(MMCDriver *mmcp) {
+
+  (void)mmcp;
+  return   palReadLine(LINE_SD_DET);
+}
+
+/**
+ * @brief   MMC_SPI card write protection detection.
+ */
+bool mmc_lld_is_write_protected(MMCDriver *mmcp) {
+
+  (void)mmcp;
+  /* TODO: Fill the implementation.*/
+  return false;
+}
+#endif

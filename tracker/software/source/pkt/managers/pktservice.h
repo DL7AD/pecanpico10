@@ -17,6 +17,7 @@
 
 #define PKT_FRAME_QUEUE_PREFIX          "pktr_"
 #define PKT_CALLBACK_TERMINATOR_PREFIX  "cbte_"
+#define PKT_CALLBACK_THD_PREFIX         "cb_"
 
 #define PKT_SEND_BUFFER_SEM_NAME        "pbsem"
 
@@ -67,7 +68,7 @@ typedef struct packetBuffer {
   packet_svc_t              *handler;
   dyn_objects_fifo_t        *pkt_factory;
   thread_t                  *cb_thread;
-  char                      cb_thd_name[sizeof(size_t) + 1];
+  char                      cb_thd_name[PKT_THREAD_NAME_MAX];
   pkt_buffer_cb_t           cb_func;
   volatile eventflags_t     status;
   size_t                    buffer_size;
@@ -164,7 +165,6 @@ typedef struct packetHandlerData {
    * @brief Current active packet fifo object.
    */
   pkt_data_object_t         *active_packet_object;
-
 
   /**
    * @brief Counter for active callback threads.
@@ -426,6 +426,7 @@ static inline void pktReleaseDataBuffer(pkt_data_object_t *object) {
      * If the service is closed and all buffers freed then the FIFO is destroyed.
      * Terminate this thread and have idle clean up memory.
      */
+    object->handler->cb_count--;
     chFifoReturnObject(pkt_fifo, object);
     chFactoryReleaseObjectsFIFO(pkt_factory);
     pktThdTerminateSelf();
@@ -436,8 +437,6 @@ static inline void pktReleaseDataBuffer(pkt_data_object_t *object) {
      * It will be released in the collector thread.
      * The callback thread memory will be recovered.
      * The semaphore will be signaled.
-     * TODO: Release the FIFO here and send the thread to idle loop terminator.
-     * This will simplify the release mechanism and make the FIFO available sooner.
      */
     chSysLock();
     chFifoSendObjectI(pkt_fifo, object);

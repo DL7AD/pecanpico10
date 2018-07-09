@@ -27,6 +27,15 @@
 #define BME280_E1_IS_FITTED     FALSE
 #define BME280_E2_IS_FITTED     TRUE
 
+/**
+ * @brief   GPS states as array of strings.
+ * @details Each element in an array initialized with this macro can be
+ *          indexed using a numeric GPS model value.
+ */
+#define GPS_STATE_NAMES                                                     \
+  "LOCKED1", "LOCKED2", "LOSS", "LOWBATT1", "LOWBATT2", "LOG", "OFF",       \
+  "ERROR", "FIXED"
+
 typedef enum {
 	GPS_LOCKED1,	// The GPS is locked, the GPS has been switched off
 	GPS_LOCKED2,	// The GPS is locked, the GPS has been kept switched on
@@ -38,6 +47,8 @@ typedef enum {
 	GPS_ERROR,		// The GPS has a communication error
     GPS_FIXED       // Fixed location data used from APRS location
 } gpsState_t;
+
+#define GPS_STATE_MAX   GPS_FIXED
 
 typedef struct {
 	// Voltage and current measurement
@@ -110,6 +121,7 @@ dataPoint_t* getLastDataPoint(void);
 void getSensors(dataPoint_t* tp);
 void setSystemStatus(dataPoint_t* tp);
 void init_data_collector(void);
+const char *get_gps_state_name(uint8_t index);
 
 /*===========================================================================*/
 /* Module inline functions.                                                  */
@@ -170,11 +182,9 @@ void init_data_collector(void);
  *
  * @api
  */
-#define isGPSbatteryOperable(dp) (!(dp->gps_state == GPS_LOWBATT1           \
-                                 || dp->gps_state == GPS_LOWBATT2           \
-                                 || dp->gps_state == GPS_FIXED              \
-                                 || dp->gps_state == GPS_ERROR              \
-                                 || dp->gps_state == GPS_OFF))
+#define isGPSbatteryOperable(dp) (dp->gps_state == GPS_LOCKED1              \
+                                 || dp->gps_state == GPS_LOCKED2            \
+                                 || dp->gps_state == GPS_LOSS)
 
 #endif /* __COLLECTOR_H__ */
 

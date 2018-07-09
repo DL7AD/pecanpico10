@@ -19,13 +19,17 @@
 
 #define Si446x_LOCK_BY_SEMAPHORE        TRUE
 
+/*
 #ifndef Si446x_CLK
 #error "Si446x_CLK is not defined which is needed for Si446x."
 #endif
+*/
 
+/*
 #ifndef Si446x_CLK_OFFSET
 #define Si446x_CLK_OFFSET 0
 #endif
+*/
 
 /* Si4464 States. */
 #define Si446x_STATE_NOCHANGE           0
@@ -245,6 +249,7 @@ extern void pktReleasePacketBuffer(packet_t pp);
 extern "C" {
 #endif
   int16_t Si446x_getLastTemperature(const radio_unit_t radio);
+  void Si446x_powerup(const radio_unit_t radio);
   void Si446x_shutdown(const radio_unit_t radio);
   void Si446x_sendAFSK(packet_t pp);
   bool Si446x_blocSendAFSK(radio_task_object_t *rto);

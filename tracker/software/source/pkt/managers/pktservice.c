@@ -668,7 +668,7 @@ thread_t *pktCreateBufferCallback(pkt_data_object_t *pkt_buffer) {
   /* Create a callback thread name which is the address of the buffer. */
   /* TODO: Create a more meaningful but still unique thread name. */
   chsnprintf(pkt_buffer->cb_thd_name, sizeof(pkt_buffer->cb_thd_name),
-             "%x", pkt_buffer);
+             PKT_CALLBACK_THD_PREFIX"%x", pkt_buffer);
 
   /* Start a callback dispatcher thread. */
   thread_t *cb_thd = chThdCreateFromHeap(NULL,

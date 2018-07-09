@@ -1,6 +1,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "debug.h"
+#include "portab.h"
 
 #ifndef DISABLE_HW_WATCHDOG
 // Hardware Watchdog configuration
