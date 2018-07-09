@@ -33,7 +33,7 @@ include "sidebar.inc.php";
 
 <div class="wrapper">
 	<telemetry class="inner telemetry">
-		<div style="width:168px;height:42px;">Callsign<br><span id="call" class="fat"></span></div>
+		<div style="width:168px;height:42px;">Callsign<br><span id="call" class="fat"><?=$_GET['call']?></span></div>
 		<div style="width:120px;height:42px;">Reset<br><span id="reset" class="fat"></span></div>
 		<div style="width:120px;height:42px;">ID<br><span id="id" class="fat"></span></div>
 		<div style="width:250px;height:42px;">Time (RX)<br><span id="rxtime" class="fat"></span></div>
@@ -142,63 +142,28 @@ include "sidebar.inc.php";
 				</tr>
 			</table>
 		</div>
-		<div style="width:440px;height:110px;" id="image">
-
+		<div style="width:150px;height:110px;" id="image"></div>
+		<div style="width:274px;height:110px;">
+			<table>
+				<tr>
+					<td colspan="2">Subsystems</td>
+				</tr>
+				<tr height="5"></tr>
+				<tr>
+					<td width="65"><b>I<sup>2</sup>C<sub>I</sub></b></td>
+					<td><b><span id="err_i2c1"></span></b></td>
+				</tr>
+				<tr>
+					<td><b>I<sup>2</sup>C<sub>E</sub></b></td>
+					<td><b><span id="err_i2c2"></span></b></td>
+				</tr>
+				<tr>
+					<td><b>OV5640</b></td>
+					<td><b><span id="err_ov5640"></span></b></td>
+				</tr>
+			</table>
 		</div>
 	</telemetry>
-
-
-
-	<!--<telemetry class="inner telemetry" style="width:420px;height:260px;">
-		<table>
-			<tr>
-				<td width="50%">
-					<table>
-						<tr>
-							<th width="75">I2C<sub>INT</sub></th>
-							<td><b><span id="err_i2c1"></span></b></td>
-						</tr>
-						<tr>
-							<th>I2C<sub>EXT</sub></th>
-							<td><b><span id="err_i2c2"></span></b></td>
-						</tr>
-						<tr height="5"></tr>
-						<tr>
-							<th>EVA7M:</th>
-							<td width="75"><b><span id="err_eva7m"></span></b></td>
-						</tr>
-						<tr>
-							<th>PAC1720:</th>
-							<td width="230"><b><span id="err_pac1720"></span></b></td>
-						</tr>
-						<tr>
-							<th>OV5640:</th>
-							<td><b><span id="err_ov5640"></span></b></td>
-						</tr>
-					</table>
-				</td>
-				<td width="50%">
-					<table>
-						<tr>
-							<th width="75">BME280<sub>I1</sub>:</th>
-							<td><b><span id="err_bme280_i1"></span></b></td>
-						</tr>
-						<tr>
-
-							<th>BME280<sub>E1</sub>:</th>
-							<td><b><span id="err_bme280_e1"></span></b></td>
-						</tr>
-						<tr>
-							<th>BME280<sub>E2</sub>:</th>
-							<td><b><span id="err_bme280_e2"></span></b></td>
-						</tr>
-					</table>
-				</td>
-			</tr>
-		</table>
-	</telemetry>-->
-
-
 	<div class="range">
 		&nbsp;Range:
 		<a href="?call=<?=$_GET['call']?>&range=3600">1h</a>
