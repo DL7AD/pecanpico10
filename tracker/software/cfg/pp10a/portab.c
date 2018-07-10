@@ -194,9 +194,6 @@ void pktConfigureCoreIO(void) {
                  | PAL_STM32_OSPEED_HIGHEST
                  | PAL_STM32_OTYPE_OPENDRAIN); // SCL
 
-  #if ACTIVATE_USB
-  startUSB();
-  #endif
 }
 
 /** @} */

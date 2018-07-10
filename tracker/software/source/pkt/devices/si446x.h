@@ -15,47 +15,35 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-#define SI446X_EVT_TX_TIMEOUT           EVENT_MASK(0)
+#define SI446X_EVT_TX_TIMEOUT                   EVENT_MASK(0)
 
-#define Si446x_LOCK_BY_SEMAPHORE        TRUE
-
-/*
-#ifndef Si446x_CLK
-#error "Si446x_CLK is not defined which is needed for Si446x."
-#endif
-*/
-
-/*
-#ifndef Si446x_CLK_OFFSET
-#define Si446x_CLK_OFFSET 0
-#endif
-*/
+#define Si446x_LOCK_BY_SEMAPHORE                TRUE
 
 /* Si4464 States. */
-#define Si446x_STATE_NOCHANGE           0
-#define Si446x_STATE_SLEEP              1
-#define Si446x_STATE_SPI_ACTIVE         2
-#define Si446x_STATE_READY              3
-#define Si446x_STATE_READY2             4
-#define Si446x_STATE_TX_TUNE            5
-#define Si446x_STATE_RX_TUNE            6
-#define Si446x_STATE_TX                 7
-#define Si446x_STATE_RX                 8
+#define Si446x_STATE_NOCHANGE                   0
+#define Si446x_STATE_SLEEP                      1
+#define Si446x_STATE_SPI_ACTIVE                 2
+#define Si446x_STATE_READY                      3
+#define Si446x_STATE_READY2                     4
+#define Si446x_STATE_TX_TUNE                    5
+#define Si446x_STATE_RX_TUNE                    6
+#define Si446x_STATE_TX                         7
+#define Si446x_STATE_RX                         8
 
 /* Commands. */
-#define Si446x_GET_PART_INFO            0x01
-#define Si446x_GET_ADC_READING          0x14
-#define Si446x_FIFO_INFO                0x15
-#define Si446x_GET_MODEM_STATUS         0x22
-#define Si446x_START_TX                 0x31
-#define Si446x_START_RX                 0x32
-#define Si446x_REQUEST_DEVICE_STATE     0x33
-#define Si446x_RX_HOP                   0x36
-#define Si446x_READ_CMD_BUFF            0x44
-#define Si446x_WRITE_TX_FIFO            0x66
+#define Si446x_GET_PART_INFO                    0x01
+#define Si446x_GET_ADC_READING                  0x14
+#define Si446x_FIFO_INFO                        0x15
+#define Si446x_GET_MODEM_STATUS                 0x22
+#define Si446x_START_TX                         0x31
+#define Si446x_START_RX                         0x32
+#define Si446x_REQUEST_DEVICE_STATE             0x33
+#define Si446x_RX_HOP                           0x36
+#define Si446x_READ_CMD_BUFF                    0x44
+#define Si446x_WRITE_TX_FIFO                    0x66
 
 /* Defined response values. */
-#define Si446x_COMMAND_CTS                        0xFF
+#define Si446x_COMMAND_CTS                      0xFF
 
 /*
  * Property group commands.

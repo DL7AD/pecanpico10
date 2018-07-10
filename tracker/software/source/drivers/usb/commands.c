@@ -11,6 +11,7 @@
 #include "pflash.h"
 #include "ublox.h"
 #include <string.h>
+#include <time.h>
 
 static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
 
@@ -28,10 +29,11 @@ const ShellCommand commands[] = {
 #endif
     {"sats", usb_cmd_get_gps_sat_info},
     {"error_list", usb_cmd_get_error_list},
+    {"time", usb_cmd_time},
 	{NULL, NULL}
 };
 
-/*
+/**
  *
  */
 void usb_cmd_get_gps_sat_info(BaseSequentialStream *chp, int argc, char *argv[]) {
@@ -312,3 +314,48 @@ void usb_cmd_get_error_list(BaseSequentialStream *chp, int argc, char *argv[])
 	}
 }
 
+
+/**
+ *
+ */
+void usb_cmd_time(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
+
+  if(argc > 0 && argc != 2) {
+    shellUsage(chp, "time [YYYY:MM:DD HH:MM:SS]");
+    return;
+  }
+  /* Read time from RTC. */
+  ptime_t time;
+  getTime(&time);
+  if(argc == 0) {
+    chprintf(chp, "RTC time %04d-%02d-%02d %02d:%02d:%02d\r\n",
+                            time.year, time.month, time.day,
+                            time.hour, time.minute, time.day);
+    return;
+  }
+  /* TODO: add error  checking
+   */
+  struct tm cdate;
+  struct tm ctime;
+  strptime(argv[0], "%Y-%m-%d", &cdate);
+  strptime(argv[1], "%T", &ctime);
+  time.year = cdate.tm_year + 1900;
+  time.month = cdate.tm_mon + 1;
+  time.day = cdate.tm_mday;
+  time.hour = ctime.tm_hour;
+  time.minute = ctime.tm_min;
+  time.second = ctime.tm_sec;
+  setTime(&time);
+/*  struct tm {
+               int tm_sec;     Seconds (0-60)
+               int tm_min;     Minutes (0-59)
+               int tm_hour;    Hours (0-23)
+               int tm_mday;    Day of the month (1-31)
+               int tm_mon;     Month (0-11)
+               int tm_year;    Year - 1900
+               int tm_wday;    Day of the week (0-6, Sunday = 0)
+               int tm_yday;    Day in the year (0-365, 1 Jan = 0)
+               int tm_isdst;   Daylight saving time
+           };*/
+}

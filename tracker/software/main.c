@@ -15,18 +15,13 @@ int main(void) {
     /* Setup core IO peripherals. */
     pktConfigureCoreIO();
 
-	// Init debugging (Serial debug port, LEDs)
-	DEBUG_INIT();
+    /* Setup the mutex for trace output. */
+    DEBUG_INIT();
 
-#if ACTIVATE_USB
-	/*
-	 * TODO: Defer configure of USB mode.
-	 * Set D+ (LINE_USB_DP) as pushpull out and low in board.h.
-	 * Then delay here before ALT 10 for USB.
-	 */
-    /* Start Serial Over USB. */
-    startSDU();
-    TRACE_INFO("MAIN > USB startup");
+#if ACTIVATE_CONSOLE
+    /* Start console. */
+    pktStartConsole();
+    TRACE_INFO("MAIN > Console startup");
 #endif
 
 	/*
@@ -40,11 +35,14 @@ int main(void) {
     /* Start serial diagnostic channels if selected. */
     pktSerialStart();
 
-    /* Create packet radio service. */
+    /*
+     * Create a packet radio service.
+     * For now there is just one radio.
+     */
     if(!pktServiceCreate(PKT_RADIO_1)) {
-      TRACE_ERROR("PKT  > Unable to create packet services");
+      TRACE_ERROR("MAIN > Unable to create packet services");
     } else {
-      pktEnableEventTrace();
+      pktEnableEventTrace(PKT_RADIO_1);
     }
 
    TRACE_INFO("MAIN > Starting threads");
@@ -53,13 +51,10 @@ int main(void) {
 	start_essential_threads();	// Startup required modules (tracking manager, watchdog)
 	start_user_threads();		// Startup optional modules (eg. POSITION, LOG, ...)
 
-	   TRACE_INFO("MAIN > Active");
+	TRACE_INFO("MAIN > Active");
 	while(true) {
-      #if ACTIVATE_USB
-          manageTraceAndShell();
-          pktTraceEvents();
-      #endif /* ACTIVATE_USB */
-      /* Wait in a loop if nothing to do. */
+	  /* Trace events from packet decoder system. */
+      pktTraceEvents();
       chThdSleep(TIME_MS2I(200));
 	}
 }

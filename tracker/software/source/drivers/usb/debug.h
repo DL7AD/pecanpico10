@@ -27,7 +27,7 @@ extern uint8_t usb_trace_level;
 }
 
 #define TRACE_BASE(format, type, args...) { \
-	if(isSDUAvailable()) { \
+	if(isConsoleOutputAvailable()) { \
 		if(TRACE_TIME) { \
 			chprintf((BaseSequentialStream*)&SDU1, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000); \
 		} \

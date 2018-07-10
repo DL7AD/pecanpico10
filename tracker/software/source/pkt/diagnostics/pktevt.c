@@ -12,18 +12,21 @@ event_listener_t pkt_el;
 static bool trace_enabled = false;
 
 
-void pktEnableEventTrace() {
-  chEvtRegister(pktGetEventSource(&RPKTD1), &pkt_el, 1);
+void pktEnableEventTrace(radio_unit_t radio) {
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  chEvtRegister(pktGetEventSource(handler), &pkt_el, 1);
   trace_enabled = true;
 }
 
-void pktDisableEventTrace() {
+void pktDisableEventTrace(radio_unit_t radio) {
+  packet_svc_t *handler = pktGetServiceObject(radio);
   trace_enabled = false;
-  chEvtUnregister(pktGetEventSource(&RPKTD1), &pkt_el);
+  chEvtUnregister(pktGetEventSource(handler), &pkt_el);
 }
 
 /*
  * TODO: Refactor and add severity categories filtering
+ * Add packet service listener object per radio.
  */
 void pktTraceEvents() {
   if(!trace_enabled)

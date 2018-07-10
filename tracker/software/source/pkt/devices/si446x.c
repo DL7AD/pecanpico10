@@ -168,10 +168,7 @@ static void Si446x_init(const radio_unit_t radio) {
 
   chDbgAssert(handler != NULL, "invalid radio ID");
 
-  //pktPowerUpRadio(radio);
   Si446x_powerup(radio);
-  //palClearLine(LINE_RADIO_SDN);   // Radio SDN low (power up transceiver)
-  //chThdSleep(TIME_MS2I(10));      // Wait for transceiver to power up
 
     // Power up (send oscillator type)
     const uint8_t x3 = (Si446x_CCLK >> 24) & 0x0FF;

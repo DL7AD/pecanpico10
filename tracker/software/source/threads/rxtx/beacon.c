@@ -41,32 +41,44 @@ THD_FUNCTION(bcnThread, arg) {
     pktDisplayFrequencyCode(conf->radio_conf.freq, code_s, sizeof(code_s));
     TRACE_INFO("POS  > Do module BEACON cycle for %s on %s%s",
                conf->call, code_s, conf->run_once ? " (?aprsp response)" : "");
-    extern thread_t *collector_thd;
+    /* TODO: Add a while loop here that checks remaining time in cycle.
+     * When within time then keep trying for GPS lock.
+     * The collector will keep the GPS on if battery is OK.
+     */
+    if(chVTIsSystemTimeWithinX(time, time + conf->beacon.cycle)) {
+
+    }
+
     /*
      *  Pass pointer to beacon config to the collector thread.
      */
-    dataPoint_t *dataPoint =
-        (dataPoint_t *)chMsgSend(collector_thd, (msg_t)conf);
+    extern thread_t *collector_thd;
+    msg_t dpmsg = chMsgSend(collector_thd, (msg_t)conf);
+    if(dpmsg == MSG_TIMEOUT) {
+
+    }
+    /* If not a timeout then this is a datapoint. */
+    dataPoint_t *dataPoint = (dataPoint_t *)dpmsg;
 
     /* Continue here when collector responds. */
     if(!p_sleep(&conf->beacon.sleep_conf)) {
-      if(!isPositionValid(dataPoint) || dataPoint == NULL) {
-        TRACE_INFO("BCN  > Waiting for position data for"
-            " %s (GPS state=%d)", conf->call, dataPoint->gps_state);
-        if(conf->run_once) {
+      //if(!isPositionValid(dataPoint) || dataPoint == NULL) {
+/*        TRACE_INFO("BCN  > Waiting for position data for"
+            " %s (GPS state=%d)", conf->call, dataPoint->gps_state);*/
+        //if(conf->run_once) {
           /* If this is run once so don't retry. */
-          chHeapFree(conf);
-          pktThdTerminateSelf();
-        }
-        if(isGPSbatteryOperable(dataPoint)) {
+          //chHeapFree(conf);
+          //pktThdTerminateSelf();
+        //}
+        //if(isGPSbatteryOperable(dataPoint)) {
           /* If the battery is good retry quickly.
            * TODO: Rework and involve the p_sleep setting?
            * Limit to a number of retries? */
-          chThdSleep(TIME_S2I(60));
-          continue;
-        }
+          //chThdSleep(TIME_S2I(60));
+          //continue;
+        //}
         /* Else battery weak so beacon fallback data (TX may fail). */
-      }
+      //}
 
       // Telemetry encoding parameter transmissions
       if(conf_sram.tel_enc_cycle != 0

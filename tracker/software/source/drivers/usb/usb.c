@@ -5,47 +5,13 @@
 #include "commands.h"
 #include "pktconf.h"
 
-static thread_t *shelltp;
-sdu_term_t sdu_chn_state;
-
-event_listener_t sdu1_el;
 
 static const ShellConfig shell_cfg = {
 	(BaseSequentialStream*)&SDU1,
 	commands
 };
 
-/*
- *
- */
-void startUSB(void) {
-	usbObjectInit(&USBD1);
-
-    usbStart(&USBD1, &usbcfg);
-
-    /* Currently does nothing. */
-	usbDisconnectBus(&USBD1);
-
-	chThdSleep(TIME_MS2I(100));
-
-    /* Currently does nothing. */
-    usbConnectBus(&USBD1);
-
-	sdu_chn_state = TERM_SDU_INIT;
-}
-
-/**
- * @brief   Manage trace output and shell on Serial Over USB.
- *
- */
-void startSDU(void) {
-  if(sdu_chn_state != TERM_SDU_INIT)
-    return;
-  sduObjectInit(&SDU1);
-  chEvtRegister(chnGetEventSource(&SDU1), &sdu1_el, USB_SDU1_EVT);
-  sduStart(&SDU1, &serusbcfg);
-  sdu_chn_state = TERM_SDU_START;
-}
+static con_chn_state_t console_state;
 
 /**
  * @brief   Manage trace output and shell on Serial Over USB.
@@ -54,47 +20,57 @@ void startSDU(void) {
  * @notes   A new shell is invoked and remains active until logout.
  * @notes   TRACE output is then resumed.
  *
- * @api
+ * @thread
  */
-void manageTraceAndShell(void) {
+THD_FUNCTION(pktConsole, arg) {
+  BaseAsynchronousChannel *driver = (BaseAsynchronousChannel *)arg;
+  event_listener_t con_el;
 
-    if(chEvtGetAndClearEvents(EVENT_MASK(USB_SDU1_EVT)) == 0)
-      return;
+  thread_t *shelltp;
+/*  chEvtRegisterMaskWithFlags(chnGetEventSource(driver),
+                      &con_el,
+                      CONSOLE_CHANNEL_EVT,
+                      CHN_CONNECTED | CHN_DISCONNECTED | CHN_INPUT_AVAILABLE);*/
+  chEvtRegister(chnGetEventSource(driver), &con_el, CONSOLE_CHANNEL_EVT);
+  console_state = CON_CHN_READY;
 
-    BaseSequentialStream *chp = (BaseSequentialStream *)&SDU1;
+  /* Initialisation done. Wait for start from initiator. */
+  thread_t *initiator = chMsgWait();
+  (void)chMsgGet(initiator);
 
-    eventflags_t evtf = chEvtGetAndClearFlags(&sdu1_el);
+  /* Release the initiator which then enables the channel. */
+  chMsgRelease(initiator, MSG_OK);
 
-    switch(sdu_chn_state) {
-    case TERM_SDU_INIT:
-      break;
+  while(true) {
+    chEvtWaitAny(EVENT_MASK(CONSOLE_CHANNEL_EVT));
+    BaseSequentialStream *chp = (BaseSequentialStream *)driver;
+    eventflags_t evtf = chEvtGetAndClearFlags(&con_el);
 
-    case TERM_SDU_START:
+    switch(console_state) {
+
+    case CON_CHN_READY:
       if(evtf & CHN_CONNECTED) {
-        sdu_chn_state = TERM_SDU_OUT;
+        console_state = CON_CHN_OUT;
         chprintf(chp, "\r\n*** Terminal connected ***\r\n");
         break;
       }
       if(evtf & CHN_DISCONNECTED) {
-        sdu_chn_state = TERM_SDU_IDLE;
+        console_state = CON_CHN_IDLE;
         break;
       }
       break;
 
-    case TERM_SDU_IDLE: {
-/*      if(evtf == 0)
-        break;*/
+    case CON_CHN_IDLE: {
       if(evtf & CHN_CONNECTED) {
-        sdu_chn_state = TERM_SDU_OUT;
+        console_state = CON_CHN_OUT;
         chprintf(chp, "\r\n*** Trace output enabled ***\r\n");
-        //break;
       }
       break;
     } /* End case TERM_SDU_IDLE */
 
-    case TERM_SDU_OUT: {
+    case CON_CHN_OUT: {
       if(evtf & CHN_DISCONNECTED) {
-        sdu_chn_state = TERM_SDU_START;
+        console_state = CON_CHN_READY;
         break;
       }
       if(evtf & CHN_INPUT_AVAILABLE) {
@@ -113,44 +89,86 @@ void manageTraceAndShell(void) {
           chprintf(chp, "\r\n*** Failed to open shell ***\r\n");
           break;
         }
-        sdu_chn_state = TERM_SDU_SHELL;
+        console_state = CON_CHN_SHELL;
       }
       break;
     } /* End case TERM_SDU_OUT */
 
-    case TERM_SDU_SHELL: {
+    case CON_CHN_SHELL: {
       /* USB disconnect. */
       if(evtf & CHN_DISCONNECTED) {
         chThdTerminate(shelltp);
-        sdu_chn_state = TERM_SDU_EXIT;
+        console_state = CON_CHN_EXIT;
         break;
       }
       /* Was shell terminated from CLI? */
       if(chThdTerminatedX(shelltp)) {
           chThdWait(shelltp);
           shelltp = NULL;
-          sdu_chn_state = TERM_SDU_OUT;
+          console_state = CON_CHN_OUT;
           chprintf(chp, "\r\n*** Trace resumed by user ***\r\n");
       }
       break;
     } /* End case TERM_SDU_SHELL */
 
-    case TERM_SDU_EXIT: {
+    case CON_CHN_EXIT: {
       chThdWait(shelltp);
       shelltp = NULL;
-      sdu_chn_state = TERM_SDU_START;
+      console_state = CON_CHN_READY;
       break;
     } /* End case TERM_SDU_EXIT */
 
     default:
       break;
     } /* End switch. */
+  }
 }
 
 /*
+ * TODO: Defer configure of GPIO USB so a disconnect can be signaled on D+.
+ * Set D+ (LINE_USB_DP) as pushpull out and low in board.h.
+ * Then delay here before setting alternate mode to enable USB IO.
+ * Rename this function to pktStartConsole.
+ */
+msg_t pktStartConsole(void) {
+
+  /* Init and start USB. */
+  usbObjectInit(&USBD1);
+
+  usbStart(&USBD1, &usbcfg);
+
+  /* Set SDIS in USB controller. */
+  usbDisconnectBus(&USBD1);
+
+  chThdSleep(TIME_MS2I(1000));
+
+  /* Remove SDIS. */
+  usbConnectBus(&USBD1);
+
+  /* Init serial over USB. */
+  sduObjectInit(&SDU1);
+
+  /* Start the console handler. */
+  thread_t *console = chThdCreateFromHeap(NULL,
+              THD_WORKING_AREA_SIZE(1024),
+              "CON",
+              NORMALPRIO - 10,
+              pktConsole,
+              &SDU1);
+  if(console == NULL)
+    return MSG_TIMEOUT;
+
+  msg_t smsg = chMsgSend(console, MSG_OK);
+
+  /* Start serial over USB. */
+  sduStart(&SDU1, &serusbcfg);
+  return smsg;
+}
+
+/**
  *
  */
-bool isSDUAvailable(void) {
+bool isConsoleOutputAvailable(void) {
   /* Return channel connection status of SDU. */
-    return (bool)(sdu_chn_state == TERM_SDU_OUT);
+    return (bool)(console_state == CON_CHN_OUT);
 }

@@ -105,8 +105,8 @@
 #define DEC_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 3)
 
 /* Reserved system event broadcast IDs (set mask in user threads level). */
-#define USB_SHELL_EVT           EVT_PRIORITY_BASE + 0
-#define USB_SDU1_EVT            EVT_PRIORITY_BASE + 16
+//#define CONSOLE_SHELL_EVT       EVT_PRIORITY_BASE + 0
+#define CONSOLE_CHANNEL_EVT     EVT_PRIORITY_BASE + 16
 
 /* Response thread event masks (from decoder to initiator). */
 #define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 15)

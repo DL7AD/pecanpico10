@@ -25,8 +25,8 @@
 extern "C" {
 #endif
 void pktTraceEvents(void);
-void pktEnableEventTrace(void);
-void pktDisableEventTrace(void);
+void pktEnableEventTrace(radio_unit_t radio);
+void pktDisableEventTrace(radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif
