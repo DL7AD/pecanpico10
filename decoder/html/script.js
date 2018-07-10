@@ -4,7 +4,7 @@ const COL_ORANGE	= "#CC6600";
 const COL_RED		= "#FF0000";
 
 var xAxis = {
-	format: range >= 86400 ? 'd. H:m' : 'H:m',
+	format: range > 86400 ? 'd. H:m' : 'H:m',
 	slantedTextAngle: 90
 }
 var area = {'width': '80%', top: 20, bottom: 70};
@@ -13,12 +13,12 @@ var lastChartUpdate = 0;
 var last = null;
 var init = false;
 
-// Chart 1/2
+// Chart 1
 var batteryChart;
 var solarChart;
 var dataBattery;
 var dataSolar;
-var voltageOptions = {
+var batteryOptions = {
 	//explorer: scroll,
 	height: 250,
 	series: {
@@ -27,8 +27,29 @@ var voltageOptions = {
 		2: {targetAxisIndex: 1}
 	},
 	vAxes: {
-		0: {title: 'Voltage (mV)'},
-		1: {title: 'Power (mW)'},
+		0: {title: 'Voltage (V)', viewWindow: {min: -2000, max: 6000}, ticks: [{v: 2000, f: '2.0'}, {v: 3000, f: '3.0'}, {v: 4000, f: '4.0'}, {v: 5000, f: '5.0'}, {v: 6000, f: '6.0'}]},
+		1: {title: 'Power (mW)', viewWindow: {min: -500, max: 1500}, ticks: [-500, -250, 0, 250, 500]},
+	},
+	legend: {
+		position: 'top'
+	},
+	hAxis: xAxis,
+
+	chartArea: area
+};
+
+// Chart 2
+var solarOptions = {
+	//explorer: scroll,
+	height: 250,
+	series: {
+		0: {targetAxisIndex: 0},
+		1: {targetAxisIndex: 0},
+		2: {targetAxisIndex: 1}
+	},
+	vAxes: {
+		0: {title: 'Voltage (V)', viewWindow: {min: -4000, max: 4000}, ticks: [{v: 0, f: '0.0'}, {v: 1000, f: '1.0'}, {v: 2000, f: '2.0'}, {v: 3000, f: '3.0'}, {v: 4000, f: '4.0'}]},
+		1: {title: 'Power (mW)', viewWindow: {min: -500, max: 1500}, ticks: [-500, -250, 0, 250, 500]},
 	},
 	legend: {
 		position: 'top'
@@ -73,8 +94,8 @@ var gpsOptions = {
 		2: {targetAxisIndex: 0}
 	},
 	vAxes: {
-		0: {title: 'Sats / pDOP'},
-		1: {title: 'TTFF'},
+		0: {title: 'Sats / pDOP', viewWindow: {min: 0, max: 30}, ticks: [0,5,10,15]},
+		1: {title: 'TTFF', viewWindow: {min: -180, max: 180}, ticks: [0,60,120,180]},
 	},
 	legend: {
 		position: 'top'
@@ -226,9 +247,9 @@ function updateData() {
 		// Chart 4
 		dataGPS = new google.visualization.DataTable();
 		dataGPS.addColumn('date', 'Time');
-		dataGPS.addColumn('number', "Sats");
-		dataGPS.addColumn('number', "TTFF");
 		dataGPS.addColumn('number', "pDOP");
+		dataGPS.addColumn('number', "TTFF");
+		dataGPS.addColumn('number', "Sats");
 		gpsChart = new google.visualization.LineChart(document.getElementById('gpsDiv'));
 
 		// Chart 5
@@ -314,7 +335,7 @@ function updateData() {
 							case 0: $('#' + key).html(colorize(COL_GREEN, "GPS locked")); break;
 							case 1: $('#' + key).html(colorize(COL_GREEN, "GPS locked - kept switched on")); break;
 							case 2: $('#' + key).html(colorize(COL_RED, "GPS loss")); break;
-							case 3: $('#' + key).html(colorize(COL_ORANGE, "Low Batt before switched on")); break;
+							case 3: $('#' + key).html(colorize(COL_ORANGE, "Low Batt before switch on")); break;
 							case 4: $('#' + key).html(colorize(COL_ORANGE, "Low Batt while switched on")); break;
 							case 5: $('#' + key).html(colorize(COL_GREEN, "Data from memory")); break;
 							case 6: $('#' + key).html(colorize(COL_RED, "GPS never locked")); break;
@@ -444,6 +465,7 @@ function updateData() {
 			for(i=0; i<=48; i++)
 				xAxis.ticks.push(new Date(((Math.floor(time/interval)*interval)-i*interval)*1000))
 
+			lastValidGPSalt = null;
 			$.each(tel, function(key, data) {
 
 				var time = new Date(data['org'] == 'pos' ? data['rxtime']*1000 : data['gps_time']*1000);
@@ -457,25 +479,34 @@ function updateData() {
 					if(dataAlt) dataAlt.addRow([null,null,null,null,null]);
 				}
 
-				if(dataBattery) dataBattery.addRow([time, data['adc_vbat'], data['pac_vbat'], data['pac_pbat']/10]);
+				if(dataBattery)
+					dataBattery.addRow([
+						time,
+						data['adc_vbat'],
+						data['err_pac1720'] ? null : data['pac_vbat'],
+						data['pac_pbat']/10]
+				);
 				if(dataSolar) dataSolar.addRow([time, data['adc_vsol'], data['pac_vsol'], data['pac_psol']/10]);
 				if(dataTemp) dataTemp.addRow([
 					time,
-					data['sen_i1_temp'] && data['sen_i1_temp'] > -10000 && data['sen_i1_temp'] < 10000 ? data['sen_i1_temp']/100 : null,
-					data['sen_e1_temp'] && data['sen_e1_temp'] > -10000 && data['sen_e1_temp'] < 10000 ? data['sen_e1_temp']/100 : null,
-					data['sen_e2_temp'] && data['sen_e2_temp'] > -10000 && data['sen_e2_temp'] < 10000 ? data['sen_e2_temp']/100 : null,
-					data['stm32_temp'] && data['stm32_temp'] > -10000 && data['stm32_temp'] < 10000 ? data['stm32_temp']/100 : null,
-					data['si4464_temp'] && data['si4464_temp'] > -10000 && data['si4464_temp'] < 10000 ? data['si4464_temp']/100 : null
+					data['err_bme280_i1'] ? null : data['sen_i1_temp']/100,
+					data['err_bme280_e1'] ? null : data['sen_e1_temp']/100,
+					data['err_bme280_e2'] ? null : data['sen_e2_temp']/100,
+					data['stm32_temp']/100,
+					data['si4464_temp']/100
 				]);
-				if(dataGPS) dataGPS.addRow([time, data['gps_sats'], data['gps_ttff'], data['gps_pdop']/20]);
+				if(dataGPS) dataGPS.addRow([time, data['gps_pdop']/20, data['gps_ttff'], data['gps_sats']]);
 				if(dataLight) dataLight.addRow([time, data['light_intensity']]);
-				if(dataAlt) dataAlt.addRow([
-					time,
-					data['gps_alt'],
-					data['sen_i1_press'] && data['sen_i1_press'] < 1100000 ? data['sen_i1_press']/10 : null,
-					data['sen_e1_press'] && data['sen_e1_press'] < 1100000 ? data['sen_e1_press']/10 : null,
-					data['sen_e2_press'] && data['sen_e2_press'] < 1100000 ? data['sen_e2_press']/10 : null
-				]);
+				if(dataAlt) {
+					dataAlt.addRow([
+						time,
+						data['gps_lock'] < 2 ? data['gps_alt'] : lastValidGPSalt,
+						data['err_bme280_i1'] ? null : data['sen_i1_press']/10,
+						data['err_bme280_e1'] ? null : data['sen_e1_press']/10,
+						data['err_bme280_e2'] ? null : data['sen_e2_press']/10
+					]);
+					if(data['gps_lock'] < 2) lastValidGPSalt = data['gps_alt'];
+				}
 
 				last = time;
 			});
@@ -496,8 +527,8 @@ function updateData() {
 			}
 
 			// Update charts
-			if(batteryChart) batteryChart.draw(dataBattery, voltageOptions);
-			if(solarChart) solarChart.draw(dataSolar, voltageOptions);
+			if(batteryChart) batteryChart.draw(dataBattery, batteryOptions);
+			if(solarChart) solarChart.draw(dataSolar, solarOptions);
 			if(tempChart) tempChart.draw(dataTemp, tempOptions);
 			if(gpsChart) gpsChart.draw(dataGPS, gpsOptions);
 			if(lightChart) lightChart.draw(dataLight, lightOptions);

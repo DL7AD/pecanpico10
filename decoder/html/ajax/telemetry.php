@@ -1,6 +1,8 @@
 <?php
 error_reporting(E_ALL ^ E_NOTICE);
 
+ob_start("ob_gzhandler");
+
 require_once "../Tracker.class.php";
 
 header("Content-Type: application/json");
