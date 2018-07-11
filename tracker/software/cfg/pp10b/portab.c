@@ -109,6 +109,9 @@ void pktConfigSerialDiag(void) {
   palSetLineMode(LINE_USART3_RX, PAL_MODE_ALTERNATE(7));
 }
 
+/**
+ * Configure packet dump output
+ */
 void pktConfigSerialPkt(void) {
 
 }
@@ -135,14 +138,14 @@ uint8_t pktReadIOlines() {
 }
 
 void pktSerialStart(void) {
-#if ENABLE_EXTERNAL_I2C == FALSE
+#if ENABLE_SERIAL_DEBUG == TRUE
   pktConfigSerialDiag();
   pktConfigSerialPkt();
   sdStart(SERIAL_CFG_DEBUG_DRIVER, &debug_config);
 #endif
   /* Setup diagnostic resource access semaphore. */
-  extern binary_semaphore_t diag_out_sem;
-  chBSemObjectInit(&diag_out_sem, false);
+  extern binary_semaphore_t debug_out_sem;
+  chBSemObjectInit(&debug_out_sem, false);
 }
 
 void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len) {

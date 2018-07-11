@@ -151,7 +151,10 @@
 /* The external port can be used for bit bang I2C. */
 #define ENABLE_EXTERNAL_I2C         FALSE
 
-#if ENABLE_EXTERNAL_I2C == FALSE
+/* To use IO_TXD/IO_RXD for UART debug channel. */
+#define ENABLE_SERIAL_DEBUG         TRUE
+
+#if ENABLE_SERIAL_DEBUG == TRUE
 #define LINE_USART3_TX              LINE_IO_TXD
 #define LINE_USART3_RX              LINE_IO_RXD
 #endif
@@ -199,7 +202,7 @@
 /* Definitions for ICU FIFO implemented using chfactory. */
 #if USE_HEAP_PWM_BUFFER == TRUE
 /* Use factory FIFO as stream control with separate chained PWM buffers. */
-#define NUMBER_PWM_FIFOS            3U
+#define NUMBER_PWM_FIFOS            5U
 /* Number of PWM data entries per queue object. */
 #define PWM_DATA_SLOTS              200
 /* Number of PWM queue objects in total. */

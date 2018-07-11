@@ -24,4 +24,3 @@
 
 packet_svc_t RPKTD1;
 
-binary_semaphore_t diag_out_sem;

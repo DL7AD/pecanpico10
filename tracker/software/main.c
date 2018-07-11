@@ -32,7 +32,7 @@ int main(void) {
 
     chDbgAssert(pkt == true, "failed to init packet system");
 
-    /* Start serial diagnostic channels if selected. */
+    /* Start serial debug channel(s) if selected. */
     pktSerialStart();
 
     /*

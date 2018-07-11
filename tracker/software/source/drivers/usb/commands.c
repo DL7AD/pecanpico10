@@ -322,7 +322,7 @@ void usb_cmd_time(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
   if(argc > 0 && argc != 2) {
-    shellUsage(chp, "time [YYYY:MM:DD HH:MM:SS]");
+    shellUsage(chp, "time [YYYY-MM-DD HH:MM:SS]");
     return;
   }
   /* Read time from RTC. */
@@ -334,7 +334,10 @@ void usb_cmd_time(BaseSequentialStream *chp, int argc, char *argv[]) {
                             time.hour, time.minute, time.day);
     return;
   }
-  /* TODO: add error  checking
+  /*
+   *  TODO:
+   * - add error checking of values.
+   * - allow just date or time as parameter?
    */
   struct tm cdate;
   struct tm ctime;

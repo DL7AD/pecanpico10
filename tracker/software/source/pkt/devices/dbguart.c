@@ -20,6 +20,6 @@
  * @{
  */
 
-
+binary_semaphore_t debug_out_sem;
 
 /** @} */

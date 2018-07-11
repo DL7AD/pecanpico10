@@ -25,8 +25,9 @@ void pktDisableEventTrace(radio_unit_t radio) {
 }
 
 /*
- * TODO: Refactor and add severity categories filtering
- * Add packet service listener object per radio.
+ * TODO:
+ * - Refactor and add severity categories filtering
+ * - Add packet service listener object per radio.
  */
 void pktTraceEvents() {
   if(!trace_enabled)
