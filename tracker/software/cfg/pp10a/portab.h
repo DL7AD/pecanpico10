@@ -150,6 +150,9 @@
 /* The external port can be used for bit bang I2C. */
 #define ENABLE_EXTERNAL_I2C         TRUE
 
+#define EI2C_SCL                    LINE_IO_TXD /* SCL */
+#define EI2C_SDA                    LINE_IO_RXD /* SDA */
+
 /* To use IO_TXD/IO_RXD for UART debug channel. */
 #define ENABLE_SERIAL_DEBUG         FALSE
 

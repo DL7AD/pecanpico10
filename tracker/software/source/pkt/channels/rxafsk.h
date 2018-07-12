@@ -53,7 +53,7 @@
 #define AFSK_PWM_DATA_CAPTURE_DEBUG 7
 #define AFSK_PWM_DATA_REPLAY_DEBUG  8
 
-#define AFSK_DEBUG_TYPE             AFSK_NO_DEBUG
+#define AFSK_DEBUG_TYPE             AFSK_PWM_DATA_CAPTURE_DEBUG
 
 /* Error output type selection. */
 #define AFSK_NO_ERROR               0

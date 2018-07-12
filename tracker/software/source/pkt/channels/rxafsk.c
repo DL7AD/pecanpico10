@@ -15,6 +15,7 @@
  */
 
 #include "pktconf.h"
+#include "portab.h"
 
 /*===========================================================================*/
 /* Driver exported variables.                                                */
@@ -593,7 +594,7 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
 
   /* Create the AFSK decoder thread. */
   extern memory_heap_t *ccm_heap;
-  myDriver->decoder_thd = chThdCreateFromHeap(ccm_heap,
+  myDriver->decoder_thd = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(PKT_AFSK_DECODER_WA_SIZE),
               myDriver->decoder_name,
               NORMALPRIO - 10,
@@ -930,6 +931,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
             continue; /* Decoder state switch. */
           } /* End case. */
+
+          /* If PWM reports a zero valley.
+           * The PWM side has already posted a PWM_STREAM_CLOSE event.
+           */
+        case PWM_TERM_ICU_ZERO:
 
             /* If CCA ends and the decoder has not validated any frame.
              * The PWM side has already posted a PWM_STREAM_CLOSE event.

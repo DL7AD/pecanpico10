@@ -665,6 +665,18 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
     chSysUnlockFromISR();
     return;
   }
+
+  /*
+   * Check if either ICU value is zero and thus invalid.
+   */
+  icucnt_t impulse = icuGetWidthX(myICU);
+  icucnt_t valley = icuGetPeriodX(myICU) - impulse;
+  if(impulse == 0 || valley == 0) {
+    pktClosePWMChannelI(myICU, EVT_PWM_STREAM_CLOSE, PWM_TERM_ICU_ZERO);
+    chSysUnlockFromISR();
+    return;
+  }
+
   /* Write ICU data to PWM queue. */
   msg_t qs = pktQueuePWMDataI(myICU);
 

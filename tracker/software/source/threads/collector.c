@@ -560,7 +560,7 @@ THD_FUNCTION(collectorThread, arg) {
     extern uint8_t gps_model;
     // Trace data
     unixTimestamp2Date(&time, tp->gps_time);
-    TRACE_INFO( "COLL > GPS status: state=%s model=%s)",
+    TRACE_INFO( "COLL > GPS status: state=%s model=%s",
                 get_gps_state_name(tp->gps_state),
                 gps_get_model_name(gps_model));
     TRACE_INFO( "COLL > New data point (ID=%d)\r\n"
