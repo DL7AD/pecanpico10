@@ -27,11 +27,10 @@ THD_FUNCTION(pktConsole, arg) {
   event_listener_t con_el;
 
   thread_t *shelltp;
-/*  chEvtRegisterMaskWithFlags(chnGetEventSource(driver),
+  chEvtRegisterMaskWithFlags(chnGetEventSource(driver),
                       &con_el,
                       CONSOLE_CHANNEL_EVT,
-                      CHN_CONNECTED | CHN_DISCONNECTED | CHN_INPUT_AVAILABLE);*/
-  chEvtRegister(chnGetEventSource(driver), &con_el, CONSOLE_CHANNEL_EVT);
+                      CHN_CONNECTED | CHN_DISCONNECTED | CHN_INPUT_AVAILABLE);
   console_state = CON_CHN_READY;
 
   /* Initialisation done. Wait for start from initiator. */
@@ -42,7 +41,7 @@ THD_FUNCTION(pktConsole, arg) {
   chMsgRelease(initiator, MSG_OK);
 
   while(true) {
-    chEvtWaitAny(EVENT_MASK(CONSOLE_CHANNEL_EVT));
+    chEvtWaitAny(CONSOLE_CHANNEL_EVT);
     BaseSequentialStream *chp = (BaseSequentialStream *)driver;
     eventflags_t evtf = chEvtGetAndClearFlags(&con_el);
 

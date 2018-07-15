@@ -21,7 +21,7 @@
 
 
 #define USE_SPI_ATTACHED_RADIO      TRUE
-#define DUMP_PACKET_TO_SERIAL       FALSE
+//#define DUMP_PACKET_TO_SERIAL       FALSE
 
 /*
  * TODO: Need to use radio unit ID to set assigned GPIO & SPI.

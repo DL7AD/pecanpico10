@@ -199,7 +199,7 @@ void pktDisablePWM(AFSKDemodDriver *myDriver) {
   chSysLock();
 
   /* Close the PWM stream. */
-  pktClosePWMChannelI(myDriver->icudriver, 0, PWM_TERM_DECODE_STOP);
+  pktClosePWMChannelI(myDriver->icudriver, EVT_NONE, PWM_TERM_DECODE_STOP);
 
   /* Stop ICU capture. */
   icuStopCaptureI(myDriver->icudriver);
@@ -832,6 +832,12 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         pkt_data_object_t *myPktBuffer = pktTakeDataBuffer(myHandler,
                                                             pkt_buffer_pool,
                                                             TIME_MS2I(100));
+#if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
+          char buf[80];
+          int out = chsnprintf(buf, sizeof(buf),
+                               "\r\n======= START ===========\r\n");
+          pktWrite( (uint8_t *)buf, out);
+#endif
 
         /* If no buffer is available the handler pointer is also set to NULL. */
         if(myPktBuffer == NULL) {
@@ -844,12 +850,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           break;
         }
 
-#if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
-          char buf[80];
-          int out = chsnprintf(buf, sizeof(buf),
-                               "\r\n======= START ===========\r\n");
-          chnWrite(pkt_out, (uint8_t *)buf, out);
-#endif
+
         /* Increase thread priority. */
         (void)chThdSetPriority(DECODER_RUN_PRIORITY);
         /* Turn on the decoder LED. */
@@ -896,7 +897,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         char buf[80];
         int out = chsnprintf(buf, sizeof(buf), "%i, %i\r\n",
                   radio.pwm.impulse, radio.pwm.valley);
-        chnWrite(pkt_out, (uint8_t *)buf, out);
+        pktWrite( (uint8_t *)buf, out);
 #endif
 
         /* Look for "in band" message in radio data. */
@@ -932,7 +933,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             continue; /* Decoder state switch. */
           } /* End case. */
 
-          /* If PWM reports a zero valley.
+          /* If PWM reports a zero impulse or valley.
            * The PWM side has already posted a PWM_STREAM_CLOSE event.
            */
         case PWM_TERM_ICU_ZERO:
@@ -1050,6 +1051,19 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
        */
       case DECODER_RESET: {
         if(myHandler->active_packet_object != NULL) {
+
+#if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
+          char buf[80];
+          int out = chsnprintf(buf, sizeof(buf),
+                               "\r\n======= STOP ===========\r\n");
+          pktWrite( (uint8_t *)buf, out);
+#endif
+#if AFSK_DEBUG_TYPE == AFSK_AX25_RAW_PACKET_DUMP                             \
+          || AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
+          pktDumpAX25Frame(myHandler->active_packet_object->buffer,
+                           myHandler->active_packet_object->packet_size,
+                           AX25_DUMP_RAW);
+#endif
 #if USE_CCM_HEAP_RX_BUFFERS == TRUE
           /* Free the packet buffer in the heap now. */
           chHeapFree(myHandler->active_packet_object->buffer);
@@ -1078,9 +1092,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /*
            * Wait for FIFO stream control object to be free from the radio.
            * Normally this semaphore will not suspend as decoding is slow.
-           * If can be a forced release by semaphore reset.
-           * TODO: This may happen if the watchdog system forces reset.
-           * TBD.
            */
           (void)chBSemWait(&myFIFO->sem);
 

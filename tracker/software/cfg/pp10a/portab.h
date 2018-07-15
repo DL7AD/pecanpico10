@@ -21,7 +21,7 @@
 
 
 #define USE_SPI_ATTACHED_RADIO      TRUE
-#define DUMP_PACKET_TO_SERIAL       FALSE
+//#define DUMP_PACKET_TO_SERIAL       FALSE
 
 /*
  * TODO: Need to use radio unit ID to set assigned GPIO & SPI.
@@ -157,7 +157,7 @@
 #define ENABLE_SERIAL_DEBUG         FALSE
 
 #if ENABLE_EXTERNAL_I2C == TRUE && ENABLE_SERIAL_DEBUG == TRUE
-#error "Cannot enable serial debug when using external I2C"
+#error "Cannot enable serial debug and external I2C together"
 #elif ENABLE_EXTERNAL_I2C == FALSE && ENABLE_SERIAL_DEBUG == TRUE
 #define LINE_USART3_TX              LINE_IO_TXD
 #define LINE_USART3_RX              LINE_IO_RXD

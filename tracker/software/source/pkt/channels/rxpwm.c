@@ -527,10 +527,10 @@ void pktRadioCCATrailTimer(ICUDriver *myICU) {
        * Hence the decoder is responsible for releasing the PWM FIFO object.
        * Prior to releasing the FIFO the decoder waits on the FIFO semaphore.
        * Closing PWM from here sets the FIFO management semaphore.
-       * This caters for the case where the decoder terminates stram processing first.
+       * This caters for the case where the decoder terminates stream processing first.
        * This may happen if noise produces a long string of data.
        */
-      pktClosePWMChannelI(myICU, EVT_PWM_STREAM_CLOSE, PWM_TERM_CCA_CLOSE);
+      pktClosePWMChannelI(myICU, EVT_NONE, PWM_TERM_CCA_CLOSE);
       break;
       }
 
@@ -667,12 +667,10 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
   }
 
   /*
-   * Check if either ICU value is zero and thus invalid.
+   * Check if impulse ICU value is zero and thus invalid.
    */
-  icucnt_t impulse = icuGetWidthX(myICU);
-  icucnt_t valley = icuGetPeriodX(myICU) - impulse;
-  if(impulse == 0 || valley == 0) {
-    pktClosePWMChannelI(myICU, EVT_PWM_STREAM_CLOSE, PWM_TERM_ICU_ZERO);
+  if(icuGetWidthX(myICU) == 0) {
+    pktClosePWMChannelI(myICU, EVT_NONE, PWM_TERM_ICU_ZERO);
     chSysUnlockFromISR();
     return;
   }

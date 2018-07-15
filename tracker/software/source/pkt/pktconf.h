@@ -79,7 +79,7 @@
 
 #define EVT_PWM_STREAM_OPEN     EVENT_MASK(EVT_PRIORITY_BASE + 16)
 #define EVT_PWM_FIFO_REMNANT    EVENT_MASK(EVT_PRIORITY_BASE + 17)
-#define EVT_PWM_STREAM_CLOSE    EVENT_MASK(EVT_PRIORITY_BASE + 18)
+//#define EVT_PWM_STREAM_CLOSE    EVENT_MASK(EVT_PRIORITY_BASE + 18)
 #define EVT_PKT_INVALID_FRAME   EVENT_MASK(EVT_PRIORITY_BASE + 19)
 
 #define EVT_PKT_FAILED_CB_THD   EVENT_MASK(EVT_PRIORITY_BASE + 20)
@@ -104,9 +104,8 @@
 #define DEC_COMMAND_CLOSE       EVENT_MASK(EVT_PRIORITY_BASE + 2)
 #define DEC_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 3)
 
-/* Reserved system event broadcast IDs (set mask in user threads level). */
-//#define CONSOLE_SHELL_EVT       EVT_PRIORITY_BASE + 0
-#define CONSOLE_CHANNEL_EVT     EVT_PRIORITY_BASE + 16
+/* Console thread event masks. */
+#define CONSOLE_CHANNEL_EVT     EVENT_MASK(EVT_PRIORITY_BASE + 0)
 
 /* Response thread event masks (from decoder to initiator). */
 #define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 15)
@@ -115,11 +114,19 @@
 #define DEC_CLOSE_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 18)
 #define USR_COMMAND_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 19)
 
-/* Diagnostic event masks. */
-#define EVT_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 20)
-#define EVT_PKT_OUT_END         EVENT_MASK(EVT_PRIORITY_BASE + 21)
-
 #define EVT_STATUS_CLEAR        EVT_NONE
+
+/**
+ * PWM stream status bits.
+ */
+typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
+
+/**
+ * @brief   Returns an event mask from an event identifier.
+ */
+#define STATUS_MASK(sid) ((statusmask_t)1 << (statusmask_t)(sid))
+
+#define STA_AFSK_DECODE_RESET   STATUS_MASK(0)
 
 #define useCCM  __attribute__((section(".ram4")))
 

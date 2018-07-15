@@ -540,7 +540,7 @@ radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio) {
 void Si446x_getPartInfo(const radio_unit_t radio, si446x_info_t *info) {
   /* TODO: add hardware mapping. */
   (void)radio;
-  /* Get status. Leave any pending interrupts intact. */
+  /* Get information for this chip. */
   const uint8_t status_info[] = {Si446x_GET_PART_INFO};
   Si446x_read(status_info, sizeof(status_info), (uint8_t *)info,
               sizeof(si446x_info_t));

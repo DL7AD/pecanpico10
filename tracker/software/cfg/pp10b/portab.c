@@ -112,9 +112,9 @@ void pktConfigSerialDiag(void) {
 /**
  * Configure packet dump output
  */
-void pktConfigSerialPkt(void) {
+/*void pktConfigSerialPkt(void) {
 
-}
+}*/
 
 /**
  * TODO: Move this into pktconf.h and use general GPIO to setup.
@@ -140,7 +140,7 @@ uint8_t pktReadIOlines() {
 void pktSerialStart(void) {
 #if ENABLE_SERIAL_DEBUG == TRUE
   pktConfigSerialDiag();
-  pktConfigSerialPkt();
+  //pktConfigSerialPkt();
   sdStart(SERIAL_CFG_DEBUG_DRIVER, &debug_config);
 #endif
   /* Setup diagnostic resource access semaphore. */
@@ -150,7 +150,7 @@ void pktSerialStart(void) {
 
 void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len) {
   (void)level;
-#if ENABLE_EXTERNAL_I2C == FALSE
+#if ENABLE_SERIAL_DEBUG == TRUE
   chnWrite((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, buf, len);
 #else
   (void)buf;
@@ -160,7 +160,7 @@ void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len) {
 
 int dbgPrintf(uint8_t level, const char *format, ...) {
   (void)level;
-#if ENABLE_EXTERNAL_I2C == FALSE
+#if ENABLE_SERIAL_DEBUG == TRUE
   va_list arg;
   int done;
 
@@ -176,7 +176,12 @@ int dbgPrintf(uint8_t level, const char *format, ...) {
 }
 
 void pktWrite(uint8_t *buf, uint32_t len) {
+#if ENABLE_SERIAL_DEBUG == TRUE
   chnWrite((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, buf, len);
+#else
+  (void)buf;
+  (void)len;
+#endif
 }
 
 void pktConfigureCoreIO(void) {
