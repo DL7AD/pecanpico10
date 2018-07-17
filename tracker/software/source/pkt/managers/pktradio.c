@@ -349,7 +349,7 @@ thread_t *pktRadioManagerCreate(const radio_unit_t radio) {
 
   handler->the_radio_fifo = the_radio_fifo;
 
-  dbgPrintf(DBG_INFO, "PKT  > radio manager thread created. FIFO @ 0x%x\r\n",
+  TRACE_INFO("PKT  > radio manager thread created. FIFO @ 0x%x",
             the_radio_fifo);
 
   /* Start the task dispatcher thread. */
@@ -616,7 +616,7 @@ void pktReleaseRadio(const radio_unit_t radio) {
 }
 
 /*
- *
+ * TODO: Refactor this to use an array of strings.
  */
 int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
   char* str = NULL;

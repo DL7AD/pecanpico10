@@ -99,6 +99,8 @@
 #define Si446x_MODEM_IF_FREQ                    0x201B
 #define Si446x_MODEM_DECIMATION_CFG1            0x201E
 #define Si446x_MODEM_DECIMATION_CFG0            0x201F
+#define Si446x_MODEM_DECIMATION_CFG2            0x2020
+#define Si446x_MODEM_IFPKD_THRESHOLDS           0x2021
 #define Si446x_MODEM_BCR_OSR                    0x2022
 #define Si446x_MODEM_BCR_NCO_OFFSET             0x2024
 #define Si446x_MODEM_BCR_GAIN                   0x2027
@@ -131,7 +133,16 @@
 #define Si446x_MODEM_RSSI_CONTROL               0x204C
 #define Si446x_MODEM_RSSI_CONTROL2              0x204D
 #define Si446x_MODEM_RSSI_COMP                  0x204E
+#define Si446x_MODEM_RAW_SEARCH2                0x2050
 #define Si446x_MODEM_CLKGEN_BAND                0x2051
+#define Si446x_MODEM_SPIKE_DET                  0x2054
+#define Si446x_MODEM_ONE_SHOT_AFC               0x2055
+#define Si446x_MODEM_RSSI_MUTE                  0x2057
+#define Si446x_MODEM_DSA_CTRL1                  0x205B
+#define Si446x_MODEM_DSA_CTRL2                  0x205C
+#define Si446x_MODEM_DSA_QUAL                   0x205D
+#define Si446x_MODEM_DSA_RSSI                   0x205E
+#define Si446x_MODEM_DSA_MISC                   0x205F
 
 #define Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0  0x2100
 #define Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0  0x2101

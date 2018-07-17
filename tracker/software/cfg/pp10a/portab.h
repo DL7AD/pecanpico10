@@ -94,6 +94,7 @@
 #define Si446x_CLK                  STM32_HSECLK            /* Oscillator frequency in Hz */
 #define Si446x_CLK_OFFSET           22                      /* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN          true                    /* Set this true, if a TCXO is used, false for XTAL */
+#define Si446x_PART_VARIANT         4464
 
 /*
  * Radio GPIO definitions.

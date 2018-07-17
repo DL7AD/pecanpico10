@@ -14,10 +14,19 @@
 #endif
 
 #include "geofence.h"
+#include "si446x_patch.h"
 
 // Si446x variables
 static int16_t lastTemp = 0x7FFF;
 
+/*===========================================================================*/
+/* Module constants.                                                         */
+/*===========================================================================*/
+
+static const uint8_t Radio_Patch_Data_Array[] = {
+        SI446X_PATCH_CMDS,
+        0x00
+ };
 
 /* =================================================================== SPI communication ==================================================================== */
 
@@ -230,12 +239,31 @@ static bool Si446x_init(const radio_unit_t radio) {
 
   /*
    * Start the chip API with the POWER_UP command.
-   * The first POWER_UP is done without patch bit or func set.
+   * The first POWER_UP is done without patch bit set.
    * We need to get PART_INFO to determine if this is a 4464 or 4463.
    * For a 4463 a patch will be loaded.
    * This is done with a new reset, load and POWER_UP sequence.
+   *
+   * For now though just use a #define to select 4463 config.
    */
-
+#if Si446x_PART_VARIANT == 4463
+  uint16_t i = 0;
+  while(Radio_Patch_Data_Array[i] != 0) {
+    Si446x_writeInit(&Radio_Patch_Data_Array[i + 1], Radio_Patch_Data_Array[i]);
+    i += Radio_Patch_Data_Array[i] + 1;
+  }
+  const uint8_t init_command[] = {Si446x_POWER_UP, 0x81,
+                                  (Si446x_CLK_TCXO_EN & 0x1),
+                                  x3, x2, x1, x0};
+  /*
+   * Use of writeInit() enables SPI write without using OS delays.
+   * CTS is available on GPIO1 after wake up for checking command ready.
+   *
+   * The SDO pin is configured to SDO data by POWER_UP.
+   */
+  Si446x_writeInit(init_command, sizeof(init_command));
+#else
+  (void)Radio_Patch_Data_Array;
   const uint8_t init_command[] = {Si446x_POWER_UP, 0x01,
                                   (Si446x_CLK_TCXO_EN & 0x1),
                                   x3, x2, x1, x0};
@@ -247,6 +275,7 @@ static bool Si446x_init(const radio_unit_t radio) {
    */
   Si446x_writeInit(init_command, sizeof(init_command));
   //chThdSleep(TIME_MS2I(25));
+#endif
 
   /* TODO: We should clear interrupts here with a GET_INT_STATUS. */
 
@@ -333,28 +362,55 @@ static bool Si446x_init(const radio_unit_t radio) {
   Si446x_setProperty8(Si446x_MODEM_BCR_GEAR, 0x00);
   Si446x_setProperty8(Si446x_MODEM_BCR_MISC1, 0xC2);
   Si446x_setProperty8(Si446x_MODEM_AFC_GEAR, 0x54);
+#if Si446x_PART_VARIANT == 4463
+  Si446x_setProperty8(Si446x_MODEM_AFC_WAIT, 0x23);
+#else
   Si446x_setProperty8(Si446x_MODEM_AFC_WAIT, 0x36);
+#endif
   Si446x_setProperty16(Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
   Si446x_setProperty16(Si446x_MODEM_AFC_LIMITER, 0x02, 0x50);
   Si446x_setProperty8(Si446x_MODEM_AFC_MISC, 0x80);
+#if Si446x_PART_VARIANT == 4463
+  Si446x_setProperty8(Si446x_MODEM_AGC_CONTROL, 0xE0);
+#else
   Si446x_setProperty8(Si446x_MODEM_AGC_CONTROL, 0xE2);
+#endif
   Si446x_setProperty8(Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
   Si446x_setProperty8(Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
   Si446x_setProperty8(Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
+#if Si446x_PART_VARIANT == 4463
+  Si446x_setProperty8(Si446x_MODEM_FSK4_GAIN1, 0x80);
+#else
   Si446x_setProperty8(Si446x_MODEM_FSK4_GAIN1, 0x00);
+#endif
   Si446x_setProperty8(Si446x_MODEM_FSK4_GAIN0, 0x02);
   Si446x_setProperty16(Si446x_MODEM_FSK4_TH, 0x35, 0x55);
   Si446x_setProperty8(Si446x_MODEM_FSK4_MAP, 0x00);
   Si446x_setProperty8(Si446x_MODEM_OOK_PDTC, 0x2A);
   Si446x_setProperty8(Si446x_MODEM_OOK_CNT1, 0x85);
   Si446x_setProperty8(Si446x_MODEM_OOK_MISC, 0x23);
+#if Si446x_PART_VARIANT == 4463
+  Si446x_setProperty8(Si446x_MODEM_RAW_SEARCH2, 0xBC);
+#else
   Si446x_setProperty8(Si446x_MODEM_RAW_SEARCH, 0xD6);
+#endif
   Si446x_setProperty8(Si446x_MODEM_RAW_CONTROL, 0x8F);
   Si446x_setProperty16(Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
   Si446x_setProperty8(Si446x_MODEM_ANT_DIV_MODE, 0x01);
   Si446x_setProperty8(Si446x_MODEM_ANT_DIV_CONTROL, 0x80);
   Si446x_setProperty8(Si446x_MODEM_RSSI_COMP, 0x40);
-
+#if Si446x_PART_VARIANT == 4463
+  Si446x_setProperty8(Si446x_MODEM_SPIKE_DET, 0x03);
+  Si446x_setProperty8(Si446x_MODEM_DSA_CTRL1, 0xA0);
+  Si446x_setProperty8(Si446x_MODEM_DSA_CTRL2, 0x04);
+  Si446x_setProperty8(Si446x_MODEM_ONE_SHOT_AFC, 0x07);
+  Si446x_setProperty8(Si446x_MODEM_DSA_QUAL, 0x06);
+  Si446x_setProperty8(Si446x_MODEM_DSA_RSSI, 0x78);
+  Si446x_setProperty8(Si446x_MODEM_DECIMATION_CFG2, 0x0C);
+  Si446x_setProperty8(Si446x_MODEM_RSSI_MUTE, 0x00);
+  Si446x_setProperty8(Si446x_MODEM_DSA_MISC, 0x20);
+  Si446x_setProperty8(Si446x_PREAMBLE_CONFIG, 0x21);
+#endif
   handler->radio_init = true;
   return true;
 }
