@@ -40,12 +40,14 @@ int main(void) {
      * For now there is just one radio.
      */
     while(!pktServiceCreate(PKT_RADIO_1)) {
-      TRACE_ERROR("MAIN > Unable to create packet radio services");
+      TRACE_ERROR("MAIN > Unable to create packet radio %d services",
+                  PKT_RADIO_1);
       chThdSleep(TIME_S2I(10));
     }
 
     pktEnableEventTrace(PKT_RADIO_1);
-    TRACE_INFO("MAIN > Started packet radio service for radio %d", PKT_RADIO_1);
+    TRACE_INFO("MAIN > Started packet radio service for radio %d",
+               PKT_RADIO_1);
 
     TRACE_INFO("MAIN > Starting application and ancillary threads");
 

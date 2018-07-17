@@ -131,6 +131,7 @@ LDSCRIPT= $(CONFDIR)/STM32F413xH.ld
 # setting.
 CSRC = $(ALLCSRC) \
        $(TESTSRC) \
+       $(CHIBIOS)/os/various/syscalls.c \
        main.c \
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
