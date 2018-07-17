@@ -17,11 +17,8 @@
  * Serial port definitions
  */
 #define SERIAL_CFG_DEBUG_DRIVER		&SD3
-//#define SERIAL_CFG_PACKET_DRIVER	&SD4
 
-
-#define USE_SPI_ATTACHED_RADIO      TRUE
-//#define DUMP_PACKET_TO_SERIAL       FALSE
+//#define USE_SPI_ATTACHED_RADIO      TRUE
 
 /*
  * TODO: Need to use radio unit ID to set assigned GPIO & SPI.
@@ -277,6 +274,7 @@ extern "C" {
   void pktConfigSerialPkt(void);
   void pktConfigureCoreIO(void);
   void pktSetLineModeICU(void);
+  void pktSetLineModeRadioCTS(void);
   void pktSerialStart(void);
   void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
   int  dbgPrintf(uint8_t level, const char *format, ...);

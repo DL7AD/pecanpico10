@@ -156,9 +156,10 @@ extern "C" {
   bool      pktLLDradioResumeReceive(const radio_unit_t radio);
   bool      pktLLDradioSendPacket(radio_task_object_t *rto);
   void      pktLLDradioCaptureRSSI(const radio_unit_t radio);
-  void      pktLLDradioPowerUp(const radio_unit_t radio);
-  void      pktLLDradioInit(const radio_unit_t radio);
-  void      pktLLDradioPowerDown(const radio_unit_t radio);
+  //bool      pktLLDradioExitShutdown(const radio_unit_t radio);
+  bool      pktLLDradioInit(const radio_unit_t radio);
+  void      pktLLDradioStandby(const radio_unit_t radio);
+  void      pktLLDradioShutdown(const radio_unit_t radio);
   void      pktLLDradioPauseDecoding(const radio_unit_t radio);
   void      pktLLDradioResumeDecoding(const radio_unit_t radio);
   void      pktLLDradioStartDecoder(const radio_unit_t radio);

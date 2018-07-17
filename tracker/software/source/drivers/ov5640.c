@@ -989,8 +989,8 @@ msg_t OV5640_LockResourcesForCapture(void) {
   pktLLDradioPauseDecoding(PKT_RADIO_1);
   //pktPauseDecoding(PKT_RADIO_1);
   /* Hold TRACE output on USB. */
-  if(isUSBactive())
-    chMtxLock(&trace_mtx);
+/*  if(isUSBactive())
+    chMtxLock(&trace_mtx);*/
   return MSG_OK;
 }
 
@@ -999,8 +999,8 @@ msg_t OV5640_LockResourcesForCapture(void) {
  */
 void OV5640_UnlockResourcesForCapture(void) {
   /* Re-enable TRACE output on USB. */
-  if(isUSBactive())
-    chMtxUnlock(&trace_mtx);
+/*  if(isUSBactive())
+    chMtxUnlock(&trace_mtx);*/
   I2C_Unlock();
   /* TODO: have to make this a loop which would handle multiple receivers. */
   pktLLDradioResumeDecoding(PKT_RADIO_1);

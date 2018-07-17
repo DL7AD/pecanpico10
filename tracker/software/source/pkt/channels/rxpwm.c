@@ -214,7 +214,7 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
   /* Stop the ICU notification (callback). */
   icuDisableNotificationsI(myICU);
   if(myDemod->active_radio_object != NULL) {
-    myDemod->active_radio_object->status |= (EVT_PWM_STREAM_CLOSED | evt);
+    myDemod->active_radio_object->status |= (STA_PWM_STREAM_CLOSED | evt);
     pktAddEventFlagsI(myHandler, evt);
 #if USE_HEAP_PWM_BUFFER == TRUE
     input_queue_t *myQueue =
@@ -236,7 +236,7 @@ void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
        * In any case flag the error.
        */
       pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
-      myDemod->active_radio_object->status |= EVT_PWM_QUEUE_OVERRUN;
+      //myDemod->active_radio_object->status |= EVT_PWM_QUEUE_OVERRUN;
       pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_OVERRUN);
     }
     /* Allow the decoder thread to release the stream FIFO object. */
@@ -649,7 +649,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    *  flag may cause trailing PWM activity.
    *
    */
-  if((myDemod->active_radio_object->status & EVT_AFSK_DECODE_DONE) != 0) {
+  if((myDemod->active_radio_object->status & STA_AFSK_DECODE_DONE) != 0) {
     pktClosePWMChannelI(myICU, EVT_NONE, PWM_ACK_DECODE_END);
     chSysUnlockFromISR();
     return;
@@ -660,7 +660,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    * This will happen when no AX25 buffer is available or overflows.
    * Close the PWM stream and wait for next radio CCA.
    */
-  if((myDemod->active_radio_object->status & EVT_AFSK_DECODE_RESET) != 0) {
+  if((myDemod->active_radio_object->status & STA_AFSK_DECODE_RESET) != 0) {
     pktClosePWMChannelI(myICU, EVT_NONE, PWM_ACK_DECODE_ERROR);
     chSysUnlockFromISR();
     return;

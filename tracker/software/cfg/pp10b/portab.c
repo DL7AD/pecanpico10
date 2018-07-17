@@ -123,6 +123,13 @@ void pktSetLineModeICU(void) {
   palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
 }
 
+/**
+ * TODO: Move this into pktconf.h and use general GPIO to setup.
+ */
+void pktSetLineModeRadioCTS(void) {
+  palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT_PULLDOWN);
+}
+
 /*
  * Read GPIO that are used for:
  * a) general use or

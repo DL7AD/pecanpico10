@@ -22,6 +22,7 @@
 /* Si4464 States. */
 #define Si446x_STATE_NOCHANGE                   0
 #define Si446x_STATE_SLEEP                      1
+#define Si446x_STATE_STANDBY                    1
 #define Si446x_STATE_SPI_ACTIVE                 2
 #define Si446x_STATE_READY                      3
 #define Si446x_STATE_READY2                     4
@@ -31,16 +32,29 @@
 #define Si446x_STATE_RX                         8
 
 /* Commands. */
+#define Si446x_NOP                              0x00
 #define Si446x_GET_PART_INFO                    0x01
+#define Si446x_POWER_UP                         0x02
+#define Si446x_GET_FUNC_INFO                    0x10
+#define Si446x_SET_PROPERTY                     0x11
+#define Si446x_GET_PROPERTY                     0x12
+#define Si446x_GPIO_PIN_CFG                     0x13
 #define Si446x_GET_ADC_READING                  0x14
 #define Si446x_FIFO_INFO                        0x15
+#define Si446x_PACKET_INFO                      0x16
+#define Si446x_GET_INT_STATUS                   0x20
+#define Si446x_GET_PH_STATUS                    0x21
 #define Si446x_GET_MODEM_STATUS                 0x22
+#define Si446x_GET_CHIP_STATUS                  0x23
 #define Si446x_START_TX                         0x31
 #define Si446x_START_RX                         0x32
 #define Si446x_REQUEST_DEVICE_STATE             0x33
+#define Si446x_CHANGE_STATE                     0x34
 #define Si446x_RX_HOP                           0x36
+#define Si446x_TX_HOP                           0x37
 #define Si446x_READ_CMD_BUFF                    0x44
 #define Si446x_WRITE_TX_FIFO                    0x66
+#define Si446x_READ_RX_FIFO                     0x77
 
 /* Defined response values. */
 #define Si446x_COMMAND_CTS                      0xFF
@@ -237,8 +251,9 @@ extern void pktReleasePacketBuffer(packet_t pp);
 extern "C" {
 #endif
   int16_t Si446x_getLastTemperature(const radio_unit_t radio);
-  void Si446x_powerup(const radio_unit_t radio);
-  void Si446x_shutdown(const radio_unit_t radio);
+  bool Si446x_radioWakeup(const radio_unit_t radio);
+  void Si446x_radioShutdown(const radio_unit_t radio);
+  void Si446x_enterStandby(const radio_unit_t radio);
   void Si446x_sendAFSK(packet_t pp);
   bool Si446x_blocSendAFSK(radio_task_object_t *rto);
   void Si446x_send2FSK(packet_t pp);
@@ -261,7 +276,7 @@ extern "C" {
   void Si446x_unlockRadio(const radio_mode_t mode);
   void Si446x_lockRadioByCamera(void);
   void Si446x_unlockRadioByCamera(void);
-  void Si446x_conditional_init(radio_unit_t radio);
+  bool Si446x_conditional_init(radio_unit_t radio);
   bool Si446x_setBandParameters(const radio_unit_t radio,
                                 radio_freq_t freq,
                                 channel_hz_t step);

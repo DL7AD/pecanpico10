@@ -151,7 +151,7 @@ msg_t pktStartConsole(void) {
   thread_t *console = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(1024),
               "CON",
-              NORMALPRIO - 10,
+              LOWPRIO + 10,
               pktConsole,
               &SDU1);
   if(console == NULL)

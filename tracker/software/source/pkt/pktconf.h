@@ -57,22 +57,23 @@
  * The packet channel object holds the global events.
  * Events are broadcast to any listeners.
  */
-#define EVT_AX25_FRAME_RDY      EVENT_MASK(EVT_PRIORITY_BASE +  0)
-#define EVT_AX25_BUFFER_FULL    EVENT_MASK(EVT_PRIORITY_BASE +  1)
-#define EVT_AX25_CRC_ERROR      EVENT_MASK(EVT_PRIORITY_BASE +  2)
-#define EVT_AX25_NO_BUFFER      EVENT_MASK(EVT_PRIORITY_BASE +  3)
+//#define STA_AX25_FRAME_RDY      EVENT_MASK(EVT_PRIORITY_BASE +  0)
+#define EVT_PKT_BUFFER_FULL    EVENT_MASK(EVT_PRIORITY_BASE +  1)
+//#define STA_AX25_CRC_ERROR      EVENT_MASK(EVT_PRIORITY_BASE +  2)
+#define EVT_PKT_NO_BUFFER      EVENT_MASK(EVT_PRIORITY_BASE +  3)
 
-#define EVT_AFSK_TERMINATED     EVENT_MASK(EVT_PRIORITY_BASE +  4)
+//#define EVT_AFSK_TERMINATED     EVENT_MASK(EVT_PRIORITY_BASE +  4)
 #define EVT_AFSK_START_FAIL     EVENT_MASK(EVT_PRIORITY_BASE +  5)
-#define EVT_AFSK_DECODE_RESET   EVENT_MASK(EVT_PRIORITY_BASE +  6)
-#define EVT_AFSK_DECODE_DONE    EVENT_MASK(EVT_PRIORITY_BASE +  7)
+//#define STA_AFSK_DECODE_RESET   EVENT_MASK(EVT_PRIORITY_BASE +  6)
+//#define STA_AFSK_DECODE_DONE    EVENT_MASK(EVT_PRIORITY_BASE +  7)
 
+/* TODO: Create an AKSK event field in decoder for the PWM & radio events. */
 #define EVT_PWM_NO_DATA         EVENT_MASK(EVT_PRIORITY_BASE +  8)
 #define EVT_PWM_INVALID_INBAND  EVENT_MASK(EVT_PRIORITY_BASE +  9)
 #define EVT_PWM_FIFO_EMPTY      EVENT_MASK(EVT_PRIORITY_BASE + 10)
 #define EVT_PWM_QUEUE_FULL      EVENT_MASK(EVT_PRIORITY_BASE + 11)
 
-#define EVT_PWM_STREAM_CLOSED   EVENT_MASK(EVT_PRIORITY_BASE + 12)
+//#define STA_PWM_STREAM_CLOSED   EVENT_MASK(EVT_PRIORITY_BASE + 12)
 #define EVT_PWM_STREAM_TIMEOUT  EVENT_MASK(EVT_PRIORITY_BASE + 13)
 #define EVT_PWM_QUEUE_OVERRUN   EVENT_MASK(EVT_PRIORITY_BASE + 14)
 #define EVT_PWM_BUFFER_FAIL     EVENT_MASK(EVT_PRIORITY_BASE + 15)
@@ -80,7 +81,7 @@
 #define EVT_PWM_STREAM_OPEN     EVENT_MASK(EVT_PRIORITY_BASE + 16)
 #define EVT_PWM_FIFO_REMNANT    EVENT_MASK(EVT_PRIORITY_BASE + 17)
 //#define EVT_PWM_STREAM_CLOSE    EVENT_MASK(EVT_PRIORITY_BASE + 18)
-#define EVT_PKT_INVALID_FRAME   EVENT_MASK(EVT_PRIORITY_BASE + 19)
+//#define STA_PKT_INVALID_FRAME   EVENT_MASK(EVT_PRIORITY_BASE + 19)
 
 #define EVT_PKT_FAILED_CB_THD   EVENT_MASK(EVT_PRIORITY_BASE + 20)
 #define EVT_PKT_BUFFER_MGR_FAIL EVENT_MASK(EVT_PRIORITY_BASE + 21)
@@ -126,7 +127,14 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
  */
 #define STATUS_MASK(sid) ((statusmask_t)1 << (statusmask_t)(sid))
 
-#define STA_AFSK_DECODE_RESET   STATUS_MASK(0)
+/* TODO: Classify status by PKT, AFSK and 2FSK types. */
+#define STA_PKT_FRAME_RDY       STATUS_MASK(0)
+#define STA_PKT_CRC_ERROR       STATUS_MASK(1)
+#define STA_PKT_INVALID_FRAME   STATUS_MASK(2)
+#define STA_AFSK_DECODE_RESET   STATUS_MASK(3)
+#define STA_AFSK_DECODE_DONE    STATUS_MASK(4)
+#define STA_PWM_STREAM_CLOSED   STATUS_MASK(5)
+
 
 #define useCCM  __attribute__((section(".ram4")))
 
@@ -234,7 +242,6 @@ static inline int8_t pktReadGPIOline(ioline_t line) {
 static inline msg_t pktSendRadioCommand(radio_unit_t radio,
                                         radio_task_object_t *task,
                                         radio_task_cb_t cb) {
-#if USE_SPI_ATTACHED_RADIO == TRUE
   radio_task_object_t *rt = NULL;
   msg_t msg = pktGetRadioTaskObject(radio, TIME_MS2I(3000), &rt);
   if(msg != MSG_OK)
@@ -242,11 +249,6 @@ static inline msg_t pktSendRadioCommand(radio_unit_t radio,
   *rt = *task;
   pktSubmitRadioTask(radio, rt, cb);
   return msg;
-#else
-  (void)task;
-  (void)handler;
-  return MSG_OK;
-#endif
 }
 
 /**
@@ -258,12 +260,8 @@ static inline msg_t pktSendRadioCommand(radio_unit_t radio,
  * @api
  */
 static inline void pktReleaseBufferObject(packet_t pp) {
-#if USE_SPI_ATTACHED_RADIO == TRUE
   chDbgAssert(pp != NULL, "no packet pointer");
   pktReleasePacketBuffer(pp);
-#else
-  (void)pp;
-#endif
 }
 
 /**
@@ -276,8 +274,6 @@ static inline void pktReleaseBufferObject(packet_t pp) {
  * @api
  */
 static inline void pktReleaseBufferChain(packet_t pp) {
-#if USE_SPI_ATTACHED_RADIO == TRUE
-
   chDbgAssert(pp != NULL, "no packet pointer");
   /* Release all packets in linked list. */
   do {
@@ -285,9 +281,6 @@ static inline void pktReleaseBufferChain(packet_t pp) {
     pktReleasePacketBuffer(pp);
     pp = np;
   } while(pp != NULL);
-#else
-  (void)pp;
-#endif
 }
 
 #endif /* _PKTCONF_H_ */

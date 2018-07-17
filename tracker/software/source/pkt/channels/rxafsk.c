@@ -843,9 +843,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         if(myPktBuffer == NULL) {
           /* Decrease ref count on AX25 FIFO. */
           chFactoryReleaseObjectsFIFO(pkt_fifo);
-          pktAddEventFlags(myHandler, EVT_AX25_NO_BUFFER);
-          myDriver->active_demod_object->status |=
-              EVT_AX25_NO_BUFFER;
+          pktAddEventFlags(myHandler, EVT_PKT_NO_BUFFER);
+          //myDriver->active_demod_object->status |= EVT_AX25_NO_BUFFER;
           myDriver->decoder_state = DECODER_RESET;
           break;
         }
@@ -886,7 +885,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         if(n != sizeof(packed_pwm_counts_t)) {
           /* PWM stream wait timeout. */
           pktAddEventFlags(myHandler, EVT_PWM_STREAM_TIMEOUT);
-          myDriver->active_demod_object->status |= EVT_PWM_STREAM_TIMEOUT;
+          //myDriver->active_demod_object->status |= EVT_PWM_STREAM_TIMEOUT;
           myDriver->decoder_state = DECODER_RESET;
           break;
         }
@@ -1088,7 +1087,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /*
            * Lock the PWM queue to stop any further radio data being written.
            */
-          myDriver->active_demod_object->status |= EVT_AFSK_DECODE_RESET;
+          myDriver->active_demod_object->status |= STA_AFSK_DECODE_RESET;
           /*
            * Wait for FIFO stream control object to be free from the radio.
            * Normally this semaphore will not suspend as decoding is slow.
@@ -1152,22 +1151,23 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
            * Indicate AFSK decode done.
            * If PWM is still being captured for this stream capture will cease.
            */
-          eventflags_t evtf = EVT_AFSK_DECODE_DONE;
-          myDriver->active_demod_object->status |= evtf;
+          //eventflags_t evtf = EVT_NONE;
+          myDriver->active_demod_object->status |= STA_AFSK_DECODE_DONE;
 
           /* Copy latest status into packet buffer object. */
           myHandler->active_packet_object->status =
               myDriver->active_demod_object->status;
 
           /* Dispatch the packet buffer object and get AX25 events. */
-          evtf |= pktDispatchReceivedBuffer(myHandler->active_packet_object);
+          myHandler->active_packet_object->status |=
+              pktDispatchReceivedBuffer(myHandler->active_packet_object);
 
-          /* Forget the packet object. */
+          /* Remove the packet object reference. */
           myHandler->active_packet_object = NULL;
 
           /* Send events then update demod object status. */
-          pktAddEventFlags(myHandler, evtf);
-          myDriver->active_demod_object->status |= evtf;
+          //pktAddEventFlags(myHandler, evtf);
+          //myDriver->active_demod_object->status |= evtf;
         } /* Active packet object != NULL. */
         myDriver->decoder_state = DECODER_RESET;
         break;

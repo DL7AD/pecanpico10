@@ -16,7 +16,7 @@ int main(void) {
     pktConfigureCoreIO();
 
     /* Setup the mutex for trace output. */
-    DEBUG_INIT();
+    //DEBUG_INIT();
 
 #if ACTIVATE_CONSOLE
     /* Start console. */
@@ -39,13 +39,15 @@ int main(void) {
      * Create a packet radio service.
      * For now there is just one radio.
      */
-    if(!pktServiceCreate(PKT_RADIO_1)) {
-      TRACE_ERROR("MAIN > Unable to create packet services");
-    } else {
-      pktEnableEventTrace(PKT_RADIO_1);
+    while(!pktServiceCreate(PKT_RADIO_1)) {
+      TRACE_ERROR("MAIN > Unable to create packet radio services");
+      chThdSleep(TIME_S2I(10));
     }
 
-   TRACE_INFO("MAIN > Starting threads");
+    pktEnableEventTrace(PKT_RADIO_1);
+    TRACE_INFO("MAIN > Started packet radio service for radio %d", PKT_RADIO_1);
+
+    TRACE_INFO("MAIN > Starting application and ancillary threads");
 
 	// Startup threads
 	start_essential_threads();	// Startup required modules (tracking manager, watchdog)

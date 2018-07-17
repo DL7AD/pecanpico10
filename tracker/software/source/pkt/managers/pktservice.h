@@ -512,7 +512,7 @@ static inline msg_t pktReceiveDataBufferTimeout(packet_svc_t *handler,
 static inline bool pktIsBufferValidAX25Frame(pkt_data_object_t *object) {
   chDbgAssert(object != NULL, "no pointer to packet object buffer");
   uint16_t frame_size = object->packet_size;
-  return ((object->status & EVT_AFSK_DECODE_DONE)
+  return ((object->status & STA_AFSK_DECODE_DONE)
     && (frame_size >= PKT_MIN_FRAME));
 }
 
@@ -525,13 +525,13 @@ static inline bool pktIsBufferValidAX25Frame(pkt_data_object_t *object) {
  *
  * @return              The operation status.
  * @retval true         if the frame is valid and has good CRC.
- * @retval false        if the frame is valid and has bad CRC.
+ * @retval false        if the frame is invalid or has bad CRC.
  *
  * @api
  */
 static inline bool pktGetAX25FrameStatus(pkt_data_object_t *object) {
   chDbgAssert(object != NULL, "no pointer to packet object buffer");
-  return !(object->status & (EVT_PKT_INVALID_FRAME | EVT_AX25_CRC_ERROR));
+  return !(object->status & (STA_PKT_INVALID_FRAME | STA_PKT_CRC_ERROR));
 }
 
 /**
