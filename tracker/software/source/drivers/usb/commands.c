@@ -30,6 +30,7 @@ const ShellCommand commands[] = {
     {"sats", usb_cmd_get_gps_sat_info},
     {"error_list", usb_cmd_get_error_list},
     {"time", usb_cmd_time},
+    {"radio", usb_cmd_radio},
 	{NULL, NULL}
 };
 
@@ -332,6 +333,7 @@ void usb_cmd_time(BaseSequentialStream *chp, int argc, char *argv[]) {
     chprintf(chp, "RTC time %04d-%02d-%02d %02d:%02d:%02d\r\n",
                             time.year, time.month, time.day,
                             time.hour, time.minute, time.day);
+    chprintf(chp, "\r\nTo set time: time [YYYY-MM-DD HH:MM:SS]\r\n");
     return;
   }
   /*
@@ -361,4 +363,33 @@ void usb_cmd_time(BaseSequentialStream *chp, int argc, char *argv[]) {
                int tm_yday;    Day in the year (0-365, 1 Jan = 0)
                int tm_isdst;   Daylight saving time
            };*/
+}
+
+/**
+ * List type, part ROM rev and patch for radio.
+ */
+void usb_cmd_radio(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
+
+  if(argc > 1) {
+    shellUsage(chp, "radio [number]");
+    return;
+  }
+  radio_unit_t radio;
+  if(argc == 0)
+    radio = PKT_RADIO_1;
+  else
+    radio = atoi(argv[0]);
+
+  int8_t num = pktGetNumRadios();
+  if(radio == 0 || radio > num) {
+    chprintf(chp, "Invalid radio number %d\r\n", radio);
+    return;
+  }
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  chprintf(chp, "Radio %d info: part number %04x, rom revision %02x, "
+                   "patch ID %04x\r\n",
+                   radio, handler->radio_part,
+                   handler->radio_rom_rev, handler->radio_patch);
 }

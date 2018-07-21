@@ -93,7 +93,7 @@
 #define Si446x_CLK                  STM32_HSECLK            /* Oscillator frequency in Hz */
 #define Si446x_CLK_OFFSET           22                      /* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN          true                    /* Set this true, if a TCXO is used, false for XTAL */
-#define Si446x_PART_VARIANT         4463
+
 /*
  * Radio GPIO definitions.
  */
@@ -271,7 +271,8 @@ extern "C" {
   void pktConfigSerialPkt(void);
   void pktConfigureCoreIO(void);
   void pktSetLineModeICU(void);
-  void pktSetLineModeRadioCTS(void);
+  void pktSetLineModeRadioGPIO1(void);
+  void pktSetLineModeRadioGPIO0(void);
   void pktSerialStart(void);
   void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
   int  dbgPrintf(uint8_t level, const char *format, ...);

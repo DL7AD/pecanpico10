@@ -366,7 +366,7 @@ void pktStartDecoder(const radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   if(!pktIsReceivePaused(radio))
     /* Wrong state. */
@@ -465,8 +465,8 @@ void pktStopDecoder(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  if(handler == NULL)
-    chDbgAssert(false, "invalid radio ID");
+/*  if(handler == NULL)
+    chDbgAssert(false, "invalid radio ID");*/
 
   if(!pktIsReceiveActive(radio))
     return;
@@ -808,7 +808,7 @@ void pktCallbackManagerOpen(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the callback handler thread name. */
   chsnprintf(handler->cbend_name, sizeof(handler->cbend_name),
@@ -833,7 +833,7 @@ dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the packet buffer name for this radio. */
   chsnprintf(handler->pbuff_name, sizeof(handler->pbuff_name),
@@ -1011,7 +1011,7 @@ thread_t *pktCallbackManagerCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the callback termination thread name. */
   chsnprintf(handler->cbend_name, sizeof(handler->cbend_name),

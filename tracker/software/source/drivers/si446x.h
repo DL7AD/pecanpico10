@@ -226,6 +226,10 @@
 #define Si446x_CCLK                 ((Si446x_CLK) + (Si446x_CLK_OFFSET)      \
                                       * (Si446x_CLK) / 1000000)
 
+#define is_part_Si4463(part) (part == 0x4463)
+
+#define is_Si4463_patch_required(part, rom) (is_part_Si4463(part) && rom == 0x6)
+
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
@@ -240,16 +244,15 @@ typedef struct {
 
 /* Si446x part info. */
 typedef struct {
-  uint8_t   cmd;
-  uint8_t   cts;
-  uint8_t   chiprev;
-  uint16_t  part;
-  uint8_t   pbuild;
-  uint16_t  id;
-  uint8_t   customer;
-  uint8_t   romid;
-} si446x_info_t;
+  uint8_t   info[10];
+} si446x_part_t;
 
+/* Si446x func info. */
+typedef struct {
+  uint8_t   info[10];
+} si446x_func_t;
+
+/* External. */
 typedef struct radioTask radio_task_object_t;
 
 /*===========================================================================*/
@@ -262,9 +265,9 @@ extern void pktReleasePacketBuffer(packet_t pp);
 extern "C" {
 #endif
   int16_t Si446x_getLastTemperature(const radio_unit_t radio);
-  bool Si446x_radioWakeup(const radio_unit_t radio);
+  bool Si446x_radioStartup(const radio_unit_t radio);
   void Si446x_radioShutdown(const radio_unit_t radio);
-  void Si446x_enterStandby(const radio_unit_t radio);
+  void Si446x_radioStandby(const radio_unit_t radio);
   void Si446x_sendAFSK(packet_t pp);
   bool Si446x_blocSendAFSK(radio_task_object_t *rto);
   void Si446x_send2FSK(packet_t pp);
@@ -292,7 +295,6 @@ extern "C" {
                                 radio_freq_t freq,
                                 channel_hz_t step);
   radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
-  void Si446x_getPartInfo(const radio_unit_t radio, si446x_info_t *info);
 #ifdef __cplusplus
 }
 #endif

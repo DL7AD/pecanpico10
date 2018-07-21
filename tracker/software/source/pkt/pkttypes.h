@@ -65,9 +65,18 @@ typedef enum radioUnit {
   PKT_RADIO_1
 } radio_unit_t;
 
+typedef uint16_t    radio_part_t;
+
+typedef uint8_t     radio_rev_t;
+
+typedef uint16_t    radio_patch_t;
+
+/*
+ * Specify radio family.
+ * Specific radio in family is identified dynamically.
+ */
 typedef enum radioTypes {
-  SI4464,
-  SI4463
+  SI446X
 } radio_type_t;
 
 typedef enum radioMode {

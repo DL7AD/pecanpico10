@@ -52,7 +52,7 @@ typedef struct SysProviders {
 const radio_config_t radio_list[] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
-    .type = SI4464,
+    .type = SI446X,
     .band = {
              (radio_band_t * const)&band_2m,
               NULL
@@ -125,8 +125,15 @@ void pktSetLineModeICU(void) {
 /**
  * TODO: Move this into pktconf.h and use general GPIO to setup.
  */
-void pktSetLineModeRadioCTS(void) {
+void pktSetLineModeRadioGPIO1(void) {
   palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT_PULLDOWN);
+}
+
+/**
+ * TODO: Move this into pktconf.h and use general GPIO to setup.
+ */
+void pktSetLineModeRadioGPIO0(void) {
+  palSetLineMode(LINE_RADIO_GPIO0, PAL_MODE_INPUT_PULLDOWN);
 }
 
 /*

@@ -93,6 +93,21 @@ typedef struct packetHandlerData {
   radio_unit_t              radio;
 
   /**
+   * @brief Radio part number.
+   */
+  radio_part_t              radio_part;
+
+  /**
+   * @brief Radio revision level.
+   */
+  radio_rev_t               radio_rom_rev;
+
+  /**
+   * @brief Radio patch ID.
+   */
+  radio_patch_t             radio_patch;
+
+  /**
    * @brief Radio initialization flag.
    */
   bool                      radio_init;
@@ -552,6 +567,9 @@ inline packet_svc_t *pktGetServiceObject(radio_unit_t radio) {
   if(radio == PKT_RADIO_1) {
     handler = &RPKTD1;
   }
+
+  chDbgAssert(handler != NULL, "invalid radio ID");
+
   return handler;
 }
 
@@ -571,7 +589,7 @@ static inline packet_state_t pktGetServiceState(radio_unit_t radio) {
    */
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   return handler->state;
 }

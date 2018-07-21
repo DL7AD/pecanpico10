@@ -95,6 +95,9 @@ DEPDIR := ${CURDIR}/.dep/$(PROJECT)
 CMSISINC = ${CURDIR}/CMSIS/include
 CMSISLIB = ${CURDIR}/CMSIS/Lib/GCC
 
+# ChibiOS versions of system calls
+ALLSRC := $(CHIBIOS)/os/various/syscalls.c
+
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
 # Startup files.
@@ -131,7 +134,6 @@ LDSCRIPT= $(CONFDIR)/STM32F413xH.ld
 # setting.
 CSRC = $(ALLCSRC) \
        $(TESTSRC) \
-       $(CHIBIOS)/os/various/syscalls.c \
        main.c \
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global

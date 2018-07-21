@@ -331,7 +331,7 @@ thread_t *pktRadioManagerCreate(const radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the radio manager name. */
   chsnprintf(handler->rtask_name, sizeof(handler->rtask_name),
@@ -427,7 +427,7 @@ msg_t pktGetRadioTaskObjectI(const radio_unit_t radio,
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   dyn_objects_fifo_t  *task_fifo = handler->the_radio_fifo;
   chDbgAssert(task_fifo != NULL, "no radio task fifo");
@@ -460,7 +460,7 @@ void pktSubmitRadioTaskI(const radio_unit_t radio,
                          const radio_task_cb_t cb) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   dyn_objects_fifo_t *task_fifo = handler->the_radio_fifo;
   chDbgAssert(task_fifo != NULL, "no radio task fifo");
@@ -502,7 +502,7 @@ msg_t pktGetRadioTaskObject(const radio_unit_t radio,
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   dyn_objects_fifo_t *task_fifo =
       chFactoryFindObjectsFIFO(handler->rtask_name);
@@ -538,7 +538,7 @@ void pktSubmitRadioTask(const radio_unit_t radio,
                          const radio_task_cb_t cb) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   dyn_objects_fifo_t *task_fifo = handler->the_radio_fifo;
   chDbgAssert(task_fifo != NULL, "no radio task fifo");
@@ -638,11 +638,11 @@ int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
     break;
 
   case FREQ_CMDC_RECEIVE:
-    str = "CNC Receivefrequency";
+    str = "CNC Receive frequency";
     break;
 
   case FREQ_APRS_DEFAULT:
-    str = "APRS Defaultfrequency";
+    str = "APRS Default frequency";
     break;
 
   case FREQ_CODES_END:
@@ -707,7 +707,7 @@ radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
 }
 
 /*
- *
+ * TODO: Rework to use max radio and start and PKT_RADIO_1 in loop.
  */
 radio_freq_t pktCheckAllowedFrequency(const radio_unit_t radio,
                                       radio_freq_t freq) {
@@ -821,7 +821,7 @@ void pktLLDradioStandby(const radio_unit_t radio) {
    * Put radio in standby (low power) mode.
    * All registers are retained.
    */
-  Si446x_enterStandby(radio);
+  Si446x_radioStandby(radio);
 }
 
 /**
@@ -871,7 +871,7 @@ bool pktLLDradioEnableReceive(const radio_unit_t radio,
                          radio_task_object_t *rto) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   if(handler == NULL)
     return false;
@@ -915,7 +915,7 @@ void pktLLDradioDisableReceive(const radio_unit_t radio) {
 bool pktLLDradioResumeReceive(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   radio_freq_t freq = handler->radio_rx_config.base_frequency;
   channel_hz_t step = handler->radio_rx_config.step_hz;
@@ -940,7 +940,7 @@ bool pktLLDradioResumeReceive(const radio_unit_t radio) {
  */
 void pktLLDradioCaptureRSSI(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
   handler->rx_stength = Si446x_getCurrentRSSI(radio);
 }
 
