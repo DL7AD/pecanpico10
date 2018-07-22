@@ -845,9 +845,18 @@ bool Si446x_radioStartup(const radio_unit_t radio) {
 
   /* Assert SDN low to perform POR wakeup. */
   palClearLine(LINE_RADIO_SDN);
-  /* Set MCU GPIO input for CTS and POR of radio from GPIO1 and GPIO0. */
-  pktSetLineModeRadioGPIO1();
-  pktSetLineModeRadioGPIO0();
+  /*
+   * Set MCU GPIO input for POR and CTS of radio from GPIO0 and GPIO1.
+   * TODO: Add function to get radio_list record for this radio number.
+   * Then get LINE_GPIO_XXX from the radio record.
+   * Should these setups go into coreIO function?
+   */
+  palSetLineMode(LINE_RADIO_GPIO0, PAL_MODE_INPUT_PULLDOWN);
+  palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT_PULLDOWN);
+  ioline_t cts = LINE_RADIO_GPIO1;
+  //return LINE_RADIO_GPIO1;
+  //ioline_t cts = pktSetLineModeRadioGPIO1(radio);
+  //pktSetLineModeRadioGPIO0(radio);
   /* Wait for transceiver to wake up (maximum wakeup time is 6mS).
    * During start up the POR state is on GPIO0.
    * This goes from zero to one when POR completes.
@@ -855,7 +864,7 @@ bool Si446x_radioStartup(const radio_unit_t radio) {
    */
   chThdSleep(TIME_MS2I(10));
   /* Return state of CTS after delay. */
-  return pktReadGPIOline(LINE_RADIO_GPIO1) == PAL_HIGH;
+  return pktReadGPIOline(cts) == PAL_HIGH;
 }
 
 /**

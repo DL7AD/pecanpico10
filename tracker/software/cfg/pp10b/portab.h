@@ -270,9 +270,9 @@ extern "C" {
   void pktConfigSerialDiag(void);
   void pktConfigSerialPkt(void);
   void pktConfigureCoreIO(void);
-  void pktSetLineModeICU(void);
-  void pktSetLineModeRadioGPIO1(void);
-  void pktSetLineModeRadioGPIO0(void);
+  ioline_t pktSetLineModeICU(const radio_unit_t radio);
+  ioline_t pktSetLineModeRadioGPIO1(const radio_unit_t radio);
+  ioline_t pktSetLineModeRadioGPIO0(const radio_unit_t radio);
   void pktSerialStart(void);
   void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
   int  dbgPrintf(uint8_t level, const char *format, ...);

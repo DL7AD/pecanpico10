@@ -96,11 +96,11 @@ THD_FUNCTION(pktPWMispatcher, arg) {
  *
  * @api
  */
-ICUDriver *pktAttachICU(radio_unit_t radio_id) {
+ICUDriver *pktAttachICU(radio_unit_t radio) {
   /* For now there is only one radio and a fixed ICU association.
    * TODO: Implement Radio <-> ICU association code and data structure.
    */
-  (void)radio_id;
+  //(void)radio_id;
 
   /*
    * Initialize the RX_DATA capture ICU.
@@ -113,7 +113,7 @@ ICUDriver *pktAttachICU(radio_unit_t radio_id) {
   /* The RX_DATA input is routed to ICU timer.
    * Set in portab.c
    */
-  pktSetLineModeICU();
+  (void)pktSetLineModeICU(radio);
 
   /* If using PWM mirror to output to a diagnostic port. */
   pktSetGPIOlineMode(LINE_PWM_MIRROR, PAL_MODE_OUTPUT_PUSHPULL);

@@ -33,11 +33,20 @@ THD_FUNCTION(pktConsole, arg) {
                       CHN_CONNECTED | CHN_DISCONNECTED | CHN_INPUT_AVAILABLE);
   console_state = CON_CHN_READY;
 
-  /* Initialisation done. Wait for start from initiator. */
+  /* Next run the handshake protocol to start the control thread. */
+
+  /*Wait for start from initiator. */
   thread_t *initiator = chMsgWait();
   (void)chMsgGet(initiator);
 
-  /* Release the initiator which then enables the channel. */
+  /* Release the initiator which next enables the channel. */
+  chMsgRelease(initiator, MSG_OK);
+
+  /* Wait for channel to be started. */
+  initiator = chMsgWait();
+  (void)chMsgGet(initiator);
+
+  /* Release the initiator which then completes. */
   chMsgRelease(initiator, MSG_OK);
 
   while(true) {
@@ -157,10 +166,15 @@ msg_t pktStartConsole(void) {
   if(console == NULL)
     return MSG_TIMEOUT;
 
+  /* Wait for thread to start. */
   msg_t smsg = chMsgSend(console, MSG_OK);
 
   /* Start serial over USB. */
   sduStart(&SDU1, &serusbcfg);
+
+  /* Signal thread to enter event monitoring. */
+  smsg = chMsgSend(console, MSG_OK);
+
   return smsg;
 }
 

@@ -178,7 +178,7 @@ extern "C" {
 /*===========================================================================*/
 
 /**
- * @brief   Alias for convenience of pktStopDecoder.
+ * @brief   Alias of pktStopDecoder for convenience.
  *
  * @param[in] radio radio unit ID
  *

@@ -110,32 +110,34 @@ void pktConfigSerialDiag(void) {
 }
 
 /**
- * Configure packet dump output
+ * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
+ * The GPIO assignments per radio should be in the radio record.
  */
-/*void pktConfigSerialPkt(void) {
+ioline_t pktSetLineModeICU(const radio_unit_t radio) {
+  (void)radio;
+  palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
+  return LINE_ICU;
+}
 
+/**
+ * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
+ * The GPIO assignments per radio should be in the radio record.
+ */
+/*ioline_t pktSetLineModeRadioGPIO1(const radio_unit_t radio) {
+  (void)radio;
+  palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT_PULLDOWN);
+  return LINE_RADIO_GPIO1;
 }*/
 
 /**
- * TODO: Move this into pktconf.h and use general GPIO to setup.
+ * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
+ * The GPIO assignments per radio should be in the radio record.
  */
-void pktSetLineModeICU(void) {
-  palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
-}
-
-/**
- * TODO: Move this into pktconf.h and use general GPIO to setup.
- */
-void pktSetLineModeRadioGPIO1(void) {
-  palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT_PULLDOWN);
-}
-
-/**
- * TODO: Move this into pktconf.h and use general GPIO to setup.
- */
-void pktSetLineModeRadioGPIO0(void) {
+/*ioline_t pktSetLineModeRadioGPIO0(const radio_unit_t radio) {
+  (void)radio;
   palSetLineMode(LINE_RADIO_GPIO0, PAL_MODE_INPUT_PULLDOWN);
-}
+  return LINE_RADIO_GPIO0;
+}*/
 
 /*
  * Read GPIO that are used for:
