@@ -246,13 +246,6 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
-typedef struct radioBand {
-  radio_freq_t  start;
-  radio_freq_t  end;
-  channel_hz_t  step;
-  radio_freq_t  def_aprs;
-} radio_band_t;
-
 typedef struct radioConfig {
   radio_unit_t  unit;
   radio_type_t  type;

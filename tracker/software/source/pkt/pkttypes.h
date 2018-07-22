@@ -85,6 +85,13 @@ typedef enum radioMode {
   RADIO_TX
 } radio_mode_t;
 
+typedef struct radioBand {
+  radio_freq_t  start;
+  radio_freq_t  end;
+  channel_hz_t  step;
+  radio_freq_t  def_aprs;
+} radio_band_t;
+
 typedef uint8_t ax25char_t;
 
 typedef int32_t gps_coord_t;

@@ -730,6 +730,20 @@ radio_freq_t pktCheckAllowedFrequency(const radio_unit_t radio,
 }
 
 /**
+ * Get radio data.
+ */
+const radio_config_t *pktGetRadioData(radio_unit_t radio) {
+  const radio_config_t *radio_list = pktGetRadioList();
+  uint8_t i = 0;
+  while(radio_list[i].unit != PKT_RADIO_NONE) {
+	  if(radio_list[i].unit == radio)
+		  return &radio_list[i];
+	  i++;
+  }
+  return NULL;
+}
+
+/**
  * @brief   Compute an operating frequency.
  * @notes   All special frequency codes are resolved to an actual frequency.
  *
