@@ -3,8 +3,9 @@
   * pins of the Pecan. The I2C bus is bitbanged and operates at 45 kHz if the
   * STM32 is operated at SYSCLK=48MHz.
   * 
-  * TXD pin: SCL
-  * RXD pin: SDA
+  * GPIO pins...
+  *  EI2C_SCL
+  *  EI2C_SDA
   * 
   * @see https://en.wikipedia.org/wiki/I%C2%B2C
   */
@@ -14,32 +15,29 @@
 #include "debug.h"
 #include "portab.h"
 
-#define SCL		LINE_IO_TXD /* SCL is connected to the TXD labeled line */
-#define SDA		LINE_IO_RXD /* SDA is connected to the RXD labeled line */
-
 static bool started = false;
 
 static inline bool read_SCL(void) { // Return current level of SCL line, 0 or 1
-	palSetLineMode(SCL, PAL_MODE_INPUT_PULLUP | PAL_STM32_OSPEED_HIGHEST);
-	return palReadLine(SCL);
+	palSetLineMode(EI2C_SCL, PAL_MODE_INPUT_PULLUP | PAL_STM32_OSPEED_HIGHEST);
+	return palReadLine(EI2C_SCL);
 }
 static inline bool read_SDA(void) { // Return current level of SDA line, 0 or 1
-	palSetLineMode(SDA, PAL_MODE_INPUT_PULLUP | PAL_STM32_OSPEED_HIGHEST);
-	return palReadLine(SDA);
+	palSetLineMode(EI2C_SDA, PAL_MODE_INPUT_PULLUP | PAL_STM32_OSPEED_HIGHEST);
+	return palReadLine(EI2C_SDA);
 }
 static inline void set_SCL(void) { // Do not drive SCL(set pin high-impedance)
-	palSetLineMode(SCL, PAL_MODE_INPUT_PULLUP | PAL_STM32_OSPEED_HIGHEST);
+	palSetLineMode(EI2C_SCL, PAL_MODE_INPUT_PULLUP | PAL_STM32_OSPEED_HIGHEST);
 }
 static inline void clear_SCL(void) { // Actively drive SCL signal low
-	palSetLineMode(SCL, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
-	palClearLine(SCL);
+	palSetLineMode(EI2C_SCL, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+	palClearLine(EI2C_SCL);
 }
 static inline void set_SDA(void) { // Do not drive SDA(set pin high-impedance)
-	palSetLineMode(SDA, PAL_MODE_INPUT_PULLUP | PAL_STM32_OSPEED_HIGHEST);
+	palSetLineMode(EI2C_SDA, PAL_MODE_INPUT_PULLUP | PAL_STM32_OSPEED_HIGHEST);
 }
 static inline void clear_SDA(void) { // Actively drive SDA signal low
-	palSetLineMode(SDA, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
-	palClearLine(SDA);
+	palSetLineMode(EI2C_SDA, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+	palClearLine(EI2C_SDA);
 }
 static inline void arbitration_lost(void) {
 	TRACE_ERROR("arbitration_lost");
@@ -53,7 +51,6 @@ static void i2c_start_cond(void) {
 		set_SCL();
 		sysinterval_t t0 = chVTGetSystemTime();
 		while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
-			// You should add timeout to this loop
 		}
 	}
 	if(read_SDA() == 0)
@@ -71,7 +68,6 @@ static void i2c_stop_cond(void) {
 	// Clock stretching
 	sysinterval_t t0 = chVTGetSystemTime();
 	while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
-		// add timeout to this loop.
 	}
 
 	// SCL is high, set SDA from 0 to 1
@@ -95,7 +91,6 @@ static void i2c_write_bit(bool bit) {
 	// Wait for SDA value to be read by slave, minimum of 4us for standard mode
 	sysinterval_t t0 = chVTGetSystemTime();
 	while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
-		// You should add timeout to this loop
 	}
 
 	// SCL is high, now data is valid
@@ -118,7 +113,6 @@ static bool i2c_read_bit(void) {
 
 	sysinterval_t t0 = chVTGetSystemTime();
 	while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
-		// You should add timeout to this loop
 	}
 
 	// SCL is high, read out bit

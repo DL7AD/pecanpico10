@@ -32,6 +32,7 @@
 extern "C" {
 #endif
 
+  extern BaseSequentialStream* pkt_out;
 #ifdef __cplusplus
 }
 #endif

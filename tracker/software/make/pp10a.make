@@ -95,6 +95,9 @@ DEPDIR := ${CURDIR}/.dep/$(PROJECT)
 CMSISINC = ${CURDIR}/CMSIS/include
 CMSISLIB = ${CURDIR}/CMSIS/Lib/GCC
 
+# ChibiOS versions of system calls
+ALLSRC := $(CHIBIOS)/os/various/syscalls.c
+
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
 # Startup files.

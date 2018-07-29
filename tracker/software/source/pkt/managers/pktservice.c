@@ -366,7 +366,7 @@ void pktStartDecoder(const radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   if(!pktIsReceivePaused(radio))
     /* Wrong state. */
@@ -465,8 +465,8 @@ void pktStopDecoder(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  if(handler == NULL)
-    chDbgAssert(false, "invalid radio ID");
+/*  if(handler == NULL)
+    chDbgAssert(false, "invalid radio ID");*/
 
   if(!pktIsReceiveActive(radio))
     return;
@@ -609,10 +609,10 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer) {
     if(magicCRC == CRC_INCLUSIVE_CONSTANT)
         handler->good_count++;
     flags |= (magicCRC == CRC_INCLUSIVE_CONSTANT)
-                ? EVT_AX25_FRAME_RDY
-                : EVT_AX25_CRC_ERROR;
+                ? STA_PKT_FRAME_RDY
+                : STA_PKT_CRC_ERROR;
   } else {
-    flags |= EVT_PKT_INVALID_FRAME;
+    flags |= STA_PKT_INVALID_FRAME;
   }
 
   /* Update status in packet buffer object. */
@@ -633,9 +633,10 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer) {
     chDbgAssert(cb_thd != NULL, "failed to create callback thread");
 
     if(cb_thd == NULL) {
-      /* Failed to create CB thread. Release buffer. Flag event. */
+      /* Failed to create CB thread. Release buffer. Broadcast event. */
       chFifoReturnObject(pkt_fifo, pkt_buffer);
-      flags |= EVT_PKT_FAILED_CB_THD;
+      pktAddEventFlags(handler, EVT_PKT_FAILED_CB_THD);
+      //flags |= EVT_PKT_FAILED_CB_THD;
 
     } else {
       /* Increase outstanding callback count. */
@@ -807,7 +808,7 @@ void pktCallbackManagerOpen(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the callback handler thread name. */
   chsnprintf(handler->cbend_name, sizeof(handler->cbend_name),
@@ -832,7 +833,7 @@ dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the packet buffer name for this radio. */
   chsnprintf(handler->pbuff_name, sizeof(handler->pbuff_name),
@@ -1010,7 +1011,7 @@ thread_t *pktCallbackManagerCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the callback termination thread name. */
   chsnprintf(handler->cbend_name, sizeof(handler->cbend_name),

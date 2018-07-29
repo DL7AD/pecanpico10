@@ -51,7 +51,7 @@
 #define AFSK_QCORR_DEC_CS_DEBUG     5
 #define AFSK_QCORR_DEC_MFIL_DEBUG   6
 #define AFSK_PWM_DATA_CAPTURE_DEBUG 7
-#define AFSK_PWM_DATA_REPLAY_DEBUG  8
+#define AFSK_AX25_RAW_PACKET_DUMP   8
 
 #define AFSK_DEBUG_TYPE             AFSK_NO_DEBUG
 
@@ -77,7 +77,7 @@
 #define USE_QCORR_MAG_LPF           TRUE
 
 #define MAG_FILTER_NUM_TAPS         15U
-#define MAG_FILTER_BLOCK_SIZE 1U
+#define MAG_FILTER_BLOCK_SIZE       1U
 #if MAG_FILTER_BLOCK_SIZE != 1
 #error "Filter block size must be 1"
 #endif
@@ -162,7 +162,7 @@ typedef struct AFSK_data {
   /**
    * @brief pointer to the packet handler.
    */
-  packet_svc_t               *packet_handler;
+  packet_svc_t              *packet_handler;
 
   /**
    * @brief Event source object.

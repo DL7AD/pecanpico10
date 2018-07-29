@@ -29,7 +29,7 @@
 /* The number of radio task object the FIFO has. */
 #define RADIO_TASK_QUEUE_MAX            10
 
-#define NUM_BANDS_PER_RADIO             2
+//#define NUM_BANDS_PER_RADIO             2
 
 #define PKT_RADIO_MANAGER_TASK_KILL     TRUE
 
@@ -124,50 +124,49 @@ struct radioTask {
 /* External declarations.                                                    */
 /*===========================================================================*/
 
-
-extern const radio_config_t *radio_list;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-  thread_t  *pktRadioManagerCreate(const radio_unit_t radio);
-  void      pktRadioManagerRelease(const radio_unit_t radio);
-  void      pktRadioManager(void *arg);
-  msg_t     pktGetRadioTaskObject(const radio_unit_t radio,
+  thread_t  		*pktRadioManagerCreate(const radio_unit_t radio);
+  void      		pktRadioManagerRelease(const radio_unit_t radio);
+  void      		pktRadioManager(void *arg);
+  msg_t     		pktGetRadioTaskObject(const radio_unit_t radio,
                               const sysinterval_t timeout,
                               radio_task_object_t **rt);
-  void      pktSubmitRadioTask(const radio_unit_t radio,
+  void      		pktSubmitRadioTask(const radio_unit_t radio,
                           radio_task_object_t *object,
                           radio_task_cb_t cb);
-  void      pktScheduleThreadRelease(const radio_unit_t radio,
+  void      		pktScheduleThreadRelease(const radio_unit_t radio,
                                 thread_t *thread);
-  msg_t     pktAcquireRadio(const radio_unit_t radio, sysinterval_t timeout);
-  void      pktReleaseRadio(const radio_unit_t radio);
-  radio_freq_t pktCheckAllowedFrequency(const radio_unit_t radio,
+  msg_t     		pktAcquireRadio(const radio_unit_t radio, sysinterval_t timeout);
+  void      		pktReleaseRadio(const radio_unit_t radio);
+  radio_freq_t 		pktCheckAllowedFrequency(const radio_unit_t radio,
                                         radio_freq_t freq);
-  radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
+  radio_freq_t 		pktComputeOperatingFrequency(const radio_unit_t radio,
                                             radio_freq_t base_freq,
                                             channel_hz_t step,
                                             radio_ch_t chan,
                                             const radio_mode_t mode);
-  bool      pktLLDradioEnableReceive(const radio_unit_t radio,
+  bool      		pktLLDradioEnableReceive(const radio_unit_t radio,
                                 radio_task_object_t *rto);
-  void      pktLLDradioDisableReceive(const radio_unit_t radio);
-  bool      pktLLDradioResumeReceive(const radio_unit_t radio);
-  bool      pktLLDradioSendPacket(radio_task_object_t *rto);
-  void      pktLLDradioCaptureRSSI(const radio_unit_t radio);
-  void      pktLLDradioPowerUp(const radio_unit_t radio);
-  void      pktLLDradioInit(const radio_unit_t radio);
-  void      pktLLDradioPowerDown(const radio_unit_t radio);
-  void      pktLLDradioPauseDecoding(const radio_unit_t radio);
-  void      pktLLDradioResumeDecoding(const radio_unit_t radio);
-  void      pktLLDradioStartDecoder(const radio_unit_t radio);
-  void      pktLLDradioStopDecoder(const radio_unit_t radio);
-  void      pktLLDradioSendComplete(radio_task_object_t *rto,
+  void      		pktLLDradioDisableReceive(const radio_unit_t radio);
+  bool      		pktLLDradioResumeReceive(const radio_unit_t radio);
+  bool      		pktLLDradioSendPacket(radio_task_object_t *rto);
+  void      		pktLLDradioCaptureRSSI(const radio_unit_t radio);
+  //bool      pktLLDradioExitShutdown(const radio_unit_t radio);
+  bool      		pktLLDradioInit(const radio_unit_t radio);
+  void      		pktLLDradioStandby(const radio_unit_t radio);
+  void      		pktLLDradioShutdown(const radio_unit_t radio);
+  void      		pktLLDradioPauseDecoding(const radio_unit_t radio);
+  void      		pktLLDradioResumeDecoding(const radio_unit_t radio);
+  void      		pktLLDradioStartDecoder(const radio_unit_t radio);
+  void      		pktLLDradioStopDecoder(const radio_unit_t radio);
+  void      		pktLLDradioSendComplete(radio_task_object_t *rto,
                                 thread_t *thread);
-  void      pktStartDecoder(const radio_unit_t radio);
-  void      pktStopDecoder(const radio_unit_t radio);
-  int       pktDisplayFrequencyCode(radio_freq_t code, char *buf, size_t size);
+  void      		pktStartDecoder(const radio_unit_t radio);
+  void      		pktStopDecoder(const radio_unit_t radio);
+  int       	 	pktDisplayFrequencyCode(radio_freq_t code, char *buf, size_t size);
+  const radio_config_t	*pktGetRadioData(radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif
@@ -177,7 +176,7 @@ extern "C" {
 /*===========================================================================*/
 
 /**
- * @brief   Alias for convenience of pktStopDecoder.
+ * @brief   Alias of pktStopDecoder for convenience.
  *
  * @param[in] radio radio unit ID
  *

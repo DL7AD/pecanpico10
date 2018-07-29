@@ -15,47 +15,49 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-#define SI446X_EVT_TX_TIMEOUT           EVENT_MASK(0)
+#define SI446X_EVT_TX_TIMEOUT                   EVENT_MASK(0)
 
-#define Si446x_LOCK_BY_SEMAPHORE        TRUE
-
-/*
-#ifndef Si446x_CLK
-#error "Si446x_CLK is not defined which is needed for Si446x."
-#endif
-*/
-
-/*
-#ifndef Si446x_CLK_OFFSET
-#define Si446x_CLK_OFFSET 0
-#endif
-*/
+#define Si446x_LOCK_BY_SEMAPHORE                TRUE
 
 /* Si4464 States. */
-#define Si446x_STATE_NOCHANGE           0
-#define Si446x_STATE_SLEEP              1
-#define Si446x_STATE_SPI_ACTIVE         2
-#define Si446x_STATE_READY              3
-#define Si446x_STATE_READY2             4
-#define Si446x_STATE_TX_TUNE            5
-#define Si446x_STATE_RX_TUNE            6
-#define Si446x_STATE_TX                 7
-#define Si446x_STATE_RX                 8
+#define Si446x_STATE_NOCHANGE                   0
+#define Si446x_STATE_SLEEP                      1
+#define Si446x_STATE_STANDBY                    1
+#define Si446x_STATE_SPI_ACTIVE                 2
+#define Si446x_STATE_READY                      3
+#define Si446x_STATE_READY2                     4
+#define Si446x_STATE_TX_TUNE                    5
+#define Si446x_STATE_RX_TUNE                    6
+#define Si446x_STATE_TX                         7
+#define Si446x_STATE_RX                         8
 
 /* Commands. */
-#define Si446x_GET_PART_INFO            0x01
-#define Si446x_GET_ADC_READING          0x14
-#define Si446x_FIFO_INFO                0x15
-#define Si446x_GET_MODEM_STATUS         0x22
-#define Si446x_START_TX                 0x31
-#define Si446x_START_RX                 0x32
-#define Si446x_REQUEST_DEVICE_STATE     0x33
-#define Si446x_RX_HOP                   0x36
-#define Si446x_READ_CMD_BUFF            0x44
-#define Si446x_WRITE_TX_FIFO            0x66
+#define Si446x_NOP                              0x00
+#define Si446x_GET_PART_INFO                    0x01
+#define Si446x_POWER_UP                         0x02
+#define Si446x_GET_FUNC_INFO                    0x10
+#define Si446x_SET_PROPERTY                     0x11
+#define Si446x_GET_PROPERTY                     0x12
+#define Si446x_GPIO_PIN_CFG                     0x13
+#define Si446x_GET_ADC_READING                  0x14
+#define Si446x_FIFO_INFO                        0x15
+#define Si446x_PACKET_INFO                      0x16
+#define Si446x_GET_INT_STATUS                   0x20
+#define Si446x_GET_PH_STATUS                    0x21
+#define Si446x_GET_MODEM_STATUS                 0x22
+#define Si446x_GET_CHIP_STATUS                  0x23
+#define Si446x_START_TX                         0x31
+#define Si446x_START_RX                         0x32
+#define Si446x_REQUEST_DEVICE_STATE             0x33
+#define Si446x_CHANGE_STATE                     0x34
+#define Si446x_RX_HOP                           0x36
+#define Si446x_TX_HOP                           0x37
+#define Si446x_READ_CMD_BUFF                    0x44
+#define Si446x_WRITE_TX_FIFO                    0x66
+#define Si446x_READ_RX_FIFO                     0x77
 
 /* Defined response values. */
-#define Si446x_COMMAND_CTS                        0xFF
+#define Si446x_COMMAND_CTS                      0xFF
 
 /*
  * Property group commands.
@@ -97,6 +99,8 @@
 #define Si446x_MODEM_IF_FREQ                    0x201B
 #define Si446x_MODEM_DECIMATION_CFG1            0x201E
 #define Si446x_MODEM_DECIMATION_CFG0            0x201F
+#define Si446x_MODEM_DECIMATION_CFG2            0x2020
+#define Si446x_MODEM_IFPKD_THRESHOLDS           0x2021
 #define Si446x_MODEM_BCR_OSR                    0x2022
 #define Si446x_MODEM_BCR_NCO_OFFSET             0x2024
 #define Si446x_MODEM_BCR_GAIN                   0x2027
@@ -129,7 +133,16 @@
 #define Si446x_MODEM_RSSI_CONTROL               0x204C
 #define Si446x_MODEM_RSSI_CONTROL2              0x204D
 #define Si446x_MODEM_RSSI_COMP                  0x204E
+#define Si446x_MODEM_RAW_SEARCH2                0x2050
 #define Si446x_MODEM_CLKGEN_BAND                0x2051
+#define Si446x_MODEM_SPIKE_DET                  0x2054
+#define Si446x_MODEM_ONE_SHOT_AFC               0x2055
+#define Si446x_MODEM_RSSI_MUTE                  0x2057
+#define Si446x_MODEM_DSA_CTRL1                  0x205B
+#define Si446x_MODEM_DSA_CTRL2                  0x205C
+#define Si446x_MODEM_DSA_QUAL                   0x205D
+#define Si446x_MODEM_DSA_RSSI                   0x205E
+#define Si446x_MODEM_DSA_MISC                   0x205F
 
 #define Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0  0x2100
 #define Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0  0x2101
@@ -213,6 +226,10 @@
 #define Si446x_CCLK                 ((Si446x_CLK) + (Si446x_CLK_OFFSET)      \
                                       * (Si446x_CLK) / 1000000)
 
+#define is_part_Si4463(part) (part == 0x4463)
+
+#define is_Si4463_patch_required(part, rom) (is_part_Si4463(part) && rom == 0x6)
+
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
@@ -227,16 +244,15 @@ typedef struct {
 
 /* Si446x part info. */
 typedef struct {
-  uint8_t   cmd;
-  uint8_t   cts;
-  uint8_t   chiprev;
-  uint16_t  part;
-  uint8_t   pbuild;
-  uint16_t  id;
-  uint8_t   customer;
-  uint8_t   romid;
-} si446x_info_t;
+  uint8_t   info[10];
+} si446x_part_t;
 
+/* Si446x func info. */
+typedef struct {
+  uint8_t   info[10];
+} si446x_func_t;
+
+/* External. */
 typedef struct radioTask radio_task_object_t;
 
 /*===========================================================================*/
@@ -249,8 +265,9 @@ extern void pktReleasePacketBuffer(packet_t pp);
 extern "C" {
 #endif
   int16_t Si446x_getLastTemperature(const radio_unit_t radio);
-  void Si446x_powerup(const radio_unit_t radio);
-  void Si446x_shutdown(const radio_unit_t radio);
+  bool Si446x_radioStartup(const radio_unit_t radio);
+  void Si446x_radioShutdown(const radio_unit_t radio);
+  void Si446x_radioStandby(const radio_unit_t radio);
   void Si446x_sendAFSK(packet_t pp);
   bool Si446x_blocSendAFSK(radio_task_object_t *rto);
   void Si446x_send2FSK(packet_t pp);
@@ -273,12 +290,11 @@ extern "C" {
   void Si446x_unlockRadio(const radio_mode_t mode);
   void Si446x_lockRadioByCamera(void);
   void Si446x_unlockRadioByCamera(void);
-  void Si446x_conditional_init(radio_unit_t radio);
+  bool Si446x_conditional_init(radio_unit_t radio);
   bool Si446x_setBandParameters(const radio_unit_t radio,
                                 radio_freq_t freq,
                                 channel_hz_t step);
   radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
-  void Si446x_getPartInfo(const radio_unit_t radio, si446x_info_t *info);
 #ifdef __cplusplus
 }
 #endif

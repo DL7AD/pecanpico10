@@ -52,7 +52,7 @@ typedef struct SysProviders {
 const radio_config_t radio_list[] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
-    .type = SI4464,
+    .type = SI446X,
     .band = {
              (radio_band_t * const)&band_2m,
               NULL
@@ -109,16 +109,35 @@ void pktConfigSerialDiag(void) {
   palSetLineMode(LINE_USART3_RX, PAL_MODE_ALTERNATE(7));
 }
 
-void pktConfigSerialPkt(void) {
-
+/**
+ * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
+ * The GPIO assignments per radio should be in the radio record.
+ */
+ioline_t pktSetLineModeICU(const radio_unit_t radio) {
+  (void)radio;
+  palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
+  return LINE_ICU;
 }
 
 /**
- * TODO: Move this into pktconf.h and use general GPIO to setup.
+ * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
+ * The GPIO assignments per radio should be in the radio record.
  */
-void pktSetLineModeICU(void) {
-  palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
-}
+/*ioline_t pktSetLineModeRadioGPIO1(const radio_unit_t radio) {
+  (void)radio;
+  palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT_PULLDOWN);
+  return LINE_RADIO_GPIO1;
+}*/
+
+/**
+ * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
+ * The GPIO assignments per radio should be in the radio record.
+ */
+/*ioline_t pktSetLineModeRadioGPIO0(const radio_unit_t radio) {
+  (void)radio;
+  palSetLineMode(LINE_RADIO_GPIO0, PAL_MODE_INPUT_PULLDOWN);
+  return LINE_RADIO_GPIO0;
+}*/
 
 /*
  * Read GPIO that are used for:
@@ -135,19 +154,19 @@ uint8_t pktReadIOlines() {
 }
 
 void pktSerialStart(void) {
-#if ENABLE_EXTERNAL_I2C == FALSE
+#if ENABLE_SERIAL_DEBUG == TRUE
   pktConfigSerialDiag();
-  pktConfigSerialPkt();
+  //pktConfigSerialPkt();
   sdStart(SERIAL_CFG_DEBUG_DRIVER, &debug_config);
 #endif
   /* Setup diagnostic resource access semaphore. */
-  extern binary_semaphore_t diag_out_sem;
-  chBSemObjectInit(&diag_out_sem, false);
+  extern binary_semaphore_t debug_out_sem;
+  chBSemObjectInit(&debug_out_sem, false);
 }
 
 void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len) {
   (void)level;
-#if ENABLE_EXTERNAL_I2C == FALSE
+#if ENABLE_SERIAL_DEBUG == TRUE
   chnWrite((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, buf, len);
 #else
   (void)buf;
@@ -157,7 +176,7 @@ void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len) {
 
 int dbgPrintf(uint8_t level, const char *format, ...) {
   (void)level;
-#if ENABLE_EXTERNAL_I2C == FALSE
+#if ENABLE_SERIAL_DEBUG == TRUE
   va_list arg;
   int done;
 
@@ -173,7 +192,12 @@ int dbgPrintf(uint8_t level, const char *format, ...) {
 }
 
 void pktWrite(uint8_t *buf, uint32_t len) {
+#if ENABLE_SERIAL_DEBUG == TRUE
   chnWrite((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, buf, len);
+#else
+  (void)buf;
+  (void)len;
+#endif
 }
 
 void pktConfigureCoreIO(void) {
@@ -193,9 +217,6 @@ void pktConfigureCoreIO(void) {
                  | PAL_STM32_OSPEED_HIGHEST
                  | PAL_STM32_OTYPE_OPENDRAIN); // SCL
 
-  #if ACTIVATE_USB
-  startUSB();
-  #endif
 }
 
 /** @} */

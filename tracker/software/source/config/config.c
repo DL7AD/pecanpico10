@@ -13,7 +13,7 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
             .fixed = false // Add lat, lon alt fields if enabling fixed
@@ -28,7 +28,7 @@ const conf_t conf_flash_default = {
         .call = "VK2GJ-12",
         .path = "WIDE1-1",
         .symbol = SYM_ANTENNA,
-        .aprs_msg = true, // Set true to enable APRS messages to be accepted on this call sign
+        .aprs_msg = true, // Enable APRS message reception on this call sign
     },
 
     // Secondary position app
@@ -49,7 +49,7 @@ const conf_t conf_flash_default = {
         .call = "VK2GJ-15",
         .path = "",
         .symbol = SYM_BALLOON,
-        .aprs_msg = true,// Set true to enable APRS messages to be accepted on this call sign
+        .aprs_msg = true, // Enable APRS message reception on this call sign
     },
 
     // Primary image app
@@ -81,13 +81,13 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(60 * 1),
             .send_spacing = TIME_S2I(30)
         },
         .radio_conf = {
-            .pwr = 0x1F,
+            .pwr = 0x7F,
             .freq = APRS_FREQ_AUSTRALIA,
             .mod = MOD_AFSK,
             .cca = 0x4F
@@ -175,7 +175,7 @@ const conf_t conf_flash_default = {
     // Power control
     .keep_cam_switched_on = false,
     .gps_on_vbat = 3600, // mV
-    .gps_off_vbat = 3000, // mV
+    .gps_off_vbat = 3400, // mV
     .gps_onper_vbat = 4000, // mV
 
     // GPS altitude model control (air pressure controlled using on-board BME280)
@@ -192,7 +192,7 @@ const conf_t conf_flash_default = {
 
     // The base station identity.
     .base = {
-        // If enabled APRS messages are addressed to this call sign
+        // If enabled tracker initiated APRS messages are addressed to this call sign
        .enabled = true,
        .call = "VK2GJ-7",
        .path = "WIDE2-1",

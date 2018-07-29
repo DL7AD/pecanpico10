@@ -22,12 +22,14 @@ extern const SerialConfig uart_config;
 extern uint8_t usb_trace_level;
 
 // Initializer for serial debug and LEDs
+/*
 #define DEBUG_INIT() { \
 	chMtxObjectInit(&trace_mtx); \
 }
+*/
 
 #define TRACE_BASE(format, type, args...) { \
-	if(isSDUAvailable()) { \
+	if(isConsoleOutputAvailable()) { \
 		if(TRACE_TIME) { \
 			chprintf((BaseSequentialStream*)&SDU1, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000); \
 		} \
@@ -66,6 +68,7 @@ extern uint8_t usb_trace_level;
 #define TRACE_TAB "              "
 #endif
 
+/*
 #define TRACE_BIN(data, len) { \
 	chMtxLock(&trace_mtx); \
 	chprintf((BaseSequentialStream*)&SD3, "[%8d.%03d][DEBUG] ", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000); \
@@ -85,6 +88,7 @@ extern uint8_t usb_trace_level;
 		TRACE_TAB, i, (data)[i], (data)[i+1], (data)[i+2], (data)[i+3], (data)[i+4], (data)[i+5], (data)[i+6], (data)[i+7]); \
 	chMtxUnlock(&trace_mtx); \
 }
+*/
 
 
 /*

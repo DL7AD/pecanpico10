@@ -17,11 +17,8 @@
  * Serial port definitions
  */
 #define SERIAL_CFG_DEBUG_DRIVER		&SD3
-//#define SERIAL_CFG_PACKET_DRIVER	&SD4
 
-
-#define USE_SPI_ATTACHED_RADIO      TRUE
-#define DUMP_PACKET_TO_SERIAL       FALSE
+//#define USE_SPI_ATTACHED_RADIO      TRUE
 
 /*
  * TODO: Need to use radio unit ID to set assigned GPIO & SPI.
@@ -63,11 +60,6 @@
 #define LINE_USB_DM                 PAL_LINE(GPIOA, 11U)
 #define LINE_USB_DP                 PAL_LINE(GPIOA, 12U)
 
-// IO
-#define LINE_GPIO_PIN               PAL_LINE(GPIOA, 8U)
-#define LINE_IO_TXD                 PAL_LINE(GPIOB, 10U)
-#define LINE_IO_RXD                 PAL_LINE(GPIOC, 11U)
-
 // LED
 #define LINE_IO_BLUE                PAL_LINE(GPIOC, 1U)
 #define LINE_IO_GREEN               PAL_LINE(GPIOC, 3U)
@@ -83,6 +75,11 @@
 #define LINE_GPS_RXD                PAL_LINE(GPIOB, 12U)
 #define LINE_GPS_TIMEPULSE          PAL_LINE(GPIOB, 15U)
 
+// IO
+#define LINE_GPIO_PIN               PAL_LINE(GPIOA, 8U)
+#define LINE_IO_TXD                 PAL_LINE(GPIOB, 10U)
+#define LINE_IO_RXD                 PAL_LINE(GPIOC, 11U)
+
 // APRS IO lines
 #define LINE_IO1                    LINE_GPIO_PIN
 #define LINE_IO2                    LINE_IO_TXD
@@ -93,7 +90,7 @@
 #define LINE_IO7                    PAL_NOLINE
 #define LINE_IO8                    PAL_NOLINE
 
-// Hardware dependent settings
+/* Si446x clock setup. */
 #define Si446x_CLK                  STM32_HSECLK            /* Oscillator frequency in Hz */
 #define Si446x_CLK_OFFSET           22                      /* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN          true                    /* Set this true, if a TCXO is used, false for XTAL */
@@ -107,6 +104,7 @@
 #define LINE_RADIO_GPIO0            PAL_LINE(GPIOB, 7U)
 #define LINE_RADIO_GPIO1            PAL_LINE(GPIOB, 6U)
 
+// SPI
 #define LINE_SPI_SCK                PAL_LINE(GPIOB, 3U)
 #define LINE_SPI_MISO               PAL_LINE(GPIOB, 4U)
 #define LINE_SPI_MOSI               PAL_LINE(GPIOB, 5U)
@@ -149,17 +147,26 @@
 /* The external port can be used for bit bang I2C. */
 #define ENABLE_EXTERNAL_I2C         TRUE
 
-#if ENABLE_EXTERNAL_I2C == FALSE
+#define EI2C_SCL                    LINE_IO_TXD /* SCL */
+#define EI2C_SDA                    LINE_IO_RXD /* SDA */
+
+/* To use IO_TXD/IO_RXD for UART debug channel. */
+#define ENABLE_SERIAL_DEBUG         FALSE
+
+#if ENABLE_EXTERNAL_I2C == TRUE && ENABLE_SERIAL_DEBUG == TRUE
+#error "Cannot enable serial debug and external I2C together"
+#elif ENABLE_EXTERNAL_I2C == FALSE && ENABLE_SERIAL_DEBUG == TRUE
 #define LINE_USART3_TX              LINE_IO_TXD
 #define LINE_USART3_RX              LINE_IO_RXD
 #endif
 
-/* If set to true, the USB interface will be switched on. The tracker is also switched to
- * 3V, because USB would not work at 1.8V. Note that the transmission power is increased
- * too when operating at 3V. This option will also run the STM32 at 48MHz (AHB) permanently
- * because USB needs that speed, otherwise it is running at 6MHz which saves a lot of power.
+/* If set to true, the console using USB interface will be switched on.
+ * The tracker is also switched to 3V, because USB would not work at 1.8V.
+ * Note that the transmission power is increased too when operating at 3V.
+ * This option will also run the STM32 at 48MHz (AHB) permanently.
+ * USB needs 48MHz speed to operate.
  */
-#define ACTIVATE_USB                TRUE
+#define ACTIVATE_CONSOLE            TRUE
 
 /**
  *  ICU related definitions.
@@ -196,22 +203,22 @@
 /* Definitions for ICU FIFO implemented using chfactory. */
 #if USE_HEAP_PWM_BUFFER == TRUE
 /* Use factory FIFO as stream control with separate chained PWM buffers. */
-#define NUMBER_PWM_FIFOS            3U
+#define NUMBER_PWM_FIFOS            5U
 /* Number of PWM data entries per queue object. */
 #define PWM_DATA_SLOTS              200
 /* Number of PWM queue objects in total. */
 #define PWM_DATA_BUFFERS            30
-#else
+#else /* USE_HEAP_PWM_BUFFER != TRUE */
 /* Use factory FIFO as stream control with integrated PWM buffer. */
 #define NUMBER_PWM_FIFOS            3U
 #define PWM_DATA_SLOTS              6000
-#endif
+#endif /* USE_HEAP_PWM_BUFFER == TRUE */
 
 /* Number of frame receive buffers. */
-#define NUMBER_RX_PKT_BUFFERS      3U
-#define USE_CCM_HEAP_RX_BUFFERS    TRUE
+#define NUMBER_RX_PKT_BUFFERS       3U
+#define USE_CCM_HEAP_RX_BUFFERS     TRUE
 
-#define PKT_RX_RLS_USE_NO_FIFO     TRUE
+#define PKT_RX_RLS_USE_NO_FIFO      TRUE
 
 /*
  * Number of general AX25/APRS processing & frame send buffers.
@@ -239,13 +246,6 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
-typedef struct radioBand {
-  radio_freq_t  start;
-  radio_freq_t  end;
-  channel_hz_t  step;
-  radio_freq_t  def_aprs;
-} radio_band_t;
-
 typedef struct radioConfig {
   radio_unit_t  unit;
   radio_type_t  type;
@@ -266,13 +266,15 @@ extern "C" {
   void pktConfigSerialDiag(void);
   void pktConfigSerialPkt(void);
   void pktConfigureCoreIO(void);
-  void pktSetLineModeICU(void);
+  ioline_t pktSetLineModeICU(const radio_unit_t radio);
+  ioline_t pktSetLineModeRadioGPIO1(const radio_unit_t radio);
+  ioline_t pktSetLineModeRadioGPIO0(const radio_unit_t radio);
   void pktSerialStart(void);
   void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
   int  dbgPrintf(uint8_t level, const char *format, ...);
   void pktWrite(uint8_t *buf, uint32_t len);
-  void pktPowerUpRadio(radio_unit_t radio);
-  void pktPowerDownRadio(radio_unit_t radio);
+  //void pktPowerUpRadio(radio_unit_t radio);
+  //void pktPowerDownRadio(radio_unit_t radio);
   radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq);
   uint8_t pktReadIOlines(void);
   uint8_t pktGetNumRadios(void);
@@ -284,6 +286,7 @@ extern "C" {
 /*===========================================================================*/
 /* Module inline functions.                                                  */
 /*===========================================================================*/
+
 
 #endif /* PORTAB_H_ */
 
