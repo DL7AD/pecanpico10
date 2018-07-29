@@ -148,12 +148,9 @@ if args.device == 'I': # Source APRS-IS
 		# Read data
 		try:
 			buf = tn.read_until(b"\n").decode('charmap')
-			print(">> " + buf)
 		except EOFError: # Server has connection closed
-			print("EOF ERROR")
 			wdg = 0 # Tell watchdog to reconnect
 		except UnicodeDecodeError:
-			print("UNICODE DECODE ERROR")
 			pass
 
 		# Watchdog reconnection
