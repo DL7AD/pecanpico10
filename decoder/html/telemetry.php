@@ -33,13 +33,13 @@ include "sidebar.inc.php";
 
 <div class="wrapper">
 	<telemetry class="inner telemetry">
-		<div style="width:168px;height:42px;">Callsign<br><span id="call" class="fat"><?=$_GET['call']?></span></div>
-		<div style="width:120px;height:42px;">Reset<br><span id="reset" class="fat"></span></div>
-		<div style="width:120px;height:42px;">ID<br><span id="id" class="fat"></span></div>
-		<div style="width:250px;height:42px;">Time (RX)<br><span id="rxtime" class="fat"></span></div>
-		<div style="width:174px;height:42px;">Time (SYS)<br><span id="sys_time" class="fat"></span></div>
+		<div style="width:168px;height:42px;" title="APRS Callsign">Callsign<br><span id="call" class="fat"><?=$_GET['call']?></span></div>
+		<div style="width:120px;height:42px;" title="Reset counter (incremented on each new start/reset of tracker)">Reset<br><span id="reset" class="fat"></span></div>
+		<div style="width:120px;height:42px;" title="Incremental counter (imcremented on each new dataset)">ID<br><span id="id" class="fat"></span></div>
+		<div style="width:250px;height:42px;" title="Time at which the packet arrived at the server">Time (RX)<br><span id="rxtime" class="fat"></span></div>
+		<div style="width:174px;height:42px;" title="System time of the tracker">Time (SYS)<br><span id="sys_time" class="fat"></span></div>
 
-		<div style="width:440px;height:135px;">
+		<div style="width:440px;height:135px;" title="Packet counter">
 			Packets<br>
 			<table>
 				<tr>
@@ -69,8 +69,7 @@ include "sidebar.inc.php";
 
 	<telemetry class="inner telemetry">
 
-
-		<div style="width:440px;height:110px;background:url(power.png) no-repeat #ccdaec;">
+		<div style="width:440px;height:110px;background:url(power.png) no-repeat #ccdaec;" id="pwrdiv" title="Power scheme">
 			<div style="position:relative;left:0px;top:0px;width:85px;">
 				<span id="adc_vsol"></span>mV<sub>STM</sub><br>
 				<span id="pac_vsol"></span>mV<sub>PAC</sub><br><br>
@@ -83,7 +82,7 @@ include "sidebar.inc.php";
 		</div>
 
 
-		<div style="width:440px;height:125px;background:url(gnss.png) no-repeat #ccdaec;">
+		<div style="width:440px;height:125px;background:url(gnss.png) no-repeat #ccdaec;" title="GNSS (GPS, GLONASS, Galileo, ...) information">
 			<div style="margin-left:75px;">
 				<b><span id="gps_lock" class="fat"></span></b>
 				<p><span id="gps_lat" class="fat"></span> <span id="gps_lon" class="fat"></span> <img src="arrow_up.png"><span id="gps_alt" class="fat"></span></p>
@@ -180,12 +179,33 @@ include "sidebar.inc.php";
 		<a href="?call=<?=$_GET['call']?>&range=2592000">30d</a>
 	</div>
 
-	<div id="batteryDiv" class="inner chart"></div>
-	<div id="solarDiv" class="inner chart"></div>
-	<div id="tempDiv" class="inner chart"></div>
-	<div id="gpsDiv" class="inner chart"></div>
-	<div id="altDiv" class="inner chart"></div>
-	<div id="lightDiv" class="inner chart"></div>
+	<div class="inner chart">
+		<div class="subheader">Power</div>
+		<div id="batteryDiv"></div>
+		<div id="solarDiv"></div>
+	</div>
+	<div class="inner chart">
+		<div class="subheader">GNSS / Altitude</div>
+		<div id="gpsDiv"></div>
+		<div id="altDiv"></div>
+	</div>
+	<div class="inner chart">
+		<div class="subheader">Temperature</div>
+		<div id="tempDiv"></div>
+	</div>
+	<div class="inner chart">
+		<div class="subheader">Camera</div>
+		<div id="lightDiv"></div>
+	</div>
+	<div class="inner chart">
+		<div class="subheader">Subsystem states</div>
+		<div id="ioDiv"></div>
+		<div id="io2Div"></div>
+	</div>
+	<div class="inner chart">
+		<div class="subheader">Reset / ID counter</div>
+		<div id="idDiv"></div>
+	</div>
 </div>
 
 </body>

@@ -60,7 +60,13 @@ telemetry div img {
 .wrapper {
 	display: flex;  
 	flex-flow: row wrap;
-	text-align: center;
+}
+.subheader {
+	font-weight: bold;
+	font-size: 16px;
+	padding: 3px;
+	margin: 3px;
+	background-color: #ccdaec;
 }
 
 .wrapper > * {

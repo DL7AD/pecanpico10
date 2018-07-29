@@ -143,6 +143,88 @@ var lightOptions = {
 	chartArea: area
 };
 
+// Chart 7
+var ioChart;
+var dataIO;
+var ioOptions = {
+	//explorer: scroll,
+	height: 250,
+	series: {
+		0: {targetAxisIndex: 0},
+		1: {targetAxisIndex: 0},
+		2: {targetAxisIndex: 0},
+		3: {targetAxisIndex: 0},
+		4: {targetAxisIndex: 0}
+	},
+	vAxes: {
+		0: {
+			viewWindow: {min: 0, max: 9},
+			ticks: [
+				{v: 0, f: 'Fail | N/A'},
+				{v: 1, f: 'BMEe1 OK'},
+				{v: 2, f: 'Fail | N/A'},
+				{v: 3, f: 'BMEe1 OK'},
+				{v: 4, f: 'Fail | N/A'},
+				{v: 5, f: 'BMEi1 OK'},
+				{v: 6, f: 'Fail'},
+				{v: 7, f: 'OV5640 OK'},
+				{v: 8, f: 'Fail|unused'},
+				{v: 9, f: 'GPS OK'}
+			]
+		}
+	},
+	legend: {
+		position: 'top'
+	},
+	hAxis: xAxis,
+	chartArea: area
+};
+
+// Chart 8
+var io2Chart;
+var dataIO2;
+var io2Options = {
+	//explorer: scroll,
+	height: 250,
+	series: {
+		0: {targetAxisIndex: 0},
+		1: {targetAxisIndex: 0}
+	},
+	vAxes: {
+		0: {
+			viewWindow: {min: 0, max: 9},
+			ticks: [
+				{v: 0, f: 'Fail'},
+				{v: 1, f: 'I2Ce OK'},
+				{v: 2, f: 'Fail'},
+				{v: 3, f: 'I2Ci OK'}
+			]
+		}
+	},
+	legend: {
+		position: 'top'
+	},
+	hAxis: xAxis,
+	chartArea: area
+};
+
+// Chart 9
+var idChart;
+var dataID;
+var idOptions = {
+	//explorer: scroll,
+	height: 250,
+	series: {
+		0: {targetAxisIndex: 0},
+		1: {targetAxisIndex: 1}
+	},
+	legend: {
+		position: 'top'
+	},
+	hAxis: xAxis,
+	chartArea: area
+};
+
 function number_format(number, decimals, decPoint, thousandsSep) { // eslint-disable-line camelcase
 	//  discuss at: http://locutus.io/php/number_format/
 	// original by: Jonas Raoni Soares Silva (http://www.jsfromhell.com)
@@ -266,6 +348,30 @@ function updateData() {
 		dataLight.addColumn('date', 'Time');
 		dataLight.addColumn('number', "LIGHT");
 		lightChart = new google.visualization.LineChart(document.getElementById('lightDiv'));
+
+		// Chart 7
+		dataIO = new google.visualization.DataTable();
+		dataIO.addColumn('date', 'Time');
+		dataIO.addColumn('number', "GPS");
+		dataIO.addColumn('number', "PAC1720");
+		dataIO.addColumn('number', "BME280i1");
+		dataIO.addColumn('number', "BME280e1");
+		dataIO.addColumn('number', "BME280e2");
+		ioChart = new google.visualization.LineChart(document.getElementById('ioDiv'));
+
+		// Chart 8
+		dataIO2 = new google.visualization.DataTable();
+		dataIO2.addColumn('date', 'Time');
+		dataIO2.addColumn('number', "I2C int");
+		dataIO2.addColumn('number', "I2C ext");
+		io2Chart = new google.visualization.LineChart(document.getElementById('io2Div'));
+
+		// Chart 9
+		dataID = new google.visualization.DataTable();
+		dataID.addColumn('date', 'Time');
+		dataID.addColumn('number', "RESET");
+		dataID.addColumn('number', "ID");
+		idChart = new google.visualization.LineChart(document.getElementById('idDiv'));
 
 		init = true;
 	}
@@ -409,9 +515,20 @@ function updateData() {
 						$('#' + key).text(year + '-' + month + '-' + date + ' ' + hour + ':' + min + ':' + sec);
 						break;
 
-					case 'pac_pbat':
+
 					case 'pac_psol':
-						$('#' + key).text(number_format(d/10, 1) + 'mW');
+						$('#pac_psol').text(number_format(d/10, 1) + 'mW');
+						break;
+
+					case 'pac_pbat':
+						$('#pac_pbat').text(number_format(d/10, 1) + 'mW');
+						if(d == 0) {
+							$('#pwrdiv').css('background', 'url(power.png) no-repeat #ccdaec');
+						} else if(d < 0) {
+							$('#pwrdiv').css('background', 'url(power_charging.png) no-repeat #ccdaec');
+						} else {
+							$('#pwrdiv').css('background', 'url(power_discharging.png) no-repeat #ccdaec');
+						}
 						break;
 
 					case 'sys_time':
@@ -477,6 +594,9 @@ function updateData() {
 					if(dataGPS) dataGPS.addRow([null,null,null,null]);
 					if(dataLight) dataLight.addRow([null,null]);
 					if(dataAlt) dataAlt.addRow([null,null,null,null,null]);
+					if(dataIO) dataIO.addRow([null,null,null,null,null,null]);
+					if(dataIO2) dataIO2.addRow([null,null,null]);
+					if(dataID) dataID.addRow([null,null,null]);
 				}
 
 				if(dataBattery)
@@ -507,6 +627,24 @@ function updateData() {
 					]);
 					if(data['gps_lock'] < 2) lastValidGPSalt = data['gps_alt'];
 				}
+				if(dataIO) {
+					dataIO.addRow([
+						time,
+						data['gps_lock'] < 2 ? 9 : 8,
+						data['err_pac1720'] ? 6 : 7,
+						data['err_bme280_i1'] ? 4 : 5,
+						data['err_bme280_e1'] ? 2 : 3,
+						data['err_bme280_e2'] ? 0 : 1
+					]);
+				}
+				if(dataIO2) {
+					dataIO2.addRow([
+						time,
+						data['err_i2c1'] ? 2 : 3,
+						data['err_i2c2'] ? 0 : 1
+					]);
+				}
+				if(dataID) dataID.addRow([time, data['reset'], data['id']]);
 
 				last = time;
 			});
@@ -522,6 +660,9 @@ function updateData() {
 						if(dataGPS) dataGPS.removeRow(c);
 						if(dataLight) dataLight.removeRow(c);
 						if(dataAlt) dataAlt.removeRow(c);
+						if(dataIO) dataIO.removeRow(c);
+						if(dataIO2) dataIO2.removeRow(c);
+						if(dataID) dataID.removeRow(c);
 					}
 				}
 			}
@@ -533,6 +674,9 @@ function updateData() {
 			if(gpsChart) gpsChart.draw(dataGPS, gpsOptions);
 			if(lightChart) lightChart.draw(dataLight, lightOptions);
 			if(altChart) altChart.draw(dataAlt, altOptions);
+			if(ioChart) ioChart.draw(dataIO, ioOptions);
+			if(io2Chart) io2Chart.draw(dataIO2, io2Options);
+			if(idChart) idChart.draw(dataID, idOptions);
 
 			lastChartUpdate = json['time'];
 		}
