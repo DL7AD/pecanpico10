@@ -28,20 +28,6 @@
 /* Module local definitions.                                                 */
 /*===========================================================================*/
 
-/*const radio_band_t band_2m = {
-  .start    = BAND_MIN_2M_FREQ,
-  .end      = BAND_MAX_2M_FREQ,
-  .step     = BAND_STEP_2M_HZ,
-  .def_aprs = BAND_DEF_2M_APRS
-};
-
-const radio_band_t band_70cm = {
-  .start    = BAND_MIN_70CM_FREQ,
-  .end      = BAND_MAX_70CM_FREQ,
-  .step     = BAND_STEP_70CM_HZ,
-  .def_aprs = BAND_DEF_70CM_APRS
-};*/
-
 /*===========================================================================*/
 /* Module exported variables.                                                */
 /*===========================================================================*/
@@ -50,7 +36,7 @@ typedef struct SysProviders {
 
 } providers_t;
 
-const si446x_mcuio_t radio1_io = {
+const si446x_mcucfg_t radio1_cfg = {
 		.gpio0 	= LINE_RADIO_GPIO0,
 		.gpio1 	= LINE_RADIO_GPIO1,
 		.gpio2 	= PAL_NOLINE,
@@ -61,12 +47,17 @@ const si446x_mcuio_t radio1_io = {
 		.cs		= LINE_RADIO_CS,
 };
 
+si446x_data_t radio1_dat = {
+        .lastTemp = 0x7FFF
+};
+
 const radio_config_t radio_list[] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
     .type = SI446X,
-	.io	  = (si446x_mcuio_t * const)&radio1_io,
-    .band = {
+	.cfg	= (si446x_mcucfg_t * const)&radio1_cfg,
+	.dat    = (si446x_data_t *)&radio1_dat,
+    .bands  = {
              (radio_band_t * const)&band_2m,
               NULL
             }

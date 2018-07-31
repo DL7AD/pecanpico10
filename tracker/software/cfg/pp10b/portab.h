@@ -246,8 +246,9 @@
 typedef struct radioConfig {
   radio_unit_t  unit;
   radio_type_t  type;
-  void 			*io;
-  radio_band_t  *band[NUM_BANDS_PER_RADIO];
+  void 			*cfg;
+  void          *dat;
+  radio_band_t  *bands[NUM_BANDS_PER_RADIO];
 } radio_config_t;
 
 /*===========================================================================*/

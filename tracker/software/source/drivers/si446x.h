@@ -228,7 +228,7 @@
 
 #define is_part_Si4463(part) (part == 0x4463)
 
-#define is_Si4463_patch_required(part, rom)                           \
+#define is_Si4463_patch_required(part, rom)                                  \
 	(is_part_Si4463(part) && rom == 0x6)
 
 /*===========================================================================*/
@@ -243,8 +243,8 @@ typedef struct {
   uint8_t   current_byte;
 } up_sampler_t;
 
-/* MCU IO pin assignments for radio. */
-typedef struct Si446x_MCUIO {
+/* MCU IO pin assignments for a specific radio. */
+typedef struct Si446x_MCUCFG {
 	ioline_t	gpio0;
 	ioline_t    gpio1;
 	ioline_t    gpio2;
@@ -253,10 +253,10 @@ typedef struct Si446x_MCUIO {
 	ioline_t	sdn;
 	ioline_t	cs;
 	SPIDriver	*spi;
-} si446x_mcuio_t;
+} si446x_mcucfg_t;
 
-/* Configuration of GPIO in radio. */
-typedef struct Si446x_CHIPIO {
+/* Configuration of GPIO in a specific radio. */
+typedef struct Si446x_GPIO {
 	uint8_t		gpio0;
 	uint8_t		gpio1;
 	uint8_t		gpio2;
@@ -264,11 +264,7 @@ typedef struct Si446x_CHIPIO {
 	uint8_t		nirq;
 	uint8_t		sdo;
 	uint8_t		cfg;
-} si446x_chipio_t;
-
-typedef struct Si446x_DAT {
-	int16_t lastTemp;
-} si446x_data_t;
+} si446x_gpio_t;
 
 /* Si446x part info. */
 typedef struct {
@@ -279,6 +275,11 @@ typedef struct {
 typedef struct {
   uint8_t   info[10];
 } si446x_func_t;
+
+/* Data associated with a specific radio. */
+typedef struct Si446x_DAT {
+	int16_t       lastTemp;
+} si446x_data_t;
 
 /* External. */
 typedef struct radioTask radio_task_object_t;

@@ -703,8 +703,9 @@ radio_freq_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
  *
  * @param[in] radio         Radio unit ID.
  *
- * @return      actual operating frequency or special code
- * @retval      0 if requested frequency or radio ID is invalid
+ * @return    Actual operating frequency or special code
+ * @retval    Operating receive frequency or code if receive is active
+ * @retval    Default frequency otherwise.
  *
  * @notapi
  */
@@ -724,8 +725,18 @@ radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
   return pktGetDefaultOperatingFrequency(radio);
 }
 
-/*
- * TODO: Rework to use max radio and start and PKT_RADIO_1 in loop.
+/**
+ * @brief   Validate an operating frequency in Hz.
+ * @pre     Resolve special frequency codes before calling this function.
+ *
+ * @param[in] radio    Radio unit ID.
+ * @param[in] freq     Radio frequency in Hz.
+ *
+ * @return    operating frequency
+ * @retval    an absolute operating frequency in Hz.
+ * @retval    FREQ_RADIO_INVALID if frequency or radio ID is invalid
+ *
+ * @api
  */
 radio_freq_t pktCheckAllowedFrequency(const radio_unit_t radio,
                                       radio_freq_t freq) {
@@ -735,11 +746,11 @@ radio_freq_t pktCheckAllowedFrequency(const radio_unit_t radio,
   for(uint8_t i = 0; i < radios; i++) {
     if(list->unit == radio) {
       for(uint8_t x = 0; x < NUM_BANDS_PER_RADIO; x++) {
-        if(list->band[x] == NULL)
+        if(list->bands[x] == NULL)
           /* Vacant band slot in this radio. */
             continue;
-        if(list->band[x]->start <= freq
-            && freq < list->band[x]->end)
+        if(list->bands[x]->start <= freq
+            && freq < list->bands[x]->end)
           return freq;
       } /* End for bands */
     } /* if(!unit == radio) */

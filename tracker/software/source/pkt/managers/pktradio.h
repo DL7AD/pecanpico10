@@ -112,7 +112,7 @@ struct radioTask {
   msg_t                     result;
   thread_t                  *thread;
   /* TODO: Create thread name in the radio unit thread itself. */
-  char                      tx_thd_name[16];
+  //char                      tx_thd_name[16];
   packet_svc_t              *handler;
   packet_t                  packet_out;
   uint8_t                   tx_power;

@@ -25,7 +25,7 @@ const conf_t conf_flash_default = {
             .cca = 0x4F,
         },
         // App identity
-        .call = "VK2GJ-12",
+        .call = "VK2GJ-13",
         .path = "WIDE1-1",
         .symbol = SYM_ANTENNA,
         .aprs_msg = true, // Enable APRS message reception on this call sign
@@ -81,7 +81,7 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(60 * 1),
             .send_spacing = TIME_S2I(30)
@@ -93,7 +93,7 @@ const conf_t conf_flash_default = {
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-12",
+        .call = "VK2GJ-13",
         .path = "",
 
         // Image settings
