@@ -19,8 +19,9 @@
 #ifndef PKT_PKTTYPES_H_
 #define PKT_PKTTYPES_H_
 
+/*
 #ifdef PKT_IS_TEST_PROJECT
-/* Modulation type. */
+// Modulation type.
 typedef enum {
   MOD_NONE,
   MOD_AFSK,
@@ -28,7 +29,9 @@ typedef enum {
 } mod_t;
 
 #endif
+*/
 
+/*
 #ifdef PKT_IS_TEST_PROJECT
 
 inline const char *getModulation(uint8_t key) {
@@ -36,6 +39,7 @@ inline const char *getModulation(uint8_t key) {
     return val[key];
 };
 #endif
+*/
 
 /* Radio parameters. */
 
@@ -85,6 +89,10 @@ typedef enum radioMode {
   RADIO_TX
 } radio_mode_t;
 
+/* Forward declaration. */
+//typedef struct radioBand radio_band_t;
+
+/* Type for a radio band. */
 typedef struct radioBand {
   radio_freq_t  start;
   radio_freq_t  end;

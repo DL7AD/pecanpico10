@@ -21,13 +21,14 @@
 #include "portab.h"
 #include "usb.h"
 #include "types.h"
+#include "si446x.h"
 #include <stdarg.h>
 
 /*===========================================================================*/
 /* Module local definitions.                                                 */
 /*===========================================================================*/
 
-const radio_band_t band_2m = {
+/*const radio_band_t band_2m = {
   .start    = BAND_MIN_2M_FREQ,
   .end      = BAND_MAX_2M_FREQ,
   .step     = BAND_STEP_2M_HZ,
@@ -39,7 +40,7 @@ const radio_band_t band_70cm = {
   .end      = BAND_MAX_70CM_FREQ,
   .step     = BAND_STEP_70CM_HZ,
   .def_aprs = BAND_DEF_70CM_APRS
-};
+};*/
 
 /*===========================================================================*/
 /* Module exported variables.                                                */
@@ -49,10 +50,22 @@ typedef struct SysProviders {
 
 } providers_t;
 
+const si446x_mcuio_t radio1_io = {
+		.gpio0 	= LINE_RADIO_GPIO0,
+		.gpio1 	= LINE_RADIO_GPIO1,
+		.gpio2 	= PAL_NOLINE,
+		.gpio3 	= PAL_NOLINE,
+		.nirq	= LINE_RADIO_NIRQ,
+		.sdn	= LINE_RADIO_SDN,
+		.cs		= LINE_RADIO_CS,
+		.spi	= PKT_RADIO_SPI
+};
+
 const radio_config_t radio_list[] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
     .type = SI446X,
+	.io	  = (si446x_mcuio_t * const)&radio1_io,
     .band = {
              (radio_band_t * const)&band_2m,
               NULL
@@ -62,6 +75,7 @@ const radio_config_t radio_list[] = {
      .unit = PKT_RADIO_NONE
   }
 };
+
 
 const SerialConfig debug_config = {
   115200,

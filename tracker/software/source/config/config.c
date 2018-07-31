@@ -153,7 +153,7 @@ const conf_t conf_flash_default = {
                .cca = 0x4F
            },
            // Digipeat transmission identity
-           .call = "VK2GJ-5",
+           .call = "VK2GJ-6",
            .path = "WIDE2-1",
            .symbol = SYM_DIGIPEATER,
            .beacon = {

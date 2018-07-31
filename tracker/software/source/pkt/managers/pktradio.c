@@ -22,6 +22,24 @@
 #include "debug.h"
 #include "geofence.h"
 
+/*===========================================================================*/
+/* Module local definitions.                                                 */
+/*===========================================================================*/
+
+const radio_band_t band_2m = {
+  .start    = BAND_MIN_2M_FREQ,
+  .end      = BAND_MAX_2M_FREQ,
+  .step     = BAND_STEP_2M_HZ,
+  .def_aprs = BAND_DEF_2M_APRS
+};
+
+const radio_band_t band_70cm = {
+  .start    = BAND_MIN_70CM_FREQ,
+  .end      = BAND_MAX_70CM_FREQ,
+  .step     = BAND_STEP_70CM_HZ,
+  .def_aprs = BAND_DEF_70CM_APRS
+};
+
 /**
  * @brief   Process radio task requests.
  * @notes   Task objects posted to the queue are processed per radio.
@@ -723,8 +741,8 @@ radio_freq_t pktCheckAllowedFrequency(const radio_unit_t radio,
         if(list->band[x]->start <= freq
             && freq < list->band[x]->end)
           return freq;
-      }
-    } /* End for bands */
+      } /* End for bands */
+    } /* if(!unit == radio) */
   } /* End for radios*/
   return FREQ_RADIO_INVALID;
 }
@@ -904,7 +922,7 @@ bool pktLLDradioEnableReceive(const radio_unit_t radio,
 }
 
 /**
- *
+ * Disable receive when closing packet receive for the channel.
  */
 void pktLLDradioDisableReceive(const radio_unit_t radio) {
   /* TODO: Implement hardware mapping. */
@@ -922,7 +940,7 @@ void pktLLDradioDisableReceive(const radio_unit_t radio) {
  *
  * @return  status of the operation
  * @retval  true    operation succeeded.
- * retval   false   operation failed.
+ * @retval  false   operation failed.
  *
  * @notapi
  */

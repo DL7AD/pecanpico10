@@ -220,7 +220,7 @@
 
 #define Si446x_getGPIO0()           palReadLine(LINE_RADIO_GPIO0)
 #define Si446x_getGPIO1()           palReadLine(LINE_RADIO_GPIO1)
-#define Si446x_getCCA()             palReadLine(LINE_RADIO_IRQ)
+#define Si446x_getCCA(cca_line)		palReadLine(cca_line)
 
  /* Frequency offset corrected oscillator frequency */
 #define Si446x_CCLK                 ((Si446x_CLK) + (Si446x_CLK_OFFSET)      \
@@ -228,7 +228,8 @@
 
 #define is_part_Si4463(part) (part == 0x4463)
 
-#define is_Si4463_patch_required(part, rom) (is_part_Si4463(part) && rom == 0x6)
+#define is_Si4463_patch_required(part, rom)                           \
+	(is_part_Si4463(part) && rom == 0x6)
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
@@ -241,6 +242,33 @@ typedef struct {
   uint32_t  current_sample_in_baud; // 1 bit = SAMPLES_PER_BAUD samples
   uint8_t   current_byte;
 } up_sampler_t;
+
+/* MCU IO pin assignments for radio. */
+typedef struct Si446x_MCUIO {
+	ioline_t	gpio0;
+	ioline_t    gpio1;
+	ioline_t    gpio2;
+	ioline_t    gpio3;
+	ioline_t    nirq;
+	ioline_t	sdn;
+	ioline_t	cs;
+	SPIDriver	*spi;
+} si446x_mcuio_t;
+
+/* Configuration of GPIO in radio. */
+typedef struct Si446x_CHIPIO {
+	uint8_t		gpio0;
+	uint8_t		gpio1;
+	uint8_t		gpio2;
+	uint8_t		gpio3;
+	uint8_t		nirq;
+	uint8_t		sdo;
+	uint8_t		cfg;
+} si446x_chipio_t;
+
+typedef struct Si446x_DAT {
+	int16_t lastTemp;
+} si446x_data_t;
 
 /* Si446x part info. */
 typedef struct {

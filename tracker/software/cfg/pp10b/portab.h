@@ -99,7 +99,7 @@
  */
 #define LINE_RADIO_CS               PAL_LINE(GPIOC, 12U)
 #define LINE_RADIO_SDN              PAL_LINE(GPIOC, 10U)
-#define LINE_RADIO_IRQ              PAL_LINE(GPIOD, 2U)
+#define LINE_RADIO_NIRQ             PAL_LINE(GPIOD, 2U)
 #define LINE_RADIO_GPIO0            PAL_LINE(GPIOB, 7U)
 #define LINE_RADIO_GPIO1            PAL_LINE(GPIOB, 6U)
 
@@ -137,7 +137,7 @@
 #define LINE_PWM_MIRROR             PAL_NOLINE
 
 /* Radio ports. */
-#define LINE_CCA                    LINE_RADIO_IRQ
+#define LINE_CCA                    LINE_RADIO_NIRQ
 #define LINE_ICU                    LINE_RADIO_GPIO1
 
 //#define LINE_UART4_TX               PAL_LINE(GPIOA, 12U)
@@ -246,6 +246,7 @@
 typedef struct radioConfig {
   radio_unit_t  unit;
   radio_type_t  type;
+  void 			*io;
   radio_band_t  *band[NUM_BANDS_PER_RADIO];
 } radio_config_t;
 
@@ -256,6 +257,9 @@ typedef struct radioConfig {
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
+
+extern const radio_band_t band_2m;
+extern const radio_band_t band_70cm;
 
 #ifdef __cplusplus
 extern "C" {
