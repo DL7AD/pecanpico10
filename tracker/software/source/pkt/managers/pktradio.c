@@ -582,8 +582,8 @@ void pktSubmitRadioTask(const radio_unit_t radio,
  * @brief   Called by transmit threads to schedule release after completing.
  * @post    A thread release task is posted to the radio manager queue.
  *
- * @param[in]   radio   radio unit ID.
- * @param[in]   thread  thread reference.
+ * @param[in]   rto     reference to radio task object.
+ * @param[in]   thread  thread reference of thread terminating.
  *
  * @api
  */
@@ -602,7 +602,6 @@ void pktLLDradioSendComplete(radio_task_object_t *rto,
 
 /**
  * @brief   Acquire exclusive access to radio.
- * @notes   returns when radio unit acquired.
  *
  * @param[in] radio     radio unit ID.
  * @param[in] timeout   time to wait for acquisition.
@@ -633,8 +632,24 @@ void pktReleaseRadio(const radio_unit_t radio) {
   chBSemSignal(&handler->radio_sem);
 }
 
+/**
+ * Return pointer to radio object array.
+ */
+const radio_config_t *pktGetRadioList(void) {
+  return radio_list;
+}
+
+/**
+ * Get number of radios for this board type.
+ */
+uint8_t pktGetNumRadios(void) {
+  uint8_t i = 0;
+  while(radio_list[i++].unit != PKT_RADIO_NONE);
+  return --i;
+}
+
 /*
- * TODO: Refactor this to use an array of strings.
+ *
  */
 int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
   char* str = NULL;
@@ -727,7 +742,8 @@ radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
 
 /**
  * @brief   Validate an operating frequency in Hz.
- * @pre     Resolve special frequency codes before calling this function.
+ * @notes   Checks absolute frequencies only.
+ * @notes   Resolve special frequency codes before calling.
  *
  * @param[in] radio    Radio unit ID.
  * @param[in] freq     Radio frequency in Hz.
@@ -737,8 +753,10 @@ radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
  * @retval    FREQ_RADIO_INVALID if frequency or radio ID is invalid
  *
  * @api
+ *
+ * TODO: Return pointer to band or NULL if invalid.
  */
-radio_freq_t pktCheckAllowedFrequency(const radio_unit_t radio,
+radio_band_t *pktCheckAllowedFrequency(const radio_unit_t radio,
                                       radio_freq_t freq) {
   /* Check validity. */
   uint8_t radios = pktGetNumRadios();
@@ -751,11 +769,11 @@ radio_freq_t pktCheckAllowedFrequency(const radio_unit_t radio,
             continue;
         if(list->bands[x]->start <= freq
             && freq < list->bands[x]->end)
-          return freq;
+          return list->bands[x];
       } /* End for bands */
     } /* if(!unit == radio) */
   } /* End for radios*/
-  return FREQ_RADIO_INVALID;
+  return NULL;
 }
 
 /**
@@ -774,16 +792,16 @@ const radio_config_t *pktGetRadioData(radio_unit_t radio) {
 
 /**
  * @brief   Compute an operating frequency.
- * @notes   All special frequency codes are resolved to an actual frequency.
+ * @notes   All special frequency codes are resolved to a frequency in Hz.
  *
  * @param[in] radio         Radio unit ID.
  * @param[in] base_freq     Radio base frequency in Hz.
  * @param[in] step          Radio channel step size in Hz.
  * @param[in] chan          Radio channel number.
  *
- * @return      operating frequency
- * @retval      an absolute operating frequency in Hz.
- * @retval      FREQ_RADIO_INVALID if frequency or radio ID is invalid
+ * @return  operating frequency in Hz.
+ * @retval  an absolute operating frequency in Hz.
+ * @retval  FREQ_RADIO_INVALID if frequency or radio ID is invalid.
  *
  * @api
  */
@@ -826,7 +844,10 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
   /* Calculate operating frequency. */
   radio_freq_t op_freq = base_freq + (step * chan);
 
-  return pktCheckAllowedFrequency(radio, op_freq);
+  if(pktCheckAllowedFrequency(radio, op_freq) != NULL) {
+    return op_freq;
+  }
+  return FREQ_RADIO_INVALID;
 }
 
 /**

@@ -264,6 +264,7 @@ typedef struct radioConfig {
 
 extern const radio_band_t band_2m;
 extern const radio_band_t band_70cm;
+extern const radio_config_t radio_list[];
 
 #ifdef __cplusplus
 extern "C" {
@@ -278,12 +279,7 @@ extern "C" {
   void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
   int  dbgPrintf(uint8_t level, const char *format, ...);
   void pktWrite(uint8_t *buf, uint32_t len);
-  //void pktPowerUpRadio(radio_unit_t radio);
-  //void pktPowerDownRadio(radio_unit_t radio);
-  radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq);
   uint8_t pktReadIOlines(void);
-  uint8_t pktGetNumRadios(void);
-  const radio_config_t *pktGetRadioList(void);
 #ifdef __cplusplus
 }
 #endif

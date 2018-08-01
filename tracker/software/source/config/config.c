@@ -25,7 +25,7 @@ const conf_t conf_flash_default = {
             .cca = 0x4F,
         },
         // App identity
-        .call = "VK2GJ-13",
+        .call = "VK2GJ-12",
         .path = "WIDE1-1",
         .symbol = SYM_ANTENNA,
         .aprs_msg = true, // Enable APRS message reception on this call sign
@@ -93,7 +93,7 @@ const conf_t conf_flash_default = {
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-13",
+        .call = "VK2GJ-12",
         .path = "",
 
         // Image settings
@@ -128,7 +128,7 @@ const conf_t conf_flash_default = {
         .rx = {
              .svc_conf = {
                  // The packet receive service is enabled if true
-                 // Receive is resumed after any transmission
+                 // Receive is paused and resumed by transmission
                  .active = true,
                  .init_delay = TIME_S2I(20)
              },
@@ -153,7 +153,7 @@ const conf_t conf_flash_default = {
                .cca = 0x4F
            },
            // Digipeat transmission identity
-           .call = "VK2GJ-6",
+           .call = "VK2GJ-5",
            .path = "WIDE2-1",
            .symbol = SYM_DIGIPEATER,
            .beacon = {

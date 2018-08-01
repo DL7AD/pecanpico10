@@ -32,10 +32,7 @@
 /* Module exported variables.                                                */
 /*===========================================================================*/
 
-typedef struct SysProviders {
-
-} providers_t;
-
+/* Definition of radio IO for radio on this board. */
 const si446x_mcucfg_t radio1_cfg = {
 		.gpio0 	= LINE_RADIO_GPIO0,
 		.gpio1 	= LINE_RADIO_GPIO1,
@@ -47,10 +44,13 @@ const si446x_mcucfg_t radio1_cfg = {
 		.spi	= PKT_RADIO_SPI
 };
 
+/* Definition of radio specific data for radio on this board. */
 si446x_data_t radio1_dat = {
         .lastTemp = 0x7FFF
+        // TODO: Move part and func structs into here and add functions to get
 };
 
+/* Radios on this board. */
 const radio_config_t radio_list[] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
@@ -91,22 +91,6 @@ const SerialConfig debug_config = {
 /* Module exported functions.                                                */
 /*===========================================================================*/
 
-/**
- * Get number of radios for this board type.
- */
-uint8_t pktGetNumRadios(void) {
-  uint8_t i = 0;
-  while(radio_list[i++].unit != PKT_RADIO_NONE);
-  return --i;
-}
-
-/**
- * Return pointer to radio object array.
- */
-const radio_config_t *pktGetRadioList(void) {
-  return radio_list;
-}
-
 void pktConfigSerialDiag(void) {
 #if ENABLE_EXTERNAL_I2C == FALSE
   /* USART3 TX.       */
@@ -126,29 +110,10 @@ ioline_t pktSetLineModeICU(const radio_unit_t radio) {
   return LINE_ICU;
 }
 
-/**
- * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
- * The GPIO assignments per radio should be in the radio record.
- */
-/*ioline_t pktSetLineModeRadioGPIO1(const radio_unit_t radio) {
-  (void)radio;
-  palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT_PULLDOWN);
-  return LINE_RADIO_GPIO1;
-}*/
-
-/**
- * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
- * The GPIO assignments per radio should be in the radio record.
- */
-/*ioline_t pktSetLineModeRadioGPIO0(const radio_unit_t radio) {
-  (void)radio;
-  palSetLineMode(LINE_RADIO_GPIO0, PAL_MODE_INPUT_PULLDOWN);
-  return LINE_RADIO_GPIO0;
-}*/
-
 /*
  * Read GPIO that are used for:
- * a) general use or
+ * a) general use
+ *  or
  * b) UART and s/w I2C external.
  *
  * @return State of lines regardless of general or specific use.

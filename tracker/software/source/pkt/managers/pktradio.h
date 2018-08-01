@@ -111,8 +111,6 @@ struct radioTask {
   radio_task_cb_t           callback;
   msg_t                     result;
   thread_t                  *thread;
-  /* TODO: Create thread name in the radio unit thread itself. */
-  //char                      tx_thd_name[16];
   packet_svc_t              *handler;
   packet_t                  packet_out;
   uint8_t                   tx_power;
@@ -140,7 +138,9 @@ extern "C" {
                                 thread_t *thread);
   msg_t     		pktAcquireRadio(const radio_unit_t radio, sysinterval_t timeout);
   void      		pktReleaseRadio(const radio_unit_t radio);
-  radio_freq_t 		pktCheckAllowedFrequency(const radio_unit_t radio,
+  const radio_config_t *pktGetRadioList(void);
+  uint8_t           pktGetNumRadios(void);
+  radio_band_t 		*pktCheckAllowedFrequency(const radio_unit_t radio,
                                         radio_freq_t freq);
   radio_freq_t 		pktComputeOperatingFrequency(const radio_unit_t radio,
                                             radio_freq_t base_freq,
@@ -153,7 +153,6 @@ extern "C" {
   bool      		pktLLDradioResumeReceive(const radio_unit_t radio);
   bool      		pktLLDradioSendPacket(radio_task_object_t *rto);
   void      		pktLLDradioCaptureRSSI(const radio_unit_t radio);
-  //bool      pktLLDradioExitShutdown(const radio_unit_t radio);
   bool      		pktLLDradioInit(const radio_unit_t radio);
   void      		pktLLDradioStandby(const radio_unit_t radio);
   void      		pktLLDradioShutdown(const radio_unit_t radio);

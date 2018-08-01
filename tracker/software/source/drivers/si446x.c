@@ -42,10 +42,11 @@ static const uint8_t Radio_Patch_Data_Array[] = {
         0x00
  };
 
-/* TODO: Set the CS line dynamically per radio. */
-static /*const*/ SPIConfig ls_spicfg = {
-    .ssport = PAL_PORT(LINE_RADIO_CS),
-    .sspad  = PAL_PAD(LINE_RADIO_CS),
+/*
+ * @brief   The SPI configuration.
+ * @note    the CS line is set dynamically per radio.
+ */
+static SPIConfig ls_spicfg = {
     .cr1    = SPI_CR1_MSTR
 };
 
@@ -170,8 +171,6 @@ static bool Si446x_readBoot(const radio_unit_t radio,
 						const uint8_t* txData, uint32_t txlen,
                         uint8_t* rxData, uint32_t rxlen) {
 
-  /* TODO: Add radio unit ID and get SPI configuration accordingly. */
-  //(void)radio;
     /* Acquire bus and get SPI Driver object. */
     SPIDriver *spip = Si446x_spiSetupBus(radio, &ls_spicfg);
 
@@ -231,8 +230,6 @@ static bool Si446x_read(const radio_unit_t radio,
 		                const uint8_t* txData, uint32_t txlen,
                         uint8_t* rxData, uint32_t rxlen) {
 
-  /* TODO: Add radio unit ID and get SPI configuration accordingly. */
-  //(void)radio;
     /* Acquire bus and then start SPI. */
     SPIDriver *spip = Si446x_spiSetupBus(radio, &ls_spicfg);
     spiStart(spip, &ls_spicfg);
@@ -344,8 +341,6 @@ static bool Si446x_init(const radio_unit_t radio) {
   TRACE_INFO("SI   > Start up and initialize radio %d", radio);
 
   packet_svc_t *handler = pktGetServiceObject(radio);
-
-  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   /*
    * Set MCU GPIO for radio GPIO1 (CTS).
@@ -569,8 +564,6 @@ static bool Si446x_init(const radio_unit_t radio) {
  * Intialize radio only if it has been shutdown.
  */
 bool Si446x_conditional_init(const radio_unit_t radio) {
-
-
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   if(!handler->radio_init)
@@ -579,7 +572,8 @@ bool Si446x_conditional_init(const radio_unit_t radio) {
 }
 
 /*
- *
+ * Set radio NCO registers for frequency.
+ * This function also collects the chip temperature data.
  */
 bool Si446x_setBandParameters(const radio_unit_t radio,
                               radio_freq_t freq,
@@ -588,7 +582,10 @@ bool Si446x_setBandParameters(const radio_unit_t radio,
   if(freq == FREQ_APRS_DYNAMIC) {
     /* Get transmission frequency by geofencing. */
       freq = getAPRSRegionFrequency();
-      /* If using geofence step is not set. */
+      /* If using geofence step is not set.
+       * TODO: Get step from the config for radio.
+       * Add new function Si446x_getBand(...)
+       */
       step = 0;
   }
   /* Check frequency is in range of chip. */
@@ -605,6 +602,11 @@ bool Si446x_setBandParameters(const radio_unit_t radio,
   if(freq < 239000000UL) {outdiv = 16; band = 4;}
   if(freq < 177000000UL) {outdiv = 24; band = 5;}
 
+  /* TODO: Is this redundant now?
+   * The radio is set in sleep versus shutdown when inactive (not receiving).
+   * Shutdown is only used when the channel is completely closed.
+   * The radio is initialized again when the channel is (re)opened.
+   */
   Si446x_conditional_init(radio);
 
   /* Set the band parameter. */
