@@ -275,17 +275,18 @@ static inline msg_t pktWritePWMQueueI(input_queue_t *queue,
 #ifdef __cplusplus
 extern "C" {
 #endif
-  ICUDriver *pktAttachICU(radio_unit_t radio_id);
-  void pktDetachICU(ICUDriver *myICU);
-  void pktICUStart(ICUDriver *myICU);
+  ICUDriver *pktAttachRadio(const radio_unit_t radio_id);
+  void pktEnableRadioPWM(const radio_unit_t radio);
+  void pktDisableRadioPWM(const radio_unit_t radio);
+  void pktDetachRadio(const radio_unit_t radio_id);
   void pktRadioICUWidth(ICUDriver *myICU);
   void pktRadioICUPeriod(ICUDriver *myICU);
-  void PktRadioICUOverflow(ICUDriver *myICU);
+  void pktRadioICUOverflow(ICUDriver *myICU);
   void pktRadioCCAInput(ICUDriver *myICU);
-  void pktStopAllICUTimersI(ICUDriver *myICU);
+  void pktStopAllICUtimersI(ICUDriver *myICU);
   void pktSleepICUI(ICUDriver *myICU);
   msg_t pktQueuePWMDataI(ICUDriver *myICU);
-  void pktClosePWMChannelI(ICUDriver *myICU, eventflags_t evt,
+  void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt,
                            pwm_code_t reason);
   void pktICUInactivityTimeout(ICUDriver *myICU);
   void pktPWMInactivityTimeout(ICUDriver *myICU);

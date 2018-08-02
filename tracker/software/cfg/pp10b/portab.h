@@ -137,8 +137,8 @@
 #define LINE_PWM_MIRROR             PAL_NOLINE
 
 /* Radio ports. */
-#define LINE_CCA                    LINE_RADIO_NIRQ
-#define LINE_ICU                    LINE_RADIO_GPIO1
+//#define LINE_CCA                    LINE_RADIO_NIRQ
+//#define LINE_ICU                    LINE_RADIO_GPIO1
 
 //#define LINE_UART4_TX               PAL_LINE(GPIOA, 12U)
 //#define LINE_UART4_RX               PAL_LINE(GPIOA, 11U)
@@ -168,8 +168,8 @@
 /**
  *  ICU related definitions.
  */
-#define PWM_ICU                     ICUD4
-#define PWM_TIMER_CHANNEL           0
+#define RADIO1_ICU_DRIVER           &ICUD4
+
 #define PWM_ICU_CLK                 STM32_TIMCLK1
 
 /* ICU counter frequency. */
@@ -277,6 +277,9 @@ extern "C" {
   int  dbgPrintf(uint8_t level, const char *format, ...);
   void pktWrite(uint8_t *buf, uint32_t len);
   uint8_t pktReadIOlines(void);
+  void pktRadioICUWidth(ICUDriver *icup);
+  void pktRadioICUPeriod(ICUDriver *icup);
+  void pktRadioICUOverflow(ICUDriver *icup);
 #ifdef __cplusplus
 }
 #endif

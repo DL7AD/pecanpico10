@@ -243,16 +243,19 @@ typedef struct {
   uint8_t   current_byte;
 } up_sampler_t;
 
-/* MCU IO pin assignments for a specific radio. */
+/* MCU IO configuration for a specific radio. */
 typedef struct Si446x_MCUCFG {
-	ioline_t	gpio0;
-	ioline_t    gpio1;
-	ioline_t    gpio2;
-	ioline_t    gpio3;
-	ioline_t    nirq;
-	ioline_t	sdn;
-	ioline_t	cs;
-	SPIDriver	*spi;
+	const ioline_t	    gpio0;
+	const ioline_t      gpio1;
+	const ioline_t      gpio2;
+	const ioline_t      gpio3;
+	const ioline_t      nirq;
+	const ioline_t	    sdn;
+	const ioline_t	    cs;
+	SPIDriver	        *spi;
+	ICUDriver           *icu;
+	const iomode_t      alt;   /* Alt GPIO mode used to gate to timer. */
+	const ICUConfig     cfg;
 } si446x_mcucfg_t;
 
 /* Configuration of GPIO in a specific radio. */
@@ -266,6 +269,8 @@ typedef struct Si446x_GPIO {
 	uint8_t		cfg;
 } si446x_gpio_t;
 
+typedef int16_t si446x_temp_t;
+
 /* Si446x part info. */
 typedef struct {
   uint8_t   info[10];
@@ -278,7 +283,7 @@ typedef struct {
 
 /* Data associated with a specific radio. */
 typedef struct Si446x_DAT {
-	int16_t       lastTemp;
+  si446x_temp_t lastTemp;
 } si446x_data_t;
 
 /* External. */
@@ -293,7 +298,7 @@ extern void pktReleasePacketBuffer(packet_t pp);
 #ifdef __cplusplus
 extern "C" {
 #endif
-  int16_t Si446x_getLastTemperature(const radio_unit_t radio);
+  si446x_temp_t Si446x_getLastTemperature(const radio_unit_t radio);
   bool Si446x_radioStartup(const radio_unit_t radio);
   void Si446x_radioShutdown(const radio_unit_t radio);
   void Si446x_radioStandby(const radio_unit_t radio);
@@ -324,6 +329,11 @@ extern "C" {
                                 radio_freq_t freq,
                                 channel_hz_t step);
   radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
+  ICUDriver *Si446x_attachPWM(const radio_unit_t radio);
+  bool Si446x_detachPWM(const radio_unit_t radio);
+  const ICUConfig *Si446x_startPWM(const radio_unit_t radio, palcallback_t cb);
+  void Si446x_stopPWM(const radio_unit_t radio);
+  uint8_t Si446x_readCCA(const radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif

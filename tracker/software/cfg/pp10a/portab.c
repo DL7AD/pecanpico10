@@ -41,13 +41,30 @@ const si446x_mcucfg_t radio1_cfg = {
 		.nirq	= LINE_RADIO_NIRQ,
 		.sdn	= LINE_RADIO_SDN,
 		.cs		= LINE_RADIO_CS,
-		.spi	= PKT_RADIO_SPI
+		.spi	= PKT_RADIO_SPI,
+        .icu    = RADIO1_ICU_DRIVER,
+        .alt    = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2)),
+        .cfg    =  {
+                      ICU_INPUT_ACTIVE_HIGH,
+                      ICU_COUNT_FREQUENCY,          /* ICU clock frequency. */
+                    #if LINE_PWM_MIRROR != PAL_NOLINE
+                      pktRadioICUWidth,             /* ICU width callback. */
+                    #else
+                      NULL,                         /* ICU width callback. */
+                    #endif
+                      pktRadioICUPeriod,            /* ICU period callback. */
+                      pktRadioICUOverflow,          /* ICU overflow callback. */
+                      ICU_CHANNEL_1,                /* Timer channel 0. */
+                      0
+                    }
 };
 
 /* Definition of radio specific data for radio on this board. */
 si446x_data_t radio1_dat = {
         .lastTemp = 0x7FFF
-        // TODO: Move part and func structs into here and add functions to get
+        /* TODO: Move part and func structs into here
+         * Add functions to set/get values
+         */
 };
 
 /* Radios on this board. */
@@ -104,11 +121,11 @@ void pktConfigSerialDiag(void) {
  * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
  * The GPIO assignments per radio should be in the radio record.
  */
-ioline_t pktSetLineModeICU(const radio_unit_t radio) {
+/*ioline_t pktSetLineModeICU(const radio_unit_t radio) {
   (void)radio;
   palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
   return LINE_ICU;
-}
+}*/
 
 /*
  * Read GPIO that are used for:

@@ -122,6 +122,8 @@ struct radioTask {
 /* External declarations.                                                    */
 /*===========================================================================*/
 
+extern const ICUConfig pwm_icucfg;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -136,7 +138,8 @@ extern "C" {
                           radio_task_cb_t cb);
   void      		pktScheduleThreadRelease(const radio_unit_t radio,
                                 thread_t *thread);
-  msg_t     		pktAcquireRadio(const radio_unit_t radio, sysinterval_t timeout);
+  msg_t     		pktAcquireRadio(const radio_unit_t radio,
+            		                sysinterval_t timeout);
   void      		pktReleaseRadio(const radio_unit_t radio);
   const radio_config_t *pktGetRadioList(void);
   uint8_t           pktGetNumRadios(void);
@@ -162,10 +165,17 @@ extern "C" {
   void      		pktLLDradioStopDecoder(const radio_unit_t radio);
   void      		pktLLDradioSendComplete(radio_task_object_t *rto,
                                 thread_t *thread);
+  ICUDriver         *pktLLDradioAttachPWM(const radio_unit_t radio);
+  void              pktLLDradioDetachPWM(const radio_unit_t radio);
+  const ICUConfig   *pktLLDradioStartPWM(const radio_unit_t radio,
+                                         palcallback_t cb);
+  void              pktLLDradioStopPWM(const radio_unit_t radio);
   void      		pktStartDecoder(const radio_unit_t radio);
   void      		pktStopDecoder(const radio_unit_t radio);
-  int       	 	pktDisplayFrequencyCode(radio_freq_t code, char *buf, size_t size);
+  int       	 	pktDisplayFrequencyCode(radio_freq_t code, char *buf,
+            	 	                        size_t size);
   const radio_config_t	*pktGetRadioData(radio_unit_t radio);
+  uint8_t           pktLLDradioReadCCA(const radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif

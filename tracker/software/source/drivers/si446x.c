@@ -1671,7 +1671,72 @@ bool Si446x_blocSend2FSK(radio_task_object_t *rt) {
  * Used by collector. At the moment it collects for PKT_RADIO_1 only.
  * There should be an LLD API selecting the radio type via VMT etc.
  */
-int16_t Si446x_getLastTemperature(const radio_unit_t radio) {
+si446x_temp_t Si446x_getLastTemperature(const radio_unit_t radio) {
   return Si446x_getData(radio)->lastTemp;
 }
 
+/**
+ *
+ */
+ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
+  /* The RX_RAW_DATA input is routed to ICU timer channel.
+   * TODO: The STM32 Alternate mode should be in the radio config data.
+   * Then the ICU GPIO setting can be generalized.
+   */
+  //(void)pktSetLineModeICU(Si446x_getConfig(radio)->gpio1);
+  pktSetGPIOlineMode(Si446x_getConfig(radio)->gpio1,
+                     Si446x_getConfig(radio)->alt);
+
+  /*
+  * Set up GPIO port where the NIRQ from the radio is connected.
+  * The NIRQ line is configured in the radio to output the CCA condition.
+  */
+  pktSetGPIOlineMode(Si446x_getConfig(radio)->nirq, PAL_MODE_INPUT_PULLUP);
+
+  /*
+   * Return the ICU this radio is assigned to.
+   * TODO: Check that the ICU is not already taken?
+   * This would only be a config error.
+   * Packet channel control enforces single use of decoder PWM for AFSK.
+   */
+  return Si446x_getConfig(radio)->icu;
+}
+
+/**
+ *
+ */
+bool Si446x_detachPWM(const radio_unit_t radio) {
+  (void)radio;
+  return true;
+}
+
+/**
+ *
+ */
+const ICUConfig *Si446x_startPWM(const radio_unit_t radio,
+                          palcallback_t cb) {
+  /* Set callback for squelch events. */
+  palSetLineCallback(Si446x_getConfig(radio)->nirq, cb,
+                     Si446x_getConfig(radio)->icu);
+
+  /* Enabling events on both edges of CCA.*/
+  palEnableLineEvent(Si446x_getConfig(radio)->nirq,
+                     PAL_EVENT_MODE_BOTH_EDGES);
+
+  //extern const ICUConfig pwm_icucfg;
+  //return &pwm_icucfg;
+  return &Si446x_getConfig(radio)->cfg;
+}
+
+/**
+ *
+ */
+void Si446x_stopPWM(radio_unit_t radio) {
+  palDisableLineEvent(Si446x_getConfig(radio)->nirq);
+}
+/**
+ *
+ */
+uint8_t Si446x_readCCA(const radio_unit_t radio) {
+  return palReadLine(Si446x_getConfig(radio)->nirq);
+}

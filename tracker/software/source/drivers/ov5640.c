@@ -25,11 +25,9 @@ struct regval_list {
 
 static const struct regval_list OV5640YUV_Sensor_Dvp_Init[] =
 {
-	{ 0x4740, 0x24 },
-		
+	    { 0x4740, 0x24 },
 		{ 0x4050, 0x6e },
-    { 0x4051, 0x8f },
-		
+        { 0x4051, 0x8f },
 		{ 0x3008, 0x42 }, 
 		{ 0x3103, 0x03 }, 
 		{ 0x3017, 0x7f }, 
@@ -73,7 +71,8 @@ static const struct regval_list OV5640YUV_Sensor_Dvp_Init[] =
 		{ 0x3c0a, 0x9c }, 
 		{ 0x3c0b, 0x40 },  		
 
-		{ 0x3820, 0x47 }, 
+		// Mirror and flip
+		{ 0x3820, 0x40 }, //47
 		{ 0x3821, 0x00 }, //07
 
 		//windows setup
@@ -144,7 +143,7 @@ static const struct regval_list OV5640YUV_Sensor_Dvp_Init[] =
 		{ 0x4407, 0x04 }, 
 		{ 0x460b, 0x35 }, 
 		{ 0x460c, 0x22 },//add by bright 
-	  { 0x3824, 0x01 },//add by bright 
+	    { 0x3824, 0x01 },//add by bright
 		{ 0x5001, 0xa3 }, 		
 		
 		{ 0x3406, 0x01 },//awbinit
@@ -321,18 +320,23 @@ static const struct regval_list OV5640YUV_Sensor_Dvp_Init[] =
 		
 		{ 0x4005, 0x1a },
 		{ 0x3406, 0x00 },//awbinit
-    { 0x3503, 0x00 },//awbinit
+        { 0x3503, 0x00 },//awbinit
 		{ 0x3008, 0x02 }, 
-{ 0xffff, 0xff }, 
+		{ 0xffff, 0xff } // end
 };
 
 
-
+/*
+ * TODO: This resolution configuration is currently used as the JPEG setup.
+ * There should be a generic JPEG setup.
+ */
 //2592x1944 QSXGA
 static const struct regval_list OV5640_JPEG_QSXGA[]  =
 {
-	{0x3820 ,0x47}, 
-		{0x3821 ,0x20}, 
+         // Mirror and flip
+	    {0x3820 ,0x46}, //46 for flip (was 47)
+		{0x3821 ,0x20},
+
 		{0x3814 ,0x11}, 
 		{0x3815 ,0x11}, 
 		{0x3803 ,0x00}, 
@@ -366,7 +370,7 @@ static const struct regval_list OV5640_JPEG_QSXGA[]  =
 		{0x3036 ,0x69}, 
 		{0x3035 ,0x31}, 
 		{0x4005 ,0x1A},
-{0xffff, 0xff}, 
+		{0xffff, 0xff},
 };
 
 //5MP
@@ -490,7 +494,7 @@ static const struct regval_list OV5640_QSXGA2VGA[]  =
 		{0x5685 ,0x0 }, 
 		{0x5686 ,0x7 }, 
 		{0x5687 ,0x98}, 	
-{0xffff, 0xff}, 
+		{0xffff, 0xff},
 };
 
 //800x480 WVGA

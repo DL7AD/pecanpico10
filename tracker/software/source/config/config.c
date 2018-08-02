@@ -56,14 +56,14 @@ const conf_t conf_flash_default = {
     .img_pri = {
         .svc_conf = {
             .active = false,
-            .cycle = CYCLE_CONTINUOUSLY,
+            .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(90),
-            .send_spacing = TIME_S2I(0)
+            .send_spacing = TIME_S2I(30)
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = 144800000,
-            .mod = MOD_2FSK,
+            .freq = APRS_FREQ_AUSTRALIA,
+            .mod = MOD_AFSK,
             .cca = 0x4F
 
         },
@@ -81,8 +81,8 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = true,
-            .cycle = TIME_S2I(60 * 30),
+            .active = false,
+            .cycle = TIME_S2I(60 * 15),
             .init_delay = TIME_S2I(60 * 1),
             .send_spacing = TIME_S2I(30)
         },

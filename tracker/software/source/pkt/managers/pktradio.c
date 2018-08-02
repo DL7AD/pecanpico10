@@ -633,14 +633,22 @@ void pktReleaseRadio(const radio_unit_t radio) {
 }
 
 /**
- * Return pointer to radio object array.
+ * @brief   Return pointer to radio object array for this board.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @api
  */
 const radio_config_t *pktGetRadioList(void) {
   return radio_list;
 }
 
 /**
- * Get number of radios for this board type.
+ * @brief   Return number of radios for this board.
+ *
+ * @return  Number of radios.
+ *
+ * @api
  */
 uint8_t pktGetNumRadios(void) {
   uint8_t i = 0;
@@ -648,8 +656,15 @@ uint8_t pktGetNumRadios(void) {
   return --i;
 }
 
-/*
+/**
+ * @brief   Text rendering of frequency code or absolute frequency.
  *
+ * @param[in] buf  Pointer to charcater buffer.
+ * @param[in] size Size of buffer.
+ *
+ * @return  Number of characters added to buffer.
+ *
+ * @api
  */
 int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
   char* str = NULL;
@@ -1004,7 +1019,6 @@ bool pktLLDradioResumeReceive(const radio_unit_t radio) {
  */
 void pktLLDradioCaptureRSSI(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  //chDbgAssert(handler != NULL, "invalid radio ID");
   handler->rx_stength = Si446x_getCurrentRSSI(radio);
 }
 
@@ -1056,4 +1070,65 @@ void pktLLDradioStopDecoder(const radio_unit_t radio) {
   pktStopDecoder(radio);
 }
 
+/**
+ *
+ */
+ICUDriver *pktLLDradioAttachPWM(const radio_unit_t radio) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+  return Si446x_attachPWM(radio);
+}
+
+/**
+ *
+ */
+void pktLLDradioDetachPWM(const radio_unit_t radio) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+  (void)radio;
+}
+
+/**
+ *
+ */
+const ICUConfig *pktLLDradioStartPWM(const radio_unit_t radio,
+                          palcallback_t cb) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only type at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+
+  return Si446x_startPWM(radio, cb);
+}
+
+/**
+ *
+ */
+void pktLLDradioStopPWM(const radio_unit_t radio) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+  Si446x_stopPWM(radio);
+}
+
+/**
+ *
+ */
+uint8_t pktLLDradioReadCCA(const radio_unit_t radio) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+  return Si446x_readCCA(radio);
+}
 /** @} */
