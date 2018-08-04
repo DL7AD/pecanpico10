@@ -139,12 +139,12 @@ extern "C" {
   void      		pktScheduleThreadRelease(const radio_unit_t radio,
                                 thread_t *thread);
   msg_t     		pktAcquireRadio(const radio_unit_t radio,
-            		                sysinterval_t timeout);
+            		                const sysinterval_t timeout);
   void      		pktReleaseRadio(const radio_unit_t radio);
   const radio_config_t *pktGetRadioList(void);
   uint8_t           pktGetNumRadios(void);
   radio_band_t 		*pktCheckAllowedFrequency(const radio_unit_t radio,
-                                        radio_freq_t freq);
+                                        const radio_freq_t freq);
   radio_freq_t 		pktComputeOperatingFrequency(const radio_unit_t radio,
                                             radio_freq_t base_freq,
                                             channel_hz_t step,

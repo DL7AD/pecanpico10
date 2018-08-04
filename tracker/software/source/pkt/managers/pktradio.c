@@ -15,9 +15,8 @@
  */
 
 #include "pktconf.h"
-#ifndef PKT_IS_TEST_PROJECT
 #include "radio.h"
-#endif
+
 #include "si446x.h"
 #include "debug.h"
 #include "geofence.h"
@@ -30,14 +29,14 @@ const radio_band_t band_2m = {
   .start    = BAND_MIN_2M_FREQ,
   .end      = BAND_MAX_2M_FREQ,
   .step     = BAND_STEP_2M_HZ,
-  .def_aprs = BAND_DEF_2M_APRS
+  //.def_aprs = BAND_DEF_2M_APRS
 };
 
 const radio_band_t band_70cm = {
   .start    = BAND_MIN_70CM_FREQ,
   .end      = BAND_MAX_70CM_FREQ,
   .step     = BAND_STEP_70CM_HZ,
-  .def_aprs = BAND_DEF_70CM_APRS
+  //.def_aprs = BAND_DEF_70CM_APRS
 };
 
 /**
@@ -54,7 +53,7 @@ const radio_band_t band_70cm = {
  * @notapi
  */
 THD_FUNCTION(pktRadioManager, arg) {
-  /* When waiting for TX tasks to complete. */
+  /* When waiting for TX tasks to complete if manager is terminating. */
 #define PKT_RADIO_TX_TASK_RECHECK_WAIT_MS     100
 
   packet_svc_t *handler = arg;
@@ -708,7 +707,10 @@ int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
 }
 
 /**
- * @brief   Get default operating frequency.
+ * @brief   Get a default operating frequency.
+ * @notes   If a valid default is set in configuration use it
+ * @notes   Else if a valid frequency is in the radio configuration use it
+ * @notes   Else fall back to #defined DEFAULT_OPERATING_FREQUENCY
  *
  * @param[in] radio         Radio unit ID.
  *
@@ -719,13 +721,15 @@ int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
  * @api
  */
 radio_freq_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
-  /* FIXME: Default frequency in config to be per radio. */
-  (void)radio;
-  /* FIXME: INVALID relies on 0 in conf if no default set. */
-  if(conf_sram.freq != FREQ_RADIO_INVALID)
+  radio_band_t *band = pktCheckAllowedFrequency(radio, conf_sram.freq);
+  if(band != NULL)
     return conf_sram.freq;
-  else
-    return DEFAULT_OPERATING_FREQ;
+  radio_config_t *radio_data = pktGetRadioData(radio);
+  if(pktCheckAllowedFrequency(radio, radio_data->def_aprs))
+    /* Use default APRS frequency in radio configuration. */
+    return radio_data->def_aprs;
+  /* Fall back to defined default as last resort. */
+  return DEFAULT_OPERATING_FREQ;
 }
 
 /**
@@ -733,9 +737,9 @@ radio_freq_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
  *
  * @param[in] radio         Radio unit ID.
  *
- * @return    Actual operating frequency or special code
- * @retval    Operating receive frequency or code if receive is active
- * @retval    Default frequency otherwise.
+ * @return    Actual operating frequency or special code.
+ * @retval    Absolute receive frequency or code if receive is active.
+ * @retval    Default operating frequency if receive not active.
  *
  * @notapi
  */
@@ -768,20 +772,16 @@ radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
  * @retval    FREQ_RADIO_INVALID if frequency or radio ID is invalid
  *
  * @api
- *
- * TODO: Return pointer to band or NULL if invalid.
  */
 radio_band_t *pktCheckAllowedFrequency(const radio_unit_t radio,
-                                      radio_freq_t freq) {
+                                      const radio_freq_t freq) {
   /* Check validity. */
   uint8_t radios = pktGetNumRadios();
   const radio_config_t *list = pktGetRadioList();
   for(uint8_t i = 0; i < radios; i++) {
-    if(list->unit == radio) {
-      for(uint8_t x = 0; x < NUM_BANDS_PER_RADIO; x++) {
-        if(list->bands[x] == NULL)
-          /* Vacant band slot in this radio. */
-            continue;
+    if(list->unit == radio && list->bands != NULL) {
+      uint8_t x = 0;
+      while(list->bands[x] != NULL) {
         if(list->bands[x]->start <= freq
             && freq < list->bands[x]->end)
           return list->bands[x];
@@ -866,7 +866,7 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
 }
 
 /**
- *
+ * HAL functions
  */
 bool pktLLDradioInit(const radio_unit_t radio) {
   /* TODO: Implement hardware mapping. */
@@ -933,9 +933,9 @@ bool pktLLDradioSendPacket(radio_task_object_t *rto) {
 
 /**
  * @brief   Enable reception.
- * @notes   This is the API interface to the radio LLD.
+ * @notes   This is the HAL API to the radio LLD.
  * @notes   Currently just map directly to 446x driver.
- * @notes   In future would implement a lookup and VMT to access radio methods.
+ * @notes   In future a VMT lookup would access the relevant radio methods.
  *
  * @param[in] radio radio unit ID.
  * @param[in] rto   pointer to radio task object
@@ -949,8 +949,6 @@ bool pktLLDradioSendPacket(radio_task_object_t *rto) {
 bool pktLLDradioEnableReceive(const radio_unit_t radio,
                          radio_task_object_t *rto) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-
-  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   if(handler == NULL)
     return false;
@@ -1131,4 +1129,5 @@ uint8_t pktLLDradioReadCCA(const radio_unit_t radio) {
    */
   return Si446x_readCCA(radio);
 }
+
 /** @} */

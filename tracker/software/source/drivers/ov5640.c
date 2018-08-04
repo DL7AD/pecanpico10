@@ -983,13 +983,14 @@ void vsync_cb(void *arg) {
  * Other drivers using resources that can cause DMA competition are locked.
  */
 msg_t OV5640_LockResourcesForCapture(void) {
-
+  /* TODO: have to make this a loop which would handle multiple receivers. */
+  /* Acquire radio after any TX completes. */
   msg_t msg = pktAcquireRadio(PKT_RADIO_1, TIME_INFINITE);
   if(msg != MSG_OK) {
     return msg;
   }
   I2C_Lock();
-  /* TODO: have to make this a loop which would handle multiple receivers. */
+
   pktLLDradioPauseDecoding(PKT_RADIO_1);
   //pktPauseDecoding(PKT_RADIO_1);
   /* Hold TRACE output on USB. */
@@ -1009,9 +1010,13 @@ void OV5640_UnlockResourcesForCapture(void) {
   /* TODO: have to make this a loop which would handle multiple receivers. */
   pktLLDradioResumeDecoding(PKT_RADIO_1);
   //pktResumeDecoding(PKT_RADIO_1);
+  /* Enable TX tasks to run. */
   pktReleaseRadio(PKT_RADIO_1);
 }
 
+/**
+ *
+ */
 uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 
 	/*
@@ -1030,8 +1035,8 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	dma_capture_t dma_control = {0};
 
 	/* Setup DMA for transfer on timer CC tigger.
-	 * For TIM8 this DMA2 stream 2, channel 7.
-	 * Use PL 3 as PCLCK rate is high.
+	 * For TIM8 this is DMA2 stream 2, channel 7.
+	 * Use PL 3 as camera PCLK rate is high and we need priority service.
 	 */
 	dma_control.dmastp  = STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 2));
 	uint32_t dmamode = STM32_DMA_CR_CHSEL(7) |

@@ -97,8 +97,17 @@ typedef struct radioBand {
   radio_freq_t  start;
   radio_freq_t  end;
   channel_hz_t  step;
-  radio_freq_t  def_aprs;
+  //radio_freq_t  def_aprs;
 } radio_band_t;
+
+typedef struct radioConfig {
+  radio_unit_t  unit;
+  radio_type_t  type;
+  void          *cfg;
+  void          *dat;
+  radio_freq_t  def_aprs;       /**< A frequency in one of the bands. */
+  radio_band_t  **bands;
+} radio_config_t;
 
 typedef uint8_t ax25char_t;
 

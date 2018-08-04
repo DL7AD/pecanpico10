@@ -207,7 +207,7 @@ void pktDisableRadioPWM(const radio_unit_t radio) {
   /*
    * Reschedule is required to avoid a "priority order violation".
    * TODO: Investigate the iclass time used.  Might be systick related? */
-  chSchRescheduleS();
+  //chSchRescheduleS();
   chSysUnlock();
 }
 
@@ -449,7 +449,10 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
  * @api
  */
 void pktSleepICUI(ICUDriver *myICU) {
-  /* All we do is stop capture. */
+  /**
+   * Each ICU instance is attached to only one radio.
+   * All we do is stop the capture for that ICU instance.
+   */
   icuStopCaptureI(myICU);
 }
 
@@ -464,9 +467,10 @@ void pktSleepICUI(ICUDriver *myICU) {
  */
 void pktICUInactivityTimeout(ICUDriver *myICU) {
 
-  /* This will stop ICU to save power.
+  /*
    * The ICU notifications are enabled and disabled during normal operation.
-   * This timer will shutdown the ICU timer after an idle period.
+   * This timer shuts down the ICU timer after an idle period.
+   * This saves a (probably insignificant) amount of MCU power.
    */
   chSysLockFromISR();
   AFSKDemodDriver *myDemod = myICU->link;
@@ -527,7 +531,7 @@ void pktRadioCCALeadTimer(ICUDriver *myICU) {
   switch(cca) {
     case PAL_LOW: {
         /*
-         * CAA has dropped so it is a spike.
+         * CAA has dropped so it is a spike which is ignored.
          */
       pktAddEventFlagsI(myHandler, EVT_RADIO_CCA_SPIKE);
       break;
@@ -635,6 +639,7 @@ void pktRadioCCAInput(ICUDriver *myICU) {
   return;
 }
 
+#if LINE_PWM_MIRROR != PAL_NOLINE
 /**
  * @brief   Width callback from ICU driver.
  * @notes   Called at ISR level.
@@ -647,6 +652,7 @@ void pktRadioICUWidth(ICUDriver *myICU) {
   (void)myICU;
   pktWriteGPIOline(LINE_PWM_MIRROR, PAL_LOW);
 }
+#endif
 
 /**
  * @brief   Period callback from ICU driver.

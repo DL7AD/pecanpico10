@@ -5,29 +5,19 @@
  */
 
 #include "pktconf.h"
-#ifndef PKT_IS_TEST_PROJECT
 #include "debug.h"
-#endif
-
-#ifndef PKT_IS_TEST_PROJECT
 #include "radio.h"
-#endif
-
 #include "geofence.h"
-#include "si446x_patch.h"
+#include "si4463_patch.h"
 
 
 /*===========================================================================*/
 /* Module local variables.                                                   */
 /*===========================================================================*/
 
-/* TODO: Has to move into radio data struct. */
-//static int16_t lastTemp = 0x7FFF;
-
 /*===========================================================================*/
 /* Module constants.                                                         */
 /*===========================================================================*/
-
 
 /*===========================================================================*/
 /* Module exported variables.                                                */
@@ -37,8 +27,8 @@
 /* Module local definitions.                                                 */
 /*===========================================================================*/
 
-static const uint8_t Radio_Patch_Data_Array[] = {
-        SI446X_PATCH_CMDS,
+static const uint8_t Si4463_Patch_Data_Array[] = {
+        SI4463_PATCH_CMDS,
         0x00
  };
 
@@ -81,7 +71,7 @@ static SPIDriver *Si446x_spiSetupBus(const radio_unit_t radio,
 /**
  * SPI write which uses CTS presented on radio GPIO1.
  * Used when starting the radio up from shutdown state.
- * @pre The MCU GPIO pin connected to 446x GPIO1 must be pre-configured.
+ * @pre The MCU GPIO pin connected to 446x GPIO1 must be configured as input.
  */
 static bool Si446x_writeBoot(const radio_unit_t radio,
                              const uint8_t* txData, uint32_t len) {
@@ -91,7 +81,7 @@ static bool Si446x_writeBoot(const radio_unit_t radio,
   SPIDriver *spip = Si446x_spiSetupBus(radio, &ls_spicfg);
   spiStart(spip, &ls_spicfg);
 
-  /* Poll for CTS. */
+  /* Poll for CTS with timeout of 100mS. */
   ioline_t cts = Si446x_getConfig(radio)->gpio1;
   uint8_t timeout = 100;
   do {
@@ -107,7 +97,7 @@ static bool Si446x_writeBoot(const radio_unit_t radio,
     return false;
   }
 
-  /* Transfer data. No need to check CTS.*/
+  /* Transfer data now there is CTS.*/
   spiSelect(spip);
   spiSend(spip, len, txData);
   spiUnselect(spip);
@@ -131,7 +121,7 @@ static bool Si446x_write(const radio_unit_t radio,
     SPIDriver *spip = Si446x_spiSetupBus(radio, &ls_spicfg);
     spiStart(spip, &ls_spicfg);
 
-    /* Poll for CTS. */
+    /* Poll for CTS with timeout of 100mS. */
     uint8_t timeout = 100;
     uint8_t rx_ready[] = {Si446x_READ_CMD_BUFF, 0x00};
     do {
@@ -174,7 +164,7 @@ static bool Si446x_readBoot(const radio_unit_t radio,
     /* Acquire bus and get SPI Driver object. */
     SPIDriver *spip = Si446x_spiSetupBus(radio, &ls_spicfg);
 
-    /* Poll for CTS on GPIO1 from radio. */
+    /* Poll for CTS with timeout of 100mS. */
     ioline_t cts = Si446x_getConfig(radio)->gpio1;
     uint8_t timeout = 100;
     while(palReadLine(cts) != PAL_HIGH && timeout--) {
@@ -238,6 +228,7 @@ static bool Si446x_read(const radio_unit_t radio,
      * Poll command buffer waiting for CTS from the READ_CMD_BUFF command.
      * This command does not itself cause CTS to report busy.
      * Allocate a buffer to use for CTS check.
+     * Timeout after 100mS waiting for CTS.
      */
     uint8_t timeout = 100;
     uint8_t rx_ready[] = {Si446x_READ_CMD_BUFF, 0x00};
@@ -268,6 +259,7 @@ static bool Si446x_read(const radio_unit_t radio,
      * Poll waiting for CTS again using the READ_CMD_BUFF command.
      * Once CTS is received the response data is ready in the rx data buffer.
      * The buffer contains the command, CTS and 0 - 16 bytes of response.
+     * Timeout after 100mS waiting for CTS.
      */
     timeout = 100;
     do {
@@ -399,10 +391,10 @@ static bool Si446x_init(const radio_unit_t radio) {
     chThdSleep(TIME_MS2I(10));
     Si446x_radioStartup(radio);
     uint16_t i = 0;
-    while(Radio_Patch_Data_Array[i] != 0) {
-      Si446x_writeBoot(radio, &Radio_Patch_Data_Array[i + 1],
-                       Radio_Patch_Data_Array[i]);
-      i += Radio_Patch_Data_Array[i] + 1;
+    while(Si4463_Patch_Data_Array[i] != 0) {
+      Si446x_writeBoot(radio, &Si4463_Patch_Data_Array[i + 1],
+                       Si4463_Patch_Data_Array[i]);
+      i += Si4463_Patch_Data_Array[i] + 1;
     }
     const uint8_t init_command[] = {Si446x_POWER_UP, 0x81,
                                     (Si446x_CLK_TCXO_EN & 0x1),
@@ -573,12 +565,17 @@ bool Si446x_conditional_init(const radio_unit_t radio) {
 
 /*
  * Set radio NCO registers for frequency.
- * This function also collects the chip temperature data.
+ * This function also collects the chip temperature data at the moment.
+ * TODO: Move temperature reading to???
  */
 bool Si446x_setBandParameters(const radio_unit_t radio,
                               radio_freq_t freq,
                               channel_hz_t step) {
 
+  /*
+   * TODO: The driver should not check for DYNAMIC.
+   * All frequencies passed to radio should be absolute.
+   */
   if(freq == FREQ_APRS_DYNAMIC) {
     /* Get transmission frequency by geofencing. */
       freq = getAPRSRegionFrequency();
@@ -949,6 +946,7 @@ static bool Si446x_transmit(const radio_unit_t radio,
                             radio_squelch_t rssi,
                             sysinterval_t cca_timeout) {
 
+  /* Get an absolute operating frequency in Hz. */
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
                                                       step, chan, RADIO_TX);
 
@@ -1087,11 +1085,12 @@ bool Si4464_resumeReceive(const radio_unit_t radio,
                           mod_t rx_mod) {
   bool ret = true;
 
+  /* Get an absolute operating frequency in Hz. */
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio,
                                                       rx_frequency,
-                                                        rx_step,
-                                                        rx_chan,
-                                                        RADIO_RX);
+                                                      rx_step,
+                                                      rx_chan,
+                                                      RADIO_RX);
 
 
   TRACE_INFO( "SI   > Enable reception %d.%03d MHz (ch %d),"
@@ -1168,7 +1167,9 @@ static uint8_t Si446x_getUpsampledNRZIbits(up_sampler_t *upsampler,
  */
 static void Si446x_transmitTimeoutI(thread_t *tp) {
   /* Tell the thread to terminate. */
-  chEvtSignal(tp, SI446X_EVT_TX_TIMEOUT);
+  chSysLockFromISR();
+  chEvtSignalI(tp, SI446X_EVT_TX_TIMEOUT);
+  chSysUnlockFromISR();
 }
 
 /*
@@ -1201,6 +1202,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   /* Initialize radio. */
   Si446x_conditional_init(radio);
 
+  /* Base frequency is an absolute frequency in Hz. */
   Si446x_setBandParameters(radio, rto->base_frequency,
                            rto->step_hz);
 
@@ -1459,6 +1461,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   /* Set 446x back to READY from RX (if active). */
   Si446x_pauseReceive(radio);
 
+  /* Base frequency is an absolute frequency in Hz. */
   Si446x_setBandParameters(radio, rto->base_frequency, rto->step_hz);
 
   /* Set parameters for 2FSK transmission. */

@@ -41,20 +41,20 @@ const si446x_mcucfg_t radio1_cfg = {
 		.nirq	= LINE_RADIO_NIRQ,
 		.sdn	= LINE_RADIO_SDN,
 		.cs		= LINE_RADIO_CS,
-		.spi	= PKT_RADIO_SPI,
+		.spi	= PKT_RADIO1_SPI,
         .icu    = RADIO1_ICU_DRIVER,
         .alt    = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2)),
         .cfg    =  {
                       ICU_INPUT_ACTIVE_HIGH,
-                      ICU_COUNT_FREQUENCY,          /* ICU clock frequency. */
+                      ICU_COUNT_FREQUENCY,      /**< ICU clock frequency. */
                     #if LINE_PWM_MIRROR != PAL_NOLINE
-                      pktRadioICUWidth,             /* ICU width callback. */
+                      pktRadioICUWidth,         /**< ICU width callback. */
                     #else
-                      NULL,                         /* ICU width callback. */
+                      NULL,                     /**< ICU width callback. */
                     #endif
-                      pktRadioICUPeriod,            /* ICU period callback. */
-                      pktRadioICUOverflow,          /* ICU overflow callback. */
-                      ICU_CHANNEL_1,                /* Timer channel 0. */
+                      pktRadioICUPeriod,        /**< ICU period callback. */
+                      pktRadioICUOverflow,      /**< ICU overflow callback. */
+                      ICU_CHANNEL_1,            /**< Timer channel. */
                       0
                     }
 };
@@ -67,17 +67,20 @@ si446x_data_t radio1_dat = {
          */
 };
 
+/* List of bands in this radio. */
+const radio_band_t *const radio_bands[] = {
+                (radio_band_t *const)&band_2m,
+                 NULL
+};
+
 /* Radios on this board. */
 const radio_config_t radio_list[] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
     .type = SI446X,
-	.cfg	= (si446x_mcucfg_t * const)&radio1_cfg,
+	.cfg	= (si446x_mcucfg_t *const)&radio1_cfg,
     .dat    = (si446x_data_t *)&radio1_dat,
-    .bands  = {
-             (radio_band_t * const)&band_2m,
-              NULL
-            }
+    .bands  = (radio_band_t **const)radio_bands
   }, /* End radio1 */
   {
      .unit = PKT_RADIO_NONE
