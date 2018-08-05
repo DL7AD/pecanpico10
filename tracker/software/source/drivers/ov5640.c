@@ -14,9 +14,13 @@
 #include <string.h>
 #include "pktradio.h"
 #include "portab.h"
+#include "pktconf.h"
+#include "pktservice.h"
 
 static uint32_t lightIntensity;
 static uint8_t error;
+
+bool    decode_pause;
 
 struct regval_list {
 	uint16_t reg;
@@ -744,7 +748,9 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
 	return 0;
 }
 
-//const stm32_dma_stream_t *dmastp;
+/**
+ *  The pseudo DCMI driver.
+ */
 
 #if OV5640_USE_DMA_DBM == TRUE
 
@@ -984,14 +990,20 @@ void vsync_cb(void *arg) {
  */
 msg_t OV5640_LockResourcesForCapture(void) {
   /* TODO: have to make this a loop which would handle multiple receivers. */
-  /* Acquire radio after any TX completes. */
+
+  /* Acquire radio after any active TX completes. */
   msg_t msg = pktAcquireRadio(PKT_RADIO_1, TIME_INFINITE);
   if(msg != MSG_OK) {
     return msg;
   }
+  if(pktIsReceiveActive(PKT_RADIO_1)) {
+    pktLLDradioPauseDecoding(PKT_RADIO_1);
+    decode_pause = true;
+  } else
+    decode_pause = false;
   I2C_Lock();
 
-  pktLLDradioPauseDecoding(PKT_RADIO_1);
+  //pktLLDradioPauseDecoding(PKT_RADIO_1);
   //pktPauseDecoding(PKT_RADIO_1);
   /* Hold TRACE output on USB. */
 /*  if(isUSBactive())
@@ -1008,7 +1020,9 @@ void OV5640_UnlockResourcesForCapture(void) {
     chMtxUnlock(&trace_mtx);*/
   I2C_Unlock();
   /* TODO: have to make this a loop which would handle multiple receivers. */
-  pktLLDradioResumeDecoding(PKT_RADIO_1);
+  if(pktIsReceivePaused(PKT_RADIO_1) && decode_pause) {
+    pktLLDradioResumeDecoding(PKT_RADIO_1);
+  }
   //pktResumeDecoding(PKT_RADIO_1);
   /* Enable TX tasks to run. */
   pktReleaseRadio(PKT_RADIO_1);
@@ -1191,7 +1205,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 }
 
 /**
-  * Initializes GPIO (for pseudo DCMI)
+  * Initializes GPIO for OV5640 pseudo DCMI
   */
 void OV5640_InitGPIO(void)
 {
@@ -1227,6 +1241,7 @@ void OV5640_TransmitConfig(void)
 
 	chThdSleep(TIME_MS2I(500));
 
+	/* TODO: Implement a basic JPEG configuration dataset versus using QSXGA. */
 	TRACE_INFO("CAM  > ... Configure JPEG");
 	for(uint32_t i=0; (OV5640_JPEG_QSXGA[i].reg != 0xffff) || (OV5640_JPEG_QSXGA[i].val != 0xff); i++)
 		I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_JPEG_QSXGA[i].reg, OV5640_JPEG_QSXGA[i].val);
@@ -1321,9 +1336,9 @@ void OV5640_powerup(void) {
     // Switch on camera
     palSetLine(LINE_CAM_EN);        // Switch on camera
     chThdSleep(TIME_MS2I(5));       // Spec is >= 1ms delay after DOVDD stable
-    palSetLine(LINE_CAM_RESET);     // Assert reset
+    palSetLine(LINE_CAM_RESET);     // De-assert reset
 
-    chThdSleep(TIME_MS2I(50));     // Spec is >= 20ms delay after reset high
+    chThdSleep(TIME_MS2I(50));     // Spec is >= 20ms delay after reset high to SCCB ready
 }
 
 

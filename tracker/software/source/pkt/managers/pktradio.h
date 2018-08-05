@@ -113,7 +113,7 @@ struct radioTask {
   thread_t                  *thread;
   packet_svc_t              *handler;
   packet_t                  packet_out;
-  uint8_t                   tx_power;
+  radio_pwr_t               tx_power;
   uint32_t                  tx_speed;
   uint8_t                   tx_seq_num;
 };
@@ -122,7 +122,7 @@ struct radioTask {
 /* External declarations.                                                    */
 /*===========================================================================*/
 
-extern const ICUConfig pwm_icucfg;
+//extern const ICUConfig pwm_icucfg;
 
 #ifdef __cplusplus
 extern "C" {
@@ -150,6 +150,10 @@ extern "C" {
                                             channel_hz_t step,
                                             radio_ch_t chan,
                                             const radio_mode_t mode);
+  radio_unit_t      pktSelectRadioForFrequency(const radio_freq_t freq,
+                                          const channel_hz_t step,
+                                          const radio_ch_t chan,
+                                          const radio_mode_t mode);
   bool      		pktLLDradioEnableReceive(const radio_unit_t radio,
                                 radio_task_object_t *rto);
   void      		pktLLDradioDisableReceive(const radio_unit_t radio);

@@ -119,7 +119,7 @@
 
 #define DEFAULT_OPERATING_FREQ      144800000
 #if DEFAULT_OPERATING_FREQ < BAND_MIN_2M_FREQ
-#error "Default operating frequency must be an absolute in Hz"
+#error "Default operating frequency must be an absolute value in Hz"
 #endif
 
 /* Si446x clock setup. */

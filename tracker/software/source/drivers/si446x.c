@@ -572,19 +572,6 @@ bool Si446x_setBandParameters(const radio_unit_t radio,
                               radio_freq_t freq,
                               channel_hz_t step) {
 
-  /*
-   * TODO: The driver should not check for DYNAMIC.
-   * All frequencies passed to radio should be absolute.
-   */
-  if(freq == FREQ_APRS_DYNAMIC) {
-    /* Get transmission frequency by geofencing. */
-      freq = getAPRSRegionFrequency();
-      /* If using geofence step is not set.
-       * TODO: Get step from the config for radio.
-       * Add new function Si446x_getBand(...)
-       */
-      step = 0;
-  }
   /* Check frequency is in range of chip. */
   if(freq < 144000000UL || freq > 900000000UL)
     return false;
@@ -938,12 +925,12 @@ static bool Si446x_checkCCAthreshold(const radio_unit_t radio, uint8_t ms) {
  * Wait for a clear time slot and initiate packet transmission.
  */
 static bool Si446x_transmit(const radio_unit_t radio,
-                            radio_freq_t freq,
-                            channel_hz_t step,
-                            radio_ch_t chan,
-                            radio_pwr_t power,
-                            uint16_t size,
-                            radio_squelch_t rssi,
+                            const radio_freq_t freq,
+                            const channel_hz_t step,
+                            const radio_ch_t chan,
+                            const radio_pwr_t power,
+                            const uint16_t size,
+                            const radio_squelch_t rssi,
                             sysinterval_t cca_timeout) {
 
   /* Get an absolute operating frequency in Hz. */
@@ -963,8 +950,8 @@ static bool Si446x_transmit(const radio_unit_t radio,
     chThdSleep(TIME_MS2I(1));
   }
 
-  /* Set band parameters. */
-  Si446x_setBandParameters(radio, freq, step);
+  /* Frequency is an absolute frequency in Hz. */
+  Si446x_setBandParameters(radio, op_freq, step);
 
   /* Check for blind send request. */
   if(rssi != PKT_SI446X_NO_CCA_RSSI) {
@@ -1073,17 +1060,18 @@ bool Si446x_receiveNoLock(const radio_unit_t radio,
 }
 
 /*
- * Start or restore reception if it was paused for TX.
+ * Start or restore reception.
+ *
  * return true if RX was enabled and/or resumed OK.
  * return false if RX was not enabled.
  */
-bool Si4464_resumeReceive(const radio_unit_t radio,
-                          radio_freq_t rx_frequency,
-                          channel_hz_t rx_step,
-                          radio_ch_t rx_chan,
-                          radio_squelch_t rx_rssi,
-                          mod_t rx_mod) {
-  bool ret = true;
+bool Si4464_enableReceive(const radio_unit_t radio,
+                          const radio_freq_t rx_frequency,
+                          const channel_hz_t rx_step,
+                          const radio_ch_t rx_chan,
+                          const radio_squelch_t rx_rssi,
+                          const mod_t rx_mod) {
+  //bool ret = true;
 
   /* Get an absolute operating frequency in Hz. */
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio,
@@ -1099,11 +1087,11 @@ bool Si4464_resumeReceive(const radio_unit_t radio,
               rx_chan,
               rx_rssi, getModulation(rx_mod));
 
-  /* Resume reception. */
-  Si446x_setBandParameters(radio, rx_frequency, rx_step);
-  ret = Si446x_receiveNoLock(radio, rx_frequency, rx_step,
+  /* Frequency must be an absolute frequency in Hz. */
+  if(!Si446x_setBandParameters(radio, op_freq, rx_step))
+    return false;
+  return Si446x_receiveNoLock(radio, op_freq, rx_step,
                              rx_chan, rx_rssi, rx_mod);
-  return ret;
 }
 
 /*
@@ -1120,7 +1108,7 @@ void Si446x_disableReceive(const radio_unit_t radio) {
 /*
  *
  */
-void Si446x_pauseReceive(const radio_unit_t radio) {
+void Si446x_terminateReceive(const radio_unit_t radio) {
   /* FIXME: Should provide status. */
   if(Si446x_getState(radio) == Si446x_STATE_RX) {
     Si446x_setReadyState(radio);
@@ -1128,6 +1116,13 @@ void Si446x_pauseReceive(const radio_unit_t radio) {
   }
 }
 
+/*
+ *
+ */
+void Si446x_terminateTransmit(const radio_unit_t radio) {
+  /* FIXME: Should provide have timeout. */
+  while(Si446x_getState(radio) == Si446x_STATE_TX);
+}
 /*
  * AFSK Transmitter
  */
@@ -1207,7 +1202,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                            rto->step_hz);
 
   /* Set 446x back to READY. */
-  Si446x_pauseReceive(radio);
+  Si446x_terminateReceive(radio);
   /* Set the radio for AFSK upsampled mode. */
   Si446x_setModemAFSK_TX(radio);
 
@@ -1339,7 +1334,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       /* Transmit start failed. */
       TRACE_ERROR("SI   > Transmit start failed");
       exit_msg = MSG_ERROR;
-    }
+    } /* End transmit. */
     chVTReset(&send_timer);
 
     /*
@@ -1455,13 +1450,14 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     /* We never arrive here. */
   }
 
-  /* Initialize radio. */
+  /* Initialize radio.
+   * TODO: This is redundant as the radio is initialized by the manager. */
   Si446x_conditional_init(radio);
 
   /* Set 446x back to READY from RX (if active). */
-  Si446x_pauseReceive(radio);
+  Si446x_terminateReceive(radio);
 
-  /* Base frequency is an absolute frequency in Hz. */
+  /* Base frequency must be an absolute frequency in Hz. */
   Si446x_setBandParameters(radio, rto->base_frequency, rto->step_hz);
 
   /* Set parameters for 2FSK transmission. */

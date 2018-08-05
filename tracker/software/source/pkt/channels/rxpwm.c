@@ -174,7 +174,8 @@ void pktEnableRadioPWM(const radio_unit_t radio) {
  * @post    The PWM channel is closed.
  * @post    All PWM related timers are stopped.
  * @post    The port for CCA input is disabled.
- * @post    The ICU remains ready to be restarted.
+ * @post    The ICU capture is stopped.
+ * @post    The ICU remains ready for capture to be restarted.
  *
  * @param[in]   radio   radio attached to this PWM handler
  *

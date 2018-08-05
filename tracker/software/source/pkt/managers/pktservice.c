@@ -366,11 +366,11 @@ void pktStartDecoder(const radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  //chDbgAssert(handler != NULL, "invalid radio ID");
-
-  if(!pktIsReceivePaused(radio))
+  if(!pktIsReceivePaused(radio)) {
     /* Wrong state. */
+    chDbgAssert(false, "wrong state for decoder start");
     return;
+  }
 
   event_listener_t el;
   event_source_t *esp;
@@ -465,12 +465,11 @@ void pktStopDecoder(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-/*  if(handler == NULL)
-    chDbgAssert(false, "invalid radio ID");*/
-
-  if(!pktIsReceiveActive(radio))
+  if(!pktIsReceiveActive(radio)) {
+    /* Wrong state. */
+    chDbgAssert(false, "wrong state for decoder stop");
     return;
-
+  }
   event_listener_t el;
   event_source_t *esp;
 

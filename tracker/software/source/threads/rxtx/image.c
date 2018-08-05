@@ -431,7 +431,7 @@ static bool transmit_image_packets(const uint8_t *image,
       }
 
       if(c == SSDV_EOI) {
-        TRACE_INFO("SSDV > ssdv_enc_get_packet said EOI");
+        TRACE_INFO("SSDV > ssdv_enc_get_packet returned EOI");
         break;
       } else if(c != SSDV_OK) {
         TRACE_ERROR("SSDV > ssdv_enc_get_packet failed: %i", c);
@@ -571,6 +571,7 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 	chMtxLock(&camera_mtx);
 
 	// Detect camera
+	/* TODO: Detecting camera powers it up so refactor the below init code? */
 	if(camInitialized || OV5640_isAvailable()) { // OV5640 available
 
 		TRACE_INFO("IMG  > OV5640 found");

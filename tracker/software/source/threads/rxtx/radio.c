@@ -63,24 +63,21 @@ void mapCallback(pkt_data_object_t *pkt_buff) {
     TRACE_INFO("RX   > Frame has bad CRC - dropped");
   }
 }
-
+/**
+ * TODO: Select a radio based on frequency and start that.
+ */
 void start_aprs_threads(radio_unit_t radio, radio_freq_t base_freq,
                      channel_hz_t step,
                      radio_ch_t chan, radio_squelch_t rssi) {
-
-/*	if(base_freq == FREQ_APRS_DYNAMIC) {
-		base_freq = getAPRSRegionFrequency(); // Get transmission frequency by geofencing
-		// If using geofence ignore channel and step.
-		chan = 0;
-		step = 0;
-	}*/
 
     if(base_freq == FREQ_APRS_RECEIVE) {
       TRACE_ERROR("RX   > Cannot specify FREQ_APRS_RECEIVE for receiver");
       return;
     }
 
-    /* Open packet radio service. */
+    /* Open packet radio service.
+     * TODO: The parameter should be channel not step.
+     */
     msg_t omsg = pktOpenRadioReceive(radio,
                          MOD_AFSK,
                          base_freq,
@@ -105,11 +102,25 @@ void start_aprs_threads(radio_unit_t radio, radio_freq_t base_freq,
 /*
  *
  */
-bool transmitOnRadio(packet_t pp, radio_freq_t base_freq,
-                     channel_hz_t step, radio_ch_t chan,
-                     radio_pwr_t pwr, mod_t mod, radio_squelch_t cca) {
-  /* TODO: This should select a radio by frequency. For now just use 1. */
-  radio_unit_t radio = PKT_RADIO_1;
+bool transmitOnRadio(packet_t pp, const radio_freq_t base_freq,
+                     const channel_hz_t step, const radio_ch_t chan,
+                     const radio_pwr_t pwr, const mod_t mod,
+                     const radio_squelch_t cca) {
+  /* Select a radio by frequency. */
+  radio_unit_t radio = pktSelectRadioForFrequency(base_freq,
+                                                  step,
+                                                  chan,
+                                                  RADIO_TX);
+
+  if(radio == PKT_RADIO_NONE) {
+    char code_s[100];
+    pktDisplayFrequencyCode(base_freq, code_s, sizeof(code_s));
+    TRACE_WARN( "RAD  > No radio available to transmit on base %s "
+                                                    "at channel %d)",
+                                                    code_s, chan);
+    pktReleaseBufferChain(pp);
+    return false;
+  }
 
   if(!pktIsTransmitOpen(radio)) {
     TRACE_WARN( "RAD  > Transmit is not open on radio");

@@ -308,7 +308,7 @@ extern "C" {
   bool Si446x_blocSend2FSK(radio_task_object_t *rto);
   void Si446x_disableReceive(radio_unit_t radio);
   void Si446x_stopDecoder(void);
-  bool Si4464_resumeReceive(const radio_unit_t radio,
+  bool Si4464_enableReceive(const radio_unit_t radio,
                             radio_freq_t rx_frequency,
                             channel_hz_t rx_step,
                             radio_ch_t rx_chan,
