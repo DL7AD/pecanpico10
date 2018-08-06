@@ -131,6 +131,9 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   uint16_t batt = stm32_get_vbat();
   if(batt < conf_sram.gps_on_vbat) {
     getPositionFallback(tp, ltp, GPS_LOWBATT1);
+    tp->gps_sats = 0;
+    tp->gps_ttff = 0;
+    tp->gps_pdop = 0;
     /* In case GPS was already on power it off. */
     GPS_Deinit();
     return false;
