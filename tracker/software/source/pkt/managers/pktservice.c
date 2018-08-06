@@ -133,6 +133,7 @@ bool pktServiceCreate(const radio_unit_t radio) {
 
   if(handler->state != PACKET_IDLE)
     return false;
+
   /*
    * Initialize the packet common event object.
    */
@@ -142,16 +143,18 @@ bool pktServiceCreate(const radio_unit_t radio) {
   memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
 
   /* Set flags and radio ID. */
-  //handler->rx_active = false;
   handler->radio_init = false;
   handler->radio = radio;
 
   /* Set service semaphore to idle state. */
   chBSemObjectInit(&handler->close_sem, false);
 
+#if PKT_USE_RADIO_MUTEX == TRUE
+  chMtxObjectInit(&handler->radio_mtx);
+#else
   /* Set radio semaphore to free state. */
   chBSemObjectInit(&handler->radio_sem, false);
-
+#endif
   /* Send request to create radio manager. */
   if (pktRadioManagerCreate(radio) == NULL)
     return false;
@@ -366,11 +369,11 @@ void pktStartDecoder(const radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  //chDbgAssert(handler != NULL, "invalid radio ID");
-
-  if(!pktIsReceivePaused(radio))
+  if(!pktIsReceivePaused(radio)) {
     /* Wrong state. */
+    chDbgAssert(false, "wrong state for decoder start");
     return;
+  }
 
   event_listener_t el;
   event_source_t *esp;
@@ -465,12 +468,11 @@ void pktStopDecoder(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-/*  if(handler == NULL)
-    chDbgAssert(false, "invalid radio ID");*/
-
-  if(!pktIsReceiveActive(radio))
+  if(!pktIsReceiveActive(radio)) {
+    /* Wrong state. */
+    chDbgAssert(false, "wrong state for decoder stop");
     return;
-
+  }
   event_listener_t el;
   event_source_t *esp;
 

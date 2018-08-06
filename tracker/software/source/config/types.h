@@ -133,6 +133,7 @@ typedef struct {
   char              path[16];
   resolution_t      res;					// Picture resolution
   uint8_t           quality;				// SSDV Quality ranging from 0-7
+  bool              flip;                   // 180 image rotation
   uint32_t          buf_size;		    	// SRAM buffer size for the picture
 } img_app_conf_t;
 

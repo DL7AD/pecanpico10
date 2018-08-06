@@ -14,9 +14,13 @@
 #include <string.h>
 #include "pktradio.h"
 #include "portab.h"
+#include "pktconf.h"
+#include "pktservice.h"
 
 static uint32_t lightIntensity;
 static uint8_t error;
+
+bool    decode_pause;
 
 struct regval_list {
 	uint16_t reg;
@@ -25,11 +29,9 @@ struct regval_list {
 
 static const struct regval_list OV5640YUV_Sensor_Dvp_Init[] =
 {
-	{ 0x4740, 0x24 },
-		
+	    { 0x4740, 0x24 },
 		{ 0x4050, 0x6e },
-    { 0x4051, 0x8f },
-		
+        { 0x4051, 0x8f },
 		{ 0x3008, 0x42 }, 
 		{ 0x3103, 0x03 }, 
 		{ 0x3017, 0x7f }, 
@@ -73,7 +75,8 @@ static const struct regval_list OV5640YUV_Sensor_Dvp_Init[] =
 		{ 0x3c0a, 0x9c }, 
 		{ 0x3c0b, 0x40 },  		
 
-		{ 0x3820, 0x47 }, 
+		// Mirror and flip
+		{ 0x3820, 0x40 }, //47
 		{ 0x3821, 0x00 }, //07
 
 		//windows setup
@@ -144,7 +147,7 @@ static const struct regval_list OV5640YUV_Sensor_Dvp_Init[] =
 		{ 0x4407, 0x04 }, 
 		{ 0x460b, 0x35 }, 
 		{ 0x460c, 0x22 },//add by bright 
-	  { 0x3824, 0x01 },//add by bright 
+	    { 0x3824, 0x01 },//add by bright
 		{ 0x5001, 0xa3 }, 		
 		
 		{ 0x3406, 0x01 },//awbinit
@@ -321,18 +324,23 @@ static const struct regval_list OV5640YUV_Sensor_Dvp_Init[] =
 		
 		{ 0x4005, 0x1a },
 		{ 0x3406, 0x00 },//awbinit
-    { 0x3503, 0x00 },//awbinit
+        { 0x3503, 0x00 },//awbinit
 		{ 0x3008, 0x02 }, 
-{ 0xffff, 0xff }, 
+		{ 0xffff, 0xff } // end
 };
 
 
-
+/*
+ * TODO: This resolution configuration is currently used as the JPEG setup.
+ * There should be a generic JPEG setup.
+ */
 //2592x1944 QSXGA
 static const struct regval_list OV5640_JPEG_QSXGA[]  =
 {
-	{0x3820 ,0x47}, 
-		{0x3821 ,0x20}, 
+         // Mirror and flip
+	    {0x3820 ,0x46}, //46 for flip (was 47)
+		{0x3821 ,0x20},
+
 		{0x3814 ,0x11}, 
 		{0x3815 ,0x11}, 
 		{0x3803 ,0x00}, 
@@ -366,7 +374,7 @@ static const struct regval_list OV5640_JPEG_QSXGA[]  =
 		{0x3036 ,0x69}, 
 		{0x3035 ,0x31}, 
 		{0x4005 ,0x1A},
-{0xffff, 0xff}, 
+		{0xffff, 0xff},
 };
 
 //5MP
@@ -490,7 +498,7 @@ static const struct regval_list OV5640_QSXGA2VGA[]  =
 		{0x5685 ,0x0 }, 
 		{0x5686 ,0x7 }, 
 		{0x5687 ,0x98}, 	
-{0xffff, 0xff}, 
+		{0xffff, 0xff},
 };
 
 //800x480 WVGA
@@ -735,12 +743,16 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
 		  TRACE_INFO("CAM  > Image size: %d bytes", size_sampled);
 		  return size_sampled;
 		}
+		/* Allow time for other threads. */
+		chThdSleep(TIME_MS2I(10));
 	} while(cntr--);
     TRACE_ERROR("CAM  > No image captured");
 	return 0;
 }
 
-//const stm32_dma_stream_t *dmastp;
+/**
+ *  The pseudo DCMI driver.
+ */
 
 #if OV5640_USE_DMA_DBM == TRUE
 
@@ -979,14 +991,21 @@ void vsync_cb(void *arg) {
  * Other drivers using resources that can cause DMA competition are locked.
  */
 msg_t OV5640_LockResourcesForCapture(void) {
+  /* TODO: have to make this a loop which would handle multiple receivers. */
 
-  msg_t msg = pktAcquireRadio(PKT_RADIO_1, TIME_INFINITE);
+  /* Acquire radio after any active TX completes. */
+  msg_t msg = pktLockRadioTransmit(PKT_RADIO_1, TIME_INFINITE);
   if(msg != MSG_OK) {
     return msg;
   }
+  if(pktIsReceiveActive(PKT_RADIO_1)) {
+    pktLLDradioPauseDecoding(PKT_RADIO_1);
+    decode_pause = true;
+  } else
+    decode_pause = false;
   I2C_Lock();
-  /* TODO: have to make this a loop which would handle multiple receivers. */
-  pktLLDradioPauseDecoding(PKT_RADIO_1);
+
+  //pktLLDradioPauseDecoding(PKT_RADIO_1);
   //pktPauseDecoding(PKT_RADIO_1);
   /* Hold TRACE output on USB. */
 /*  if(isUSBactive())
@@ -1003,11 +1022,17 @@ void OV5640_UnlockResourcesForCapture(void) {
     chMtxUnlock(&trace_mtx);*/
   I2C_Unlock();
   /* TODO: have to make this a loop which would handle multiple receivers. */
-  pktLLDradioResumeDecoding(PKT_RADIO_1);
+  if(pktIsReceivePaused(PKT_RADIO_1) && decode_pause) {
+    pktLLDradioResumeDecoding(PKT_RADIO_1);
+  }
   //pktResumeDecoding(PKT_RADIO_1);
-  pktReleaseRadio(PKT_RADIO_1);
+  /* Enable TX tasks to run. */
+  pktUnlockRadioTransmit(PKT_RADIO_1);
 }
 
+/**
+ *
+ */
 uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 
 	/*
@@ -1026,8 +1051,8 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	dma_capture_t dma_control = {0};
 
 	/* Setup DMA for transfer on timer CC tigger.
-	 * For TIM8 this DMA2 stream 2, channel 7.
-	 * Use PL 3 as PCLCK rate is high.
+	 * For TIM8 this is DMA2 stream 2, channel 7.
+	 * Use PL 3 as camera PCLK rate is high and we need priority service.
 	 */
 	dma_control.dmastp  = STM32_DMA_STREAM(STM32_DMA_STREAM_ID(2, 2));
 	uint32_t dmamode = STM32_DMA_CR_CHSEL(7) |
@@ -1110,11 +1135,6 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	rccEnableTIM8(FALSE);
     rccResetTIM8();
 
-
-	/* TODO: deprecate ARR as not used for Input Capture mode. */
-	//TIM8->ARR = 1;
-	//dma_control.timer->CCR1 = 0;
-	//dma_control.timer->CCER = 0;
     /*
      * Setup capture mode triggered from TI1.
      * What is captured isn't used just the DMA trigger.
@@ -1142,7 +1162,6 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	} while(!dma_control.capture && !dma_control.dma_error && --timout);
 
     palDisableLineEvent(LINE_CAM_VSYNC);
-    OV5640_UnlockResourcesForCapture();
 
 	if(!timout) {
       TRACE_ERROR("CAM  > Image sampling timeout");
@@ -1150,6 +1169,8 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
       dma_control.timer->DIER &= ~TIM_DIER_CC1DE;
       dma_control.dma_error = true;
 	}
+
+    OV5640_UnlockResourcesForCapture();
 
 	if(dma_control.dma_error) {
 		if(dma_control.dma_flags & STM32_DMA_ISR_HTIF) {
@@ -1182,7 +1203,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 }
 
 /**
-  * Initializes GPIO (for pseudo DCMI)
+  * Initializes GPIO for OV5640 pseudo DCMI
   */
 void OV5640_InitGPIO(void)
 {
@@ -1218,6 +1239,7 @@ void OV5640_TransmitConfig(void)
 
 	chThdSleep(TIME_MS2I(500));
 
+	/* TODO: Implement a basic JPEG configuration dataset versus using QSXGA. */
 	TRACE_INFO("CAM  > ... Configure JPEG");
 	for(uint32_t i=0; (OV5640_JPEG_QSXGA[i].reg != 0xffff) || (OV5640_JPEG_QSXGA[i].val != 0xff); i++)
 		I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_JPEG_QSXGA[i].reg, OV5640_JPEG_QSXGA[i].val);
@@ -1312,9 +1334,9 @@ void OV5640_powerup(void) {
     // Switch on camera
     palSetLine(LINE_CAM_EN);        // Switch on camera
     chThdSleep(TIME_MS2I(5));       // Spec is >= 1ms delay after DOVDD stable
-    palSetLine(LINE_CAM_RESET);     // Assert reset
+    palSetLine(LINE_CAM_RESET);     // De-assert reset
 
-    chThdSleep(TIME_MS2I(50));     // Spec is >= 20ms delay after reset high
+    chThdSleep(TIME_MS2I(50));     // Spec is >= 20ms delay after reset high to SCCB ready
 }
 
 

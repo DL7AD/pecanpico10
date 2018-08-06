@@ -220,7 +220,7 @@
 
 #define Si446x_getGPIO0()           palReadLine(LINE_RADIO_GPIO0)
 #define Si446x_getGPIO1()           palReadLine(LINE_RADIO_GPIO1)
-#define Si446x_getCCA()             palReadLine(LINE_RADIO_IRQ)
+#define Si446x_getCCA(cca_line)		palReadLine(cca_line)
 
  /* Frequency offset corrected oscillator frequency */
 #define Si446x_CCLK                 ((Si446x_CLK) + (Si446x_CLK_OFFSET)      \
@@ -228,7 +228,8 @@
 
 #define is_part_Si4463(part) (part == 0x4463)
 
-#define is_Si4463_patch_required(part, rom) (is_part_Si4463(part) && rom == 0x6)
+#define is_Si4463_patch_required(part, rom)                                  \
+	(is_part_Si4463(part) && rom == 0x6)
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
@@ -242,6 +243,34 @@ typedef struct {
   uint8_t   current_byte;
 } up_sampler_t;
 
+/* MCU IO configuration for a specific radio. */
+typedef struct Si446x_MCUCFG {
+	const ioline_t	    gpio0;
+	const ioline_t      gpio1;
+	const ioline_t      gpio2;
+	const ioline_t      gpio3;
+	const ioline_t      nirq;
+	const ioline_t	    sdn;
+	const ioline_t	    cs;
+	SPIDriver	        *spi;
+	ICUDriver           *icu;
+	const iomode_t      alt;   /* Alt GPIO mode used to gate to timer. */
+	const ICUConfig     cfg;
+} si446x_mcucfg_t;
+
+/* Configuration of GPIO in a specific radio. */
+typedef struct Si446x_GPIO {
+	uint8_t		gpio0;
+	uint8_t		gpio1;
+	uint8_t		gpio2;
+	uint8_t		gpio3;
+	uint8_t		nirq;
+	uint8_t		sdo;
+	uint8_t		cfg;
+} si446x_gpio_t;
+
+typedef int16_t si446x_temp_t;
+
 /* Si446x part info. */
 typedef struct {
   uint8_t   info[10];
@@ -251,6 +280,11 @@ typedef struct {
 typedef struct {
   uint8_t   info[10];
 } si446x_func_t;
+
+/* Data associated with a specific radio. */
+typedef struct Si446x_DAT {
+  si446x_temp_t lastTemp;
+} si446x_data_t;
 
 /* External. */
 typedef struct radioTask radio_task_object_t;
@@ -264,7 +298,7 @@ extern void pktReleasePacketBuffer(packet_t pp);
 #ifdef __cplusplus
 extern "C" {
 #endif
-  int16_t Si446x_getLastTemperature(const radio_unit_t radio);
+  si446x_temp_t Si446x_getLastTemperature(const radio_unit_t radio);
   bool Si446x_radioStartup(const radio_unit_t radio);
   void Si446x_radioShutdown(const radio_unit_t radio);
   void Si446x_radioStandby(const radio_unit_t radio);
@@ -274,7 +308,7 @@ extern "C" {
   bool Si446x_blocSend2FSK(radio_task_object_t *rto);
   void Si446x_disableReceive(radio_unit_t radio);
   void Si446x_stopDecoder(void);
-  bool Si4464_resumeReceive(const radio_unit_t radio,
+  bool Si4464_enableReceive(const radio_unit_t radio,
                             radio_freq_t rx_frequency,
                             channel_hz_t rx_step,
                             radio_ch_t rx_chan,
@@ -295,6 +329,11 @@ extern "C" {
                                 radio_freq_t freq,
                                 channel_hz_t step);
   radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
+  ICUDriver *Si446x_attachPWM(const radio_unit_t radio);
+  bool Si446x_detachPWM(const radio_unit_t radio);
+  const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio, palcallback_t cb);
+  void Si446x_disablePWMevents(const radio_unit_t radio);
+  uint8_t Si446x_readCCA(const radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif

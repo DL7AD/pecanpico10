@@ -21,48 +21,73 @@
 #include "portab.h"
 #include "usb.h"
 #include "types.h"
+#include "si446x.h"
 #include <stdarg.h>
 
 /*===========================================================================*/
 /* Module local definitions.                                                 */
 /*===========================================================================*/
 
-const radio_band_t band_2m = {
-  .start    = BAND_MIN_2M_FREQ,
-  .end      = BAND_MAX_2M_FREQ,
-  .step     = BAND_STEP_2M_HZ,
-  .def_aprs = BAND_DEF_2M_APRS
-};
-
-const radio_band_t band_70cm = {
-  .start    = BAND_MIN_70CM_FREQ,
-  .end      = BAND_MAX_70CM_FREQ,
-  .step     = BAND_STEP_70CM_HZ,
-  .def_aprs = BAND_DEF_70CM_APRS
-};
-
 /*===========================================================================*/
 /* Module exported variables.                                                */
 /*===========================================================================*/
 
-typedef struct SysProviders {
+/* Definition of PKT_RADIO_1. */
+const si446x_mcucfg_t radio1_cfg = {
+		.gpio0 	= LINE_RADIO_GPIO0,
+		.gpio1 	= LINE_RADIO_GPIO1,
+		.gpio2 	= PAL_NOLINE,
+		.gpio3 	= PAL_NOLINE,
+		.nirq	= LINE_RADIO_NIRQ,
+		.sdn	= LINE_RADIO_SDN,
+		.cs		= LINE_RADIO_CS,
+        .spi    = PKT_RADIO1_SPI,
+		.icu    = RADIO1_ICU_DRIVER,
+		.alt    = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2)),
+		.cfg    = {
+                      ICU_INPUT_ACTIVE_HIGH,
+                      ICU_COUNT_FREQUENCY,          /* ICU clock frequency. */
+                    #if LINE_PWM_MIRROR != PAL_NOLINE
+                      pktRadioICUWidth,             /* ICU width callback. */
+                    #else
+                      NULL,                         /* ICU width callback. */
+                    #endif
+                      pktRadioICUPeriod,            /* ICU period callback. */
+                      pktRadioICUOverflow,          /* ICU overflow callback. */
+                      ICU_CHANNEL_1,                /* Timer channel 0. */
+                      0
+                    }
+};
 
-} providers_t;
+si446x_data_t radio1_dat = {
+        .lastTemp = 0x7FFF
+        // TODO: Move part and func structs into here and add functions to get
+};
 
+
+/* List of bands in this radio. */
+const radio_band_t *const radio_bands[] = {
+                (radio_band_t *const)&band_2m,
+                 NULL
+};
+
+/* Radios on this board. */
 const radio_config_t radio_list[] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
     .type = SI446X,
-    .band = {
-             (radio_band_t * const)&band_2m,
-              NULL
-            }
+    .cfg    = (si446x_mcucfg_t *const)&radio1_cfg,
+    .dat    = (si446x_data_t *)&radio1_dat,
+    .bands  = (radio_band_t **const)radio_bands
   }, /* End radio1 */
   {
      .unit = PKT_RADIO_NONE
   }
 };
 
+/**
+ *
+ */
 const SerialConfig debug_config = {
   115200,
   0,
@@ -86,22 +111,6 @@ const SerialConfig debug_config = {
 /* Module exported functions.                                                */
 /*===========================================================================*/
 
-/**
- * Get number of radios for this board type.
- */
-uint8_t pktGetNumRadios(void) {
-  uint8_t i = 0;
-  while(radio_list[i++].unit != PKT_RADIO_NONE);
-  return --i;
-}
-
-/**
- * Return pointer to radio object array.
- */
-const radio_config_t *pktGetRadioList(void) {
-  return radio_list;
-}
-
 void pktConfigSerialDiag(void) {
   /* USART3 TX.       */
   palSetLineMode(LINE_USART3_TX, PAL_MODE_ALTERNATE(7));
@@ -113,35 +122,16 @@ void pktConfigSerialDiag(void) {
  * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
  * The GPIO assignments per radio should be in the radio record.
  */
-ioline_t pktSetLineModeICU(const radio_unit_t radio) {
+/*ioline_t pktSetLineModeICU(const radio_unit_t radio) {
   (void)radio;
   palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
   return LINE_ICU;
-}
-
-/**
- * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
- * The GPIO assignments per radio should be in the radio record.
- */
-/*ioline_t pktSetLineModeRadioGPIO1(const radio_unit_t radio) {
-  (void)radio;
-  palSetLineMode(LINE_RADIO_GPIO1, PAL_MODE_INPUT_PULLDOWN);
-  return LINE_RADIO_GPIO1;
-}*/
-
-/**
- * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
- * The GPIO assignments per radio should be in the radio record.
- */
-/*ioline_t pktSetLineModeRadioGPIO0(const radio_unit_t radio) {
-  (void)radio;
-  palSetLineMode(LINE_RADIO_GPIO0, PAL_MODE_INPUT_PULLDOWN);
-  return LINE_RADIO_GPIO0;
 }*/
 
 /*
  * Read GPIO that are used for:
- * a) general use or
+ * a) general use
+ *  or
  * b) UART and s/w I2C external.
  *
  * @return State of lines regardless of general or specific use.
@@ -156,7 +146,6 @@ uint8_t pktReadIOlines() {
 void pktSerialStart(void) {
 #if ENABLE_SERIAL_DEBUG == TRUE
   pktConfigSerialDiag();
-  //pktConfigSerialPkt();
   sdStart(SERIAL_CFG_DEBUG_DRIVER, &debug_config);
 #endif
   /* Setup diagnostic resource access semaphore. */

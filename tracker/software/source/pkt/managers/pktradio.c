@@ -15,12 +15,29 @@
  */
 
 #include "pktconf.h"
-#ifndef PKT_IS_TEST_PROJECT
 #include "radio.h"
-#endif
+
 #include "si446x.h"
 #include "debug.h"
 #include "geofence.h"
+
+/*===========================================================================*/
+/* Module local definitions.                                                 */
+/*===========================================================================*/
+
+const radio_band_t band_2m = {
+  .start    = BAND_MIN_2M_FREQ,
+  .end      = BAND_MAX_2M_FREQ,
+  .step     = BAND_STEP_2M_HZ,
+  //.def_aprs = BAND_DEF_2M_APRS
+};
+
+const radio_band_t band_70cm = {
+  .start    = BAND_MIN_70CM_FREQ,
+  .end      = BAND_MAX_70CM_FREQ,
+  .step     = BAND_STEP_70CM_HZ,
+  //.def_aprs = BAND_DEF_70CM_APRS
+};
 
 /**
  * @brief   Process radio task requests.
@@ -36,7 +53,7 @@
  * @notapi
  */
 THD_FUNCTION(pktRadioManager, arg) {
-  /* When waiting for TX tasks to complete. */
+  /* When waiting for TX tasks to complete if manager is terminating. */
 #define PKT_RADIO_TX_TASK_RECHECK_WAIT_MS     100
 
   packet_svc_t *handler = arg;
@@ -147,14 +164,16 @@ THD_FUNCTION(pktRadioManager, arg) {
       /* The function switches on mod type so no need for switch here. */
       switch(task_object->type) {
       case MOD_AFSK: {
-        /* TODO: Add LLD abstraction. */
-        pktAcquireRadio(radio, TIME_INFINITE);
+        pktLockRadioTransmit(radio, TIME_INFINITE);
         /* Enable receive. */
-        if(pktLLDradioEnableReceive(radio, task_object))
-          pktLLDradioStartDecoder(radio);
-
+        if(!pktLLDradioEnableReceive(radio, task_object)) {
+          TRACE_ERROR("RAD  > Receive on radio %d failed to start", radio);
+          pktUnlockRadioTransmit(radio);
+          break;
+        }
+        pktLLDradioStartDecoder(radio);
         /* Unlock radio and allow transmit requests. */
-        pktReleaseRadio(radio);
+        pktUnlockRadioTransmit(radio);
         break;
         } /* End case MOD_AFSK. */
 
@@ -170,9 +189,9 @@ THD_FUNCTION(pktRadioManager, arg) {
       switch(task_object->type) {
             case MOD_AFSK: {
               /* TODO: Abstract acquire and release in LLD. */
-              pktAcquireRadio(radio, TIME_INFINITE);
+              pktLockRadioTransmit(radio, TIME_INFINITE);
               pktLLDradioStopDecoder(radio);
-              pktReleaseRadio(radio);
+              pktUnlockRadioTransmit(radio);
               break;
               } /* End case. */
 
@@ -187,8 +206,12 @@ THD_FUNCTION(pktRadioManager, arg) {
     case PKT_RADIO_TX_SEND: {
       /* Give each send a sequence number. */
       ++handler->radio_tx_config.tx_seq_num;
-      /* Pause the decoder. */
-      pktLLDradioPauseDecoding(radio);
+      if(pktIsReceiveActive(radio)) {
+        /* Pause the decoder. */
+        pktLockRadioTransmit(radio, TIME_INFINITE);
+        pktLLDradioPauseDecoding(radio);
+        pktUnlockRadioTransmit(radio);
+      }
       if(pktLLDradioSendPacket(task_object)) {
         /*
          * Keep count of active sends.
@@ -207,12 +230,15 @@ THD_FUNCTION(pktRadioManager, arg) {
       packet_t pp = task_object->packet_out;
       pktReleaseBufferChain(pp);
       if(pktIsReceivePaused(radio)) {
+        pktLockRadioTransmit(radio, TIME_INFINITE);
         if(!pktLLDradioResumeReceive(radio)) {
           TRACE_ERROR("RAD  > Receive on radio %d failed to "
               "resume after transmit", radio);
+          pktUnlockRadioTransmit(radio);
           break;
         }
         pktLLDradioResumeDecoding(radio);
+        pktUnlockRadioTransmit(radio);
       }
       break;
     } /* End case PKT_RADIO_TX. */
@@ -224,7 +250,9 @@ THD_FUNCTION(pktRadioManager, arg) {
       switch(task_object->type) {
       case MOD_AFSK: {
         /* Stop receive. */
+        pktLockRadioTransmit(radio, TIME_INFINITE);
         pktLLDradioDisableReceive(radio);
+        pktUnlockRadioTransmit(radio);
         /* TODO: This should be a function back in pktservice or rxafsk. */
         esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
@@ -561,30 +589,11 @@ void pktSubmitRadioTask(const radio_unit_t radio,
 }
 
 /**
- * @brief   Called by transmit threads to schedule release after completing.
- * @post    A thread release task is posted to the radio manager queue.
- *
- * @param[in]   radio   radio unit ID.
- * @param[in]   thread  thread reference.
- *
- * @api
- */
-void pktLLDradioSendComplete(radio_task_object_t *rto,
-                              thread_t *thread) {
-
-  packet_svc_t *handler = rto->handler;
-
-  radio_unit_t radio = handler->radio;
-  /* The handler and radio ID are set in returned object. */
-  rto->command = PKT_RADIO_TX_THREAD;
-  rto->thread = thread;
-  /* Submit guaranteed to succeed by design. */
-  pktSubmitRadioTask(radio, rto, rto->callback);
-}
-
-/**
- * @brief   Acquire exclusive access to radio.
- * @notes   returns when radio unit acquired.
+ * @brief   Lock radio.
+ * @notes   Used to lock radio when...
+ * @notes   a) transmitting or
+ * @notes   b) making changes where transmit should be blocked.
+ * @pre     Receive should be paused by calling routine if it is active.
  *
  * @param[in] radio     radio unit ID.
  * @param[in] timeout   time to wait for acquisition.
@@ -596,27 +605,69 @@ void pktLLDradioSendComplete(radio_task_object_t *rto,
  *
  * @api
  */
-msg_t pktAcquireRadio(const radio_unit_t radio,
+msg_t pktLockRadioTransmit(const radio_unit_t radio,
                       const sysinterval_t timeout) {
   packet_svc_t *handler = pktGetServiceObject(radio);
+#if PKT_USE_RADIO_MUTEX == TRUE
+  (void)timeout;
+  chMtxLock(&handler->radio_mtx);
+  return MSG_OK;
+#else
   return chBSemWaitTimeout(&handler->radio_sem, timeout);
+#endif
 }
 
 /**
- * @brief   Release exclusive access to radio.
- * @notes   returns when radio unit is released.
+ * @brief   Unlock radio.
+ * @notes   Returns when radio unit is unlocked.
+ * @pre     Receive should be resumed by calling routine if it was active.
  *
  * @param[in] radio    radio unit ID.
  *
  * @api
  */
-void pktReleaseRadio(const radio_unit_t radio) {
+void pktUnlockRadioTransmit(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
+#if PKT_USE_RADIO_MUTEX == TRUE
+  chMtxUnlock(&handler->radio_mtx);
+#else
   chBSemSignal(&handler->radio_sem);
+#endif
 }
 
-/*
- * TODO: Refactor this to use an array of strings.
+/**
+ * @brief   Return pointer to radio object array for this board.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @api
+ */
+const radio_config_t *pktGetRadioList(void) {
+  return radio_list;
+}
+
+/**
+ * @brief   Return number of radios for this board.
+ *
+ * @return  Number of radios.
+ *
+ * @api
+ */
+uint8_t pktGetNumRadios(void) {
+  uint8_t i = 0;
+  while(radio_list[i++].unit != PKT_RADIO_NONE);
+  return --i;
+}
+
+/**
+ * @brief   Text rendering of frequency code or absolute frequency.
+ *
+ * @param[in] buf  Pointer to character buffer.
+ * @param[in] size Size of buffer.
+ *
+ * @return  Number of characters added to buffer.
+ *
+ * @api
  */
 int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
   char* str = NULL;
@@ -660,7 +711,10 @@ int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
 }
 
 /**
- * @brief   Get default operating frequency.
+ * @brief   Get a default operating frequency.
+ * @notes   If a valid default is set in configuration use it
+ * @notes   Else if a valid frequency is in the radio configuration use it
+ * @notes   Else fall back to #defined DEFAULT_OPERATING_FREQUENCY
  *
  * @param[in] radio         Radio unit ID.
  *
@@ -671,13 +725,15 @@ int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
  * @api
  */
 radio_freq_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
-  /* FIXME: Default frequency in config to be per radio. */
-  (void)radio;
-  /* FIXME: INVALID relies on 0 in conf if no default set. */
-  if(conf_sram.freq != FREQ_RADIO_INVALID)
+  radio_band_t *band = pktCheckAllowedFrequency(radio, conf_sram.freq);
+  if(band != NULL)
     return conf_sram.freq;
-  else
-    return DEFAULT_OPERATING_FREQ;
+  const radio_config_t *radio_data = pktGetRadioData(radio);
+  if(pktCheckAllowedFrequency(radio, radio_data->def_aprs))
+    /* Use default APRS frequency in radio configuration. */
+    return radio_data->def_aprs;
+  /* Fall back to defined default as last resort. */
+  return DEFAULT_OPERATING_FREQ;
 }
 
 /**
@@ -685,8 +741,9 @@ radio_freq_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
  *
  * @param[in] radio         Radio unit ID.
  *
- * @return      actual operating frequency or special code
- * @retval      0 if requested frequency or radio ID is invalid
+ * @return    Actual operating frequency or special code.
+ * @retval    Absolute receive frequency or code if receive is active.
+ * @retval    Default operating frequency if receive not active.
  *
  * @notapi
  */
@@ -706,27 +763,71 @@ radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
   return pktGetDefaultOperatingFrequency(radio);
 }
 
-/*
- * TODO: Rework to use max radio and start and PKT_RADIO_1 in loop.
+/**
+ * @brief   Validate an operating frequency in Hz.
+ * @notes   Checks absolute frequencies only.
+ * @notes   Resolve special frequency codes before calling.
+ *
+ * @param[in] radio    Radio unit ID.
+ * @param[in] freq     Radio frequency in Hz.
+ *
+ * @return    band object reference
+ * @retval    pointer to band object
+ * @retval    NULL if frequency not valid
+ *
+ * @api
  */
-radio_freq_t pktCheckAllowedFrequency(const radio_unit_t radio,
-                                      radio_freq_t freq) {
+radio_band_t *pktCheckAllowedFrequency(const radio_unit_t radio,
+                                      const radio_freq_t freq) {
   /* Check validity. */
   uint8_t radios = pktGetNumRadios();
   const radio_config_t *list = pktGetRadioList();
   for(uint8_t i = 0; i < radios; i++) {
-    if(list->unit == radio) {
-      for(uint8_t x = 0; x < NUM_BANDS_PER_RADIO; x++) {
-        if(list->band[x] == NULL)
-          /* Vacant band slot in this radio. */
-            continue;
-        if(list->band[x]->start <= freq
-            && freq < list->band[x]->end)
-          return freq;
-      }
-    } /* End for bands */
+    if(list->unit == radio && list->bands != NULL) {
+      uint8_t x = 0;
+      while(list->bands[x] != NULL) {
+        if(list->bands[x]->start <= freq
+            && freq < list->bands[x]->end)
+          return list->bands[x];
+      } /* End for bands */
+    } /* if(!unit == radio) */
   } /* End for radios*/
-  return FREQ_RADIO_INVALID;
+  return NULL;
+}
+
+/**
+ * @brief   Select a radio operable on the required frequency.
+ * @notes   Resolves special frequency codes to absolute frequencies.
+ *
+ * @param[in] freq  Radio frequency or code in Hz.
+ * @param[in] step  Step size for radio in Hz.
+ * @param[in] chan  Channel for radio.
+ * @param[in] mode  Determines which special codes can be resolved
+ *
+ * @return    radio unit
+ * @retval    an enumerated radio ID from PKT_RADIO_1 onwards
+ * @retval    PKT_RADIO_NONE if no radio available for the frequency
+ *
+ * @api
+ */
+radio_unit_t pktSelectRadioForFrequency(const radio_freq_t freq,
+                                        const channel_hz_t step,
+                                        const radio_ch_t chan,
+                                        const radio_mode_t mode) {
+  /* Check for a radio able to operate on the resolved frequency. */
+  const radio_config_t *radio_data = pktGetRadioList();
+  while(radio_data->unit != PKT_RADIO_NONE) {
+    /* Resolve any special codes. */
+    radio_freq_t op_freq = pktComputeOperatingFrequency(radio_data->unit,
+                                                        freq,
+                                                        step,
+                                                        chan,
+                                                        mode);
+    if(pktCheckAllowedFrequency(radio_data->unit, op_freq)) {
+      return radio_data->unit;
+    }
+  } /* End for radios*/
+  return PKT_RADIO_NONE;
 }
 
 /**
@@ -745,16 +846,16 @@ const radio_config_t *pktGetRadioData(radio_unit_t radio) {
 
 /**
  * @brief   Compute an operating frequency.
- * @notes   All special frequency codes are resolved to an actual frequency.
+ * @notes   All special frequency codes are resolved to a frequency in Hz.
  *
  * @param[in] radio         Radio unit ID.
  * @param[in] base_freq     Radio base frequency in Hz.
  * @param[in] step          Radio channel step size in Hz.
  * @param[in] chan          Radio channel number.
  *
- * @return      operating frequency
- * @retval      an absolute operating frequency in Hz.
- * @retval      FREQ_RADIO_INVALID if frequency or radio ID is invalid
+ * @return  operating frequency in Hz.
+ * @retval  an absolute operating frequency in Hz.
+ * @retval  FREQ_RADIO_INVALID if frequency or radio ID is invalid.
  *
  * @api
  */
@@ -765,7 +866,7 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
                                           const radio_mode_t mode) {
 
   if((base_freq == FREQ_APRS_RECEIVE || base_freq == FREQ_APRS_SCAN)
-                   && mode == RADIO_TX) {
+                   && (mode == RADIO_TX || mode == RADIO_ALL)) {
     /* Get current RX frequency (or default) and use that. */
     step = 0;
     chan = 0;
@@ -797,11 +898,14 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
   /* Calculate operating frequency. */
   radio_freq_t op_freq = base_freq + (step * chan);
 
-  return pktCheckAllowedFrequency(radio, op_freq);
+  if(pktCheckAllowedFrequency(radio, op_freq) != NULL) {
+    return op_freq;
+  }
+  return FREQ_RADIO_INVALID;
 }
 
 /**
- *
+ * HAL functions
  */
 bool pktLLDradioInit(const radio_unit_t radio) {
   /* TODO: Implement hardware mapping. */
@@ -867,10 +971,32 @@ bool pktLLDradioSendPacket(radio_task_object_t *rto) {
 }
 
 /**
+ * @brief   Called by transmit threads to schedule release after completing.
+ * @post    A thread release task is posted to the radio manager queue.
+ *
+ * @param[in]   rto     reference to radio task object.
+ * @param[in]   thread  thread reference of thread terminating.
+ *
+ * @api
+ */
+void pktLLDradioSendComplete(radio_task_object_t *rto,
+                              thread_t *thread) {
+
+  packet_svc_t *handler = rto->handler;
+
+  radio_unit_t radio = handler->radio;
+  /* The handler and radio ID are set in returned object. */
+  rto->command = PKT_RADIO_TX_THREAD;
+  rto->thread = thread;
+  /* Submit guaranteed to succeed by design. */
+  pktSubmitRadioTask(radio, rto, rto->callback);
+}
+
+/**
  * @brief   Enable reception.
- * @notes   This is the API interface to the radio LLD.
+ * @notes   This is the HAL API to the radio LLD.
  * @notes   Currently just map directly to 446x driver.
- * @notes   In future would implement a lookup and VMT to access radio methods.
+ * @notes   In future a VMT lookup would access the relevant radio methods.
  *
  * @param[in] radio radio unit ID.
  * @param[in] rto   pointer to radio task object
@@ -885,26 +1011,19 @@ bool pktLLDradioEnableReceive(const radio_unit_t radio,
                          radio_task_object_t *rto) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  //chDbgAssert(handler != NULL, "invalid radio ID");
-
   if(handler == NULL)
     return false;
 
-  Si446x_setBandParameters(radio,
-                           rto->base_frequency,
-                           rto->step_hz);
-
-  Si446x_receiveNoLock(radio,
-                       rto->base_frequency,
-                       rto->step_hz,
-                       rto->channel,
-                       rto->squelch,
-                       rto->type);
-  return true;
+  return Si4464_enableReceive(radio,
+                            rto->base_frequency,
+                            rto->step_hz,
+                            rto->channel,
+                            rto->squelch,
+                            rto->type);
 }
 
 /**
- *
+ * Disable receive when closing packet receive for the channel.
  */
 void pktLLDradioDisableReceive(const radio_unit_t radio) {
   /* TODO: Implement hardware mapping. */
@@ -922,7 +1041,7 @@ void pktLLDradioDisableReceive(const radio_unit_t radio) {
  *
  * @return  status of the operation
  * @retval  true    operation succeeded.
- * retval   false   operation failed.
+ * @retval  false   operation failed.
  *
  * @notapi
  */
@@ -936,7 +1055,7 @@ bool pktLLDradioResumeReceive(const radio_unit_t radio) {
   radio_ch_t chan = handler->radio_rx_config.channel;
   radio_squelch_t rssi = handler->radio_rx_config.squelch;
   mod_t mod = handler->radio_rx_config.type;
-  bool result = Si4464_resumeReceive(radio, freq, step, chan, rssi, mod);
+  bool result = Si4464_enableReceive(radio, freq, step, chan, rssi, mod);
   return result;
 }
 
@@ -954,8 +1073,7 @@ bool pktLLDradioResumeReceive(const radio_unit_t radio) {
  */
 void pktLLDradioCaptureRSSI(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  //chDbgAssert(handler != NULL, "invalid radio ID");
-  handler->rx_stength = Si446x_getCurrentRSSI(radio);
+  handler->rx_strength = Si446x_getCurrentRSSI(radio);
 }
 
 /**
@@ -1004,6 +1122,68 @@ void pktLLDradioStopDecoder(const radio_unit_t radio) {
    * - Then call VMT dispatcher inside radio driver.
    */
   pktStopDecoder(radio);
+}
+
+/**
+ *
+ */
+ICUDriver *pktLLDradioAttachPWM(const radio_unit_t radio) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+  return Si446x_attachPWM(radio);
+}
+
+/**
+ *
+ */
+void pktLLDradioDetachPWM(const radio_unit_t radio) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+  (void)radio;
+}
+
+/**
+ *
+ */
+const ICUConfig *pktLLDradioStartPWM(const radio_unit_t radio,
+                          palcallback_t cb) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only type at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+
+  return Si446x_enablePWMevents(radio, cb);
+}
+
+/**
+ *
+ */
+void pktLLDradioStopPWM(const radio_unit_t radio) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+  Si446x_disablePWMevents(radio);
+}
+
+/**
+ *
+ */
+uint8_t pktLLDradioReadCCA(const radio_unit_t radio) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+  return Si446x_readCCA(radio);
 }
 
 /** @} */

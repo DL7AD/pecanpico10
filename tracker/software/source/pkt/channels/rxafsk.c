@@ -156,68 +156,6 @@ AFSKDemodDriver AFSKD1;
 /*===========================================================================*/
 
 /**
- * @brief   Enables PWM stream from radio.
- * @post    The ICU is configured and started.
- * @post    The ports and timers for CCA input are configured.
- *
- * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
- *
- * @api
- */
-/* TODO: Move this into rxpwm.c ?? */
-void pktEnablePWM(AFSKDemodDriver *myDriver) {
-
-  chDbgAssert(myDriver->icudriver != NULL, "no ICU driver");
-
-  /* Set callback for squelch events. */
-  palSetLineCallback(LINE_CCA, (palcallback_t)pktRadioCCAInput,
-                     myDriver->icudriver);
-
-  pktICUStart(myDriver->icudriver);
-
-  /* Enabling events on both edges of CCA.*/
-  palEnableLineEvent(LINE_CCA, PAL_EVENT_MODE_BOTH_EDGES);
-
-  myDriver->icustate = PKT_PWM_READY;
-}
-
-/**
- * @brief   Disables PWM stream from radio.
- * @post    The PWM channel is closed.
- * @post    All PWM related timers are stopped.
- * @post    The port for CCA input is disabled.
- * @post    The ICU remains ready to be restarted.
- *
- * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
- * @api
- */
-/* TODO: Move this into rxpwm.c ?? */
-void pktDisablePWM(AFSKDemodDriver *myDriver) {
-
-  chDbgAssert(myDriver->icudriver != NULL, "no ICU driver");
-
-  chSysLock();
-
-  /* Close the PWM stream. */
-  pktClosePWMChannelI(myDriver->icudriver, EVT_NONE, PWM_TERM_DECODE_STOP);
-
-  /* Stop ICU capture. */
-  icuStopCaptureI(myDriver->icudriver);
-
-  /* Stop any timeouts in ICU handling. */
-  pktStopAllICUTimersI(myDriver->icudriver);
-
-  /* Disable CCA port event. */
-  palDisableLineEventI(LINE_CCA);
-
-  myDriver->icustate = PKT_PWM_STOP;
-
-  /* Reschedule is required to avoid a "priority order violation". */
-  chSchRescheduleS();
-  chSysUnlock();
-}
-
-/**
  * @brief   Check the symbol timing.
  *
  * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
@@ -228,7 +166,7 @@ void pktDisablePWM(AFSKDemodDriver *myDriver) {
  *
  * @api
  */
-bool pktCheckAFSKSymbolTime(AFSKDemodDriver *myDriver) {
+static bool pktCheckAFSKSymbolTime(AFSKDemodDriver *myDriver) {
   /*
    * Each decoder filter is setup at init with a sample source.
    * This is set in the filter control structure.
@@ -261,7 +199,7 @@ bool pktCheckAFSKSymbolTime(AFSKDemodDriver *myDriver) {
  *
  * @api
  */
-void pktUpdateAFSKSymbolPLL(AFSKDemodDriver *myDriver) {
+static void pktUpdateAFSKSymbolPLL(AFSKDemodDriver *myDriver) {
   /*
    * Increment PLL timing.
    */
@@ -289,52 +227,6 @@ void pktUpdateAFSKSymbolPLL(AFSKDemodDriver *myDriver) {
 }
 
 /**
- * @brief   Processes PWM into a decimated time line for AFSK decoding.
- * @notes   The decimated entries are filtered through a BPF.
- *
- * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
- *
- * @return  status of operations.
- * @retval  true    no error occurred so decimation can continue at next data.
- * @retval  false   an error occurred and decimation should be aborted.
- *
- * @api
- */
-bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[]) {
-  /* Start working on new input data now. */
-  uint8_t i = 0;
-  for(i = 0; i < (sizeof(min_pwm_counts_t) / sizeof(min_pwmcnt_t)); i++) {
-    myDriver->decimation_accumulator += current_tone[i];
-    while(myDriver->decimation_accumulator >= 0) {
-
-      /*
-       *  The decoder will process a converted binary sample.
-       *  The PWM binary is converted to a q31 +/- sample value.
-       *  The sample is passed to pre-filtering (i.e. BPF) as its next input.
-       */
-      (void)pktAddAFSKFilterSample(myDriver, !(i & 1));
-
-      /*
-       * Process the sample at the output side of the pre-filter.
-       * The filter returns true if its output is now valid.
-       */
-      if(pktProcessAFSKFilteredSample(myDriver)) {
-        /* Filters are ready so decoding can commence. */
-        if(pktCheckAFSKSymbolTime(myDriver)) {
-          /* A symbol is ready to decode. */
-          if(!pktDecodeAFSKSymbol(myDriver))
-            /* Unable to store character - buffer full. */
-            return false;
-        }
-        pktUpdateAFSKSymbolPLL(myDriver);
-      }
-      myDriver->decimation_accumulator -= myDriver->decimation_size;
-    } /* End while. Accumulator has underflowed. */
-  } /* End for. */
-  return true;
-}
-
-/**
  * @brief   Add a sample to the decoder filter input.
  * @notes   The decimated entries are filtered through a BPF.
  *
@@ -343,7 +235,7 @@ bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[]) {
  *
  * @api
  */
-void pktAddAFSKFilterSample(AFSKDemodDriver *myDriver, bit_t binary) {
+static void pktAddAFSKFilterSample(AFSKDemodDriver *myDriver, bit_t binary) {
   switch(AFSK_DECODE_TYPE) {
     case AFSK_DSP_QCORR_DECODE: {
       (void)push_qcorr_sample(myDriver, binary);
@@ -373,7 +265,7 @@ void pktAddAFSKFilterSample(AFSKDemodDriver *myDriver, bit_t binary) {
  *
  * @api
  */
-bool pktProcessAFSKFilteredSample(AFSKDemodDriver *myDriver) {
+static bool pktProcessAFSKFilteredSample(AFSKDemodDriver *myDriver) {
   /*
    * Each decoder filter is setup at init with a sample source.
    * This is set in the filter control structure.
@@ -413,7 +305,7 @@ bool pktProcessAFSKFilteredSample(AFSKDemodDriver *myDriver) {
  *
  * @api
  */
-bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver) {
+static bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver) {
   /*
    * Called when a symbol timeline is ready.
    * Called from normal thread level.
@@ -446,6 +338,52 @@ bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver) {
 } /* End function. */
 
 /**
+ * @brief   Processes PWM into a decimated time line for AFSK decoding.
+ * @notes   The decimated entries are filtered through a BPF.
+ *
+ * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
+ *
+ * @return  status of operations.
+ * @retval  true    no error occurred so decimation can continue at next data.
+ * @retval  false   an error occurred and decimation should be aborted.
+ *
+ * @api
+ */
+static bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[]) {
+  /* Start working on new input data now. */
+  uint8_t i = 0;
+  for(i = 0; i < (sizeof(min_pwm_counts_t) / sizeof(min_pwmcnt_t)); i++) {
+    myDriver->decimation_accumulator += current_tone[i];
+    while(myDriver->decimation_accumulator >= 0) {
+
+      /*
+       *  The decoder will process a converted binary sample.
+       *  The PWM binary is converted to a q31 +/- sample value.
+       *  The sample is passed to pre-filtering (i.e. BPF) as its next input.
+       */
+      (void)pktAddAFSKFilterSample(myDriver, !(i & 1));
+
+      /*
+       * Process the sample at the output side of the pre-filter.
+       * The filter returns true if its output is now valid.
+       */
+      if(pktProcessAFSKFilteredSample(myDriver)) {
+        /* Filters are ready so decoding can commence. */
+        if(pktCheckAFSKSymbolTime(myDriver)) {
+          /* A symbol is ready to decode. */
+          if(!pktDecodeAFSKSymbol(myDriver))
+            /* Unable to store character - buffer full. */
+            return false;
+        }
+        pktUpdateAFSKSymbolPLL(myDriver);
+      }
+      myDriver->decimation_accumulator -= myDriver->decimation_size;
+    } /* End while. Accumulator has underflowed. */
+  } /* End for. */
+  return true;
+}
+
+/**
  * @brief   Reset the AFSK decoder and filter.
  * @notes   Called at completion of packet reception.
  * @post    Selected tone decoder and common AFSK data is initialized.
@@ -454,7 +392,7 @@ bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver) {
  *
  * @api
  */
-void pktResetAFSKDecoder(AFSKDemodDriver *myDriver) {
+static void pktResetAFSKDecoder(AFSKDemodDriver *myDriver) {
   /*
    * Called when a decode stream has completed.
    * Called from normal thread level.
@@ -582,7 +520,7 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
   myDriver->active_demod_object = NULL;
 
   /* Attach and initialize the ICU PWM system. */
-  myDriver->icudriver = pktAttachICU(pktHandler->radio);
+  myDriver->icudriver = pktAttachRadio(pktHandler->radio);
 
   /* Set the link from ICU driver to AFSK demod driver. */
   myDriver->icudriver->link = myDriver;
@@ -651,11 +589,13 @@ void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver) {
   chDbgAssert(myDriver->the_pwm_fifo != NULL, "no CCA FIFO");
   chDbgAssert(myDriver->icudriver != NULL, "no ICU driver");
 
-  /* Stop PWM queue. */
-  pktDisablePWM(myDriver);
+  radio_unit_t radio = myDriver->packet_handler->radio;
 
-  /* Detach ICU from this AFSK driver. */
-  pktDetachICU(myDriver->icudriver);
+  /* Stop PWM queue. */
+  pktDisableRadioPWM(radio);
+
+  /* Detach radio from this AFSK driver. */
+  pktDetachRadio(radio);
 
   /* Release the PWM FIFO. */
   chFactoryReleaseObjectsFIFO(myDriver->the_pwm_fifo);
@@ -710,6 +650,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
    */
   AFSKDemodDriver *myDriver = arg;
   packet_svc_t *myHandler = myDriver->packet_handler;
+  radio_unit_t radio = myHandler->radio;
 
   /* No active packet object. */
   myHandler->active_packet_object = NULL;
@@ -750,7 +691,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         eventmask_t evt = chEvtWaitAnyTimeout(DEC_COMMAND_START,
                                   TIME_MS2I(DECODER_WAIT_TIME));
         if(evt) {
-          pktEnablePWM(myDriver);
+          pktEnableRadioPWM(radio);
           myDriver->decoder_state = DECODER_RESET;
           pktAddEventFlags(myDriver, DEC_START_EXEC);
           break;
@@ -781,7 +722,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
          */
         eventmask_t evt = chEvtGetAndClearEvents(DEC_COMMAND_STOP);
         if(evt) {
-          pktDisablePWM(myDriver);
+          pktDisableRadioPWM(radio);
           myDriver->decoder_state = DECODER_WAIT;
           pktAddEventFlags(myDriver, DEC_STOP_EXEC);
           break;

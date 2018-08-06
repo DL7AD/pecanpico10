@@ -658,7 +658,8 @@ uint32_t getAPRSRegionFrequency() {
 
 	// Position unknown
 	if(point == NULL || (point->gps_lat == 0 && point->gps_lon == 0))
-		return conf_sram.freq;
+	  // Return code and let pktradio figure out what to do.
+	  return FREQ_APRS_DEFAULT;
 	
 	// America 144.390 MHz
 	if(isPointInAmerica(point->gps_lat, point->gps_lon))

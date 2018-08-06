@@ -112,11 +112,18 @@ typedef struct packetHandlerData {
    */
   bool                      radio_init;
 
+#if PKT_USE_RADIO_MUTEX != TRUE
   /**
    * @brief Radio locked access semaphore.
    */
   binary_semaphore_t        radio_sem;
+#else
 
+  /**
+   * @brief Radio locked access semaphore.
+   */
+  mutex_t                   radio_mtx;
+#endif
   /**
    * @brief Radio receiver operating parameters.
    */
@@ -125,7 +132,7 @@ typedef struct packetHandlerData {
   /**
    * @brief Radio signal strength captured on CCA.
    */
-  radio_signal_t            rx_stength;
+  radio_signal_t            rx_strength;
 
   /**
    * @brief Radio transmitter operating parameters.
@@ -169,7 +176,7 @@ typedef struct packetHandlerData {
   /**
    * @brief AX25 send buffer throttling semaphore.
    */
-  dyn_semaphore_t           *tx_packet_sem;
+  //dyn_semaphore_t           *tx_packet_sem;
 
   /**
    * @brief Packet buffer cb_func.

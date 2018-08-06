@@ -276,6 +276,10 @@ typedef struct AFSK_data {
 /* Module macros.                                                            */
 /*===========================================================================*/
 
+/*===========================================================================*/
+/* Module inline functions.                                                  */
+/*===========================================================================*/
+
 static inline void pktResyncAFSKDecoder(AFSKDemodDriver *myDriver) {
   packet_svc_t *myHandler = myDriver->packet_handler;
   myDriver->frame_state = FRAME_OPEN;
@@ -293,17 +297,8 @@ extern AFSKDemodDriver AFSKD1;
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void pktAddAFSKFilterSample(AFSKDemodDriver *myDriver, bit_t binary);
-  bool pktProcessAFSKFilteredSample(AFSKDemodDriver *myDriver);
-  bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver);
-  bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver);
-  bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[]);
   AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktDriver);
-  bool pktCheckAFSKSymbolTime(AFSKDemodDriver *myDriver);
-  void pktUpdateAFSKSymbolPLL(AFSKDemodDriver *myDriver);
   void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver);
-  void pktResetAFSKDecoder(AFSKDemodDriver *myDriver);
-  void pktDisablePWM(AFSKDemodDriver *myDriver);
   void pktAFSKDecoder(void *arg);
 #ifdef __cplusplus
 }
@@ -311,7 +306,7 @@ extern "C" {
 
 /*
  * Test of flow graph and protocol diagrams.
- * TODO: Remove or update.
+ * TODO: Remove or implement.
  */
 
 /**

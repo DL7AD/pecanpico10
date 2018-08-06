@@ -13,13 +13,13 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
             .fixed = false // Add lat, lon alt fields if enabling fixed
         },
         .radio_conf = {
-            .pwr = 0x7F,
+            .pwr = 0x1F,
             .freq = FREQ_APRS_DYNAMIC,
             .mod = MOD_AFSK,
             .cca = 0x4F,
@@ -34,31 +34,31 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = false,
-            .cycle = TIME_S2I(180),
+            .active = true,
+            .cycle = TIME_S2I(60),
             .init_delay = TIME_S2I(60),
             .fixed = false // Add lat, lon alt fields if enabling fixed
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = 145825000,
-            .mod = MOD_AFSK,
-            .cca = 0xFF
+            .freq = 144800000,
+            .mod = MOD_2FSK,
+            .cca = 0x4F
         },
         // App identity
         .call = "VK2GJ-15",
         .path = "",
-        .symbol = SYM_BALLOON,
+        .symbol = SYM_CAR,
         .aprs_msg = true, // Enable APRS message reception on this call sign
     },
 
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = false,
-            .cycle = CYCLE_CONTINUOUSLY,
-            .init_delay = TIME_S2I(90),
-            .send_spacing = TIME_S2I(0)
+            .active = true,
+            .cycle = TIME_S2I(60 * 5),
+            .init_delay = TIME_S2I(60 * 1),
+            .send_spacing = TIME_S2I(5)
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -81,14 +81,14 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 30),
-            .init_delay = TIME_S2I(60 * 1),
-            .send_spacing = TIME_S2I(30)
+            .active = true,
+            .cycle = TIME_S2I(60 * 0),
+            .init_delay = TIME_S2I(30 * 1),
+            .send_spacing = TIME_S2I(5)
         },
         .radio_conf = {
-            .pwr = 0x7F,
-            .freq = APRS_FREQ_AUSTRALIA,
+            .pwr = 0x1F,
+            .freq = FREQ_APRS_DYNAMIC,
             .mod = MOD_AFSK,
             .cca = 0x4F
         },
@@ -128,7 +128,7 @@ const conf_t conf_flash_default = {
         .rx = {
              .svc_conf = {
                  // The packet receive service is enabled if true
-                 // Receive is resumed after any transmission
+                 // Receive is paused and resumed by transmission
                  .active = true,
                  .init_delay = TIME_S2I(20)
              },

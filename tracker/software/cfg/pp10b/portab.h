@@ -24,9 +24,14 @@
  */
 
 /*
+ * SPI definitions
+ */
+#define SPI_BUS1_DRIVER             &SPID3
+
+/*
  * Radio SPI definitions.
  */
-#define PKT_RADIO_SPI               &SPID3
+#define PKT_RADIO1_SPI              SPI_BUS1_DRIVER
 
 // Camera pins
 #define LINE_CAM_XCLK               PAL_LINE(GPIOC, 9U)
@@ -99,7 +104,7 @@
  */
 #define LINE_RADIO_CS               PAL_LINE(GPIOC, 12U)
 #define LINE_RADIO_SDN              PAL_LINE(GPIOC, 10U)
-#define LINE_RADIO_IRQ              PAL_LINE(GPIOD, 2U)
+#define LINE_RADIO_NIRQ             PAL_LINE(GPIOD, 2U)
 #define LINE_RADIO_GPIO0            PAL_LINE(GPIOB, 7U)
 #define LINE_RADIO_GPIO1            PAL_LINE(GPIOB, 6U)
 
@@ -108,6 +113,7 @@
 #define LINE_SPI_MISO               PAL_LINE(GPIOB, 4U)
 #define LINE_SPI_MOSI               PAL_LINE(GPIOB, 5U)
 
+/* TODO: Move into pktradio.h */
 #define BAND_MIN_2M_FREQ            144000000               /* Minimum allowed frequency in Hz */
 #define BAND_MAX_2M_FREQ            148000000               /* Maximum allowed frequency in Hz */
 #define BAND_STEP_2M_HZ             12500
@@ -118,13 +124,16 @@
 #define BAND_DEF_70CM_APRS          439100000               /* Default frequency in Hz.        */
 
 #define DEFAULT_OPERATING_FREQ      144800000
+#if DEFAULT_OPERATING_FREQ < BAND_MIN_2M_FREQ
+#error "Default operating frequency must be an absolute value in Hz"
+#endif
 
 /* Si446x clock setup. */
 #define Si446x_CLK					STM32_HSECLK			/* Oscillator frequency in Hz */
 #define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
 
-#define NUM_BANDS_PER_RADIO         2
+//#define NUM_BANDS_PER_RADIO         2
 
 /* LED status indicators (set to PAL_NOLINE if not available). */
 #define LINE_OVERFLOW_LED           PAL_NOLINE
@@ -137,8 +146,8 @@
 #define LINE_PWM_MIRROR             PAL_NOLINE
 
 /* Radio ports. */
-#define LINE_CCA                    LINE_RADIO_IRQ
-#define LINE_ICU                    LINE_RADIO_GPIO1
+//#define LINE_CCA                    LINE_RADIO_NIRQ
+//#define LINE_ICU                    LINE_RADIO_GPIO1
 
 //#define LINE_UART4_TX               PAL_LINE(GPIOA, 12U)
 //#define LINE_UART4_RX               PAL_LINE(GPIOA, 11U)
@@ -168,8 +177,8 @@
 /**
  *  ICU related definitions.
  */
-#define PWM_ICU                     ICUD4
-#define PWM_TIMER_CHANNEL           0
+#define RADIO1_ICU_DRIVER           &ICUD4
+
 #define PWM_ICU_CLK                 STM32_TIMCLK1
 
 /* ICU counter frequency. */
@@ -243,12 +252,6 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
-typedef struct radioConfig {
-  radio_unit_t  unit;
-  radio_type_t  type;
-  radio_band_t  *band[NUM_BANDS_PER_RADIO];
-} radio_config_t;
-
 /*===========================================================================*/
 /* Module macros.                                                            */
 /*===========================================================================*/
@@ -256,6 +259,10 @@ typedef struct radioConfig {
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
+
+extern const radio_band_t band_2m;
+extern const radio_band_t band_70cm;
+extern const radio_config_t radio_list[];
 
 #ifdef __cplusplus
 extern "C" {
@@ -270,12 +277,10 @@ extern "C" {
   void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
   int  dbgPrintf(uint8_t level, const char *format, ...);
   void pktWrite(uint8_t *buf, uint32_t len);
-  void pktPowerUpRadio(radio_unit_t radio);
-  void pktPowerDownRadio(radio_unit_t radio);
-  radio_freq_t pktCheckAllowedFrequency(radio_unit_t radio, radio_freq_t freq);
   uint8_t pktReadIOlines(void);
-  uint8_t pktGetNumRadios(void);
-  const radio_config_t *pktGetRadioList(void);
+  void pktRadioICUWidth(ICUDriver *icup);
+  void pktRadioICUPeriod(ICUDriver *icup);
+  void pktRadioICUOverflow(ICUDriver *icup);
 #ifdef __cplusplus
 }
 #endif
