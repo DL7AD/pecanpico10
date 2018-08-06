@@ -992,7 +992,7 @@ msg_t OV5640_LockResourcesForCapture(void) {
   /* TODO: have to make this a loop which would handle multiple receivers. */
 
   /* Acquire radio after any active TX completes. */
-  msg_t msg = pktAcquireRadio(PKT_RADIO_1, TIME_INFINITE);
+  msg_t msg = pktLockRadioTransmit(PKT_RADIO_1, TIME_INFINITE);
   if(msg != MSG_OK) {
     return msg;
   }
@@ -1025,7 +1025,7 @@ void OV5640_UnlockResourcesForCapture(void) {
   }
   //pktResumeDecoding(PKT_RADIO_1);
   /* Enable TX tasks to run. */
-  pktReleaseRadio(PKT_RADIO_1);
+  pktUnlockRadioTransmit(PKT_RADIO_1);
 }
 
 /**
@@ -1133,11 +1133,6 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	rccEnableTIM8(FALSE);
     rccResetTIM8();
 
-
-	/* TODO: deprecate ARR as not used for Input Capture mode. */
-	//TIM8->ARR = 1;
-	//dma_control.timer->CCR1 = 0;
-	//dma_control.timer->CCER = 0;
     /*
      * Setup capture mode triggered from TI1.
      * What is captured isn't used just the DMA trigger.
@@ -1165,7 +1160,6 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	} while(!dma_control.capture && !dma_control.dma_error && --timout);
 
     palDisableLineEvent(LINE_CAM_VSYNC);
-    OV5640_UnlockResourcesForCapture();
 
 	if(!timout) {
       TRACE_ERROR("CAM  > Image sampling timeout");
@@ -1173,6 +1167,8 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
       dma_control.timer->DIER &= ~TIM_DIER_CC1DE;
       dma_control.dma_error = true;
 	}
+
+    OV5640_UnlockResourcesForCapture();
 
 	if(dma_control.dma_error) {
 		if(dma_control.dma_flags & STM32_DMA_ISR_HTIF) {

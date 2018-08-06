@@ -1015,8 +1015,10 @@ bool Si446x_receiveNoLock(const radio_unit_t radio,
                           radio_ch_t channel,
                           radio_squelch_t rssi,
                           mod_t mod) {
+
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
-                                                      step, channel, RADIO_RX);
+                                                      step, channel,
+                                                      RADIO_RX);
   if(op_freq == FREQ_RADIO_INVALID) {
     TRACE_ERROR("SI   > Frequency out of range");
     TRACE_ERROR("SI   > abort transmission");
@@ -1029,16 +1031,15 @@ bool Si446x_receiveNoLock(const radio_unit_t radio,
     chThdSleep(TIME_MS2I(10));
     if(tot++ < 500)
       continue;
+
     /* Remove TX state. */
     Si446x_setReadyState(radio);
-
     TRACE_ERROR("SI   > Timeout waiting for TX state end");
     TRACE_ERROR("SI   > Attempt start of receive");
-
     break;
   }
 
-  // Initialize radio
+  /* Configure radio for modulation type. */
   if(mod == MOD_AFSK) {
       Si446x_setModemAFSK_RX(radio);
   } else {
@@ -1049,8 +1050,11 @@ bool Si446x_receiveNoLock(const radio_unit_t radio,
 
   TRACE_INFO("SI   > Tune Si446x to %d.%03d MHz (RX)",
              op_freq/1000000, (op_freq%1000000)/1000);
+
+  /* Set squelch level. */
   Si446x_setProperty8(radio, Si446x_MODEM_RSSI_THRESH, rssi);
 
+  /* Start the receiver. */
   Si446x_setRXState(radio, channel);
 
   /* Wait for the receiver to start. */
@@ -1071,7 +1075,6 @@ bool Si4464_enableReceive(const radio_unit_t radio,
                           const radio_ch_t rx_chan,
                           const radio_squelch_t rx_rssi,
                           const mod_t rx_mod) {
-  //bool ret = true;
 
   /* Get an absolute operating frequency in Hz. */
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio,
@@ -1099,7 +1102,7 @@ bool Si4464_enableReceive(const radio_unit_t radio,
  * If the receiver is active put it into standby.
  */
 void Si446x_disableReceive(const radio_unit_t radio) {
-  /* FIXME: */
+  /* FIXME: Should have timeout. */
   if(Si446x_getState(radio) == Si446x_STATE_RX) {
     Si446x_radioStandby(radio);
   }
@@ -1119,12 +1122,13 @@ void Si446x_terminateReceive(const radio_unit_t radio) {
 /*
  *
  */
-void Si446x_terminateTransmit(const radio_unit_t radio) {
-  /* FIXME: Should provide have timeout. */
+void Si446x_waitTransmitEnd(const radio_unit_t radio) {
+  /* FIXME: Should have timeout. */
   while(Si446x_getState(radio) == Si446x_STATE_TX);
 }
+
 /*
- * AFSK Transmitter
+ * AFSK Transmitter functions
  */
 
 /*
@@ -1181,7 +1185,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
-  if(pktAcquireRadio(radio, TIME_INFINITE) == MSG_RESET) {
+  if(pktLockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
     TRACE_ERROR("SI   > AFSK TX reset from radio acquisition");
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
@@ -1192,10 +1196,12 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     /* Exit thread. */
     chThdExit(MSG_RESET);
     /* We never arrive here. */
+    chSysHalt("TX AFSK exit");
   }
 
   /* Initialize radio. */
-  Si446x_conditional_init(radio);
+  /* TODO: This is redundant as the radio is initialized by the manager. */
+  //Si446x_conditional_init(radio);
 
   /* Base frequency is an absolute frequency in Hz. */
   Si446x_setBandParameters(radio, rto->base_frequency,
@@ -1203,6 +1209,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   /* Set 446x back to READY. */
   Si446x_terminateReceive(radio);
+
   /* Set the radio for AFSK upsampled mode. */
   Si446x_setModemAFSK_TX(radio);
 
@@ -1246,7 +1253,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       pktLLDradioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
-      pktReleaseRadio(radio);
+      pktUnlockRadioTransmit(radio);
 
       /* Exit thread. */
       chThdExit(MSG_ERROR);
@@ -1380,7 +1387,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   pktLLDradioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
-  pktReleaseRadio(radio);
+  pktUnlockRadioTransmit(radio);
 
   /* Exit thread. */
   chThdExit(exit_msg);
@@ -1437,7 +1444,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   chDbgAssert(pp != NULL, "no packet in radio task");
 
   /* Check for MSG_RESET which means system has forced radio release. */
-  if(pktAcquireRadio(radio, TIME_INFINITE) == MSG_RESET) {
+  if(pktLockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
     TRACE_ERROR("SI   > 2FSK TX reset from radio acquisition");
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
@@ -1452,7 +1459,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
   /* Initialize radio.
    * TODO: This is redundant as the radio is initialized by the manager. */
-  Si446x_conditional_init(radio);
+  //Si446x_conditional_init(radio);
 
   /* Set 446x back to READY from RX (if active). */
   Si446x_terminateReceive(radio);
@@ -1508,7 +1515,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       pktLLDradioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
-      pktReleaseRadio(radio);
+      pktUnlockRadioTransmit(radio);
 
       /* Exit thread. */
       chThdExit(MSG_ERROR);
@@ -1632,7 +1639,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   pktLLDradioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
-  pktReleaseRadio(radio);
+  pktUnlockRadioTransmit(radio);
 
   /* Exit thread. */
   chThdExit(exit_msg);
@@ -1712,7 +1719,7 @@ bool Si446x_detachPWM(const radio_unit_t radio) {
 /**
  *
  */
-const ICUConfig *Si446x_startPWM(const radio_unit_t radio,
+const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio,
                           palcallback_t cb) {
   /* Set callback for squelch events. */
   palSetLineCallback(Si446x_getConfig(radio)->nirq, cb,
@@ -1722,15 +1729,13 @@ const ICUConfig *Si446x_startPWM(const radio_unit_t radio,
   palEnableLineEvent(Si446x_getConfig(radio)->nirq,
                      PAL_EVENT_MODE_BOTH_EDGES);
 
-  //extern const ICUConfig pwm_icucfg;
-  //return &pwm_icucfg;
   return &Si446x_getConfig(radio)->cfg;
 }
 
 /**
  *
  */
-void Si446x_stopPWM(radio_unit_t radio) {
+void Si446x_disablePWMevents(radio_unit_t radio) {
   palDisableLineEvent(Si446x_getConfig(radio)->nirq);
 }
 /**

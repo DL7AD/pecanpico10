@@ -164,16 +164,16 @@ THD_FUNCTION(pktRadioManager, arg) {
       /* The function switches on mod type so no need for switch here. */
       switch(task_object->type) {
       case MOD_AFSK: {
-        pktAcquireRadio(radio, TIME_INFINITE);
+        pktLockRadioTransmit(radio, TIME_INFINITE);
         /* Enable receive. */
         if(!pktLLDradioEnableReceive(radio, task_object)) {
           TRACE_ERROR("RAD  > Receive on radio %d failed to start", radio);
-          pktReleaseRadio(radio);
+          pktUnlockRadioTransmit(radio);
           break;
         }
         pktLLDradioStartDecoder(radio);
         /* Unlock radio and allow transmit requests. */
-        pktReleaseRadio(radio);
+        pktUnlockRadioTransmit(radio);
         break;
         } /* End case MOD_AFSK. */
 
@@ -189,9 +189,9 @@ THD_FUNCTION(pktRadioManager, arg) {
       switch(task_object->type) {
             case MOD_AFSK: {
               /* TODO: Abstract acquire and release in LLD. */
-              pktAcquireRadio(radio, TIME_INFINITE);
+              pktLockRadioTransmit(radio, TIME_INFINITE);
               pktLLDradioStopDecoder(radio);
-              pktReleaseRadio(radio);
+              pktUnlockRadioTransmit(radio);
               break;
               } /* End case. */
 
@@ -208,9 +208,9 @@ THD_FUNCTION(pktRadioManager, arg) {
       ++handler->radio_tx_config.tx_seq_num;
       if(pktIsReceiveActive(radio)) {
         /* Pause the decoder. */
-        pktAcquireRadio(radio, TIME_INFINITE);
+        pktLockRadioTransmit(radio, TIME_INFINITE);
         pktLLDradioPauseDecoding(radio);
-        pktReleaseRadio(radio);
+        pktUnlockRadioTransmit(radio);
       }
       if(pktLLDradioSendPacket(task_object)) {
         /*
@@ -230,15 +230,15 @@ THD_FUNCTION(pktRadioManager, arg) {
       packet_t pp = task_object->packet_out;
       pktReleaseBufferChain(pp);
       if(pktIsReceivePaused(radio)) {
-        pktAcquireRadio(radio, TIME_INFINITE);
+        pktLockRadioTransmit(radio, TIME_INFINITE);
         if(!pktLLDradioResumeReceive(radio)) {
           TRACE_ERROR("RAD  > Receive on radio %d failed to "
               "resume after transmit", radio);
-          pktReleaseRadio(radio);
+          pktUnlockRadioTransmit(radio);
           break;
         }
         pktLLDradioResumeDecoding(radio);
-        pktReleaseRadio(radio);
+        pktUnlockRadioTransmit(radio);
       }
       break;
     } /* End case PKT_RADIO_TX. */
@@ -250,9 +250,9 @@ THD_FUNCTION(pktRadioManager, arg) {
       switch(task_object->type) {
       case MOD_AFSK: {
         /* Stop receive. */
-        pktAcquireRadio(radio, TIME_INFINITE);
+        pktLockRadioTransmit(radio, TIME_INFINITE);
         pktLLDradioDisableReceive(radio);
-        pktReleaseRadio(radio);
+        pktUnlockRadioTransmit(radio);
         /* TODO: This should be a function back in pktservice or rxafsk. */
         esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
@@ -589,7 +589,11 @@ void pktSubmitRadioTask(const radio_unit_t radio,
 }
 
 /**
- * @brief   Acquire exclusive access to radio.
+ * @brief   Lock radio.
+ * @notes   Used to lock radio when...
+ * @notes   a) transmitting or
+ * @notes   b) making changes where transmit should be blocked.
+ * @pre     Receive should be paused by calling routine if it is active.
  *
  * @param[in] radio     radio unit ID.
  * @param[in] timeout   time to wait for acquisition.
@@ -601,23 +605,34 @@ void pktSubmitRadioTask(const radio_unit_t radio,
  *
  * @api
  */
-msg_t pktAcquireRadio(const radio_unit_t radio,
+msg_t pktLockRadioTransmit(const radio_unit_t radio,
                       const sysinterval_t timeout) {
   packet_svc_t *handler = pktGetServiceObject(radio);
+#if PKT_USE_RADIO_MUTEX == TRUE
+  (void)timeout;
+  chMtxLock(&handler->radio_mtx);
+  return MSG_OK;
+#else
   return chBSemWaitTimeout(&handler->radio_sem, timeout);
+#endif
 }
 
 /**
- * @brief   Release exclusive access to radio.
- * @notes   returns when radio unit is released.
+ * @brief   Unlock radio.
+ * @notes   Returns when radio unit is unlocked.
+ * @pre     Receive should be resumed by calling routine if it was active.
  *
  * @param[in] radio    radio unit ID.
  *
  * @api
  */
-void pktReleaseRadio(const radio_unit_t radio) {
+void pktUnlockRadioTransmit(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
+#if PKT_USE_RADIO_MUTEX == TRUE
+  chMtxUnlock(&handler->radio_mtx);
+#else
   chBSemSignal(&handler->radio_sem);
+#endif
 }
 
 /**
@@ -1058,7 +1073,7 @@ bool pktLLDradioResumeReceive(const radio_unit_t radio) {
  */
 void pktLLDradioCaptureRSSI(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  handler->rx_stength = Si446x_getCurrentRSSI(radio);
+  handler->rx_strength = Si446x_getCurrentRSSI(radio);
 }
 
 /**
@@ -1144,7 +1159,7 @@ const ICUConfig *pktLLDradioStartPWM(const radio_unit_t radio,
    * - Then call VMT dispatcher inside radio driver.
    */
 
-  return Si446x_startPWM(radio, cb);
+  return Si446x_enablePWMevents(radio, cb);
 }
 
 /**
@@ -1156,7 +1171,7 @@ void pktLLDradioStopPWM(const radio_unit_t radio) {
    * - Lookup radio type from radio ID.
    * - Then call VMT dispatcher inside radio driver.
    */
-  Si446x_stopPWM(radio);
+  Si446x_disablePWMevents(radio);
 }
 
 /**

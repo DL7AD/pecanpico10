@@ -157,7 +157,7 @@ void pktEnableRadioPWM(const radio_unit_t radio) {
 
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
-  /* Enable IO can callbacks. */
+  /* Enable CCA callback. */
   const ICUConfig *icucfg = pktLLDradioStartPWM(radio,
                        (palcallback_t)pktRadioCCAInput);
 
@@ -188,12 +188,13 @@ void pktDisableRadioPWM(const radio_unit_t radio) {
 
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
-  /* Disable CCA line event. */
-  //palDisableLineEvent(LINE_CCA);
-  pktLLDradioStopPWM(radio);
+  myDemod->icustate = PKT_PWM_STOP;
 
   /* Stop ICU capture. */
   icuStopCapture(myDemod->icudriver);
+
+  /* Disable CCA line event. */
+  pktLLDradioStopPWM(radio);
 
   chSysLock();
 
@@ -202,8 +203,6 @@ void pktDisableRadioPWM(const radio_unit_t radio) {
 
   /* Close the PWM stream. */
   pktClosePWMchannelI(myDemod->icudriver, EVT_NONE, PWM_TERM_DECODE_STOP);
-
-  myDemod->icustate = PKT_PWM_STOP;
 
   /*
    * Reschedule is required to avoid a "priority order violation".

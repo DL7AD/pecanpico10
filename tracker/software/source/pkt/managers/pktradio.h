@@ -29,9 +29,10 @@
 /* The number of radio task object the FIFO has. */
 #define RADIO_TASK_QUEUE_MAX            10
 
-//#define NUM_BANDS_PER_RADIO             2
-
 #define PKT_RADIO_MANAGER_TASK_KILL     TRUE
+
+/* Set TRUE to use mutex instead of bsem. */
+#define PKT_USE_RADIO_MUTEX             TRUE
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
@@ -138,9 +139,9 @@ extern "C" {
                           radio_task_cb_t cb);
   void      		pktScheduleThreadRelease(const radio_unit_t radio,
                                 thread_t *thread);
-  msg_t     		pktAcquireRadio(const radio_unit_t radio,
+  msg_t     		pktLockRadioTransmit(const radio_unit_t radio,
             		                const sysinterval_t timeout);
-  void      		pktReleaseRadio(const radio_unit_t radio);
+  void      		pktUnlockRadioTransmit(const radio_unit_t radio);
   const radio_config_t *pktGetRadioList(void);
   uint8_t           pktGetNumRadios(void);
   radio_band_t 		*pktCheckAllowedFrequency(const radio_unit_t radio,

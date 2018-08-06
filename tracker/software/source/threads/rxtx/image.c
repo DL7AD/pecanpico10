@@ -281,6 +281,8 @@ uint32_t gimage_id; // Global image ID (for all image threads)
 mutex_t camera_mtx;
 bool camera_mtx_init = false;
 
+static bool camInitialized = false;
+
 ssdv_packet_t packetRepeats[16];
 bool reject_pri;
 bool reject_sec;
@@ -341,7 +343,7 @@ static bool transmit_image_packet(const uint8_t *image,
                                 conf->radio_conf.mod,
                                 conf->radio_conf.cca)) {
 
-              TRACE_ERROR("IMG  > Unable to send image packet TX on radio");
+              TRACE_ERROR("IMG  > Unable to send image packet on radio");
               return false;
             }
 		}
@@ -518,7 +520,7 @@ static bool analyze_image(uint8_t *image, uint32_t image_len) {
 #if !OV5640_USE_DMA_DBM
   if(image_len >= 65535) {
     TRACE_ERROR("CAM  > Camera has %d bytes allocated but DMA DBM not activated", image_len);
-    TRACE_ERROR("CAM  > DMA can only use 65535 bytes only");
+    TRACE_ERROR("CAM  > DMA can only use 65535 bytes");
     image_len = 65535;
   }
 #endif
@@ -555,8 +557,9 @@ static bool analyze_image(uint8_t *image, uint32_t image_len) {
   return false;
 }
 
-static bool camInitialized = false;
-
+/**
+ *
+ */
 uint32_t takePicture(uint8_t* buffer, uint32_t size,
                      resolution_t res, bool enableJpegValidation) {
 	uint32_t size_sampled = 0;
@@ -571,7 +574,6 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 	chMtxLock(&camera_mtx);
 
 	// Detect camera
-	/* TODO: Detecting camera powers it up so refactor the below init code? */
 	if(camInitialized || OV5640_isAvailable()) { // OV5640 available
 
 		TRACE_INFO("IMG  > OV5640 found");
@@ -626,7 +628,8 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 
 	return size_sampled;
 }
-/*
+
+/**
  *
  */
 THD_FUNCTION(imgThread, arg) {
@@ -668,7 +671,7 @@ THD_FUNCTION(imgThread, arg) {
      * History... compiler bug
      * If size is > 65535 the compiled code wraps address around and kills CMM heap.
      * Anyway clearing of the capture buffer is no longer needed.
-     * SOI is now aligned at index 0 and length > EOI is returned by DMA.
+     * SOI is now aligned at index 0 and length >= EOI is returned by DMA.
      */
 /*    uint32_t size = conf->buf_size;
     for(uint32_t i = 0; i < size ; i++)
@@ -695,7 +698,7 @@ THD_FUNCTION(imgThread, arg) {
     }
 
     /* Find SOI in image buffer. */
-    uint32_t soi;
+    uint32_t soi = 0;
     bool soi_found = false;
     while(soi < (size_sampled - 1)) {
       if(buffer[soi] == 0xFF && buffer[soi + 1] == 0xD8) {
@@ -729,6 +732,7 @@ THD_FUNCTION(imgThread, arg) {
         }
       break;
       } /* End if SOI in buffer. */
+      soi++;
     } /* End while soi < size_sampled - 1. */
     if(!soi_found) { /* No SOI found. */
     TRACE_INFO("IMG  > No SOI found in image");
