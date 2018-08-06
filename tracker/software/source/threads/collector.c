@@ -131,13 +131,15 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   uint16_t batt = stm32_get_vbat();
   if(batt < conf_sram.gps_on_vbat) {
     getPositionFallback(tp, ltp, GPS_LOWBATT1);
+    /* In case GPS was already on power it off. */
+    GPS_Deinit();
     return false;
   }
 
   /* Try to switch on GPS. */
   if(!GPS_Init()) {
-    GPS_Deinit();
     getPositionFallback(tp, ltp, GPS_ERROR);
+    GPS_Deinit();
     return false;
   }
   /* If a Pa pressure is set then GPS model depends on BME reading.
@@ -169,9 +171,9 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
      * Switch off GPS and set fallback position data.
      */
 
-    GPS_Deinit();
     TRACE_WARN("COLL > GPS acquisition stopped due low battery");
     getPositionFallback(tp, ltp, GPS_LOWBATT2);
+    GPS_Deinit();
     return false;
 
   }

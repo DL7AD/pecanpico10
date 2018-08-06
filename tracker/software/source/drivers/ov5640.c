@@ -743,6 +743,8 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
 		  TRACE_INFO("CAM  > Image size: %d bytes", size_sampled);
 		  return size_sampled;
 		}
+		/* Allow time for other threads. */
+		chThdSleep(TIME_MS2I(10));
 	} while(cntr--);
     TRACE_ERROR("CAM  > No image captured");
 	return 0;
