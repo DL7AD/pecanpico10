@@ -600,9 +600,9 @@ bool GPS_Init() {
 #if defined(UBLOX_UART_CONNECTED) && UBLOX_USE_I2C == FALSE
     // Init and start UART
     TRACE_INFO("GPS  > Init GPS UART");
+    /* TODO: Put UBLOX UART definition in portab. */
     palSetLineMode(LINE_GPS_RXD, PAL_MODE_ALTERNATE(11));       // UART RXD
     palSetLineMode(LINE_GPS_TXD, PAL_MODE_ALTERNATE(11));       // UART TXD
-
 	sdStart(&SD5, &gps_config);
 #endif
 

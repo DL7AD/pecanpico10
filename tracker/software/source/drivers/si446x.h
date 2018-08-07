@@ -120,6 +120,7 @@
 #define Si446x_MODEM_FSK4_TH                    0x203D
 #define Si446x_MODEM_FSK4_MAP                   0x203F
 #define Si446x_MODEM_OOK_PDTC                   0x2040
+#define Si446x_MODEM_OOK_BLOPK                  0x2041
 #define Si446x_MODEM_OOK_CNT1                   0x2042
 #define Si446x_MODEM_OOK_MISC                   0x2043
 #define Si446x_MODEM_RAW_SEARCH                 0x2044

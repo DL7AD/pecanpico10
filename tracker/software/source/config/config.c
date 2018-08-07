@@ -13,7 +13,7 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
             .fixed = false // Add lat, lon alt fields if enabling fixed
@@ -35,9 +35,12 @@ const conf_t conf_flash_default = {
     .pos_sec = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60),
+            .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
-            .fixed = false // Add lat, lon alt fields if enabling fixed
+            .fixed = true, // Add lat, lon alt fields if enabling fixed
+            .lat = -337331175, // Degrees (expressed in 1e-7 form)
+            .lon = 1511143478, // Degrees (expressed in 1e-7 form)
+            .alt = 144 // Altitude in metres
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -48,14 +51,14 @@ const conf_t conf_flash_default = {
         // App identity
         .call = "VK2GJ-15",
         .path = "",
-        .symbol = SYM_CAR,
+        .symbol = SYM_ANTENNA,
         .aprs_msg = true, // Enable APRS message reception on this call sign
     },
 
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60 * 1),
             .send_spacing = TIME_S2I(5)
@@ -81,10 +84,10 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = true,
-            .cycle = TIME_S2I(60 * 0),
+            .active = false,
+            .cycle = TIME_S2I(60 * 15),
             .init_delay = TIME_S2I(30 * 1),
-            .send_spacing = TIME_S2I(5)
+            .send_spacing = TIME_S2I(30)
         },
         .radio_conf = {
             .pwr = 0x1F,
