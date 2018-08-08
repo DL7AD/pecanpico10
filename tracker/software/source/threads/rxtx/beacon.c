@@ -62,24 +62,6 @@ THD_FUNCTION(bcnThread, arg) {
 
     /* Continue here when collector responds. */
     if(!p_sleep(&conf->beacon.sleep_conf)) {
-      //if(!isPositionValid(dataPoint) || dataPoint == NULL) {
-/*        TRACE_INFO("BCN  > Waiting for position data for"
-            " %s (GPS state=%d)", conf->call, dataPoint->gps_state);*/
-        //if(conf->run_once) {
-          /* If this is run once so don't retry. */
-          //chHeapFree(conf);
-          //pktThdTerminateSelf();
-        //}
-        //if(isGPSbatteryOperable(dataPoint)) {
-          /* If the battery is good retry quickly.
-           * TODO: Rework and involve the p_sleep setting?
-           * Limit to a number of retries? */
-          //chThdSleep(TIME_S2I(60));
-          //continue;
-        //}
-        /* Else battery weak so beacon fallback data (TX may fail). */
-      //}
-
       // Telemetry encoding parameter transmissions
       if(conf_sram.tel_enc_cycle != 0
     		  && chVTTimeElapsedSinceX(last_conf_transmission)

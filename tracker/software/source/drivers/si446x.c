@@ -499,17 +499,18 @@ static bool Si446x_init(const radio_unit_t radio) {
 
   /* RSSI value compensation. */
   if(is_part_Si4463(handler->radio_part))
-    Si446x_setProperty8(radio, Si446x_MODEM_RSSI_COMP, 0x48);
+    Si446x_setProperty8(radio, Si446x_MODEM_RSSI_COMP, 0x44);
   else
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_COMP, 0x40);
 
   /*
-   * TODO: Preamble control should be set in each mode.
+   * TODO: Preamble configuration should be set in each mode.
    * Will be needed for RX FSK mode.
    * For now it is not relevant since:
    * - we don't have RX FSK implemented yet.
    * - RX AFSK preamble is decoded in the MCU DSP chain.
    * - TX AFSK encodes its own preamble and then upsamples the entire packet.
+   * - TX 2FSK also encodes its own preamble which is sent as data by the PH.
    */
   Si446x_setProperty8(radio, Si446x_PREAMBLE_CONFIG, 0x21);
 

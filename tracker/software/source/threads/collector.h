@@ -34,7 +34,7 @@
  */
 #define GPS_STATE_NAMES                                                     \
   "LOCKED1", "LOCKED2", "LOSS", "LOWBATT1", "LOWBATT2", "LOG", "OFF",       \
-  "ERROR", "FIXED"
+  "ERROR", "FIXED", "TIME"
 
 typedef enum {
 	GPS_LOCKED1,	// The GPS is locked, the GPS has been switched off
@@ -45,10 +45,11 @@ typedef enum {
 	GPS_LOG,		// The tracker has just been switched on and the position has been taken from the log
 	GPS_OFF,		// There was no prior acquisition by GPS
 	GPS_ERROR,		// The GPS has a communication error
-    GPS_FIXED       // Fixed location data used from APRS location
+    GPS_FIXED,      // Fixed location data used from APRS location
+    GPS_TIME        // Time stamp of RTC on first getting GPS time
 } gpsState_t;
 
-#define GPS_STATE_MAX   GPS_FIXED
+#define GPS_STATE_MAX   GPS_TIME
 
 typedef struct {
 	// Voltage and current measurement

@@ -103,7 +103,7 @@ void start_aprs_threads(radio_unit_t radio, radio_freq_t base_freq,
  *
  */
 bool transmitOnRadio(packet_t pp, const radio_freq_t base_freq,
-                     const channel_hz_t step, const radio_ch_t chan,
+                     const channel_hz_t step, radio_ch_t chan,
                      const radio_pwr_t pwr, const mod_t mod,
                      const radio_squelch_t cca) {
   /* Select a radio by frequency. */
@@ -140,6 +140,11 @@ bool transmitOnRadio(packet_t pp, const radio_freq_t base_freq,
       return false;
   }
 
+  /* Channel is only used with absolute base frequencies. */
+  if(base_freq < FREQ_CODES_END) {
+    chan = 0;
+  }
+
   uint16_t len = ax25_get_info(pp, NULL);
 
   /* Check information size. */
@@ -166,7 +171,7 @@ bool transmitOnRadio(packet_t pp, const radio_freq_t base_freq,
     rt.handler = handler;
     rt.command = PKT_RADIO_TX_SEND;
     rt.type = mod;
-    rt.base_frequency = base_freq;
+    rt.base_frequency = op_freq;
     rt.step_hz = step;
     rt.channel = chan;
     rt.tx_power = pwr;

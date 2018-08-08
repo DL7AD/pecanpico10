@@ -176,6 +176,9 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
 
     TRACE_WARN("COLL > GPS acquisition stopped due low battery");
     getPositionFallback(tp, ltp, GPS_LOWBATT2);
+    tp->gps_sats = 0;
+    tp->gps_ttff = 0;
+    tp->gps_pdop = 0;
     GPS_Deinit();
     return false;
 
@@ -232,6 +235,14 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   // Debug
   TRACE_INFO("COLL > GPS sampling finished GPS LOCK");
 
+  // Read time from RTC
+  ptime_t time;
+  getTime(&time);
+  if(time.year == RTC_BASE_YEAR) {
+    /* Snapshot the RTC time. Old time entries can be adjusted using this data. */
+    ltp->gps_state = GPS_TIME;
+    ltp->gps_time = date2UnixTimestamp(&time);
+  }
   // Calibrate RTC
   setTime(&gpsFix.time);
 
@@ -478,11 +489,8 @@ THD_FUNCTION(collectorThread, arg) {
   }
   /* Now check if the controller has been reset (RTC not set). */
   getTime(&time);
-  if(time.year == RTC_BASE_YEAR)
-    /* Let initializer know this is a cold start (power loss). */
-    (void)chMsgSend(caller, MSG_RESET);
-  else
-    (void)chMsgSend(caller, MSG_OK);
+  /* Let initializer know if this is a normal or cold start (power loss). */
+  (void)chMsgSend(caller, time.year == RTC_BASE_YEAR ? MSG_RESET : MSG_OK);
 
   /*
    * Done with initialization now.
@@ -506,22 +514,28 @@ THD_FUNCTION(collectorThread, arg) {
     getGPIO(tp);
     setSystemStatus(tp);
 
-    getTime(&time);
     /* Set timeout based on cycle or minimum 1 minute. */
-    sysinterval_t gps_wait_time;
-    if(config->beacon.cycle < TIME_S2I(60))
-      gps_wait_time = TIME_S2I(60);
-    else
-      gps_wait_time = config->beacon.cycle;
+    sysinterval_t gps_wait_time =
+                                   config->beacon.cycle > TIME_S2I(60)
+                                   ? TIME_S2I(60) : config->beacon.cycle;
+
+    getTime(&time);
     if(time.year == RTC_BASE_YEAR) {
       /*
       *  The RTC is not set.
       *  Enable the GPS and attempt a lock which results in setting the RTC.
       */
-      TRACE_INFO("COLL > Acquire time using GPS");
+      TRACE_INFO("COLL > Attempt time acquisition using GPS for 60 seconds");
 
       if(aquirePosition(tp, ltp, gps_wait_time)) {
         /* Acquisition succeeded. */
+        if(ltp->gps_state == GPS_TIME) {
+          /* Write the timestamp where RTC was calibrated. */
+          ltp->gps_sats = 0;
+          ltp->gps_ttff = 0;
+          ltp->gps_pdop = 0;
+          flash_writeLogDataPoint(ltp);
+        }
         TRACE_INFO("COLL > Time update acquired from GPS");
       } else {
         /* Time is stale record. */

@@ -16,43 +16,43 @@ const conf_t conf_flash_default = {
             .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
-            .fixed = false // Add lat, lon alt fields if enabling fixed
+            .fixed = false // Add lat, lon, alt fields when enabling fixed
         },
         .radio_conf = {
-            .pwr = 0x1F,
-            .freq = FREQ_APRS_DYNAMIC,
-            .mod = MOD_AFSK,
+            .pwr = 0x7F,
+            .freq = 144800000,
+            .mod = MOD_2FSK,
             .cca = 0x4F,
         },
         // App identity
         .call = "VK2GJ-12",
         .path = "WIDE1-1",
         .symbol = SYM_ANTENNA,
-        .aprs_msg = true, // Enable APRS message reception on this call sign
+        .aprs_msg = true, // Enable APRS message reception on this app
     },
 
     // Secondary position app
     .pos_sec = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 5),
+            .cycle = TIME_S2I(60 * 30), // Beacon interval
             .init_delay = TIME_S2I(60),
-            .fixed = true, // Add lat, lon alt fields if enabling fixed
+            .fixed = true, // Add lat, lon alt fields when enabling fixed
             .lat = -337331175, // Degrees (expressed in 1e-7 form)
             .lon = 1511143478, // Degrees (expressed in 1e-7 form)
             .alt = 144 // Altitude in metres
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = 144800000,
-            .mod = MOD_2FSK,
+            .freq = FREQ_APRS_RECEIVE,
+            .mod = MOD_AFSK,
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-15",
-        .path = "",
-        .symbol = SYM_ANTENNA,
-        .aprs_msg = true, // Enable APRS message reception on this call sign
+        .call = "VK2GJ-5",
+        .path = "WIDE2-1",
+        .symbol = SYM_DIGIPEATER,
+        .aprs_msg = false, // Enable APRS message reception on this app
     },
 
     // Primary image app
@@ -159,17 +159,9 @@ const conf_t conf_flash_default = {
            .call = "VK2GJ-5",
            .path = "WIDE2-1",
            .symbol = SYM_DIGIPEATER,
-           .beacon = {
-             // The telemetry beacon service is enabled if true when RX and DIGI are enabled
-             // Receive is resumed after any transmission
-             .active = true,
-             .init_delay = TIME_S2I(20),
-             .cycle = TIME_S2I(60 * 30), // Beacon interval
-             .fixed = true, // Use fixed position data if true
-             .lat = -337331175, // Degrees (expressed in 1e-7 form)
-             .lon = 1511143478, // Degrees (expressed in 1e-7 form)
-             .alt = 144 // Altitude in metres
-            },
+           // A digipeater beacon can be added using one of the POS apps
+           // Set the POS identity the same as the dipipeater TX call sign
+           // Alternatively the digipeater can have its own .beacon entry here
        },
     },
 
