@@ -241,7 +241,7 @@ static inline msg_t pktSendRadioCommand(radio_unit_t radio,
                                         radio_task_object_t *task,
                                         radio_task_cb_t cb) {
   radio_task_object_t *rt = NULL;
-  msg_t msg = pktGetRadioTaskObject(radio, TIME_MS2I(3000), &rt);
+  msg_t msg = pktGetRadioTaskObject(radio, TIME_INFINITE, &rt);
   if(msg != MSG_OK)
     return MSG_TIMEOUT;
   *rt = *task;

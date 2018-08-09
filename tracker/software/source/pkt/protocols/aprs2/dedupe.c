@@ -26,7 +26,7 @@
  *		close together.
  *
  *
- * Description:	We want to avoid digipeating duplicate packets to
+ * Description:	We want to avoid digipeating duplicate packets
  *		to help reduce radio channel congestion with 
  *		redundant information.
  *		Duplicate packets can occur in several ways:
@@ -124,8 +124,8 @@
  *		
  *------------------------------------------------------------------------------*/
 
-static sysinterval_t history_time = 30;		/* Number of seconds to keep information */
-					/* about recent transmissions. */
+ /* Number of seconds to keep history information */
+static sysinterval_t history_time;
 
 #define HISTORY_MAX 25			/* Maximum number of transmission */
 					/* records to keep.  If we run out of */
@@ -148,8 +148,7 @@ static struct {
 } history[HISTORY_MAX];
 
 
-void dedupe_init (sysinterval_t ttl)
-{
+void dedupe_init (sysinterval_t ttl) {
 	history_time = ttl;
 	insert_next = 0;
 	memset (history, 0, sizeof(history));
@@ -192,8 +191,7 @@ void dedupe_init (sysinterval_t ttl)
  *		
  *------------------------------------------------------------------------------*/
 
-void dedupe_remember (packet_t pp, int chan)
-{
+void dedupe_remember (packet_t pp, int chan) {
 	history[insert_next].time_stamp = chVTGetSystemTime();
 	history[insert_next].checksum = ax25_dedupe_crc(pp);
 	history[insert_next].xmit_channel = chan;
@@ -224,14 +222,13 @@ void dedupe_remember (packet_t pp, int chan)
  *		
  *------------------------------------------------------------------------------*/
 
-int dedupe_check (packet_t pp, int chan)
-{
+int dedupe_check (packet_t pp, int chan) {
 	unsigned short crc = ax25_dedupe_crc(pp);
-	sysinterval_t now = chVTGetSystemTime();
+	///sysinterval_t now = chVTGetSystemTime();
 	int j;
 
 	for (j=0; j<HISTORY_MAX; j++) {
-	  if (history[j].time_stamp >= now - history_time &&
+	  if (chVTTimeElapsedSinceX(history[j].time_stamp) > history_time &&
 	      history[j].checksum == crc && 
 	      history[j].xmit_channel == chan) {
 	    return 1;

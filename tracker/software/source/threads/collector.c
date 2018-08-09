@@ -525,7 +525,8 @@ THD_FUNCTION(collectorThread, arg) {
       *  The RTC is not set.
       *  Enable the GPS and attempt a lock which results in setting the RTC.
       */
-      TRACE_INFO("COLL > Attempt time acquisition using GPS for 60 seconds");
+      TRACE_INFO("COLL > Attempt time acquisition using GPS for %d seconds",
+                 chTimeI2S(gps_wait_time));
 
       if(aquirePosition(tp, ltp, gps_wait_time)) {
         /* Acquisition succeeded. */

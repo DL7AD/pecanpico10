@@ -86,6 +86,8 @@
 #define Si446x_SYNC_CONFIG                      0x1100
 
 #define Si446x_PKT_CONFIG1                      0x1206
+#define Si446x_PKT_LEN                          0x1208
+#define Si446x_PKT_LEN_FIELD_SOURCE             0x1209
 
 #define Si446x_MODEM_MOD_TYPE                   0x2000
 #define Si446x_MODEM_MAP_CONTROL                0x2001

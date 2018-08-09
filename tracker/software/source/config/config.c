@@ -13,13 +13,13 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
             .fixed = false // Add lat, lon, alt fields when enabling fixed
         },
         .radio_conf = {
-            .pwr = 0x7F,
+            .pwr = 0x1F,
             .freq = 144800000,
             .mod = MOD_2FSK,
             .cca = 0x4F,
@@ -34,7 +34,7 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 30), // Beacon interval
             .init_delay = TIME_S2I(60),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
@@ -58,7 +58,7 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60 * 1),
             .send_spacing = TIME_S2I(5)
@@ -85,13 +85,13 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = false,
-            .cycle = TIME_S2I(60 * 2),
+            .cycle = TIME_S2I(60 * 15),
             .init_delay = TIME_S2I(15 * 1),
-            .send_spacing = TIME_S2I(0)
+            .send_spacing = TIME_S2I(2)
         },
         .radio_conf = {
             .pwr = 0x1F,
-            .freq = 144800000,
+            .freq = APRS_FREQ_AUSTRALIA,
             .mod = MOD_AFSK,
             .cca = 0x4F
         },
@@ -146,7 +146,7 @@ const conf_t conf_flash_default = {
             .symbol = SYM_ANTENNA
         },
         .aprs_msg = false, // Set true to enable messages to be accepted on RX call sign
-        .digi = false,
+        .digi = true,
         .tx = {
            // Transmit radio configuration
            .radio_conf = {

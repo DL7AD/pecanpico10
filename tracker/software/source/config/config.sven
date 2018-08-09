@@ -5,96 +5,98 @@
 
 #include "config.h"
 #include "aprs.h"
+#include "geofence.h"
 
 conf_t conf_sram;
 
 const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
-        .thread_conf = {
+        .beacon = {
             .active = true,
             .cycle = TIME_S2I(60),
-            .init_delay = TIME_S2I(0)
+            .init_delay = TIME_S2I(10),
+            .fixed = false // Add lat, lon, alt fields when enabling fixed
         },
         .radio_conf = {
             .pwr = 0x7F,
             .freq = 144800000,
             .mod = MOD_AFSK,
-            .cca = 0xFF,
+            .cca = 0x4F,
         },
         // App identity
         .call = "DL7AD-12",
         .path = "WIDE1-1",
-        .symbol = SYM_BALLOON,
-        .aprs_msg = true,
-        // How often to send telemetry config
-        .tel_enc_cycle = TIME_S2I(60 * 60)
+        .symbol = SYM_ANTENNA,
+        .aprs_msg = true, // Enable APRS message reception on this app
     },
 
     // Secondary position app
     .pos_sec = {
-        .thread_conf = {
-            .active = true,
-            .cycle = TIME_S2I(180),
-            .init_delay = TIME_S2I(60)
+        .beacon = {
+            .active = false,
+            .cycle = TIME_S2I(60 * 30), // Beacon interval
+            .init_delay = TIME_S2I(60),
+            .fixed = true, // Add lat, lon alt fields when enabling fixed
+            .lat = -337331175, // Degrees (expressed in 1e-7 form)
+            .lon = 1511143478, // Degrees (expressed in 1e-7 form)
+            .alt = 144 // Altitude in metres
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = 145825000,
+            .freq = FREQ_APRS_RECEIVE,
             .mod = MOD_AFSK,
-            .cca = 0xFF
+            .cca = 0x4F
         },
         // App identity
-        .call = "DL7AD-15",
-        .path = "",
-        .symbol = SYM_BALLOON,
-        .aprs_msg = true,
-
-        .tel_enc_cycle = TIME_S2I(0)
+        .call = "DL7AD-5",
+        .path = "WIDE2-1",
+        .symbol = SYM_DIGIPEATER,
+        .aprs_msg = false, // Enable APRS message reception on this app
     },
 
     // Primary image app
     .img_pri = {
-        .thread_conf = {
+        .svc_conf = {
             .active = true,
             .cycle = CYCLE_CONTINUOUSLY,
-            .init_delay = TIME_S2I(300),
-            .send_spacing = TIME_S2I(30)
+            .init_delay = TIME_S2I(30),
+            .send_spacing = TIME_S2I(10)
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = FREQ_APRS_DYNAMIC,
+            .freq = 144800000,
             .mod = MOD_AFSK,
-            .cca = 0xFF
+            .cca = 0x4F
 
         },
         // App identity
-        .call = "DL7AD-15",
+        .call = "DL7AD-12",
         .path = "",
 
         // Image settings
         .res = RES_QVGA,
         .quality = 4,
         .buf_size = 40 * 1024,
-        .redundantTx = false
+        .redundantTx = true
     },
 
     // Secondary image app
     .img_sec = {
-        .thread_conf = {
+        .svc_conf = {
             .active = false,
-            .cycle = TIME_S2I(60 * 30),
-            .init_delay = TIME_S2I(60 * 1),
+            .cycle = TIME_S2I(60 * 15),
+            .init_delay = TIME_S2I(30 * 1),
             .send_spacing = TIME_S2I(30)
         },
         .radio_conf = {
-            .pwr = 0x7F,
-            .freq = 145175000,
+            .pwr = 0x1F,
+            .freq = FREQ_APRS_DYNAMIC,
             .mod = MOD_AFSK,
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-14",
+        .call = "DL7AD-12",
         .path = "",
 
         // Image settings
@@ -106,7 +108,7 @@ const conf_t conf_flash_default = {
 
     // Log app
     .log = {
-        .thread_conf = {
+        .svc_conf = {
             .active = false,
             .cycle = TIME_S2I(10),
             .init_delay = TIME_S2I(5)
@@ -118,73 +120,78 @@ const conf_t conf_flash_default = {
             .cca = 0x4F
         },
         // Node identity
-        .call = "VK2GJ-13",
+        .call = "DL7AD-13",
         .path = "WIDE1-1",
         .density = 10
     },
 
     // APRS app
     .aprs = {
-        .thread_conf = {
-            .active = true,
-            .init_delay = TIME_S2I(10)
-        },
-        // Default APRS frequency when geofence not resolved
-        .freq = 145825000,
         // The receive identity for APRS
         .rx = {
+             .svc_conf = {
+                 // The packet receive service is enabled if true
+                 // Receive is paused and resumed by transmission
+                 .active = false,
+                 .init_delay = TIME_S2I(20)
+             },
+            // Receive radio configuration
             .radio_conf = {
-                .freq = 145825000,
+                .freq = 144800000,
                 .mod = MOD_AFSK,
-                .rssi = 0x5F
+                .rssi = 0x3F
             },
-            // App rx identity
-            .call = "DL7AD-15",
-            .symbol = SYM_BALLOON // Use this symbol in message responses
+            // APRS identity used in message responses if digipeat is not enabled
+            .call = "DL7AD-4",
+            .symbol = SYM_ANTENNA
         },
-        // The digipeat transmit identity and messages responses
-        .digi = {
-            .radio_conf = {
-                .freq = 145825000,
-                .pwr = 0x7F,
-                .mod = MOD_AFSK,
-                .cca = 0xFF
-            },
-            .active = true,
-            // Digipeat identity
-            .call = "DL7AD-15",
-            .path = "WIDE2-1",
-            .symbol = SYM_DIGIPEATER,
-            .beacon = false, // Set to have digi beacon position and telem
-            .cycle = TIME_S2I(60 * 30), // Position and telem beacon interval
-            .gps = false, // Set to have digi use GPS for position
-            // A set location if GPS not enabled or unable to acquire lock.
-            .lat = -337331175, // Degrees (expressed in 1e-7 form)
-            .lon = 1511143478, // Degrees (expressed in 1e-7 form)
-            .alt = 144, // Altitude in metres
-            // How often to send telemetry config (TODO: Move out to global level)
-            .tel_enc_cycle = TIME_S2I(0)
-        },
-        // The base station identity
-        .base = {
-            // Tracker originated messages will be sent to this call sign if enabled
-            .enabled = false,
-            .call = "VK2GJ-7",
-            .path = "WIDE2-1",
-        },
+        .aprs_msg = false, // Set true to enable messages to be accepted on RX call sign
+        .digi = true,
+        .tx = {
+           // Transmit radio configuration
+           .radio_conf = {
+               .freq = FREQ_APRS_RECEIVE,
+               .pwr = 0x7F,
+               .mod = MOD_AFSK,
+               .cca = 0x4F
+           },
+           // Digipeat transmission identity
+           .call = "DL7AD-5",
+           .path = "WIDE2-1",
+           .symbol = SYM_DIGIPEATER,
+           // A digipeater beacon can be added using one of the POS apps
+           // Set the POS identity the same as the dipipeater TX call sign
+           // Alternatively the digipeater can have its own .beacon entry here
+       },
     },
 
     // Global controls
+
     // Power control
     .keep_cam_switched_on = false,
-    .gps_on_vbat = 1000, // mV
-    .gps_off_vbat = 1000, // mV
-    .gps_onper_vbat = 1000, // mV
+    .gps_on_vbat = 3600, // mV
+    .gps_off_vbat = 3400, // mV
+    .gps_onper_vbat = 4000, // mV
 
-    // GPS altitude model control (air pressure determined by on-board BME280)
+    // GPS altitude model control (air pressure controlled using on-board BME280)
     .gps_pressure = 90000, // Air pressure (Pa) threshold for alt model switch
     .gps_low_alt = GPS_STATIONARY,
     .gps_high_alt = GPS_AIRBORNE_1G,
+
+    // APRS
+    // How often to send telemetry config
+    .tel_enc_cycle = TIME_S2I(60 * 60 * 2),
+
+    // The default APRS frequency when geofence is not resolved
+    .freq = APRS_FREQ_AUSTRALIA,
+
+    // The base station identity.
+    .base = {
+        // If enabled tracker initiated APRS messages are addressed to this call sign
+       .enabled = false,
+       .call = "DL7AD-7",
+       .path = "WIDE2-1",
+    },
 
     .magic = CONFIG_MAGIC_DEFAULT // Do not remove. This is the activation bit.
 };

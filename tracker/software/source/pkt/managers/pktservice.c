@@ -638,8 +638,6 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer) {
       /* Failed to create CB thread. Release buffer. Broadcast event. */
       chFifoReturnObject(pkt_fifo, pkt_buffer);
       pktAddEventFlags(handler, EVT_PKT_FAILED_CB_THD);
-      //flags |= EVT_PKT_FAILED_CB_THD;
-
     } else {
       /* Increase outstanding callback count. */
       handler->cb_count++;

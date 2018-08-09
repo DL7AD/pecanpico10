@@ -531,7 +531,7 @@ packet_t aprs_encode_data_packet(const char *callsign, const char *path,
  * @param[in    text        text of the message
  * @param[in]   ack         true if message acknowledgment requested
  */
-packet_t aprs_transmit_message(const char *originator, const char *path,
+packet_t aprs_format_transmit_message(const char *originator, const char *path,
                              const char *recipient, const char *text,
                              const bool ack) {
 	char xmit[256];
@@ -560,7 +560,7 @@ packet_t aprs_transmit_message(const char *originator, const char *path,
 
 /*
  * @brief       Compose an APRSD message
- * @notes       Used by position service.
+ * @notes       Used by beacon service.
  *
  * @param[in]   originator  originator of this message
  * @param[in]   path        path to use
@@ -585,7 +585,7 @@ packet_t aprs_compose_aprsd_message(const char *originator,
 	  buf[out-1] = 0; // Remove last space
 	}
 
-	return aprs_transmit_message(originator, path, recipient, buf, false);
+	return aprs_format_transmit_message(originator, path, recipient, buf, false);
 }
 
 /*
@@ -606,7 +606,7 @@ msg_t aprs_send_aprsd_message(aprs_identity_t *id,
 
   packet_t pp = aprs_compose_aprsd_message(id->call, id->path, id->src);
   if(pp == NULL) {
-    TRACE_WARN("RX   > No free packet objects or badly formed message");
+    TRACE_WARN("TX   > APRSD: No free packet objects or badly formed message");
     return MSG_ERROR;
   }
   if(!transmitOnRadio(pp,
@@ -616,7 +616,7 @@ msg_t aprs_send_aprsd_message(aprs_identity_t *id,
                   id->pwr,
                   id->mod,
                   id->cca)) {
-    TRACE_ERROR("RX   > Transmit of APRSD failed");
+    TRACE_ERROR("TX   > APRSD: Transmit failed");
     return MSG_ERROR;
   }
   return MSG_OK;
@@ -641,23 +641,25 @@ msg_t aprs_send_aprsh_message(aprs_identity_t *id,
   uint32_t out = 0;
   strupr(argv[0]);
   for(uint8_t i = 0; i < APRS_HEARD_LIST_SIZE; i++) {
-      if(heard_list[i].time && (strncmp(heard_list[i].call, argv[0],
-                                        strlen(argv[0])) == 0)) {
-        /* Convert time to human readable form. */
-        time_secs_t diff = chTimeI2S(chVTTimeElapsedSinceX(heard_list[i].time));
-        out = chsnprintf(buf, sizeof(buf),
-                         "%s heard %02i:%02i ago",
-                          heard_list[i].call, diff/60, diff % 60);
-        break;
-      }
-      if(out == 0) {
-        out = chsnprintf(buf, sizeof(buf),
-                         "%s not heard", argv[0]);
-      }
+    if(heard_list[i].time && (strncmp(heard_list[i].call, argv[0],
+                                      strlen(argv[0])) == 0)) {
+      /* Convert time to human readable form. */
+      time_secs_t diff = chTimeI2S(chVTTimeElapsedSinceX(heard_list[i].time));
+      out = chsnprintf(buf, sizeof(buf),
+                       "%s heard %02i:%02i ago",
+                        heard_list[i].call, diff/60, diff % 60);
+      break;
+    }
+    if(out == 0) {
+      out = chsnprintf(buf, sizeof(buf),
+                       "%s not heard", argv[0]);
+    }
   }
-  packet_t pp = aprs_transmit_message(id->call, id->path, id->src, buf, false);
+  TRACE_INFO("TX   > APRSH response: %s", buf);
+  packet_t pp = aprs_format_transmit_message(id->call, id->path, id->src,
+                                             buf, false);
   if(pp == NULL) {
-    TRACE_WARN("RX   > No free packet objects or badly formed message");
+    TRACE_WARN("TX   > APRSH: No free packet objects or badly formed message");
     return MSG_ERROR;
   }
   if(!transmitOnRadio(pp,
@@ -667,7 +669,7 @@ msg_t aprs_send_aprsh_message(aprs_identity_t *id,
                   id->pwr,
                   id->mod,
                   id->cca)) {
-    TRACE_ERROR("RX   > Transmit of APRSH failed");
+    TRACE_ERROR("TX   > APRSH: Transmit failed");
     return MSG_ERROR;
   }
   return MSG_OK;
@@ -762,7 +764,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
                      (pktReadGPIOline(LINE_IO1) == PAL_HIGH) ? "HIGH" : "LOW");
       TRACE_INFO("RX   > Message: GPIO query IO1 is %s",
                  (pktReadGPIOline(LINE_IO1) == PAL_HIGH) ? "HIGH" : "LOW");
-      pp = aprs_transmit_message(id->call, id->path, id->src, buf, false);
+      pp = aprs_format_transmit_message(id->call, id->path, id->src, buf, false);
       if(pp == NULL) {
         TRACE_WARN("RX   > No free packet objects or badly formed message");
         return MSG_ERROR;
@@ -778,7 +780,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
                      (pktReadGPIOline(LINE_IO2) == PAL_HIGH) ? "HIGH" : "LOW");
       TRACE_INFO("RX   > Message: GPIO query IO2 is %s",
                  (pktReadGPIOline(LINE_IO2) == PAL_HIGH) ? "HIGH" : "LOW");
-      pp = aprs_transmit_message(id->call, id->path, id->src, buf, false);
+      pp = aprs_format_transmit_message(id->call, id->path, id->src, buf, false);
       if(pp == NULL) {
         TRACE_WARN("RX   > No free packet objects or badly formed message");
         return MSG_ERROR;
@@ -794,7 +796,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
                      (pktReadGPIOline(LINE_IO3) == PAL_HIGH) ? "HIGH" : "LOW");
       TRACE_INFO("RX   > Message: GPIO query IO3 is %s",
                  (pktReadGPIOline(LINE_IO3) == PAL_HIGH) ? "HIGH" : "LOW");
-      pp = aprs_transmit_message(id->call, id->path, id->src, buf, false);
+      pp = aprs_format_transmit_message(id->call, id->path, id->src, buf, false);
       if(pp == NULL) {
         TRACE_WARN("RX   > No free packet objects or badly formed message");
         return MSG_ERROR;
@@ -810,7 +812,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
                      (pktReadGPIOline(LINE_IO4) == PAL_HIGH) ? "HIGH" : "LOW");
       TRACE_INFO("RX   > Message: GPIO query IO4 is %s",
                  (pktReadGPIOline(LINE_IO4) == PAL_HIGH) ? "HIGH" : "LOW");
-      pp = aprs_transmit_message(id->call, id->path, id->src, buf, false);
+      pp = aprs_format_transmit_message(id->call, id->path, id->src, buf, false);
       if(pp == NULL) {
         TRACE_WARN("RX   > No free packet objects or badly formed message");
         return MSG_ERROR;
@@ -865,7 +867,7 @@ msg_t aprs_transmit_telemetry_response(aprs_identity_t *id,
     *aprsd = *id->beacon;
   aprsd->run_once = true;
   aprsd->beacon.init_delay = 0;
-  thread_t *th = start_beacon_thread(aprsd, "APRSD");
+  thread_t *th = start_beacon_thread(aprsd, "APRSP");
   if(th == NULL) {
     chHeapFree(aprsd);
     return MSG_ERROR;
@@ -893,7 +895,7 @@ msg_t aprs_execute_system_reset(aprs_identity_t *id,
   TRACE_INFO("RX   > Message: System Reset");
   char buf[16];
   chsnprintf(buf, sizeof(buf), "ack%s", id->num);
-  packet_t pp = aprs_transmit_message(id->call,
+  packet_t pp = aprs_format_transmit_message(id->call,
                                     id->path,
                                     id->src, buf, false);
   if(pp == NULL) {
@@ -1147,7 +1149,7 @@ static bool aprs_decode_message(packet_t pp) {
             /*&& (conf_sram.aprs.digi.active)*/;
   /* Default already set tx parameters. */
 
-  /* Check if this is message and address is one of the apps on this device. */
+  /* Check for a message with address being one of the apps on this device. */
   if(!((pinfo[10] == ':') && (pos_pri || pos_sec || aprs_rx || aprs_tx))) {
     /*
      * Not a command or not addressed to one of the active apps on this device.
@@ -1158,7 +1160,6 @@ static bool aprs_decode_message(packet_t pp) {
 
   /* Proceed with command analysis. */
   char msg_id_rx[8] = {0};
-  //memset(msg_id_rx, 0, sizeof(msg_id_rx));
 
   // Cut off control chars
   for(uint16_t i = 11; pinfo[i] != 0
@@ -1208,7 +1209,7 @@ static bool aprs_decode_message(packet_t pp) {
   int n = 0;
   while ((lp = aprs_parse_arguments(NULL, &tokp)) != NULL) {
     if (n >= APRS_MAX_MSG_ARGUMENTS) {
-      TRACE_INFO("RX   > Too many APRS command arguments");
+      TRACE_WARN("RX   > Too many APRS command arguments");
       cmd = NULL;
       break;
     }
@@ -1233,7 +1234,7 @@ static bool aprs_decode_message(packet_t pp) {
      * Use the receiving node identity as sender.
      *  Don't request acknowledgment.
      */
-    packet_t pp = aprs_transmit_message(identity.call,
+    packet_t pp = aprs_format_transmit_message(identity.call,
                                       identity.path,
                                       identity.src, buf, false);
     if(pp == NULL) {
@@ -1266,7 +1267,8 @@ static void aprs_digipeat(packet_t pp) {
                                      conf_sram.aprs.tx.call, alias_re,
                                      wide_re, 0, preempt, NULL);
     if(result != NULL) { // Should be digipeated
-      dedupe_remember(result, 0);
+      /* Remember the transmission. Frequency may be a code or absolute. */
+      dedupe_remember(result, conf_sram.aprs.tx.radio_conf.freq);
       /* If transmit fails the packet buffer is released. */
       if(!transmitOnRadio(result,
                       conf_sram.aprs.tx.radio_conf.freq,
@@ -1289,15 +1291,15 @@ packet_t aprs_encode_telemetry_configuration(const char *originator,
                                              const char *destination,
                                              uint8_t type) {
 	switch(type) {
-		case 0:	return aprs_transmit_message(originator, path, destination,
+		case 0:	return aprs_format_transmit_message(originator, path, destination,
                  "PARM.Vbat,Vsol,Pbat,Temp,AirP,"
                  "IO1,IO2,IO3,IO4,IO5,IO6,IO7,IO8", false);
-		case 1: return aprs_transmit_message(originator, path, destination,
+		case 1: return aprs_format_transmit_message(originator, path, destination,
                  "UNIT.V,V,W,degC,Pa,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi", false);
-		case 2: return aprs_transmit_message(originator, path, destination,
+		case 2: return aprs_format_transmit_message(originator, path, destination,
                  "EQNS.0,0.001,0,0,0.001,0,0,0.001,"
                  "-4.096,0,0.1,-100,0,12.5,500", false);
-		case 3: return aprs_transmit_message(originator, path, destination,
+		case 3: return aprs_format_transmit_message(originator, path, destination,
                  "BITS.11111111,Pecan Pico", false);
 		default: return NULL;
 	}
@@ -1341,18 +1343,15 @@ void aprs_decode_packet(packet_t pp) {
   }
 
   // Decode message packets
-  bool digipeat = true;
   unsigned char *pinfo;
   if(ax25_get_info(pp, &pinfo) == 0)
     return;
   /*
-   * Check if the message is for us.
+   * Check if this is a message and is for us.
    * Execute any command found in the message.
    * If not then digipeat it.
    */
-  if(pinfo[0] == ':') {
-    digipeat = aprs_decode_message(pp); // ax25_get_dti(pp)
-  }
+  bool digipeat = (pinfo[0] == ':' ? aprs_decode_message(pp) : true);
 
   // Digipeat packet
   if(conf_sram.aprs.digi && digipeat) {

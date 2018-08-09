@@ -102,7 +102,7 @@ extern "C" {
                                                const char *path,
                                                const char *destination,
                                                uint8_t type);
-  packet_t  aprs_transmit_message(const char *callsign, const char *path,
+  packet_t  aprs_format_transmit_message(const char *callsign, const char *path,
                                const char *receiver, const char *text,
                                const bool ack);
   packet_t  aprs_encode_data_packet(const char *callsign, const char *path,

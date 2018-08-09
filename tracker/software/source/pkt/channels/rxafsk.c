@@ -1090,25 +1090,19 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 #endif
           /*
            * Indicate AFSK decode done.
-           * If PWM is still being captured for this stream capture will cease.
+           * If PWM is still being captured the capture will terminate.
            */
-          //eventflags_t evtf = EVT_NONE;
           myDriver->active_demod_object->status |= STA_AFSK_DECODE_DONE;
 
           /* Copy latest status into packet buffer object. */
           myHandler->active_packet_object->status =
               myDriver->active_demod_object->status;
 
-          /* Dispatch the packet buffer object and get AX25 events. */
-          myHandler->active_packet_object->status |=
-              pktDispatchReceivedBuffer(myHandler->active_packet_object);
+          /* Set AX25 status and dispatch the packet buffer object. */
+          pktDispatchReceivedBuffer(myHandler->active_packet_object);
 
-          /* Remove the packet object reference. */
+          /* Packet object has been handed over. Remove our reference. */
           myHandler->active_packet_object = NULL;
-
-          /* Send events then update demod object status. */
-          //pktAddEventFlags(myHandler, evtf);
-          //myDriver->active_demod_object->status |= evtf;
         } /* Active packet object != NULL. */
         myDriver->decoder_state = DECODER_RESET;
         break;

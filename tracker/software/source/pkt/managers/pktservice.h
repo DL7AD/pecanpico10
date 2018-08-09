@@ -553,7 +553,7 @@ static inline bool pktIsBufferValidAX25Frame(pkt_data_object_t *object) {
  */
 static inline bool pktGetAX25FrameStatus(pkt_data_object_t *object) {
   chDbgAssert(object != NULL, "no pointer to packet object buffer");
-  return !(object->status & (STA_PKT_INVALID_FRAME | STA_PKT_CRC_ERROR));
+  return (object->status & (STA_PKT_INVALID_FRAME | STA_PKT_CRC_ERROR)) == 0;
 }
 
 /**

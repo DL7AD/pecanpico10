@@ -430,8 +430,6 @@ static bool Si446x_init(const radio_unit_t radio) {
 
   /* TODO: We should clear interrupts here with a GET_INT_STATUS. */
 
-
-
   /* If Si446x is using its own xtal set the trim capacitor value. */
   #if !Si446x_CLK_TCXO_EN
   Si446x_setProperty8(radio, Si446x_GLOBAL_XO_TUNE, 0x40);
@@ -554,10 +552,8 @@ bool Si446x_setBandParameters(const radio_unit_t radio,
   if(freq < 239000000UL) {outdiv = 16; band = 4;}
   if(freq < 177000000UL) {outdiv = 24; band = 5;}
 
-  /* TODO: Is this redundant now?
-   * The radio is set in sleep versus shutdown when inactive (not receiving).
-   * Shutdown is only used when the channel is completely closed.
-   * The radio is initialized again when the channel is (re)opened.
+  /*
+   * Initialize radio.
    */
   Si446x_conditional_init(radio);
 
@@ -648,6 +644,9 @@ static void Si446x_setModemAFSK_TX(const radio_unit_t radio) {
     // Use up-sampled AFSK from FIFO (PH)
     Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
 
+    /* Set PH bit order for AFSK. */
+    Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x01);
+
     // Set AFSK filter
     const uint8_t coeff[] = {0x81, 0x9f, 0xc4, 0xee, 0x18, 0x3e, 0x5c, 0x70, 0x76};
     uint8_t i;
@@ -704,10 +703,10 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
   Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
   Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x02, 0x50);
-  Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0x80);
+  Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0xC0); // 0x80
 
   /* RX AGC control. */
-  Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0); // 0xE2
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0); // 0xE2 (bit 1 not used in 4464. It is used in 4463.)
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
@@ -724,7 +723,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   Si446x_setProperty8(radio, Si446x_MODEM_IF_CONTROL, 0x08);
   Si446x_setProperty24(radio, Si446x_MODEM_IF_FREQ, 0x02, 0x80, 0x00);
 
-  /* RX If filter decimation controls. */
+  /* RX IF filter decimation controls. */
   Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x70);
   Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
   if(is_part_Si4463(handler->radio_part)) {
@@ -809,6 +808,9 @@ static void Si446x_setModem2FSK_TX(const radio_unit_t radio,
 
     // Use 2GFSK from FIFO (PH)
     Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x03);
+
+    /* Set PH bit order for 2FSK. */
+    Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x01);
 
     // Set 2GFSK filter (default per Si).
     const uint8_t coeff[] = {0x01, 0x03, 0x08, 0x11, 0x21, 0x36, 0x4d, 0x60, 0x67};
@@ -1246,9 +1248,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     chSysHalt("TX AFSK exit");
   }
 
-  /* Initialize radio. */
-  /* TODO: This is redundant as the radio is initialized by the manager. */
-  //Si446x_conditional_init(radio);
+  /* Initialize radio as it may have been powered down. */
+  Si446x_conditional_init(radio);
 
   /* Base frequency is an absolute frequency in Hz. */
   Si446x_setBandParameters(radio, rto->base_frequency,
@@ -1504,9 +1505,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     /* We never arrive here. */
   }
 
-  /* Initialize radio.
-   * TODO: This is redundant as the radio is initialized by the manager. */
-  //Si446x_conditional_init(radio);
+  /* Initialize radio as it may have been powered down. */
+  Si446x_conditional_init(radio);
 
   /* Set 446x back to READY from RX (if active). */
   Si446x_terminateReceive(radio);
