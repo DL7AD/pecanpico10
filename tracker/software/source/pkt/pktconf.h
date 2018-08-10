@@ -65,9 +65,9 @@
 //#define EVT_AFSK_TERMINATED     EVENT_MASK(EVT_PRIORITY_BASE +  4)
 #define EVT_AFSK_START_FAIL     EVENT_MASK(EVT_PRIORITY_BASE +  5)
 //#define STA_AFSK_DECODE_RESET   EVENT_MASK(EVT_PRIORITY_BASE +  6)
-//#define STA_AFSK_DECODE_DONE    EVENT_MASK(EVT_PRIORITY_BASE +  7)
+#define EVT_PWM_INVALID_SWAP    EVENT_MASK(EVT_PRIORITY_BASE +  7)
 
-/* TODO: Create an AKSK event field in decoder for the PWM & radio events. */
+/* TODO: Create an AKSK event field in decoder for the PWM & radio events? */
 #define EVT_PWM_NO_DATA         EVENT_MASK(EVT_PRIORITY_BASE +  8)
 #define EVT_PWM_INVALID_INBAND  EVENT_MASK(EVT_PRIORITY_BASE +  9)
 #define EVT_PWM_FIFO_EMPTY      EVENT_MASK(EVT_PRIORITY_BASE + 10)
@@ -128,14 +128,22 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #define STATUS_MASK(sid) ((statusmask_t)1 << (statusmask_t)(sid))
 
 /* TODO: Classify status by PKT, AFSK and 2FSK types. */
-#define STA_PKT_FRAME_RDY       STATUS_MASK(0)
-#define STA_PKT_CRC_ERROR       STATUS_MASK(1)
-#define STA_PKT_INVALID_FRAME   STATUS_MASK(2)
-#define STA_AFSK_DECODE_RESET   STATUS_MASK(3)
-#define STA_AFSK_DECODE_DONE    STATUS_MASK(4)
-#define STA_PWM_STREAM_CLOSED   STATUS_MASK(5)
+#define STA_PKT_FRAME_RDY           STATUS_MASK(0)
+#define STA_PKT_CRC_ERROR           STATUS_MASK(1)
+#define STA_PKT_INVALID_FRAME       STATUS_MASK(2)
+#define STA_AFSK_DECODE_RESET       STATUS_MASK(3)
+#define STA_AFSK_DECODE_DONE        STATUS_MASK(4)
+#define STA_PWM_STREAM_CLOSED       STATUS_MASK(5)
+#define STA_AFSK_FRAME_RESET        STATUS_MASK(6)
+#define STA_PKT_BUFFER_FULL         STATUS_MASK(7)
+#define STA_AFSK_INVALID_INBAND     STATUS_MASK(8)
+#define STA_AFSK_INVALID_SWAP       STATUS_MASK(9)
+#define STA_PWM_STREAM_TIMEOUT      STATUS_MASK(10)
+#define STA_PKT_NO_BUFFER           STATUS_MASK(11)
 
-
+/**
+ * Use this attribute to put variables in CCM.
+ */
 #define useCCM  __attribute__((section(".ram4")))
 
 #ifdef PKT_IS_TEST_PROJECT
@@ -176,11 +184,23 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #include "pktevt.h"
 #include "debug.h"
 
-extern packet_svc_t RPKTD1;
+/*===========================================================================*/
+/* Driver definitions.                                                       */
+/*===========================================================================*/
+
+#if !defined(PKT_SVC_USE_RADIO1)
+#define PKT_SVC_USE_RADIO1 FALSE
+#endif
+
+#if !defined(PKT_SVC_USE_RADIO2)
+#define PKT_SVC_USE_RADIO2 FALSE
+#endif
 
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
+
+//extern packet_svc_t RPKTD1;
 
 #ifdef __cplusplus
 extern "C" {

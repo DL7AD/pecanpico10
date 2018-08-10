@@ -17,8 +17,6 @@
 #ifndef _MCUCONF_H_
 #define _MCUCONF_H_
 
-#include "config.h"
-
 /*
  * STM32F4xx drivers configuration.
  * The following settings override the default settings present in
@@ -84,6 +82,7 @@
 /*
  * EXT driver system settings.
  */
+/*
 #define STM32_EXT_EXTI0_IRQ_PRIORITY        6
 #define STM32_EXT_EXTI1_IRQ_PRIORITY        6
 #define STM32_EXT_EXTI2_IRQ_PRIORITY        6
@@ -96,6 +95,7 @@
 #define STM32_EXT_EXTI18_IRQ_PRIORITY       6
 #define STM32_EXT_EXTI19_IRQ_PRIORITY       6
 #define STM32_EXT_EXTI22_IRQ_PRIORITY       15
+*/
 
 /*
  * GPT driver system settings.

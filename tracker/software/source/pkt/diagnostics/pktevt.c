@@ -62,9 +62,9 @@ eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(1));
     if(flags & EVT_PKT_FAILED_CB_THD) {
       TRACE_ERROR("PKT  > Failed to create RX callback thread");
     }
-/*    if(flags & EVT_ICU_OVERFLOW) {
-      TRACE_DEBUG("PKT  > PWM ICU overflow");
-    }*/
+    if(flags & EVT_PWM_INVALID_SWAP) {
+      TRACE_DEBUG("PKT  > Invalid in-band buffer swap");
+    }
     if(flags & EVT_PWM_STREAM_TIMEOUT) {
       TRACE_WARN("PKT  > PWM stream timeout");
     }

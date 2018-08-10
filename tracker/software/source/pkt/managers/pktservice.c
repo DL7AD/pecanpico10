@@ -7,7 +7,7 @@
 */
 
 #include "pktconf.h"
-
+#include "portab.h"
 
 /*===========================================================================*/
 /* Module local definitions.                                                 */
@@ -19,6 +19,18 @@
 
 memory_heap_t *ccm_heap = NULL;
 //guarded_memory_pool_t *ccm_pool = NULL;
+
+/*===========================================================================*/
+/* Driver exported variables.                                                */
+/*===========================================================================*/
+
+#if PKT_SVC_USE_RADIO1 || defined(__DOXYGEN__)
+packet_svc_t RPKTD1;
+#endif
+
+#if PKT_SVC_USE_RADIO2 || defined(__DOXYGEN__)
+packet_svc_t RPKTD2;
+#endif
 
 /*===========================================================================*/
 /* Module local types.                                                       */
@@ -57,8 +69,17 @@ static guarded_memory_pool_t _ccm_pool;*/
  */
 bool pktSystemInit(void) {
 
-//#define useCCM  __attribute__((section(".ram4")))
-//static int example useCCM;
+/*
+ * The definition for CCM is in pktconf.h as follows...
+ *  #define useCCM  __attribute__((section(".ram4")))
+ * How to allocate a variable in CCM...
+ *  int example useCCM;
+ *
+ * The remainder available in CCM is used to create a heap.
+ * This can be used for non-DMA access data only in the F413.
+ */
+
+ /* Reference the linker created CCM variables to get the available heap area. */
   extern uint8_t __ram4_free__[];
   extern uint8_t __ram4_end__[];
 
@@ -101,7 +122,7 @@ bool pktSystemDeinit(void) {
    * Remove common packet buffer control.
    */
   chDbgAssert(ccm_heap != NULL, "CCM heap does not exist");
-  chSysLock();
+  //chSysLock();
 
   pktDeinitBufferControl();
 
@@ -873,8 +894,9 @@ dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 dyn_semaphore_t *pktInitBufferControl() {
 
   /* Check if the transmit packet buffer semaphore already exists.
-   * If so we get a pointer to it and just return that.
-   * Otherwise create the semaphore and return result.
+   * Calling this twice is an error so assert if enabled.
+   * Otherwise get a pointer to it and just return that.
+   * If it does not exist create the semaphore and return result.
    */
   dyn_semaphore_t *dyn_sem =
       chFactoryFindSemaphore(PKT_SEND_BUFFER_SEM_NAME);
@@ -895,13 +917,13 @@ dyn_semaphore_t *pktInitBufferControl() {
 }
 
 /*
- * Send and packet analysis share a common pool of buffers.
+ * Radio send and APRS packet analysis share a common pool of buffers.
  */
 void pktDeinitBufferControl() {
 
-  /* Check if the transmit packet buffer semaphore already exists.
-   * If so we get a pointer to it and just return that.
-   * Otherwise create the semaphore and return result.
+  /* Check if the transmit packet buffer semaphore exists.
+   * If so wait for all references to be released.
+   * Then release the semaphore.
    */
   dyn_semaphore_t *dyn_sem =
       chFactoryFindSemaphore(PKT_SEND_BUFFER_SEM_NAME);

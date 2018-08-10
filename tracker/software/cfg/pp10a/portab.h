@@ -88,11 +88,6 @@
 #define LINE_IO7                    PAL_NOLINE
 #define LINE_IO8                    PAL_NOLINE
 
-/* Si446x clock setup. */
-#define Si446x_CLK                  STM32_HSECLK            /* Oscillator frequency in Hz */
-#define Si446x_CLK_OFFSET           22                      /* Oscillator frequency drift in ppm */
-#define Si446x_CLK_TCXO_EN          true                    /* Set this true, if a TCXO is used, false for XTAL */
-
 /*
  * Radio GPIO definitions.
  */
@@ -114,7 +109,7 @@
 #define BAND_DEF_2M_APRS            144800000               /* Default frequency in Hz.        */
 #define BAND_MIN_70CM_FREQ          420000000               /* Minimum allowed frequency in Hz */
 #define BAND_MAX_70CM_FREQ          450000000               /* Maximum allowed frequency in Hz */
-#define BAND_STEP_70CM_HZ           25000
+#define BAND_STEP_70CM_HZ           12500
 #define BAND_DEF_70CM_APRS          439100000               /* Default frequency in Hz.        */
 
 #define DEFAULT_OPERATING_FREQ      144800000
@@ -127,8 +122,6 @@
 #define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
 #define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
 
-//#define NUM_BANDS_PER_RADIO         2
-
 /* LED status indicators (set to PAL_NOLINE if not available). */
 #define LINE_OVERFLOW_LED           PAL_NOLINE
 #define LINE_DECODER_LED            LINE_IO_BLUE
@@ -138,10 +131,6 @@
 
 /* Diagnostic PWM mirror port. */
 #define LINE_PWM_MIRROR             PAL_NOLINE
-
-/* Radio ports. */
-//#define LINE_CCA                    LINE_RADIO_NIRQ
-//#define LINE_ICU                    LINE_RADIO_GPIO1
 
 //#define LINE_UART4_TX               PAL_LINE(GPIOA, 12U)
 //#define LINE_UART4_RX               PAL_LINE(GPIOA, 11U)
@@ -173,7 +162,7 @@
 /**
  *  ICU related definitions.
  */
-#define RADIO1_ICU_DRIVER           &ICUD4
+#define PKT_RADIO1_ICU              &ICUD4
 
 #define PWM_ICU_CLK                 STM32_TIMCLK1
 
@@ -240,6 +229,9 @@
 /* Module pre-compile time settings.                                         */
 /*===========================================================================*/
 
+#define PKT_SVC_USE_RADIO1  TRUE
+#define PKT_SVC_USE_RADIO2  FALSE
+
 /*===========================================================================*/
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
@@ -259,24 +251,26 @@
 extern const radio_band_t band_2m;
 extern const radio_band_t band_70cm;
 extern const radio_config_t radio_list[];
+extern pkt_service_t RPKTD1;
+extern AFSKDemodDriver AFSKD1;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void pktConfigSerialDiag(void);
-  void pktConfigSerialPkt(void);
-  void pktConfigureCoreIO(void);
-  ioline_t pktSetLineModeICU(const radio_unit_t radio);
-  ioline_t pktSetLineModeRadioGPIO1(const radio_unit_t radio);
-  ioline_t pktSetLineModeRadioGPIO0(const radio_unit_t radio);
-  void pktSerialStart(void);
-  void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
-  int  dbgPrintf(uint8_t level, const char *format, ...);
-  void pktWrite(uint8_t *buf, uint32_t len);
-  uint8_t pktReadIOlines(void);
-  void pktRadioICUWidth(ICUDriver *icup);
-  void pktRadioICUPeriod(ICUDriver *icup);
-  void pktRadioICUOverflow(ICUDriver *icup);
+  void      pktConfigSerialDiag(void);
+  void      pktConfigSerialPkt(void);
+  void      pktConfigureCoreIO(void);
+  ioline_t  pktSetLineModeICU(const radio_unit_t radio);
+  ioline_t  pktSetLineModeRadioGPIO1(const radio_unit_t radio);
+  ioline_t  pktSetLineModeRadioGPIO0(const radio_unit_t radio);
+  void      pktSerialStart(void);
+  void      dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
+  int       dbgPrintf(uint8_t level, const char *format, ...);
+  void      pktWrite(uint8_t *buf, uint32_t len);
+  uint8_t   pktReadIOlines(void);
+  void      pktRadioICUWidth(ICUDriver *icup);
+  void      pktRadioICUPeriod(ICUDriver *icup);
+  void      pktRadioICUOverflow(ICUDriver *icup);
 #ifdef __cplusplus
 }
 #endif

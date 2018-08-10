@@ -17,10 +17,13 @@
 
 
 #include "pktconf.h"
+#include "portab.h"
 
 /*===========================================================================*/
-/* Module exported variables.                                                */
+/* Driver exported variables.                                                */
 /*===========================================================================*/
+
+/* TODO: Move into pktservice.c . */
 
 packet_svc_t RPKTD1;
 

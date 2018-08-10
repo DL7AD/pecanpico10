@@ -42,7 +42,7 @@ const si446x_mcucfg_t radio1_cfg = {
 		.sdn	= LINE_RADIO_SDN,
 		.cs		= LINE_RADIO_CS,
         .spi    = PKT_RADIO1_SPI,
-		.icu    = RADIO1_ICU_DRIVER,
+		.icu    = PKT_RADIO1_ICU,
 		.alt    = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2)),
 		.cfg    = {
                       ICU_INPUT_ACTIVE_HIGH,
@@ -76,6 +76,8 @@ const radio_config_t radio_list[] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
     .type = SI446X,
+    .pkt    = (pkt_service_t *const)&RPKTD1,
+    .afsk   = (AFSKDemodDriver *const)&AFSKD1,
     .cfg    = (si446x_mcucfg_t *const)&radio1_cfg,
     .dat    = (si446x_data_t *)&radio1_dat,
     .bands  = (radio_band_t **const)radio_bands
@@ -86,7 +88,7 @@ const radio_config_t radio_list[] = {
 };
 
 /**
- *
+ * Debug serial port setting.
  */
 const SerialConfig debug_config = {
   115200,

@@ -145,7 +145,13 @@ float32_t pre_filter_coeff_f32[PRE_FILTER_NUM_TAPS] = {
 /*
  * Data structure for AFSK decoding.
  */
+#if PKT_SVC_USE_RADIO1 || defined(__DOXYGEN__)
 AFSKDemodDriver AFSKD1;
+#endif
+
+#if PKT_SVC_USE_RADIO2 || defined(__DOXYGEN__)
+AFSKDemodDriver AFSKD2;
+#endif
 
 /*===========================================================================*/
 /* Decoder local variables and types.                                        */
@@ -434,10 +440,10 @@ static void pktResetAFSKDecoder(AFSKDemodDriver *myDriver) {
  * @note    The si radio has no AFSK decoding capability.
  * @note    The PWM RX_DATA from the radio is decoded as AFSK by the uC.
  *
- * @post    An ICU and GPIO ports for the Radio are attached and initialized.
- * @post    A dynamic object FIFO is created for buffering radio PWM data.
- * @post    Buffers are posted to demodulator where decoding takes place.
- * @post    Multiple PWM sessions may be queued by the Radio for demodulation.
+ * @post    An ICU and GPIO ports for the radio are attached and initialized.
+ * @post    A dynamic object FIFO is created for streaming radio PWM data.
+ * @post    A steam object is posted to demodulator where decoding takes place.
+ * @post    Multiple PWM sessions may be queued by the radio for demodulation.
  *
  * @param[in]   pktHandler  pointer to a @p PKTDriver structure
  * @param[in]   radio       radio ID.
@@ -451,8 +457,15 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
 
   chDbgAssert(pktHandler != NULL, "no packet handler");
 
-  AFSKDemodDriver *myDriver = &AFSKD1;
+  const radio_config_t *data = pktGetRadioData(pktHandler->radio);
+  chDbgAssert(data != NULL, "invalid radio ID");
+  if(data == NULL)
+    return NULL;
 
+  /* Get afsk object from radio data. */
+  AFSKDemodDriver *myDriver = data->afsk;
+
+  chDbgAssert(data != NULL, "invalid AFSK driver");
   /*
    * Initialize the decoder event object.
    */
@@ -785,7 +798,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /* Decrease ref count on AX25 FIFO. */
           chFactoryReleaseObjectsFIFO(pkt_fifo);
           pktAddEventFlags(myHandler, EVT_PKT_NO_BUFFER);
-          //myDriver->active_demod_object->status |= EVT_AX25_NO_BUFFER;
+          myDriver->active_demod_object->status |= STA_PKT_NO_BUFFER;
           myDriver->decoder_state = DECODER_RESET;
           break;
         }
@@ -826,32 +839,33 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         if(n != sizeof(packed_pwm_counts_t)) {
           /* PWM stream wait timeout. */
           pktAddEventFlags(myHandler, EVT_PWM_STREAM_TIMEOUT);
-          //myDriver->active_demod_object->status |= EVT_PWM_STREAM_TIMEOUT;
+          myDriver->active_demod_object->status |= STA_PWM_STREAM_TIMEOUT;
           myDriver->decoder_state = DECODER_RESET;
           break;
         }
-        array_min_pwm_counts_t radio;
-        pktUnpackPWMData(data, &radio);
+        array_min_pwm_counts_t stream;
+        pktUnpackPWMData(data, &stream);
 
 #if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
         char buf[80];
         int out = chsnprintf(buf, sizeof(buf), "%i, %i\r\n",
-                  radio.pwm.impulse, radio.pwm.valley);
+                  stream.pwm.impulse, stream.pwm.valley);
         pktWrite( (uint8_t *)buf, out);
 #endif
 
         /* Look for "in band" message in radio data. */
-        if(radio.pwm.impulse == PWM_IN_BAND_PREFIX) {
-          switch(radio.pwm.valley) {
+        if(stream.pwm.impulse == PWM_IN_BAND_PREFIX) {
+          switch(stream.pwm.valley) {
           case PWM_TERM_DECODE_STOP: {
             /*
              *  The receive controller has issued a decoder stop.
-             *  This happens when a TX request is submitted or an service stop is requested.
-             *  The PWM stop places an in-band message in the PWM stream if open.
+             *  This happens when a service stop is submitted.
+             *  Can be TX or a service stop as part of closing a service.
+             *  PWM stop places an in-band message in the PWM stream if open.
              *  The decoder will then (eventually) process the in-band message.
-             *  The decode result will be invalid due to being stopped.
+             *  The decode result is invalid due to being aborted.
              *  The current AX25 buffer will not be dispatched.
-             *  PWM and AX25 buffers and the stream manager object will be released in RESET.
+             *  PWM and AX25 buffers and stream object are released in RESET.
              */
             myDriver->decoder_state = DECODER_RESET;
             continue; /* Continue in main loop. */
@@ -865,7 +879,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
              * It writes an in-band message in the open stream.
              * Although we should never see that in-band.
              * The decoder has already moved out of ACTIVE state and is no longer processing PWM.
-             * TODO: Deprecate these cases after checking they never happen.
+             * TODO: Deprecate these cases after confirming they never happen.
              */
             pktAddEventFlags(myHandler, EVT_PWM_INVALID_INBAND);
             myDriver->decoder_state = DECODER_RESET;
@@ -873,7 +887,10 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             continue; /* Decoder state switch. */
           } /* End case. */
 
-          /* If PWM reports a zero impulse or valley.
+          /* The next cases all fall through and set DECODER_RESET state. */
+
+          /*
+           *  If PWM reports a zero impulse or valley.
            * The PWM side has already posted a PWM_STREAM_CLOSE event.
            */
         case PWM_TERM_ICU_ZERO:
@@ -931,6 +948,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                */
 
               /* TODO: Need an EVT code freed up to add INVALID_SWAP. */
+              pktAddEventFlags(myHandler, EVT_PWM_INVALID_SWAP);
+              myDriver->active_demod_object->status |= STA_AFSK_INVALID_SWAP;
               myDriver->decoder_state = DECODER_RESET;
             }
             continue; /* Decoder state switch. */
@@ -940,6 +959,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           default: {
             /* Unknown in-band message from PWM. */
             pktAddEventFlags(myHandler, EVT_PWM_INVALID_INBAND);
+            myDriver->active_demod_object->status |= STA_AFSK_INVALID_INBAND;
             myDriver->decoder_state = DECODER_RESET;
             continue;  /* Enclosing state switch. */
             } /* End case default. */
@@ -948,14 +968,14 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         } /* End if in-band. */
 
         /*
-         * If not in-band the process the AFSK into an HDLC bit and AX25 data.
+         * If not in-band process the AFSK into an HDLC bit and AX25 data.
          */
-        if(!pktProcessAFSK(myDriver, radio.array)) {
+        if(!pktProcessAFSK(myDriver, stream.array)) {
           /* AX25 character decoded but buffer is full.
-           * Status set and event sent by HDLC processor.
+           * Event sent by HDLC processor (common code for AFSK & 2FSK).
            * Set error state and don't dispatch the AX25 buffer.
-           * TODO: Move status and event broadcast to here?
            */
+          myDriver->active_demod_object->status |= STA_PKT_BUFFER_FULL;
           myDriver->decoder_state = DECODER_RESET;
           break; /* From this case. */
         }
@@ -973,6 +993,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
         /* HDLC reset after frame open and minimum valid data received. */
         case FRAME_RESET:
+          myDriver->active_demod_object->status |= STA_AFSK_FRAME_RESET;
           myDriver->decoder_state = DECODER_RESET;
           continue;
 
@@ -987,11 +1008,25 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
       /*
        * RESET readies the decoder for the next session.
        * It frees any held buffers/objects.
-       * The DSP system is reset and then transition to IDLE.
+       * The DSP system is reset and then transitions to IDLE.
        */
       case DECODER_RESET: {
+#if AFSK_DEBUG_TYPE == AFSK_PACKET_RESET_STATUS
+        radio_pwm_fifo_t *demod_object = myDriver->active_demod_object;
+        char buf[120];
+        if(demod_object != NULL) {
+          int out = chsnprintf(buf, sizeof(buf),
+                               "AFSK Reset demod status: %x\r\n",
+                               demod_object->status);
+          pktWrite( (uint8_t *)buf, out);
+        } else {
+          int out = chsnprintf(buf, sizeof(buf),
+                               "AFSK Reset has no demod object\r\n");
+          pktWrite( (uint8_t *)buf, out);
+        }
+#endif
+        /* If there is a packet buffer object then handle it. */
         if(myHandler->active_packet_object != NULL) {
-
 #if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
           char buf[80];
           int out = chsnprintf(buf, sizeof(buf),
@@ -1005,7 +1040,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                            AX25_DUMP_RAW);
 #endif
 #if USE_CCM_HEAP_RX_BUFFERS == TRUE
-          /* Free the packet buffer in the heap now. */
+          /* Free the packet buffer referenced in the packet object. */
           chHeapFree(myHandler->active_packet_object->buffer);
 #endif
           /* Release the AX25 receive packet buffer management object. */
@@ -1024,6 +1059,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
          * Return stream FIFO to pool if there is one active.
          */
         radio_pwm_fifo_t *myFIFO = myDriver->active_demod_object;
+        /* There won't be a demod object if the decoder is just being reset. */
         if(myFIFO != NULL) {
           /*
            * Lock the PWM queue to stop any further radio data being written.
@@ -1090,7 +1126,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 #endif
           /*
            * Indicate AFSK decode done.
-           * If PWM is still being captured the capture will terminate.
+           * PWM handler will terminate capture session if still active.
            */
           myDriver->active_demod_object->status |= STA_AFSK_DECODE_DONE;
 

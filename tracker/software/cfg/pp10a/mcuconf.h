@@ -86,6 +86,7 @@
 /*
  * EXT driver system settings.
  */
+/*
 #define STM32_EXT_EXTI0_IRQ_PRIORITY        6
 #define STM32_EXT_EXTI1_IRQ_PRIORITY        6
 #define STM32_EXT_EXTI2_IRQ_PRIORITY        6
@@ -98,6 +99,7 @@
 #define STM32_EXT_EXTI18_IRQ_PRIORITY       6
 #define STM32_EXT_EXTI19_IRQ_PRIORITY       6
 #define STM32_EXT_EXTI22_IRQ_PRIORITY       15
+*/
 
 /*
  * GPT driver system settings.

@@ -555,7 +555,7 @@ bool Si446x_setBandParameters(const radio_unit_t radio,
   /*
    * Initialize radio.
    */
-  Si446x_conditional_init(radio);
+  //Si446x_conditional_init(radio);
 
   /* Set the band parameter. */
   uint32_t sy_sel = 8;
@@ -1139,9 +1139,13 @@ bool Si4464_enableReceive(const radio_unit_t radio,
               rx_chan,
               rx_rssi, getModulation(rx_mod));
 
+  /* Initialize radio before any commands as it may have been powered down. */
+  Si446x_conditional_init(radio);
+
   /* Frequency must be an absolute frequency in Hz. */
   if(!Si446x_setBandParameters(radio, op_freq, rx_step))
     return false;
+
   return Si446x_receiveNoLock(radio, op_freq, rx_step,
                              rx_chan, rx_rssi, rx_mod);
 }
@@ -1248,7 +1252,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     chSysHalt("TX AFSK exit");
   }
 
-  /* Initialize radio as it may have been powered down. */
+  /* Initialize radio before any commands as it may have been powered down. */
   Si446x_conditional_init(radio);
 
   /* Base frequency is an absolute frequency in Hz. */
@@ -1505,7 +1509,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     /* We never arrive here. */
   }
 
-  /* Initialize radio as it may have been powered down. */
+  /* Initialize radio before any commands as it may have been powered down. */
   Si446x_conditional_init(radio);
 
   /* Set 446x back to READY from RX (if active). */

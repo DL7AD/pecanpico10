@@ -13,7 +13,7 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
             .fixed = false // Add lat, lon, alt fields when enabling fixed
@@ -34,7 +34,7 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 30), // Beacon interval
             .init_delay = TIME_S2I(60),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
@@ -58,7 +58,7 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60 * 1),
             .send_spacing = TIME_S2I(5)
@@ -179,7 +179,7 @@ const conf_t conf_flash_default = {
     .gps_high_alt = GPS_AIRBORNE_1G,
 
     // APRS
-    // How often to send telemetry config
+    // How often to send telemetry config (global for beacons)
     .tel_enc_cycle = TIME_S2I(60 * 60 * 2),
 
     // The default APRS frequency when geofence is not resolved

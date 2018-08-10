@@ -52,8 +52,9 @@
 #define AFSK_QCORR_DEC_MFIL_DEBUG   6
 #define AFSK_PWM_DATA_CAPTURE_DEBUG 7
 #define AFSK_AX25_RAW_PACKET_DUMP   8
+#define AFSK_PACKET_RESET_STATUS    9
 
-#define AFSK_DEBUG_TYPE             AFSK_NO_DEBUG
+#define AFSK_DEBUG_TYPE             AFSK_PACKET_RESET_STATUS
 
 /* Error output type selection. */
 #define AFSK_NO_ERROR               0

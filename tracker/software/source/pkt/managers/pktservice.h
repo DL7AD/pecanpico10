@@ -446,7 +446,7 @@ static inline void pktReleaseDataBuffer(pkt_data_object_t *object) {
      * Free the object.
      * Decrease the factory reference count.
      * If the service is closed and all buffers freed then the FIFO is destroyed.
-     * Terminate this thread and have idle clean up memory.
+     * Terminate this thread and have idle thread sweeper clean up memory.
      */
     object->handler->cb_count--;
     chFifoReturnObject(pkt_fifo, object);
@@ -562,20 +562,28 @@ static inline bool pktGetAX25FrameStatus(pkt_data_object_t *object) {
  * @param[in] radio    radio unit ID.
  *
  * @return        pointer to the service object.
- * @retval NULL   If the radio ID is invalid.
+ * @retval NULL   If the radio ID is invalid or no service object assigned.
  *
  * @api
  */
 inline packet_svc_t *pktGetServiceObject(radio_unit_t radio) {
   /*
-   * TODO: implement mapping from radio config to packet handler object.
+   * Get radio configuration object.
    */
-  packet_svc_t *handler = NULL;
-  if(radio == PKT_RADIO_1) {
-    handler = &RPKTD1;
-  }
+  const radio_config_t *data = pktGetRadioData(radio);
+  chDbgAssert(data != NULL, "invalid radio ID");
+  if(data == NULL)
+    return NULL;
+  /*
+   * Get packet handler object for this radio.
+   */
+  packet_svc_t *handler = data->pkt;
 
-  chDbgAssert(handler != NULL, "invalid radio ID");
+/*  if(radio == PKT_RADIO_1) {
+    handler = &RPKTD1;
+  }*/
+
+  chDbgAssert(handler != NULL, "invalid radio packet driver");
 
   return handler;
 }

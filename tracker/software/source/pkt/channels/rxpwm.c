@@ -402,9 +402,6 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
                      NULL, NULL);
 #endif /* USE_HEAP_PWM_BUFFER == TRUE */
 
-  /* Clear event/status bits. */
-  myFIFO->status = 0;
-
   /*
    * Initialize FIFO release control semaphore.
    * The decoder thread waits on the semaphore before releasing to pool.
@@ -435,7 +432,9 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   icuStartCaptureI(myICU);
   icuEnableNotificationsI(myICU);
   pktAddEventFlagsI(myHandler, evt);
-  myFIFO->status |= evt;
+
+  /* Clear status bits. */
+  myFIFO->status = 0;
 
   myDemod->icustate = PKT_PWM_ACTIVE;
 }
