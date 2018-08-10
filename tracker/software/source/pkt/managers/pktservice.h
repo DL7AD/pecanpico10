@@ -259,6 +259,7 @@ extern "C" {
   void pktReleasePacketBuffer(packet_t pp);
   dyn_semaphore_t *pktInitBufferControl(void);
   void pktDeinitBufferControl(void);
+  packet_svc_t *pktGetServiceObject(radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif
@@ -554,38 +555,6 @@ static inline bool pktIsBufferValidAX25Frame(pkt_data_object_t *object) {
 static inline bool pktGetAX25FrameStatus(pkt_data_object_t *object) {
   chDbgAssert(object != NULL, "no pointer to packet object buffer");
   return (object->status & (STA_PKT_INVALID_FRAME | STA_PKT_CRC_ERROR)) == 0;
-}
-
-/**
- * @brief   Gets service object associated with radio.
- *
- * @param[in] radio    radio unit ID.
- *
- * @return        pointer to the service object.
- * @retval NULL   If the radio ID is invalid or no service object assigned.
- *
- * @api
- */
-inline packet_svc_t *pktGetServiceObject(radio_unit_t radio) {
-  /*
-   * Get radio configuration object.
-   */
-  const radio_config_t *data = pktGetRadioData(radio);
-  chDbgAssert(data != NULL, "invalid radio ID");
-  if(data == NULL)
-    return NULL;
-  /*
-   * Get packet handler object for this radio.
-   */
-  packet_svc_t *handler = data->pkt;
-
-/*  if(radio == PKT_RADIO_1) {
-    handler = &RPKTD1;
-  }*/
-
-  chDbgAssert(handler != NULL, "invalid radio packet driver");
-
-  return handler;
 }
 
 /**

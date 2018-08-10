@@ -1079,4 +1079,37 @@ void pktCallbackManagerRelease(packet_svc_t *handler) {
   chThdWait(handler->cb_terminator);
 }
 
+
+/**
+ * @brief   Gets service object associated with radio.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @return        pointer to the service object.
+ * @retval NULL   If the radio ID is invalid or no service object assigned.
+ *
+ * @api
+ */
+packet_svc_t *pktGetServiceObject(radio_unit_t radio) {
+  /*
+   * Get radio configuration object.
+   */
+  const radio_config_t *data = pktGetRadioData(radio);
+  chDbgAssert(data != NULL, "invalid radio ID");
+  if(data == NULL)
+    return NULL;
+  /*
+   * Get packet handler object for this radio.
+   */
+  packet_svc_t *handler = data->pkt;
+
+/*  if(radio == PKT_RADIO_1) {
+    handler = &RPKTD1;
+  }*/
+
+  chDbgAssert(handler != NULL, "invalid radio packet driver");
+
+  return handler;
+}
+
 /** @} */
