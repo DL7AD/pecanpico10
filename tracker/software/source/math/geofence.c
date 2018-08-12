@@ -648,55 +648,50 @@ static bool isPointInBrazil(int32_t lat, int32_t lon) {
 	return isPointInPolygon(brazil, sizeof(brazil)/sizeof(brazil[0]), lat, lon);
 }
 
-/**
-  * Returns APRS region specific frequency determined by GPS location. It will
-  * use the APRS default frequency set in the config file if no GPS fix has
-  * been received.
-  */
 uint32_t getAPRSRegionFrequency() {
 	dataPoint_t *point = getLastDataPoint();
 
 	// Position unknown
 	if(point == NULL || (point->gps_lat == 0 && point->gps_lon == 0))
 	  // Return code and let pktradio figure out what to do.
-	  return FREQ_APRS_DEFAULT;
+	  return FREQ_INVALID;
 	
 	// America 144.390 MHz
 	if(isPointInAmerica(point->gps_lat, point->gps_lon))
-		return APRS_FREQ_AMERICA;
+		return FREQ_APRS_AMERICA;
 
 	// China 144.640 MHz
 	if(isPointInChina(point->gps_lat, point->gps_lon))
-		return APRS_FREQ_CHINA;
+		return FREQ_APRS_CHINA;
 
 	// Japan 144.660 MHz
 	if(isPointInJapan(point->gps_lat, point->gps_lon))
-		return APRS_FREQ_JAPAN;
+		return FREQ_APRS_JAPAN;
 
 	// Southkorea 144.620 MHz
 	if(isPointInSouthkorea(point->gps_lat, point->gps_lon))
-		return APRS_FREQ_SOUTHKOREA;
+		return FREQ_APRS_SOUTHKOREA;
 
 	// Southkorea 144.620 MHz
 	if(isPointInSoutheastAsia(point->gps_lat, point->gps_lon))
-		return APRS_FREQ_SOUTHEASTASIA;
+		return FREQ_APRS_SOUTHEASTASIA;
 
 	// Australia 145.175 MHz
 	if(isPointInAustralia(point->gps_lat, point->gps_lon))
-		return APRS_FREQ_AUSTRALIA;
+		return FREQ_APRS_AUSTRALIA;
 
 	// Australia 144.575 MHz
 	if(isPointInNewZealand(point->gps_lat, point->gps_lon))
-		return APRS_FREQ_NEWZEALAND;
+		return FREQ_APRS_NEWZEALAND;
 
 	// Argentina/Paraguay/Uruguay 144.930 MHz
 	if(isPointInArgentina(point->gps_lat, point->gps_lon))
-		return APRS_FREQ_ARGENTINA;
+		return FREQ_APRS_ARGENTINA;
 
 	// Brazil 145.575 MHz
 	if(isPointInBrazil(point->gps_lat, point->gps_lon))
-		return APRS_FREQ_BRAZIL;
+		return FREQ_APRS_BRAZIL;
 
-	return FREQ_APRS_DEFAULT;
+	return FREQ_INVALID;
 }
 

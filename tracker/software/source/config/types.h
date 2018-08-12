@@ -6,22 +6,22 @@
 #include "ublox.h"
 
 typedef enum {
-FREQ_RADIO_INVALID  = 0,
-FREQ_APRS_DYNAMIC,           /* Geofencing frequency (144.8 default). */
-FREQ_APRS_SCAN,              /* Frequency last found in RX scan. - TBI */
-FREQ_APRS_RECEIVE,           /* Active RX frequency - fall back to DYNAMIC. */
-FREQ_CMDC_RECEIVE,           /* Frequency used for command and control. TBI */
-FREQ_APRS_DEFAULT,           /* Default frequency specified in configuration */
-FREQ_CODES_END
+	FREQ_INVALID = 0,
+	FREQ_APRS_GEOFENCE,  /* Geofencing frequency (144.8 default). */
+	FREQ_SCAN,           /* Frequency last found in RX scan. - TBI */
+	FREQ_RX_APRS,        /* Active RX frequency - fall back to DYNAMIC. */
+	FREQ_RX_CMDC,        /* Frequency used for command and control. TBI */
+	FREQ_DEFAULT,        /* Default frequency specified in configuration */
+	FREQ_CODES_END
 } freq_codes_t;
 
-#define FREQ_RADIO_INVALID  0
-#define FREQ_APRS_DYNAMIC	1 /* Geofencing frequency (144.8 default). */
-#define FREQ_APRS_SCAN      2 /* Frequency based on band base + channel scan. */
-#define FREQ_APRS_RECEIVE   3 /* Active RX frequency - fall back to DYNAMIC. */
-#define FREQ_CMDC_RECEIVE   4 /* Frequency used for command and control. TBI */
-#define FREQ_APRS_DEFAULT   5 /* Default frequency specified in configuration */
-#define FREQ_CODES_END      6
+#define FREQ_INVALID   0
+#define FREQ_GEOFENCE  1 /* Geofencing frequency (144.8 default). */
+#define FREQ_SCAN      2 /* Frequency based on band base + channel scan. */
+#define FREQ_RX_APRS   3 /* Active RX frequency - fall back to DYNAMIC. */
+#define FREQ_RX_CMDC   4 /* Frequency used for command and control. TBI */
+#define FREQ_DEFAULT   5 /* Default frequency specified in configuration */
+#define FREQ_CODES_END 6
 
 #define CYCLE_CONTINUOUSLY	0
 

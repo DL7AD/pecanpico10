@@ -70,8 +70,8 @@ void start_aprs_threads(radio_unit_t radio, radio_freq_t base_freq,
                      channel_hz_t step,
                      radio_ch_t chan, radio_squelch_t rssi) {
 
-    if(base_freq == FREQ_APRS_RECEIVE) {
-      TRACE_ERROR("RX   > Cannot specify FREQ_APRS_RECEIVE for receiver");
+    if(base_freq == FREQ_RX_APRS) {
+      TRACE_ERROR("RX   > Cannot specify FREQ_RX_APRS for receiver");
       return;
     }
 
@@ -133,7 +133,7 @@ bool transmitOnRadio(packet_t pp, const radio_freq_t base_freq,
                                                       step,
                                                       chan,
                                                       RADIO_TX);
-  if(op_freq == FREQ_RADIO_INVALID) {
+  if(op_freq == FREQ_INVALID) {
     TRACE_ERROR("RAD  > Transmit operating frequency of %d.%03d MHz is invalid",
                 op_freq/1000000, (op_freq%1000000)/1000);
       pktReleaseBufferChain(pp);
