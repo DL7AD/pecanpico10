@@ -381,14 +381,14 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
    * Create a memory pool of PWM queue objects in heap.
    * 1. Allocate heap memory
    * 2. Initialise pool manager
-   * 3. Load heap with pool objects
+   * 3. Load heap with pool buffer objects
    */
 
   /*
    * Get heap to accommodate buffer objects.
    * The size of the allocation is:
    *  Number of slots for individual PWM entries in each buffer
-   *  Multiplied by the number of chainable buffers to be allocated
+   *  Multiplied by the number of chained buffers to be allocated
    */
 #if USE_CCM_BASED_HEAP == TRUE
   extern memory_heap_t *ccm_heap;
@@ -398,7 +398,8 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
   myDriver->pwm_queue_heap = chHeapAlloc(NULL,
         sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS);
 #endif
-  chDbgAssert(myDriver->pwm_queue_heap != NULL, "failed to create PWM heap");
+  chDbgAssert(myDriver->pwm_queue_heap != NULL, "failed to create space "
+                                                "in heap for PWM pool");
   /* Initialize the memory pool to manage buffer objects. */
   chPoolObjectInitAligned(&myDriver->pwm_buffer_pool,
                           sizeof(radio_pwm_object_t),
@@ -427,8 +428,7 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
   chsnprintf(myDriver->decoder_name, sizeof(myDriver->decoder_name),
              "%s%02i", PKT_AFSK_THREAD_NAME_PREFIX, rid);
 
-  /* Create the AFSK decoder thread. */
-  extern memory_heap_t *ccm_heap;
+  /* Create the AFSK decoder thread in system heap. */
   myDriver->decoder_thd = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(PKT_AFSK_DECODER_WA_SIZE),
               myDriver->decoder_name,
@@ -501,6 +501,9 @@ void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver) {
    */
   chHeapFree(myDriver->pwm_queue_heap);
   myDriver->pwm_queue_heap = NULL;
+#endif
+#if AFSK_DECODE_TYPE == AFSK_DSP_QCORR_DECODE
+  release_qcorr_decoder(myDriver);
 #endif
 }
 

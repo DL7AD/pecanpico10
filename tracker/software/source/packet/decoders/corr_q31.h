@@ -42,6 +42,9 @@
 /* Used for indexing of IQ filter sections. */
 #define QCORR_COS_INDEX             0U
 #define QCORR_SIN_INDEX             1U
+#define QCORR_IQ_COUNT              2U
+
+#define QCORR_FILTER_BLOCK_SIZE     1U
 
 #define REPORT_QCORR_COEFFS         FALSE
 
@@ -64,8 +67,23 @@
  */
 typedef struct qTone {
   uint16_t          freq;
-  qfir_filter_t     *tone_filter[AFSK_NUM_TONES];
-  qfir_filter_t     *mag_filter;
+  qfir_filter_t     *angle_filters[QCORR_IQ_COUNT]; // Pointed at cos & sin. Will eliminate later.
+  qfir_filter_t     qcorr_cos;
+  arm_fir_instance_q31 cos_filter_instance_q31;
+  q31_t             cos_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
+                                  + DECODE_FILTER_LENGTH - 1];
+  q31_t             cos_filter_coeff_q31[DECODE_FILTER_LENGTH];
+  qfir_filter_t     qcorr_sin;
+  arm_fir_instance_q31 sin_filter_instance_q31;
+  q31_t             sin_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
+                                  + DECODE_FILTER_LENGTH - 1];
+  q31_t             sin_filter_coeff_q31[DECODE_FILTER_LENGTH];
+  qfir_filter_t     *mag_filter; // Pointed at qcorr_mag. Will eliminate later.
+  qfir_filter_t     qcorr_mag;
+  arm_fir_instance_q31 mag_filter_instance_q31;
+  q31_t             mag_filter_state_q31[MAG_FILTER_BLOCK_SIZE
+                                  + MAG_FILTER_NUM_TAPS - 1];
+  q31_t             mag_filter_coeff_q31[MAG_FILTER_NUM_TAPS];
   q31_t             raw_mag;
   q31_t             filtered_mag;
   q31_t             mag;
@@ -78,15 +96,20 @@ typedef struct qTone {
  *
  */
 typedef struct qCorrFilter {
-  //AFSKDemodDriver   *demod_driver;
-  qfir_filter_t     *input_filter;
+  qfir_filter_t     *input_filter; // Pointed at qcorr_input. Will eliminate later.
+  qfir_filter_t     qcorr_input;
+  arm_fir_instance_q31 pre_filter_instance_q31;
+  q31_t pre_filter_state_q31[PRE_FILTER_BLOCK_SIZE
+                                    + PRE_FILTER_NUM_TAPS - 1];
+  q31_t pre_filter_coeff_q31[PRE_FILTER_NUM_TAPS];
   uint16_t          decode_length;
   uint32_t          current_n;
   uint32_t          sample_rate;
-  q31_t             preFilterOut;
+  q31_t             prefilter_out;
   uint32_t          filter_valid;
   uint8_t           number_bins;
   qcorr_tone_t      *filter_bins;
+  qcorr_tone_t      qcorr_bins[QCORR_FILTER_BINS];
   q31_t             sample_level[2];
   q31_t             hysteresis;
   tone_t            prior_demod;
@@ -120,6 +143,7 @@ extern "C" {
   bool get_qcorr_symbol_timing(AFSKDemodDriver *myDriver);
   void update_qcorr_pll(AFSKDemodDriver *myDriver);
   void init_qcorr_decoder(AFSKDemodDriver *myDriver);
+  void release_qcorr_decoder(AFSKDemodDriver *myDriver);
 #ifdef __cplusplus
 }
 #endif
