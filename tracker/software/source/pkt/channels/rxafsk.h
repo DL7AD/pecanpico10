@@ -54,7 +54,7 @@
 #define AFSK_AX25_RAW_PACKET_DUMP   8
 #define AFSK_PACKET_RESET_STATUS    9
 
-#define AFSK_DEBUG_TYPE             AFSK_PACKET_RESET_STATUS
+#define AFSK_DEBUG_TYPE             AFSK_NO_DEBUG
 
 /* Error output type selection. */
 #define AFSK_NO_ERROR               0

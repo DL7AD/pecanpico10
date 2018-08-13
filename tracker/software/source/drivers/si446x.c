@@ -986,7 +986,7 @@ static bool Si446x_transmit(const radio_unit_t radio,
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
                                                       step, chan, RADIO_TX);
 
-  if(op_freq == FREQ_RADIO_INVALID) {
+  if(op_freq == FREQ_INVALID) {
     TRACE_ERROR("SI   > Frequency out of range");
     TRACE_ERROR("SI   > abort transmission");
     return false;
@@ -1068,7 +1068,7 @@ bool Si446x_receiveNoLock(const radio_unit_t radio,
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
                                                       step, channel,
                                                       RADIO_RX);
-  if(op_freq == FREQ_RADIO_INVALID) {
+  if(op_freq == FREQ_INVALID) {
     TRACE_ERROR("SI   > Frequency out of range");
     TRACE_ERROR("SI   > abort transmission");
     return false;

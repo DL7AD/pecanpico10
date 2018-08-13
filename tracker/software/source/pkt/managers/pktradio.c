@@ -672,27 +672,27 @@ uint8_t pktGetNumRadios(void) {
 int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
   char* str = NULL;
   switch(code) {
-  case FREQ_RADIO_INVALID:
+  case FREQ_INVALID:
     str = "No Code";
     break;
 
-  case FREQ_APRS_DYNAMIC:
+  case FREQ_GEOFENCE:
     str = "APRS Dynamic frequency";
     break;
 
-  case FREQ_APRS_SCAN:
+  case FREQ_SCAN:
     str = "APRS Scan channel";
     break;
 
-  case FREQ_APRS_RECEIVE:
+  case FREQ_RX_APRS:
     str = "APRS Receive frequency";
     break;
 
-  case FREQ_CMDC_RECEIVE:
+  case FREQ_RX_CMDC:
     str = "CNC Receive frequency";
     break;
 
-  case FREQ_APRS_DEFAULT:
+  case FREQ_DEFAULT:
     str = "APRS Default frequency";
     break;
 
@@ -719,7 +719,7 @@ int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
  * @param[in] radio         Radio unit ID.
  *
  * @return      operating frequency
- * @retval      FREQ_RADIO_INVALID if radio ID is invalid
+ * @retval      FREQ_INVALID if radio ID is invalid
  * @retval      Default frequency otherwise
  *
  * @api
@@ -855,7 +855,7 @@ const radio_config_t *pktGetRadioData(radio_unit_t radio) {
  *
  * @return  operating frequency in Hz.
  * @retval  an absolute operating frequency in Hz.
- * @retval  FREQ_RADIO_INVALID if frequency or radio ID is invalid.
+ * @retval  FREQ_INVALID if frequency or radio ID is invalid.
  *
  * @api
  */
@@ -865,7 +865,7 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
                                           radio_ch_t chan,
                                           const radio_mode_t mode) {
 
-  if((base_freq == FREQ_APRS_RECEIVE || base_freq == FREQ_APRS_SCAN)
+  if((base_freq == FREQ_RX_APRS || base_freq == FREQ_SCAN)
                    && (mode == RADIO_TX || mode == RADIO_ALL)) {
     /* Get current RX frequency (or default) and use that. */
     step = 0;
@@ -878,7 +878,7 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
    * Check for dynamic frequency determination.
    * Dynamic can return an absolute frequency or a further special code.
    */
-  if(base_freq == FREQ_APRS_DYNAMIC) {
+  if(base_freq == FREQ_GEOFENCE) {
     /*
      * Get frequency by geofencing.
      * Geofencing can return special code FREQ_APRS_DEFAULT.
@@ -888,8 +888,7 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
     chan = 0;
   }
 
-  /* Check for default. */
-  if(base_freq == FREQ_APRS_DEFAULT) {
+  if(base_freq == FREQ_INVALID) { // Geofence not resolved
     base_freq = pktGetDefaultOperatingFrequency(radio);
     step = 0;
     chan = 0;
@@ -901,7 +900,7 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
   if(pktCheckAllowedFrequency(radio, op_freq) != NULL) {
     return op_freq;
   }
-  return FREQ_RADIO_INVALID;
+  return FREQ_INVALID;
 }
 
 /**

@@ -13,21 +13,21 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 5),
-            .init_delay = TIME_S2I(60),
+            .active = true,
+            .cycle = TIME_S2I(120),
+            .init_delay = TIME_S2I(0),
             .fixed = false // Add lat, lon, alt fields when enabling fixed
         },
         .radio_conf = {
-            .pwr = 0x1F,
-            .freq = 144800000,
-            .mod = MOD_2FSK,
-            .cca = 0x4F,
+            .pwr = 0x7F,
+            .freq = FREQ_GEOFENCE,
+            .mod = MOD_AFSK,
+            .cca = 0x5F,
         },
         // App identity
-        .call = "VK2GJ-12",
+        .call = "DL7AD-15",
         .path = "WIDE1-1",
-        .symbol = SYM_ANTENNA,
+        .symbol = SYM_BALLOON,
         .aprs_msg = true, // Enable APRS message reception on this app
     },
 
@@ -44,12 +44,12 @@ const conf_t conf_flash_default = {
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = FREQ_APRS_RECEIVE,
+            .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-5",
+        .call = "DL7AD-5",
         .path = "WIDE2-1",
         .symbol = SYM_DIGIPEATER,
         .aprs_msg = false, // Enable APRS message reception on this app
@@ -58,26 +58,26 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 5),
-            .init_delay = TIME_S2I(60 * 1),
-            .send_spacing = TIME_S2I(5)
+            .active = true,
+            .cycle = CYCLE_CONTINUOUSLY,
+            .init_delay = TIME_S2I(30),
+            .send_spacing = TIME_S2I(10)
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = 144800000,
-            .mod = MOD_2FSK,
-            .cca = 0x4F
+            .freq = FREQ_GEOFENCE,
+            .mod = MOD_AFSK,
+            .cca = 0x5F
 
         },
         // App identity
-        .call = "VK2GJ-15",
+        .call = "DL7AD-15",
         .path = "",
 
         // Image settings
-        .res = RES_VGA,
+        .res = RES_QVGA,
         .quality = 4,
-        .buf_size = 40 * 1024,
+        .buf_size = 50 * 1024,
         .redundantTx = false
     },
 
@@ -91,12 +91,12 @@ const conf_t conf_flash_default = {
         },
         .radio_conf = {
             .pwr = 0x1F,
-            .freq = APRS_FREQ_AUSTRALIA,
+            .freq = FREQ_APRS_AUSTRALIA,
             .mod = MOD_AFSK,
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-12",
+        .call = "DL7AD-12",
         .path = "",
 
         // Image settings
@@ -115,12 +115,12 @@ const conf_t conf_flash_default = {
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = FREQ_APRS_DYNAMIC,
+            .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x4F
         },
         // Node identity
-        .call = "VK2GJ-13",
+        .call = "DL7AD-13",
         .path = "WIDE1-1",
         .density = 10
     },
@@ -132,31 +132,31 @@ const conf_t conf_flash_default = {
              .svc_conf = {
                  // The packet receive service is enabled if true
                  // Receive is paused and resumed by transmission
-                 .active = true,
+                 .active = false,
                  .init_delay = TIME_S2I(20)
              },
             // Receive radio configuration
             .radio_conf = {
-                .freq = FREQ_APRS_DYNAMIC,
+                .freq = FREQ_GEOFENCE,
                 .mod = MOD_AFSK,
                 .rssi = 0x3F
             },
             // APRS identity used in message responses if digipeat is not enabled
-            .call = "VK2GJ-4",
+            .call = "DL7AD-4",
             .symbol = SYM_ANTENNA
         },
         .aprs_msg = false, // Set true to enable messages to be accepted on RX call sign
-        .digi = true,
+        .digi = false,
         .tx = {
            // Transmit radio configuration
            .radio_conf = {
-               .freq = FREQ_APRS_RECEIVE,
+               .freq = FREQ_RX_APRS,
                .pwr = 0x7F,
                .mod = MOD_AFSK,
                .cca = 0x4F
            },
            // Digipeat transmission identity
-           .call = "VK2GJ-5",
+           .call = "DL7AD-5",
            .path = "WIDE2-1",
            .symbol = SYM_DIGIPEATER,
            // A digipeater beacon can be added using one of the POS apps
@@ -183,13 +183,13 @@ const conf_t conf_flash_default = {
     .tel_enc_cycle = TIME_S2I(60 * 60 * 2),
 
     // The default APRS frequency when geofence is not resolved
-    .freq = APRS_FREQ_AUSTRALIA,
+    .freq = FREQ_APRS_EUROPE,
 
     // The base station identity.
     .base = {
         // If enabled tracker initiated APRS messages are addressed to this call sign
-       .enabled = true,
-       .call = "VK2GJ-7",
+       .enabled = false,
+       .call = "DL7AD-7",
        .path = "WIDE2-1",
     },
 
