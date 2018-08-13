@@ -37,7 +37,7 @@ qcorr_tone_t qcorr_bins[QCORR_FILTER_BINS] useCCM;
  * @note    Allocate a pre-filter FIR record.
  */
 
-qfir_filter_t AFSK_PWM_QFILTER useCCM;
+qfir_filter_t QPRE1 useCCM;
 
 /*
  * Allocate data for prefilter FIR.
@@ -50,12 +50,10 @@ q31_t pre_filter_coeff_q31[PRE_FILTER_NUM_TAPS] useCCM;
 #if USE_QCORR_MAG_LPF == TRUE
 
 /* Allocate the FIR filter structures. */
-qfir_filter_t QFILT_M_MAG useCCM;
-qfir_filter_t QFILT_S_MAG useCCM;
+qfir_filter_t QMAGM1 useCCM;
+qfir_filter_t QMAGS1 useCCM;
 
-/*
-* Allocate data for mag FIR filter.
-*/
+/* Allocate data for mag FIR filter. */
 q31_t mag_filter_coeff_q31[MAG_FILTER_NUM_TAPS] useCCM;
 
 arm_fir_instance_q31 m_mag_filter_instance_q31 useCCM;
@@ -69,15 +67,13 @@ q31_t s_mag_filter_state_q31[MAG_FILTER_BLOCK_SIZE
 #endif /* USE_QCORR_MAG_LPF == TRUE */
 
 /* Mark and Space correlation filter instances. */
-qfir_filter_t QFILT_M_COS useCCM;
-qfir_filter_t QFILT_M_SIN useCCM;
+qfir_filter_t QCORRMC1 useCCM;
+qfir_filter_t QCORRMS1 useCCM;
 
-qfir_filter_t QFILT_S_COS useCCM;
-qfir_filter_t QFILT_S_SIN useCCM;
+qfir_filter_t QCORRSC1 useCCM;
+qfir_filter_t QCORRSS1 useCCM;
 
-/*
-* Allocate data for Mark and Space correlation filters.
-*/
+/* Allocate data for Mark and Space correlation filters. */
 
 /* q31 filter coefficient arrays. */
 q31_t m_cos_filter_coeff_q31[DECODE_FILTER_LENGTH] useCCM;
@@ -103,8 +99,6 @@ q31_t s_cos_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
 q31_t s_sin_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
                                 + DECODE_FILTER_LENGTH - 1] useCCM;
 
-
-
 /*===========================================================================*/
 /* Module local types.                                                       */
 /*===========================================================================*/
@@ -120,7 +114,6 @@ q31_t s_sin_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
 /*===========================================================================*/
 /* Module local functions.                                                   */
 /*===========================================================================*/
-
 
 /**
  * @brief   Resets the correlator state.
@@ -632,7 +625,7 @@ void evaluate_qcorr_tone(AFSKDemodDriver *myDriver) {
  */
 static void setup_qcorr_prefilter(qcorr_decoder_t *decoder) {
 
-  decoder->input_filter = &AFSK_PWM_QFILTER;
+  decoder->input_filter = &QPRE1;
   /*
    * Initialise the pre-filter.
    */
@@ -679,15 +672,15 @@ void setup_qcorr_IQfilters(qcorr_decoder_t *decoder) {
   /* Set COS and SIN filters for Mark and Space. */
 
   decoder->filter_bins[AFSK_MARK_INDEX].tone_filter[QCORR_COS_INDEX]
-                                                    = &QFILT_M_COS;
+                                                    = &QCORRMC1;
   decoder->filter_bins[AFSK_MARK_INDEX].tone_filter[QCORR_SIN_INDEX]
-                                                    = &QFILT_M_SIN;
+                                                    = &QCORRMS1;
 
 
   decoder->filter_bins[AFSK_SPACE_INDEX].tone_filter[QCORR_COS_INDEX]
-                                                     = &QFILT_S_COS;
+                                                     = &QCORRSC1;
   decoder->filter_bins[AFSK_SPACE_INDEX].tone_filter[QCORR_SIN_INDEX]
-                                                     = &QFILT_S_SIN;
+                                                     = &QCORRSS1;
 
   /* Temporary float coeff arrays. */
   float32_t cos_table[decoder->decode_length];
@@ -702,7 +695,7 @@ void setup_qcorr_IQfilters(qcorr_decoder_t *decoder) {
   /*
    * Create the Mark correlation filters.
    */
-  create_qfir_filter(&QFILT_M_COS,
+  create_qfir_filter(&QCORRMC1,
     &m_cos_filter_instance_q31,
     DECODE_FILTER_LENGTH,
     m_cos_filter_coeff_q31,
@@ -710,7 +703,7 @@ void setup_qcorr_IQfilters(qcorr_decoder_t *decoder) {
     QCORR_FILTER_BLOCK_SIZE,
     cos_table);
 
-  create_qfir_filter(&QFILT_M_SIN,
+  create_qfir_filter(&QCORRMS1,
     &m_sin_filter_instance_q31,
     DECODE_FILTER_LENGTH,
     m_sin_filter_coeff_q31,
@@ -728,7 +721,7 @@ void setup_qcorr_IQfilters(qcorr_decoder_t *decoder) {
   /*
    * Create the Space correlation filters.
    */
-  create_qfir_filter(&QFILT_S_COS,
+  create_qfir_filter(&QCORRSC1,
      &s_cos_filter_instance_q31,
      DECODE_FILTER_LENGTH,
      s_cos_filter_coeff_q31,
@@ -736,7 +729,7 @@ void setup_qcorr_IQfilters(qcorr_decoder_t *decoder) {
      QCORR_FILTER_BLOCK_SIZE,
      cos_table);
 
-  create_qfir_filter(&QFILT_S_SIN,
+  create_qfir_filter(&QCORRSS1,
      &s_sin_filter_instance_q31,
      DECODE_FILTER_LENGTH,
      s_sin_filter_coeff_q31,
@@ -759,7 +752,7 @@ static void setup_qcorr_magfilter(qcorr_decoder_t *decoder) {
    /*
     * Initialise the magnitude filters.
     */
-  create_qfir_filter(&QFILT_M_MAG,
+  create_qfir_filter(&QMAGM1,
     &m_mag_filter_instance_q31,
     MAG_FILTER_NUM_TAPS,
     mag_filter_coeff_q31,
@@ -767,7 +760,7 @@ static void setup_qcorr_magfilter(qcorr_decoder_t *decoder) {
     MAG_FILTER_BLOCK_SIZE,
     mag_filter_coeff_f32);
 
-  create_qfir_filter(&QFILT_S_MAG,
+  create_qfir_filter(&QMAGS1,
     &s_mag_filter_instance_q31,
     MAG_FILTER_NUM_TAPS,
     mag_filter_coeff_q31,
@@ -846,8 +839,8 @@ void init_qcorr_decoder(AFSKDemodDriver *myDriver) {
 
 #if USE_QCORR_MAG_LPF == TRUE
   /* Setup the IQ magnitude LPFs. */
-  decoder->filter_bins[AFSK_MARK_INDEX].mag_filter = &QFILT_M_MAG;
-  decoder->filter_bins[AFSK_SPACE_INDEX].mag_filter = &QFILT_S_MAG;
+  decoder->filter_bins[AFSK_MARK_INDEX].mag_filter = &QMAGM1;
+  decoder->filter_bins[AFSK_SPACE_INDEX].mag_filter = &QMAGS1;
   setup_qcorr_magfilter(decoder);
 #endif
 }

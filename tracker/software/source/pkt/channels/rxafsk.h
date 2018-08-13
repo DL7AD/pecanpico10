@@ -62,11 +62,11 @@
 
 #define AFSK_ERROR_TYPE             AFSK_NO_ERROR
 
-#define PRE_FILTER_GEN_COEFF        TRUE
+//#define PRE_FILTER_GEN_COEFF        TRUE
 #define PRE_FILTER_LOW              925
 #define PRE_FILTER_HIGH             2475
 
-#define MAG_FILTER_GEN_COEFF        TRUE
+//#define MAG_FILTER_GEN_COEFF        TRUE
 #define MAG_FILTER_HIGH             1400
 
 #define PRE_FILTER_NUM_TAPS         55U
@@ -89,27 +89,27 @@
 /* BPF followed by fixed point IQ correlation decoder.
  * Changing decimation changes the filter sample rate.
  * Coefficients created dynamically are calculated at run-time.
- * Coefficients generated externally in Matlab/Octave need to be re-done.
+ * Coefficients for fixed arrays can be generated externally in Matlab/Octave.
+ *
+ * Pre-filter (BPF) coefficients.
+ * Fs=sample_rate, f1 = low_corner, f2 = high_corner, number of taps = N
+ * Matlab/Octave parameters:
+ * hc = fir1(N-1, [low_corner, high_corner]/(Fs/2), 'pass');
+ *
+ * Magnitude (LPF) coefficients.
+ * Fs=sample_rate, f1 = high_corner, number of taps = N
+ * Matlab/Octave parameters:
+ * hc = fir1(N-1, high_corner/(Fs/2), 'low');
+ *
  */
+
 #define SYMBOL_DECIMATION           (12U)
-/* Sample rate in Hz. */
-#define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
-#define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
-#elif
-/* BPF followed by floating point IQ correlation decoder. */
-#define SYMBOL_DECIMATION           (24U)
-/* Sample rate in Hz. */
-#define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
-#define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
-#else
-/* Any other decoder. */
-#define SYMBOL_DECIMATION           (24U)
 /* Sample rate in Hz. */
 #define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
 #define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
 #endif
 
-
+/* Named services. */
 #define PKT_PWM_QUEUE_PREFIX        "pwmx_"
 #define PKT_PWM_MBOX_PREFIX         "pwmd_"
 #define PKT_AFSK_THREAD_NAME_PREFIX "rxafsk_"
