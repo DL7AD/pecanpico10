@@ -23,8 +23,8 @@
 
 
 /* AFSK FIR filters. */
-float32_t pre_filter_coeff_f32[PRE_FILTER_NUM_TAPS] useCCM;
-float32_t mag_filter_coeff_f32[MAG_FILTER_NUM_TAPS] useCCM;
+/*float32_t pre_filter_coeff_f32[PRE_FILTER_NUM_TAPS] useCCM;
+float32_t mag_filter_coeff_f32[MAG_FILTER_NUM_TAPS] useCCM;*/
 
 /*
  * Data structure for AFSK decoding.
@@ -451,7 +451,7 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
 
   /* Generate the pre-filter and mag-filter coordinates. */
 
-  gen_fir_bpf((float32_t)PRE_FILTER_LOW / (float32_t)FILTER_SAMPLE_RATE,
+/*  gen_fir_bpf((float32_t)PRE_FILTER_LOW / (float32_t)FILTER_SAMPLE_RATE,
               (float32_t)PRE_FILTER_HIGH / (float32_t)FILTER_SAMPLE_RATE,
               pre_filter_coeff_f32,
               PRE_FILTER_NUM_TAPS,
@@ -460,7 +460,7 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
   gen_fir_lpf((float32_t)MAG_FILTER_HIGH / (float32_t)FILTER_SAMPLE_RATE,
               mag_filter_coeff_f32,
               MAG_FILTER_NUM_TAPS,
-              TD_WINDOW_NONE);
+              TD_WINDOW_NONE);*/
 
   return myDriver;
 }

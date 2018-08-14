@@ -84,6 +84,7 @@ typedef struct qTone {
   q31_t             mag_filter_state_q31[MAG_FILTER_BLOCK_SIZE
                                   + MAG_FILTER_NUM_TAPS - 1];
   q31_t             mag_filter_coeff_q31[MAG_FILTER_NUM_TAPS];
+  //PKT_EMBED_QFIR(MAG_FILTER_NUM_TAPS, new_filter)
   q31_t             raw_mag;
   q31_t             filtered_mag;
   q31_t             mag;
@@ -96,12 +97,7 @@ typedef struct qTone {
  *
  */
 typedef struct qCorrFilter {
-  qfir_filter_t     *input_filter; // Pointed at qcorr_input. Will eliminate later.
-  qfir_filter_t     qcorr_input;
-  arm_fir_instance_q31 pre_filter_instance_q31;
-  q31_t pre_filter_state_q31[PRE_FILTER_BLOCK_SIZE
-                                    + PRE_FILTER_NUM_TAPS - 1];
-  q31_t pre_filter_coeff_q31[PRE_FILTER_NUM_TAPS];
+  PKT_EMBED_QFIR(PRE_FILTER_NUM_TAPS, pre_filter)
   uint16_t          decode_length;
   uint32_t          current_n;
   uint32_t          sample_rate;
