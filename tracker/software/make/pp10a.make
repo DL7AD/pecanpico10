@@ -1,18 +1,3 @@
-# If you want to hold different toolchains on Linux in /opt you can get them from
-# https://launchpad.net/gcc-arm-embedded . Copy unpacked files as 'root' to /opt .
-# If you want to use other toolchain than system-wide  installed proceed as following:
-# Type on a terminal
-# export OPT_GCC_ARM=/opt/folder-of-your-toolchain
-# Now 'make all' uses choosen toolchain instead of system wide installed.
-# If yu want to switch back to system wide type
-# export OPT_GCC_ARM=
-
-ifdef OPT_GCC_ARM
-  PREFIX = $(OPT_GCC_ARM)/bin/
-else
-  PREFIX = /usr/bin/
-endif
-
 ##############################################################################
 # Build global options
 # NOTE: Can be overridden externally.
@@ -192,7 +177,7 @@ INCDIR = $(ALLINC) $(TESTINC)
 MCU  = cortex-m4
 
 #TRGT = arm-elf-
-TRGT = $(PREFIX)arm-none-eabi-
+TRGT = arm-none-eabi-
 CC   = $(TRGT)gcc
 CPPC = $(TRGT)g++
 # Enable loading with g++ only if you need C++ runtime support.
