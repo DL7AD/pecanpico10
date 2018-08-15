@@ -44,7 +44,7 @@
 #define QCORR_SIN_INDEX             1U
 #define QCORR_IQ_COUNT              2U
 
-#define QCORR_FILTER_BLOCK_SIZE     1U
+//#define QCORR_FILTER_BLOCK_SIZE     1U
 
 #define REPORT_QCORR_COEFFS         FALSE
 
@@ -63,28 +63,13 @@
 /**
  * @brief   Correlation decoder bin (tone) structure.
  *
- * @note    Each bin is defined and maintains its specific parameters.
+ * @note    Each bin defined maintains its specific parameters.
  */
 typedef struct qTone {
   uint16_t          freq;
-  qfir_filter_t     *angle_filters[QCORR_IQ_COUNT]; // Pointed at cos & sin. Will eliminate later.
-  qfir_filter_t     qcorr_cos;
-  arm_fir_instance_q31 cos_filter_instance_q31;
-  q31_t             cos_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
-                                  + DECODE_FILTER_LENGTH - 1];
-  q31_t             cos_filter_coeff_q31[DECODE_FILTER_LENGTH];
-  qfir_filter_t     qcorr_sin;
-  arm_fir_instance_q31 sin_filter_instance_q31;
-  q31_t             sin_filter_state_q31[QCORR_FILTER_BLOCK_SIZE
-                                  + DECODE_FILTER_LENGTH - 1];
-  q31_t             sin_filter_coeff_q31[DECODE_FILTER_LENGTH];
-  qfir_filter_t     *mag_filter; // Pointed at qcorr_mag. Will eliminate later.
-  qfir_filter_t     qcorr_mag;
-  arm_fir_instance_q31 mag_filter_instance_q31;
-  q31_t             mag_filter_state_q31[MAG_FILTER_BLOCK_SIZE
-                                  + MAG_FILTER_NUM_TAPS - 1];
-  q31_t             mag_filter_coeff_q31[MAG_FILTER_NUM_TAPS];
-  //PKT_EMBED_QFIR(MAG_FILTER_NUM_TAPS, new_filter)
+  PKT_EMBED_QFIR(DECODE_FILTER_LENGTH, cos_filter)
+  PKT_EMBED_QFIR(DECODE_FILTER_LENGTH, sin_filter)
+  PKT_EMBED_QFIR(MAG_FILTER_NUM_TAPS, mag_filter)
   q31_t             raw_mag;
   q31_t             filtered_mag;
   q31_t             mag;

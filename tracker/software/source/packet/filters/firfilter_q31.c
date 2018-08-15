@@ -136,9 +136,6 @@ void apply_qfir_filter(qfir_filter_t *filter, q31_t *input, q31_t *output) {
  * @param[in] numTaps       the number of taps in the filter
  * @param[in] pCoeffs       pointer to array of q31 filter coefficients
  * @param[in] pState        pointer to q31 state values used by filter
- * @param[in] instance      pointer to a @p arm_fir_instance_q31 structure
- * @param[in] blockSize     the number of samples processed at a
- *                          time in the filter
  * @param[in] pf32Coeffs    pointer to array of float32 filter coefficients
  *                          If NULL q31 coefficients to be otherwise filled
  *

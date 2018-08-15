@@ -444,24 +444,6 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
     return NULL;
   }
 
-  /* Set DSP parameters. */
-  myDriver->decimation_size = ((pwm_accum_t)ICU_COUNT_FREQUENCY
-                                / (pwm_accum_t)AFSK_BAUD_RATE)
-                                / (pwm_accum_t)SYMBOL_DECIMATION;
-
-  /* Generate the pre-filter and mag-filter coordinates. */
-
-/*  gen_fir_bpf((float32_t)PRE_FILTER_LOW / (float32_t)FILTER_SAMPLE_RATE,
-              (float32_t)PRE_FILTER_HIGH / (float32_t)FILTER_SAMPLE_RATE,
-              pre_filter_coeff_f32,
-              PRE_FILTER_NUM_TAPS,
-              TD_WINDOW_NONE);
-
-  gen_fir_lpf((float32_t)MAG_FILTER_HIGH / (float32_t)FILTER_SAMPLE_RATE,
-              mag_filter_coeff_f32,
-              MAG_FILTER_NUM_TAPS,
-              TD_WINDOW_NONE);*/
-
   return myDriver;
 }
 
@@ -489,14 +471,14 @@ void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver) {
   /* Detach radio from this AFSK driver. */
   pktDetachRadio(radio);
 
-  /* Release the PWM FIFO. */
+  /* Release the PWM stream FIFO. */
   chFactoryReleaseObjectsFIFO(myDriver->the_pwm_fifo);
   myDriver->the_pwm_fifo = NULL;
   myDriver->pwm_fifo_pool = NULL;
 
 #if USE_HEAP_PWM_BUFFER == TRUE
   /*
-   *  No memory pool objects should be in use.
+   *  No PWM memory pool objects should be in use now.
    *  So just release the PWM pool heap.
    */
   chHeapFree(myDriver->pwm_queue_heap);
@@ -561,6 +543,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   /* Set thread priority to different level when decoding./ */
 #define DECODER_RUN_PRIORITY        NORMALPRIO+10
 
+  /* Set DSP parameters for AFSK. */
+  myDriver->decimation_size = ((pwm_accum_t)ICU_COUNT_FREQUENCY
+                                / (pwm_accum_t)AFSK_BAUD_RATE)
+                                / (pwm_accum_t)SYMBOL_DECIMATION;
+
 #if AFSK_DECODE_TYPE == AFSK_DSP_QCORR_DECODE
   init_qcorr_decoder(myDriver);
 #endif
@@ -568,7 +555,12 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   /* Save the priority that calling thread gave us. */
   tprio_t decoder_idle_priority = chThdGetPriorityX();
 
-  /* Setup LED for decoder blinker. */
+  /*
+   * Setup LED for decoder blinker.
+   * TODO: Make LED mapping by radio.
+   * Probably use a struct in radio config object.
+   *
+   */
   pktSetGPIOlineMode(LINE_DECODER_LED, PAL_MODE_OUTPUT_PUSHPULL);
 
   pktWriteGPIOline(LINE_DECODER_LED, PAL_HIGH);
