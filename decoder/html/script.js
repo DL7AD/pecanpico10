@@ -294,7 +294,18 @@ function time_format(time) {
 }
 
 function get_alt(p) {
-	return '---'; // TODO: Implement pressure to altitude calculation
+	var p_height;
+	p = p / 100; // convert pascal to millibar
+	if (p >= 226.32) {
+		p_height = 44330.8 * (1.0 - Math.exp(Math.log(p / 1013.25) * 0.190263));
+	}
+	if (p < 226.32 && p > 54.749) {
+		p_height = 11000 - 6341.624 * Math.log(p / 226.3202);
+	}
+	if (p <= 54.749) {
+	p_height = 20000 + 216650 * (Math.exp(Math.log(p / 54.749) * -0.0292173) -1.0);
+	}
+	return p_height;
 }
 
 function updateData() {
