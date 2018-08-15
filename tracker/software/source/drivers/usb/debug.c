@@ -34,6 +34,14 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
 {
 	chMtxLock(&mtx);
 
+	uint8_t str[256];
+
+	va_list args;
+	va_start(args, format);
+	chsnprintf((char*)str, sizeof(str), format, args);
+	va_end(args);
+
+
 	if(isConsoleOutputAvailable()) {
 		if(TRACE_TIME) {
 			chprintf((BaseSequentialStream*)&SDU1, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000);
@@ -42,12 +50,7 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
 		if(TRACE_FILE) {
 			chprintf((BaseSequentialStream*)&SDU1, "[%12s %04d]", filename, line);
 		}
-		chprintf((BaseSequentialStream*)&SDU1, " ");
-		va_list args;
-		va_start(args, format);
-		chprintf((BaseSequentialStream*)&SDU1, (format), args);
-		va_end(args);
-		chprintf((BaseSequentialStream*)&SDU1, "\r\n");
+		chprintf((BaseSequentialStream*)&SDU1, " %s\r\n", str);
 	}
 
 	if(TRACE_TIME) {
@@ -57,12 +60,7 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
 	if(TRACE_FILE) {
 		chprintf((BaseSequentialStream*)&SD3, "[%12s %04d]", filename, line);
 	}
-	chprintf((BaseSequentialStream*)&SD3, " ");
-	va_list args;
-	va_start(args, format);
-	chprintf((BaseSequentialStream*)&SD3, (format), args);
-	va_end(args);
-	chprintf((BaseSequentialStream*)&SD3, "\r\n");
+	chprintf((BaseSequentialStream*)&SD3, " %s\r\n", str);
 
 	chMtxUnlock(&mtx);
 }
