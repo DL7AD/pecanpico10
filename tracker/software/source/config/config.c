@@ -14,8 +14,8 @@ const conf_t conf_flash_default = {
     .pos_pri = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(120),
-            .init_delay = TIME_S2I(0),
+            .cycle = TIME_S2I(30),
+            .init_delay = TIME_S2I(5),
             .fixed = false // Add lat, lon, alt fields when enabling fixed
         },
         .radio_conf = {
@@ -49,24 +49,24 @@ const conf_t conf_flash_default = {
             .cca = 0x4F
         },
         // App identity
-        .call = "DL7AD-5",
-        .path = "WIDE2-1",
-        .symbol = SYM_DIGIPEATER,
-        .aprs_msg = false, // Enable APRS message reception on this app
+        .call = "DL7AD-12",
+        .path = "WIDE1-1",
+        .symbol = SYM_BALLOON,
+        .aprs_msg = true, // Enable APRS message reception on this app
     },
 
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = true,
+            .active = false,
             .cycle = CYCLE_CONTINUOUSLY,
             .init_delay = TIME_S2I(30),
             .send_spacing = TIME_S2I(10)
         },
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = FREQ_GEOFENCE,
-            .mod = MOD_AFSK,
+            .freq = 144860000,
+            .mod = MOD_2FSK,
             .cca = 0x5F
 
         },
@@ -75,7 +75,7 @@ const conf_t conf_flash_default = {
         .path = "",
 
         // Image settings
-        .res = RES_QVGA,
+        .res = RES_VGA,
         .quality = 4,
         .buf_size = 50 * 1024,
         .redundantTx = false
@@ -85,15 +85,15 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = false,
-            .cycle = TIME_S2I(60 * 15),
-            .init_delay = TIME_S2I(15 * 1),
-            .send_spacing = TIME_S2I(2)
+            .cycle = CYCLE_CONTINUOUSLY,
+            .init_delay = TIME_S2I(60),
+            .send_spacing = TIME_S2I(10)
         },
         .radio_conf = {
-            .pwr = 0x1F,
-            .freq = FREQ_APRS_AUSTRALIA,
-            .mod = MOD_AFSK,
-            .cca = 0x4F
+            .pwr = 0x7F,
+            .freq = 144860000,
+            .mod = MOD_2FSK,
+            .cca = 0x5F
         },
         // App identity
         .call = "DL7AD-12",
@@ -133,32 +133,32 @@ const conf_t conf_flash_default = {
                  // The packet receive service is enabled if true
                  // Receive is paused and resumed by transmission
                  .active = false,
-                 .init_delay = TIME_S2I(20)
+                 .init_delay = TIME_S2I(5)
              },
             // Receive radio configuration
             .radio_conf = {
                 .freq = FREQ_GEOFENCE,
                 .mod = MOD_AFSK,
-                .rssi = 0x3F
+                .rssi = 0x5F
             },
             // APRS identity used in message responses if digipeat is not enabled
-            .call = "DL7AD-4",
-            .symbol = SYM_ANTENNA
+            .call = "DL7AD-15",
+            .symbol = SYM_BALLOON
         },
-        .aprs_msg = false, // Set true to enable messages to be accepted on RX call sign
-        .digi = false,
+        .aprs_msg = true, // Set true to enable messages to be accepted on RX call sign
+        .digi = true,
         .tx = {
            // Transmit radio configuration
            .radio_conf = {
                .freq = FREQ_RX_APRS,
                .pwr = 0x7F,
                .mod = MOD_AFSK,
-               .cca = 0x4F
+               .cca = 0x5F
            },
            // Digipeat transmission identity
-           .call = "DL7AD-5",
-           .path = "WIDE2-1",
-           .symbol = SYM_DIGIPEATER,
+           .call = "DL7AD-15",
+           .path = "WIDE1-1",
+           .symbol = SYM_BALLOON,
            // A digipeater beacon can be added using one of the POS apps
            // Set the POS identity the same as the dipipeater TX identity
            // Alternatively the digipeater can have its own .beacon entry here
@@ -169,9 +169,9 @@ const conf_t conf_flash_default = {
 
     // Power control
     .keep_cam_switched_on = false,
-    .gps_on_vbat = 3600, // mV
-    .gps_off_vbat = 3400, // mV
-    .gps_onper_vbat = 4000, // mV
+    .gps_on_vbat = 3300, // mV
+    .gps_off_vbat = 3000, // mV
+    .gps_onper_vbat = 3500, // mV
 
     // GPS altitude model control (air pressure controlled using on-board BME280)
     .gps_pressure = 90000, // Air pressure (Pa) threshold for alt model switch
@@ -180,7 +180,7 @@ const conf_t conf_flash_default = {
 
     // APRS
     // How often to send telemetry config (global for beacons)
-    .tel_enc_cycle = TIME_S2I(60 * 60 * 2),
+    .tel_enc_cycle = TIME_S2I(3600),
 
     // The default APRS frequency when geofence is not resolved
     .freq = FREQ_APRS_EUROPE,
