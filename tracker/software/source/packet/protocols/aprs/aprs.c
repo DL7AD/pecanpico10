@@ -866,6 +866,8 @@ msg_t aprs_transmit_telemetry_response(aprs_identity_t *id,
   else
     *aprsd = *id->beacon;
   aprsd->run_once = true;
+  /* Wait 30 seconds max for GPS fix. */
+  aprsd->gps_wait = TIME_S2I(30);
   aprsd->beacon.init_delay = 0;
   thread_t *th = start_beacon_thread(aprsd, "APRSP");
   if(th == NULL) {

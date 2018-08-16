@@ -15,7 +15,11 @@ int main(void) {
     /* Setup core IO peripherals. */
     pktConfigureCoreIO();
 
-    /* Setup the mutex for trace output. */
+    /*
+     * Setup serial channel for debug.
+     * The mutex for trace output is initialized.
+     * The UART port/GPIO is setup.
+     */
     debug_init();
 
 #if ACTIVATE_CONSOLE
@@ -31,9 +35,6 @@ int main(void) {
 	bool pkt = pktSystemInit();
 
     chDbgAssert(pkt == true, "failed to init packet system");
-
-    /* Start serial debug channel(s) if selected. */
-    //pktSerialStart();
 
     /*
      * Create a packet radio service.

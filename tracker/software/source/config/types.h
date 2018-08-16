@@ -122,6 +122,7 @@ typedef struct {
   aprs_sym_t        symbol;
   bool              aprs_msg;
   bool              run_once;
+  sysinterval_t     gps_wait;
 } bcn_app_conf_t;
 
 typedef struct {

@@ -17,8 +17,10 @@
  *
  */
 THD_FUNCTION(bcnThread, arg) {
-  bcn_app_conf_t* conf = (bcn_app_conf_t *)arg;
+  bcn_app_conf_t *s_conf = (bcn_app_conf_t *)arg;
 
+  /* Copy the conf so we can adjust it on first pass. */
+  bcn_app_conf_t conf = *s_conf;
   // Start data collector (if not running yet)
   init_data_collector();
 
@@ -33,35 +35,29 @@ THD_FUNCTION(bcnThread, arg) {
 
   /* Now wait for our delay before starting. */
 
-  chThdSleepUntil(chVTGetSystemTime() + conf->beacon.init_delay);
-
+  chThdSleepUntil(chVTGetSystemTime() + conf.beacon.init_delay);
+  /*
+   * Force fast timeout on first attempt from normal BCN app.
+   * ?APRSP command can set its own interval to override the timing.
+   */
+  if(conf.run_once != true)
+    conf.gps_wait = TIME_MS2I(100);
   while(true) {
 
     char code_s[100];
-    pktDisplayFrequencyCode(conf->radio_conf.freq, code_s, sizeof(code_s));
+    pktDisplayFrequencyCode(conf.radio_conf.freq, code_s, sizeof(code_s));
     TRACE_INFO("POS  > Do module BEACON cycle for %s on %s%s",
-               conf->call, code_s, conf->run_once ? " (?aprsp response)" : "");
-    /* TODO: Add a while loop here that checks remaining time in cycle.
-     * When within time then keep trying for GPS lock.
-     * The collector will keep the GPS on if battery is OK.
-     */
-    if(chVTIsSystemTimeWithinX(time, time + conf->beacon.cycle)) {
-
-    }
+               conf.call, code_s, conf.run_once ? " (?aprsp response)" : "");
 
     /*
      *  Pass pointer to beacon config to the collector thread.
      */
     extern thread_t *collector_thd;
-    msg_t dpmsg = chMsgSend(collector_thd, (msg_t)conf);
-    if(dpmsg == MSG_TIMEOUT) {
-
-    }
-    /* If not a timeout then this is a datapoint. */
+    msg_t dpmsg = chMsgSend(collector_thd, (msg_t)&conf);
     dataPoint_t *dataPoint = (dataPoint_t *)dpmsg;
 
     /* Continue here when collector responds. */
-    if(!p_sleep(&conf->beacon.sleep_conf)) {
+    if(!p_sleep(&conf.beacon.sleep_conf)) {
       // Telemetry encoding parameter transmissions
       if(conf_sram.tel_enc_cycle != 0
     		  && chVTTimeElapsedSinceX(last_conf_transmission)
@@ -72,21 +68,21 @@ THD_FUNCTION(bcnThread, arg) {
         uint8_t type = 0;
         do {
           packet_t packet = aprs_encode_telemetry_configuration(
-              conf->call,
-              conf->path,
-              conf->call,
+              conf.call,
+              conf.path,
+              conf.call,
               type);
           if(packet == NULL) {
             TRACE_WARN("BCN  > No free packet objects for"
                 " telemetry config transmission %d", type);
           } else {
             if(!transmitOnRadio(packet,
-                                conf->radio_conf.freq,
+                                conf.radio_conf.freq,
                                 0,
                                 0,
-                                conf->radio_conf.pwr,
-                                conf->radio_conf.mod,
-                                conf->radio_conf.cca)) {
+                                conf.radio_conf.pwr,
+                                conf.radio_conf.mod,
+                                conf.radio_conf.cca)) {
               /* Packet is released in transmitOnRadio. */
               TRACE_ERROR("BCN  > Failed to transmit telemetry config");
             }
@@ -99,21 +95,21 @@ THD_FUNCTION(bcnThread, arg) {
       TRACE_INFO("BCN  > Transmit position and telemetry");
 
       // Encode/Transmit position packet
-      packet_t packet = aprs_encode_position_and_telemetry(conf->call,
-                                                           conf->path,
-                                                           conf->symbol,
+      packet_t packet = aprs_encode_position_and_telemetry(conf.call,
+                                                           conf.path,
+                                                           conf.symbol,
                                                            dataPoint, true);
       if(packet == NULL) {
         TRACE_ERROR("BCN  > No free packet objects"
             " for position transmission");
       } else {
         if(!transmitOnRadio(packet,
-                            conf->radio_conf.freq,
+                            conf.radio_conf.freq,
                             0,
                             0,
-                            conf->radio_conf.pwr,
-                            conf->radio_conf.mod,
-                            conf->radio_conf.cca)) {
+                            conf.radio_conf.pwr,
+                            conf.radio_conf.mod,
+                            conf.radio_conf.cca)) {
           TRACE_ERROR("BCN  > failed to transmit beacon data");
         }
         chThdSleep(TIME_S2I(5));
@@ -127,37 +123,39 @@ THD_FUNCTION(bcnThread, arg) {
        * Else send it to device identity.
        */
       char *call = conf_sram.base.enabled
-          ? conf_sram.base.call : conf->call;
+          ? conf_sram.base.call : conf.call;
       char *path = conf_sram.base.enabled
-          ? conf_sram.base.path : conf->path;
+          ? conf_sram.base.path : conf.path;
       /*
        * Send message from this device.
        * Use call sign and path as specified in base config.
-       * There is no acknowledgment requested.
+       * There is no acknowledgement requested.
        */
-      packet = aprs_compose_aprsd_message(conf->call, path, call);
+      packet = aprs_compose_aprsd_message(conf.call, path, call);
       if(packet == NULL) {
         TRACE_ERROR("BCN  > No free packet objects "
             "or badly formed APRSD message");
       } else {
         if(!transmitOnRadio(packet,
-                            conf->radio_conf.freq,
+                            conf.radio_conf.freq,
                             0,
                             0,
-                            conf->radio_conf.pwr,
-                            conf->radio_conf.mod,
-                            conf->radio_conf.cca
+                            conf.radio_conf.pwr,
+                            conf.radio_conf.mod,
+                            conf.radio_conf.cca
         )) {
           TRACE_ERROR("BCN  > Failed to transmit APRSD data");
         }
         chThdSleep(TIME_S2I(5));
       }
     } /* psleep */
-    if(conf->run_once) {
-      chHeapFree(conf);
+    if(conf.run_once) {
+      chHeapFree(s_conf);
       pktThdTerminateSelf();
     }
-    time = waitForTrigger(time, conf->beacon.cycle);
+    time = waitForTrigger(time, conf.beacon.cycle);
+    /* Reset conf to external configuration. */
+    conf = *s_conf;
   }
 }
 

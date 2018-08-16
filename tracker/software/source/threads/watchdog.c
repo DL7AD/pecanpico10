@@ -34,7 +34,7 @@ THD_FUNCTION(wdgThread, arg) {
 		/*for(uint8_t i=0; i<threads_cnt; i++) {
 			if(registered_threads[i]->wdg_timeout < chVTGetSystemTime())
 			{
-				TRACE_ERROR("WDG  > Thread %s not healty", registered_threads[i]->name);
+				TRACE_ERROR("WDG  > Thread %s not healthy", registered_threads[i]->name);
 				healthy = false; // Threads reached timeout
 			}
 		}*/
@@ -55,20 +55,20 @@ void init_watchdog(void)
 {
 #ifndef DISABLE_HW_WATCHDOG
 	// Initialize Watchdog
-	TRACE_INFO("WDG  > Initialize Watchdog");
+	TRACE_INFO("WDG  > Initialize hardware watchdog");
 	wdgStart(&WDGD1, &wdgcfg);
 	wdgReset(&WDGD1);
 #else
 #warning "Hardware Watchdog is disabled"
-    TRACE_INFO("WDG  > Watchdog disabled");
+    TRACE_INFO("WDG  > Hardware watchdog disabled");
 #endif
 	flash_led();
 
-	TRACE_INFO("WDG  > Startup Watchdog thread");
+	TRACE_INFO("WDG  > Startup software watchdog thread");
 	thread_t *th = chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(256), "WDG", NORMALPRIO, wdgThread, NULL);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread
-		TRACE_ERROR("TRAC > Could not startup thread (not enough memory available)");
+		TRACE_ERROR("WDG  > Could not startup thread (not enough memory available)");
 	}
 }
 

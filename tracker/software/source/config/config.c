@@ -19,7 +19,7 @@ const conf_t conf_flash_default = {
             .fixed = false // Add lat, lon, alt fields when enabling fixed
         },
         .radio_conf = {
-            .pwr = 0x7F,
+            .pwr = 0x1F,
             .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x5F,
@@ -34,16 +34,16 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 30), // Beacon interval
-            .init_delay = TIME_S2I(60),
-            .fixed = true, // Add lat, lon alt fields when enabling fixed
+            .active = true,
+            .cycle = TIME_S2I(60 * 2), // Beacon interval
+            .init_delay = TIME_S2I(0),
+            .fixed = false, // Add lat, lon alt fields when enabling fixed
             .lat = -337331175, // Degrees (expressed in 1e-7 form)
             .lon = 1511143478, // Degrees (expressed in 1e-7 form)
             .alt = 144 // Altitude in metres
         },
         .radio_conf = {
-            .pwr = 0x7F,
+            .pwr = 0x1F,
             .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x4F
@@ -132,7 +132,7 @@ const conf_t conf_flash_default = {
              .svc_conf = {
                  // The packet receive service is enabled if true
                  // Receive is paused and resumed by transmission
-                 .active = true,
+                 .active = false,
                  .init_delay = TIME_S2I(20)
              },
             // Receive radio configuration
@@ -183,7 +183,7 @@ const conf_t conf_flash_default = {
     .tel_enc_cycle = TIME_S2I(3600),
 
     // The default APRS frequency when geofence is not resolved
-    .freq = FREQ_APRS_EUROPE,
+    .freq = FREQ_APRS_AUSTRALIA,
 
     // The base station identity.
     .base = {

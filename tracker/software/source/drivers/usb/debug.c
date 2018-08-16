@@ -58,6 +58,7 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
       chprintf((BaseSequentialStream*)&SDU1, "\r\n");
 	}
 
+#if ENABLE_SERIAL_DEBUG == TRUE
 	if(TRACE_TIME) {
 		chprintf((BaseSequentialStream*)SERIAL_DEBUG_DRIVER, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000);
 	}
@@ -71,6 +72,7 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
 	chvprintf((BaseSequentialStream*)SERIAL_DEBUG_DRIVER, format, args);
     va_end(args);
     chprintf((BaseSequentialStream*)SERIAL_DEBUG_DRIVER, "\r\n");
+#endif
 
 	chMtxUnlock(&debug_mtx);
 }

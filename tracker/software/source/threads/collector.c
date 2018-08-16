@@ -514,19 +514,32 @@ THD_FUNCTION(collectorThread, arg) {
     getGPIO(tp);
     setSystemStatus(tp);
 
-    /* Set timeout based on cycle or minimum 1 minute. */
-    sysinterval_t gps_wait_time =
-                                   config->beacon.cycle > TIME_S2I(60)
-                                   ? TIME_S2I(60) : config->beacon.cycle;
+    /* Default maximum GPS wait time for acquisition. */
+    sysinterval_t gps_wait_fix = TIME_S2I(60);
 
+    /* If there is wait time specified get it. */
+    if(config->gps_wait != 0)
+      gps_wait_fix = config->gps_wait;
+
+    /*
+     * When cycle is less than minimum then use cycle but limit to 1 second
+     */
+    if(config->beacon.cycle < gps_wait_fix) {
+      gps_wait_fix = (config->beacon.cycle == 0) ? TIME_S2I(1)
+                                                  : config->beacon.cycle;
+    }
     getTime(&time);
     if(time.year == RTC_BASE_YEAR) {
       /*
-      *  The RTC is not set.
-      *  Enable the GPS and attempt a lock which results in setting the RTC.
+       * The RTC is not set.
+       * Enable the GPS and attempt a lock which results in setting the RTC.
+       * Allow up to half the fix timeout for time acquisition.
       */
-      TRACE_INFO("COLL > Attempt time acquisition using GPS for %d seconds",
-                 chTimeI2S(gps_wait_time));
+      sysinterval_t gps_wait_time = gps_wait_fix / 2;
+      TRACE_INFO("COLL > Attempt time acquisition using GPS "
+                        "for up to %d.%d seconds",
+                 chTimeI2MS(gps_wait_time) / 1000,
+                 chTimeI2MS(gps_wait_time) % 1000);
 
       if(aquirePosition(tp, ltp, gps_wait_time)) {
         /* Acquisition succeeded. */
@@ -542,6 +555,8 @@ THD_FUNCTION(collectorThread, arg) {
         /* Time is stale record. */
         TRACE_INFO("COLL > Time update not acquired from GPS");
       }
+      /* Let the acquisition run and set the datapoint. */
+      gps_wait_fix /= 2;
     }
 
     if(config->beacon.fixed) {
@@ -567,8 +582,10 @@ THD_FUNCTION(collectorThread, arg) {
        *  If lock not attained fallback data is set.
        *  Timeout will be remainder of time if RTC set was done.
        */
-      TRACE_INFO("COLL > Acquire position using GPS");
-      if(aquirePosition(tp, ltp, gps_wait_time)) {
+      TRACE_INFO("COLL > Acquire position using GPS for up to %d.%d seconds",
+                                   chTimeI2MS(gps_wait_fix) / 1000,
+                                   chTimeI2MS(gps_wait_fix) % 1000);
+      if(aquirePosition(tp, ltp, gps_wait_fix)) {
         TRACE_INFO("COLL > Acquired fresh GPS data");
       } else {
         /* Historical data has been carried forward. */
