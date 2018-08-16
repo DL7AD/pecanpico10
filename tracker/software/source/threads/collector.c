@@ -532,6 +532,8 @@ THD_FUNCTION(collectorThread, arg) {
     if(time.year == RTC_BASE_YEAR) {
       /*
        * The RTC is not set.
+       * There may be a fixed location beacon requiring time only.
+       * Alternatively this can be a normal request for a full fix.
        * Enable the GPS and attempt a lock which results in setting the RTC.
        * Allow up to half the fix timeout for time acquisition.
       */
@@ -586,6 +588,13 @@ THD_FUNCTION(collectorThread, arg) {
                                    chTimeI2MS(gps_wait_fix) / 1000,
                                    chTimeI2MS(gps_wait_fix) % 1000);
       if(aquirePosition(tp, ltp, gps_wait_fix)) {
+        if(ltp->gps_state == GPS_TIME) {
+          /* Write the timestamp where RTC was calibrated. */
+          ltp->gps_sats = 0;
+          ltp->gps_ttff = 0;
+          ltp->gps_pdop = 0;
+          flash_writeLogDataPoint(ltp);
+        }
         TRACE_INFO("COLL > Acquired fresh GPS data");
       } else {
         /* Historical data has been carried forward. */
