@@ -24,21 +24,8 @@ void start_essential_threads(void)
 }
 
 void start_user_threads(void) {
-	conf_t *conf_flash = (conf_t*)0x08060000;
-	/* Check if a user update has been made to configuration in flash. */
-	if(conf_flash->magic != CONFIG_MAGIC_UPDATED) {
-	    if(conf_flash->magic != CONFIG_MAGIC_DEFAULT
-	    || memcmp(&conf_flash, &conf_flash_default, sizeof(conf_t)) != 0) {
-        /* No configuration found in flash memory or default config has changed. */
-          flashSectorBegin(flashSectorAt((uint32_t)conf_flash));
-          flashErase((uint32_t)conf_flash, 0x20000);
-          flashWrite((uint32_t)conf_flash, (char*)&conf_flash_default, sizeof(conf_t));
-          flashSectorEnd(flashSectorAt((uint32_t)conf_flash));
-      }
-	}
-
 	// Copy 
-	memcpy(&conf_sram, conf_flash, sizeof(conf_t));
+	memcpy(&conf_sram, &conf_flash_default, sizeof(conf_t));
 
 	/* TODO: Implement scheduler that will run threads based on schedule. */
 	if(conf_sram.pos_pri.beacon.active)

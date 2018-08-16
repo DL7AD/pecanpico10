@@ -38,6 +38,13 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
+typedef enum radioIndicators {
+  PKT_INDICATOR_DECODE,
+  PKT_INDICATOR_SQUELCH,
+  PKT_INDICATOR_FIFO,
+  PKT_INDICATOR_OVERFLOW
+} radio_indicator_t;
+
 #include "pkttypes.h"
 
 /**
@@ -61,27 +68,27 @@ typedef enum radioCommand {
 typedef struct radioTask radio_task_object_t;
 typedef struct packetHandlerData packet_svc_t;
 typedef struct radioConfig radio_config_t;
-typedef struct radioSettings radio_settings_t;
-typedef struct radioAction radio_action_t;
+//typedef struct radioSettings radio_settings_t;
+//typedef struct radioAction radio_action_t;
 
 /**
- * @brief           Radio task notification callback type.
+ * @brief   Radio task notification callback type.
  *
- * @param[in] rcob  pointer to a @p radio task object
+ * @param[in] task_object  pointer to a @p radio task object
  */
 typedef void (*radio_task_cb_t)(radio_task_object_t *task_object);
 
 #include "ax25_pad.h"
 
-struct radioSettings {
-  mod_t                     type;
+typedef struct radioSettings {
+  radio_mod_t                     type;
   radio_freq_t              base_frequency;
   channel_hz_t              step_hz;
   radio_ch_t                channel;
   radio_squelch_t           squelch;
-};
+} radio_settings_t;
 
-struct radioAction {
+typedef struct radioAction {
   radio_command_t           command;
   radio_task_cb_t           callback;
   msg_t                     result;
@@ -89,12 +96,12 @@ struct radioAction {
   char                      tx_thd_name[16];
   packet_svc_t              *handler;
   packet_t                  packet_out;
-};
+} radio_action_t;
 
-struct radioTaskx {
+/*struct radioTaskx {
   radio_settings_t          settings;
   radio_action_t            action;
-};
+};*/
 
 /**
  * @brief       Radio task object.
@@ -104,7 +111,7 @@ struct radioTask {
   /* For safety keep clear - where pool stores its free link. */
   struct pool_header        link;
   radio_command_t           command;
-  mod_t                     type;
+  radio_mod_t               type;
   radio_freq_t              base_frequency;
   channel_hz_t              step_hz;
   radio_ch_t                channel;
@@ -120,10 +127,30 @@ struct radioTask {
 };
 
 /*===========================================================================*/
-/* External declarations.                                                    */
+/* Module macros.                                                            */
 /*===========================================================================*/
 
-//extern const ICUConfig pwm_icucfg;
+/**
+ * @brief   Alias of pktStopDecoder for convenience.
+ *
+ * @param[in] radio radio unit ID
+ *
+ * @api
+ */
+#define pktPauseDecoding(radio) pktStopDecoder(radio)
+
+/**
+ * @brief   Alias for convenience of pktStartDecoder.
+ *
+ * @param[in] radio radio unit ID
+ *
+ * @api
+ */
+#define pktResumeDecoding(radio) pktStartDecoder(radio)
+
+/*===========================================================================*/
+/* External declarations.                                                    */
+/*===========================================================================*/
 
 #ifdef __cplusplus
 extern "C" {
@@ -181,6 +208,14 @@ extern "C" {
             	 	                        size_t size);
   const radio_config_t	*pktGetRadioData(radio_unit_t radio);
   uint8_t           pktLLDradioReadCCA(const radio_unit_t radio);
+  void              pktLLDradioConfigIndicators(const radio_unit_t radio);
+  void              pktLLDradioDeconfigIndicators(const radio_unit_t radio);
+  void              pktLLDradioSetIndicator(const radio_unit_t radio,
+                               radio_indicator_t ind);
+  void              pktLLDradioClearIndicator(const radio_unit_t radio,
+                                 radio_indicator_t ind);
+  void              pktLLDradioToggleIndicator(const radio_unit_t radio,
+                                  radio_indicator_t ind);
 #ifdef __cplusplus
 }
 #endif
@@ -188,24 +223,6 @@ extern "C" {
 /*===========================================================================*/
 /* Module inline functions.                                                  */
 /*===========================================================================*/
-
-/**
- * @brief   Alias of pktStopDecoder for convenience.
- *
- * @param[in] radio radio unit ID
- *
- * @api
- */
-#define pktPauseDecoding(radio) pktStopDecoder(radio)
-
-/**
- * @brief   Alias for convenience of pktStartDecoder.
- *
- * @param[in] radio radio unit ID
- *
- * @api
- */
-#define pktResumeDecoding(radio) pktStartDecoder(radio)
 
 #endif /* PKT_MANAGERS_PKTRADIO_H_ */
 

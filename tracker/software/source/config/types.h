@@ -50,7 +50,7 @@ typedef enum { // Modulation type
     MOD_NONE,
 	MOD_AFSK,
 	MOD_2FSK
-} mod_t;
+} radio_mod_t;
 
 typedef enum {
 	RES_NONE = 0,
@@ -66,7 +66,7 @@ typedef enum {
 typedef struct {
   radio_pwr_t       pwr;
   radio_freq_t      freq;
-  mod_t             mod;
+  radio_mod_t             mod;
   link_speed_t      speed;
   union {
     radio_squelch_t   cca;
@@ -77,14 +77,14 @@ typedef struct {
 typedef struct {
   radio_pwr_t       pwr;
   radio_freq_t      freq;
-  mod_t             mod;
+  radio_mod_t             mod;
   link_speed_t      speed;
   radio_squelch_t   cca;
 } radio_tx_conf_t; // Radio / Modulation
 
 typedef struct {
   radio_freq_t      freq;
-  mod_t             mod;
+  radio_mod_t             mod;
   link_speed_t      speed;
   radio_squelch_t   rssi;
 } radio_rx_conf_t; // Radio / Modulation

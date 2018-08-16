@@ -1053,7 +1053,7 @@ bool pktLLDradioResumeReceive(const radio_unit_t radio) {
   channel_hz_t step = handler->radio_rx_config.step_hz;
   radio_ch_t chan = handler->radio_rx_config.channel;
   radio_squelch_t rssi = handler->radio_rx_config.squelch;
-  mod_t mod = handler->radio_rx_config.type;
+  radio_mod_t mod = handler->radio_rx_config.type;
   bool result = Si4464_enableReceive(radio, freq, step, chan, rssi, mod);
   return result;
 }
@@ -1183,6 +1183,47 @@ uint8_t pktLLDradioReadCCA(const radio_unit_t radio) {
    * - Then call VMT dispatcher inside radio driver.
    */
   return Si446x_readCCA(radio);
+}
+
+/**
+ *
+ */
+void pktLLDradioConfigIndicators(const radio_unit_t radio) {
+  (void)radio;
+}
+
+/**
+ *
+ */
+void pktLLDradioDeconfigIndicators(const radio_unit_t radio) {
+  (void)radio;
+}
+
+/**
+ *
+ */
+void pktLLDradioSetIndicator(const radio_unit_t radio,
+                             radio_indicator_t ind) {
+  (void)radio;
+  (void)ind;
+}
+
+/**
+ *
+ */
+void pktLLDradioClearIndicator(const radio_unit_t radio,
+                               radio_indicator_t ind) {
+  (void)radio;
+  (void)ind;
+}
+
+/**
+ *
+ */
+void pktLLDradioToggleIndicator(const radio_unit_t radio,
+                                radio_indicator_t ind) {
+  (void)radio;
+  (void)ind;
 }
 
 /** @} */

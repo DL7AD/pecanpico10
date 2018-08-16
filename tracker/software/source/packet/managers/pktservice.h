@@ -53,7 +53,7 @@ typedef enum HDLCFrameStates {
 #include "types.h"
 
 /* Link level encoding type. */
-typedef mod_t encoding_type_t;
+typedef radio_mod_t encoding_type_t;
 
 #include "pktradio.h"
 

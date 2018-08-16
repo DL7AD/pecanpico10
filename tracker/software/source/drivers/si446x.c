@@ -1063,7 +1063,7 @@ bool Si446x_receiveNoLock(const radio_unit_t radio,
                           channel_hz_t step,
                           radio_ch_t channel,
                           radio_squelch_t rssi,
-                          mod_t mod) {
+                          radio_mod_t mod) {
 
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
                                                       step, channel,
@@ -1123,7 +1123,7 @@ bool Si4464_enableReceive(const radio_unit_t radio,
                           const channel_hz_t rx_step,
                           const radio_ch_t rx_chan,
                           const radio_squelch_t rx_rssi,
-                          const mod_t rx_mod) {
+                          const radio_mod_t rx_mod) {
 
   /* Get an absolute operating frequency in Hz. */
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio,

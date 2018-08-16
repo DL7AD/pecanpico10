@@ -22,7 +22,7 @@
 void start_aprs_threads(radio_unit_t radio, radio_freq_t freq, channel_hz_t step,
                      radio_ch_t chan, radio_squelch_t rssi);
 bool transmitOnRadio(packet_t pp, radio_freq_t freq, channel_hz_t step,
-                     radio_ch_t chan, radio_pwr_t pwr, mod_t mod,
+                     radio_ch_t chan, radio_pwr_t pwr, radio_mod_t mod,
                      radio_squelch_t rssi);
 
 inline const char *getModulation(uint8_t key) {

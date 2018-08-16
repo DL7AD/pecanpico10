@@ -316,13 +316,13 @@ extern "C" {
                             channel_hz_t rx_step,
                             radio_ch_t rx_chan,
                             radio_squelch_t rx_rssi,
-                            mod_t rx_mod);
+                            radio_mod_t rx_mod);
   bool Si446x_receiveNoLock(const radio_unit_t radio,
                             radio_freq_t rx_frequency,
                             channel_hz_t rx_step,
                             radio_ch_t chan,
                             radio_squelch_t rssi,
-                            mod_t mod);
+                            radio_mod_t mod);
   void Si446x_lockRadio(const radio_mode_t mode);
   void Si446x_unlockRadio(const radio_mode_t mode);
   void Si446x_lockRadioByCamera(void);
