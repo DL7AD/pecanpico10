@@ -17,14 +17,14 @@
 
 extern char error_list[ERROR_LIST_SIZE][ERROR_LIST_LENGTH];
 extern uint8_t error_counter;
-extern uint8_t usb_trace_level;
+extern uint8_t current_trace_level;
 
-#define TRACE_DEBUG(format, args...) if(usb_trace_level > 4) { debug_print("DEBUG", __FILENAME__, __LINE__, format, ##args); }
-#define TRACE_INFO(format, args...)  if(usb_trace_level > 3) { debug_print("     ", __FILENAME__, __LINE__, format, ##args); }
-#define TRACE_MON(format, args...)  if(usb_trace_level > 2) { debug_print("     ", __FILENAME__, __LINE__, format, ##args); }
-#define TRACE_WARN(format, args...)  if(usb_trace_level > 1) { debug_print("WARN ", __FILENAME__, __LINE__, format, ##args); }
+#define TRACE_DEBUG(format, args...) if(current_trace_level > 4) { debug_print("DEBUG", __FILENAME__, __LINE__, format, ##args); }
+#define TRACE_INFO(format, args...)  if(current_trace_level > 3) { debug_print("     ", __FILENAME__, __LINE__, format, ##args); }
+#define TRACE_MON(format, args...)  if(current_trace_level > 2) { debug_print("     ", __FILENAME__, __LINE__, format, ##args); }
+#define TRACE_WARN(format, args...)  if(current_trace_level > 1) { debug_print("WARN ", __FILENAME__, __LINE__, format, ##args); }
 #define TRACE_ERROR(format, args...) { \
-	if(usb_trace_level > 0) { \
+	if(current_trace_level > 0) { \
 		debug_print("ERROR", __FILENAME__, __LINE__, format, ##args); \
 	} \
 	\
@@ -62,6 +62,12 @@ static inline heap_header_t *pktSystemCheck(void) {
   return (heap_header_t *)(ccm_heap->header.free).next;
 }
 #endif
+
+/*===========================================================================*/
+/* External declarations.                                                    */
+/*===========================================================================*/
+
+extern mutex_t debug_mtx;
 
 void debug_init(void);
 void debug_print(char *type, char* filename, uint32_t line, char* format, ...);

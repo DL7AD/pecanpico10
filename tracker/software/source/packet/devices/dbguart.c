@@ -21,7 +21,7 @@
  * @{
  */
 
-binary_semaphore_t debug_out_sem;
+//binary_semaphore_t debug_out_sem;
 
 //BaseSequentialStream* pkt_out = (BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER;
 

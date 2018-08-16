@@ -210,12 +210,8 @@ extern "C" {
   uint8_t           pktLLDradioReadCCA(const radio_unit_t radio);
   void              pktLLDradioConfigIndicators(const radio_unit_t radio);
   void              pktLLDradioDeconfigIndicators(const radio_unit_t radio);
-  void              pktLLDradioSetIndicator(const radio_unit_t radio,
+  void              pktLLDradioUpdateIndicator(const radio_unit_t radio,
                                radio_indicator_t ind);
-  void              pktLLDradioClearIndicator(const radio_unit_t radio,
-                                 radio_indicator_t ind);
-  void              pktLLDradioToggleIndicator(const radio_unit_t radio,
-                                  radio_indicator_t ind);
 #ifdef __cplusplus
 }
 #endif

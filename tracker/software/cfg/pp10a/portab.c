@@ -144,8 +144,8 @@ void pktSerialStart(void) {
   sdStart(SERIAL_CFG_DEBUG_DRIVER, &debug_config);
 #endif
   /* Setup diagnostic resource access semaphore. */
-  extern binary_semaphore_t debug_out_sem;
-  chBSemObjectInit(&debug_out_sem, false);
+  //extern binary_semaphore_t debug_out_sem;
+  //chBSemObjectInit(&debug_out_sem, false);
 }
 
 void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len) {
@@ -165,7 +165,7 @@ int dbgPrintf(uint8_t level, const char *format, ...) {
   int done;
 
   va_start(arg, format);
-  done = chprintf((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, format, arg);
+  done = chvprintf((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, format, arg);
   va_end(arg);
 
   return done;

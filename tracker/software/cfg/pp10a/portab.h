@@ -16,7 +16,7 @@
 /*
  * Serial port definitions
  */
-#define SERIAL_CFG_DEBUG_DRIVER		&SD3
+#define SERIAL_DEBUG_DRIVER		&SD3
 
 /*
  * SPI definitions

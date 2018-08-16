@@ -921,7 +921,7 @@ bool pktLLDradioInit(const radio_unit_t radio) {
 
 void pktLLDradioShutdown(const radio_unit_t radio) {
   /* TODO: Implement hardware mapping. */
-  (void)radio;
+  //(void)radio;
 
   /*
    * Put radio in shutdown mode.
@@ -932,7 +932,7 @@ void pktLLDradioShutdown(const radio_unit_t radio) {
 
 void pktLLDradioStandby(const radio_unit_t radio) {
   /* TODO: Implement hardware mapping. */
-  (void)radio;
+  //(void)radio;
 
   /*
    * Put radio in standby (low power) mode.
@@ -1202,26 +1202,8 @@ void pktLLDradioDeconfigIndicators(const radio_unit_t radio) {
 /**
  *
  */
-void pktLLDradioSetIndicator(const radio_unit_t radio,
+void pktLLDradioUpdateIndicator(const radio_unit_t radio,
                              radio_indicator_t ind) {
-  (void)radio;
-  (void)ind;
-}
-
-/**
- *
- */
-void pktLLDradioClearIndicator(const radio_unit_t radio,
-                               radio_indicator_t ind) {
-  (void)radio;
-  (void)ind;
-}
-
-/**
- *
- */
-void pktLLDradioToggleIndicator(const radio_unit_t radio,
-                                radio_indicator_t ind) {
   (void)radio;
   (void)ind;
 }

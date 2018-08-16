@@ -110,7 +110,7 @@ void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
 	  if(atoi(argv[0]) > 5) {
 	      chprintf(chp, "Choose a level from 0 - 5\r\n");
       }
-      chprintf(chp, "Current trace level: %i\r\n", usb_trace_level);
+      chprintf(chp, "Current trace level: %i\r\n", current_trace_level);
       chprintf(chp, "Level 0: None\r\n");
       chprintf(chp, "Level 1: Errors\r\n");
       chprintf(chp, "Level 2: Errors + Warnings\r\n");
@@ -119,7 +119,7 @@ void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
       chprintf(chp, "Level 5: Errors + Warnings + Monitor + Info + Debug\r\n");
       return;
 	}
-	usb_trace_level = atoi(argv[0]);
+	current_trace_level = atoi(argv[0]);
 }
 
 void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])

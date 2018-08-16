@@ -21,7 +21,7 @@ char serial_buf[1024];
 int serial_out;
 
 /* Access control semaphore. */
-extern binary_semaphore_t debug_out_sem;
+//extern binary_semaphore_t debug_out_sem;
 
 void pktDumpAX25Frame(ax25char_t *frame_buffer,
                       ax25size_t frame_size, ax25_select_t which) {
@@ -96,7 +96,8 @@ void pktDumpAX25Frame(ax25char_t *frame_buffer,
 
 void pktDiagnosticOutput(packet_svc_t *packetHandler,
                          pkt_data_object_t *myPktFIFO) {
-  chBSemWait(&debug_out_sem);
+  chMtxLock(&debug_mtx);
+  //chBSemWait(&debug_out_sem);
   /* Buffer and size params for serial terminal output. */
     char serial_buf[1024];
     int serial_out;
@@ -138,7 +139,8 @@ void pktDiagnosticOutput(packet_svc_t *packetHandler,
     dbgWrite(DBG_INFO, (uint8_t *)serial_buf, serial_out);
   }
 
-  chBSemSignal(&debug_out_sem);
+  //chBSemSignal(&debug_out_sem);
+  chMtxUnlock(&debug_mtx);
 }
 
 
