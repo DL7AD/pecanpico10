@@ -515,7 +515,7 @@ packet_t aprs_encode_position_and_telemetry(const char *callsign,
 packet_t aprs_encode_data_packet(const char *callsign, const char *path,
                                  char packetType, uint8_t *data)
 {
-	char xmit[256];
+	char xmit[AX25_MAX_INFO_LEN + 1];
 	chsnprintf(xmit, sizeof(xmit), "%s>%s,%s:{{%c%s", callsign,
 	           APRS_DEVICE_CALLSIGN, path, packetType, data);
 
@@ -534,7 +534,7 @@ packet_t aprs_encode_data_packet(const char *callsign, const char *path,
 packet_t aprs_format_transmit_message(const char *originator, const char *path,
                              const char *recipient, const char *text,
                              const bool ack) {
-	char xmit[256];
+	char xmit[AX25_MAX_INFO_LEN + 1];
 	if((strlen(text) > AX25_MAX_APRS_MSG_LEN)
 	    || (strpbrk(text, "|~{") != NULL))
 	  /* Invalid message. */
@@ -569,7 +569,7 @@ packet_t aprs_format_transmit_message(const char *originator, const char *path,
 packet_t aprs_compose_aprsd_message(const char *originator,
                                     const char *path,
                                     const char *recipient) {
-	char buf[256] = "Directs=";
+	char buf[AX25_MAX_INFO_LEN + 1] = "Directs=";
 	uint32_t out = strlen(buf);
 	uint32_t empty = out;
 	for(uint8_t i = 0; i < APRS_HEARD_LIST_SIZE; i++) {

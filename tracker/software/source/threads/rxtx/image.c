@@ -815,6 +815,14 @@ bool camera_mtx_init = false;
 
 static bool camInitialized = false;
 
+/*
+ * Static binary semaphore for throttling image TX rate.
+ * Each image thread competes for the semaphore.
+ * Once obtained the image thread encodes and then queues TX packets.
+ * There can still be concurrent TX threads queued for a radio.
+ */
+static BSEMAPHORE_DECL(tx_complete, false);
+
 ssdv_packet_t packetRepeats[16];
 bool reject_pri;
 bool reject_sec;
@@ -886,6 +894,16 @@ static bool transmit_image_packet(const uint8_t *image,
 	}
 }
 
+/**
+ * Callback to throttle image send.
+ * Next packet (or burst) is readied.
+ */
+static void image_packet_send_complete(void) {
+  chBSemSignal(&tx_complete);
+  TRACE_DEBUG("IMG  > Signal encode/transmit semaphore");
+  return;
+}
+
 /*
  * Transmit image packets.
  * Return true if no SSDV encoding error or false on encoding error.
@@ -933,13 +951,20 @@ static bool transmit_image_packets(const uint8_t *image,
   ssdv_enc_set_buffer(&ssdv, pkt);
   ssdv_enc_feed(&ssdv, image, 0);
 
+  //chBSemObjectInit(&tx_complete, false);
+
   while(c != SSDV_EOI) {
 
+    TRACE_DEBUG("IMG  > Get encode/transmit semaphore");
+    /* Get the semaphore for encode and TX. */
+    if(chBSemWait(&tx_complete) == MSG_RESET)
+        break;
     /*
      * Next encode packets.
      * Packet burst send is available if redundant TX is not requested.
      */
-    uint8_t buffers = fmin((NUMBER_COMMON_PKT_BUFFERS / 2),
+    uint8_t buffers = fmin(((NUMBER_COMMON_PKT_BUFFERS / 2)
+                            - RESERVE_BUFFERS_FOR_INTERNAL),
                            MAX_BUFFERS_FOR_BURST_SEND);
     uint8_t chain = (conf->radio_conf.mod == MOD_2FSK
         && !conf->redundantTx) ?
@@ -959,19 +984,25 @@ static bool transmit_image_packets(const uint8_t *image,
           if(head != NULL) {
             pktReleaseBufferChain(head);
           }
+          /* Release semaphore. */
+          image_packet_send_complete();
           return false;
         }
         ssdv_enc_feed(&ssdv, b, 1);
       }
 
       if(c == SSDV_EOI) {
-        TRACE_INFO("SSDV > ssdv_enc_get_packet returned EOI");
-        break;
+        TRACE_INFO("SSDV > ssdv_enc_get_packet returned EOI") {
+          image_packet_send_complete();
+          break;
+        }
       } else if(c != SSDV_OK) {
         TRACE_ERROR("SSDV > ssdv_enc_get_packet failed: %i", c);
         if(head != NULL) {
           pktReleaseBufferChain(head);
         }
+        /* Release semaphore. */
+        image_packet_send_complete();
         return false;
       }
 
@@ -989,6 +1020,8 @@ static bool transmit_image_packets(const uint8_t *image,
         if(head != NULL) {
           pktReleaseBufferChain(head);
         }
+        /* Release semaphore. */
+        image_packet_send_complete();
         return false;
       }
       if(previous != NULL)
@@ -1003,15 +1036,21 @@ static bool transmit_image_packets(const uint8_t *image,
 
     /* If we have some image packet(s) to transmit then do it. */
     if(head != NULL) {
-      if(!transmitOnRadio(head,
+      if(!transmitOnRadioWithCallback(head,
                           conf->radio_conf.freq,
                           0,
                           0,
                           conf->radio_conf.pwr,
                           conf->radio_conf.mod,
-                          conf->radio_conf.cca)) {
+                          conf->radio_conf.cca,
+                          (radio_task_cb_t) image_packet_send_complete)) {
         TRACE_ERROR("IMG  > Unable to send image on radio");
-        /* Transmit on radio will release the packet chain. */
+        /*
+         *  Transmit on radio will release the packet chain.
+         *  But we need to release the throttle semaphore.
+        */
+        image_packet_send_complete();
+        return false;
       } else {
         // Packet spacing (delay)
         if(conf->svc_conf.send_spacing)

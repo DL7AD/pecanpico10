@@ -677,7 +677,7 @@ int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
     break;
 
   case FREQ_GEOFENCE:
-    str = "APRS Dynamic frequency";
+    str = "APRS Geofence frequency";
     break;
 
   case FREQ_SCAN:
@@ -783,14 +783,18 @@ radio_band_t *pktCheckAllowedFrequency(const radio_unit_t radio,
   uint8_t radios = pktGetNumRadios();
   const radio_config_t *list = pktGetRadioList();
   for(uint8_t i = 0; i < radios; i++) {
-    if(list->unit == radio && list->bands != NULL) {
+    if(list->unit == radio) {
       uint8_t x = 0;
       while(list->bands[x] != NULL) {
         if(list->bands[x]->start <= freq
             && freq < list->bands[x]->end)
           return list->bands[x];
+        /* Next band. */
+        x++;
       } /* End for bands */
     } /* if(!unit == radio) */
+    /* Next radio. */
+    list++;
   } /* End for radios*/
   return NULL;
 }
@@ -826,12 +830,14 @@ radio_unit_t pktSelectRadioForFrequency(const radio_freq_t freq,
     if(pktCheckAllowedFrequency(radio_data->unit, op_freq)) {
       return radio_data->unit;
     }
+    radio_data++;
   } /* End for radios*/
   return PKT_RADIO_NONE;
 }
 
 /**
  * Get radio data.
+ * TODO: refactor to use num radios in loop.
  */
 const radio_config_t *pktGetRadioData(radio_unit_t radio) {
   const radio_config_t *radio_list = pktGetRadioList();

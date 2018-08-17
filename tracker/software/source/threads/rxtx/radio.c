@@ -106,6 +106,19 @@ bool transmitOnRadio(packet_t pp, const radio_freq_t base_freq,
                      const channel_hz_t step, radio_ch_t chan,
                      const radio_pwr_t pwr, const radio_mod_t mod,
                      const radio_squelch_t cca) {
+
+  return transmitOnRadioWithCallback(pp,base_freq, step,
+                                     chan, pwr, mod, cca, NULL);
+}
+
+/*
+ *
+ */
+bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
+                     const channel_hz_t step, radio_ch_t chan,
+                     const radio_pwr_t pwr, const radio_mod_t mod,
+                     const radio_squelch_t cca,
+                     const radio_task_cb_t cb) {
   /* Select a radio by frequency. */
   radio_unit_t radio = pktSelectRadioForFrequency(base_freq,
                                                   step,
@@ -182,7 +195,7 @@ bool transmitOnRadio(packet_t pp, const radio_freq_t base_freq,
     /* Update the task mirror. */
     handler->radio_tx_config = rt;
 
-    msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
+    msg_t msg = pktSendRadioCommand(radio, &rt, (radio_task_cb_t)cb);
     if(msg != MSG_OK) {
       TRACE_ERROR("RAD  > Failed to post radio task");
       pktReleaseBufferChain(pp);
@@ -201,5 +214,3 @@ bool transmitOnRadio(packet_t pp, const radio_freq_t base_freq,
   }
   return true;
 }
-
-

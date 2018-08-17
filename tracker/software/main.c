@@ -56,7 +56,7 @@ int main(void) {
 	start_essential_threads();	// Startup required modules (tracking manager, watchdog)
 	start_user_threads();		// Startup optional modules (eg. POSITION, LOG, ...)
 
-	TRACE_INFO("MAIN > Active");
+	TRACE_INFO("MAIN > Loop active");
 	while(true) {
 	  /* Trace events from packet decoder system. */
       pktTraceEvents();

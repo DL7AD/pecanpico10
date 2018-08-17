@@ -24,6 +24,11 @@ void start_aprs_threads(radio_unit_t radio, radio_freq_t freq, channel_hz_t step
 bool transmitOnRadio(packet_t pp, radio_freq_t freq, channel_hz_t step,
                      radio_ch_t chan, radio_pwr_t pwr, radio_mod_t mod,
                      radio_squelch_t rssi);
+bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
+                     const channel_hz_t step, radio_ch_t chan,
+                     const radio_pwr_t pwr, const radio_mod_t mod,
+                     const radio_squelch_t cca,
+                     const radio_task_cb_t cb);
 
 inline const char *getModulation(uint8_t key) {
     const char *val[] = {"NONE", "AFSK", "2FSK"};

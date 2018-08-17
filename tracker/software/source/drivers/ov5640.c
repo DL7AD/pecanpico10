@@ -1181,15 +1181,19 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 		if(dma_control.dma_flags & STM32_DMA_ISR_FEIF) {
 			TRACE_ERROR("CAM  > DMA FIFO error");
 			error = 0x3;
+			return 0;
 		}
 		if(dma_control.dma_flags & STM32_DMA_ISR_TEIF) {
 			TRACE_ERROR("CAM  > DMA stream transfer error");
 			error = 0x4;
+			return 0;
 		}
 		if(dma_control.dma_flags & STM32_DMA_ISR_DMEIF) {
 			TRACE_ERROR("CAM  > DMA direct mode error");
 			error = 0x5;
+			return 0;
 		}
+        TRACE_ERROR("CAM  > Unexpected DMA error %x", dma_control.dma_flags);
 		return 0;
 	}
     TRACE_INFO("CAM  > Capture success");

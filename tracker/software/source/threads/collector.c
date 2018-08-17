@@ -546,16 +546,16 @@ THD_FUNCTION(collectorThread, arg) {
       if(aquirePosition(tp, ltp, gps_wait_time)) {
         /* Acquisition succeeded. */
         if(ltp->gps_state == GPS_TIME) {
-          /* Write the timestamp where RTC was calibrated. */
+          /* Write the time stamp where RTC was calibrated. */
           ltp->gps_sats = 0;
           ltp->gps_ttff = 0;
           ltp->gps_pdop = 0;
           flash_writeLogDataPoint(ltp);
         }
-        TRACE_INFO("COLL > Time update acquired from GPS");
+        TRACE_INFO("COLL > RTC update acquired from GPS");
       } else {
         /* Time is stale record. */
-        TRACE_INFO("COLL > Time update not acquired from GPS");
+        TRACE_INFO("COLL > RTC update not acquired from GPS");
       }
       /* Let the acquisition run and set the datapoint. */
       gps_wait_fix /= 2;
@@ -589,11 +589,12 @@ THD_FUNCTION(collectorThread, arg) {
                                    chTimeI2MS(gps_wait_fix) % 1000);
       if(aquirePosition(tp, ltp, gps_wait_fix)) {
         if(ltp->gps_state == GPS_TIME) {
-          /* Write the timestamp where RTC was calibrated. */
+          /* Write the time stamp where RTC was calibrated. */
           ltp->gps_sats = 0;
           ltp->gps_ttff = 0;
           ltp->gps_pdop = 0;
           flash_writeLogDataPoint(ltp);
+          TRACE_INFO("COLL > RTC update acquired from GPS");
         }
         TRACE_INFO("COLL > Acquired fresh GPS data");
       } else {

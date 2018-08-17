@@ -313,7 +313,7 @@ void ax25_delete (packet_t this_p)
 	}
 	
 	this_p->magic1 = 0;
-	this_p->magic1 = 0;
+	this_p->magic2 = 0;
 	chHeapFree(this_p);
 }
 
@@ -363,7 +363,7 @@ packet_t ax25_from_text (char *monitor, int strict)
 /*
  * Tearing it apart is destructive so make our own copy first.
  */
-	char stuff[512];
+	char stuff[AX25_MAX_INFO_LEN + 1];
 
 	char *pinfo;
 	char *pa;
