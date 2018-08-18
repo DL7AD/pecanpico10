@@ -1034,23 +1034,23 @@ void OV5640_UnlockResourcesForCapture(void) {
  *
  */
 uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
+  /*
+   * Buffer address must be word aligned.
+   * Also note requirement for burst transfers from FIFO.
+   * A burst write from DMA FIFO to memory must not cross a 1K address boundary.
+   * See RM0430 9.3.12
+   *
+   * TODO: To use DMA_FIFO_BURST_ALIGN in setting of ssdv buffer alignment.
+   * Currently this is set to 32 manually in image.c.
+   */
+
+  if (((uint32_t)buffer % DMA_FIFO_BURST_ALIGN) != 0) {
+    OV5640_UnlockResourcesForCapture();
+    TRACE_ERROR("CAM  > Buffer not allocated on DMA burst boundary");
+    return 0;
+  }
+
 #if OV5640_USE_DMA_DBM == TRUE
-    /*
-     * Buffer address must be word aligned.
-     * Also note requirement for burst transfers from FIFO.
-     * A burst write from DMA FIFO to memory must not cross a 1K address boundary.
-     * See RM0430 9.3.12
-     *
-     * TODO: To use DMA_FIFO_BURST_ALIGN in setting of ssdv buffer alignment.
-     * Currently this is set to 32 manually in image.c.
-     */
-
-    if (((uint32_t)buffer % DMA_FIFO_BURST_ALIGN) != 0) {
-      OV5640_UnlockResourcesForCapture();
-      TRACE_ERROR("CAM  > Buffer not allocated on DMA burst boundary");
-      return 0;
-    }
-
     /*
      * Calculate the number of whole buffers.
      * TODO: Make this include remainder memory as partial buffer?
@@ -1063,7 +1063,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 #else
     if((size > 0xFFFF) {
       OV5640_UnlockResourcesForCapture();
-      TRACE_ERROR("CAM  > Capture buffer in no  DBM mode can not exceed 0xFFFF");
+      TRACE_ERROR("CAM  > Capture buffer in non-DBM mode can not exceed 0xFFFF");
       return 0;
     }
 #endif
@@ -1169,14 +1169,13 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 
     palDisableLineEvent(LINE_CAM_VSYNC);
 
-    OV5640_UnlockResourcesForCapture();
-
 	if(!timeout) {
-      TRACE_ERROR("CAM  > Image sampling timeout");
       dma_control.dma_count = dma_stop(dma_control.dmastp);
       dma_control.timer->DIER &= ~TIM_DIER_CC1DE;
       dma_control.dma_error = true;
 	}
+
+    OV5640_UnlockResourcesForCapture();
 
 	if(dma_control.dma_error) {
 		if(dma_control.dma_flags & STM32_DMA_ISR_HTIF) {
@@ -1199,7 +1198,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 			error = 0x5;
 			return 0;
 		}
-        TRACE_ERROR("CAM  > DMA capture timeout");
+        TRACE_ERROR("CAM  > DMA image capture timeout");
 		return 0;
 	}
     TRACE_INFO("CAM  > Capture success");
