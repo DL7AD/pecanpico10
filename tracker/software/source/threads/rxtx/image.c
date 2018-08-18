@@ -816,12 +816,14 @@ bool camera_mtx_init = false;
 static bool camInitialized = false;
 
 /*
- * Static binary semaphore for throttling image TX rate.
+ * Static semaphore for throttling image TX rate.
  * Each image thread competes for the semaphore.
- * Once obtained the image thread encodes and then queues TX packets.
- * There can still be concurrent TX threads queued for a radio.
+ * Once obtained the image thread prepares and queues the TX packets.
+ * The number of concurrent IMG threads queued for radios is set by the #define.
  */
-static BSEMAPHORE_DECL(tx_complete, false);
+#define PKT_MAXIMUM_QUEUED_IMAGE_TX_THREADS 2
+
+static SEMAPHORE_DECL(tx_complete, PKT_MAXIMUM_QUEUED_IMAGE_TX_THREADS);
 
 ssdv_packet_t packetRepeats[16];
 bool reject_pri;
@@ -899,7 +901,7 @@ static bool transmit_image_packet(const uint8_t *image,
  * Next packet (or burst) is readied.
  */
 static void image_packet_send_complete(void) {
-  chBSemSignal(&tx_complete);
+  chSemSignal(&tx_complete);
   TRACE_DEBUG("IMG  > Signal encode/transmit semaphore");
   return;
 }
@@ -955,15 +957,12 @@ static bool transmit_image_packets(const uint8_t *image,
 
   while(c != SSDV_EOI) {
 
-    TRACE_DEBUG("IMG  > Get encode/transmit semaphore");
-    /* Get the semaphore for encode and TX. */
-    if(chBSemWait(&tx_complete) == MSG_RESET)
-        return false;
     /*
      * Next encode packets.
      * Packet burst send is available if redundant TX is not requested.
      */
-    uint8_t buffers = fmin(((NUMBER_COMMON_PKT_BUFFERS / 2)
+    uint8_t buffers = fmin(((NUMBER_COMMON_PKT_BUFFERS
+                              / PKT_MAXIMUM_QUEUED_IMAGE_TX_THREADS)
                             - RESERVE_BUFFERS_FOR_INTERNAL),
                            MAX_BUFFERS_FOR_BURST_SEND);
     uint8_t chain = (IS_2FSK(conf->radio_conf.mod)
@@ -984,8 +983,6 @@ static bool transmit_image_packets(const uint8_t *image,
           if(head != NULL) {
             pktReleaseBufferChain(head);
           }
-          /* Release semaphore. */
-          image_packet_send_complete();
           return false;
         }
         ssdv_enc_feed(&ssdv, b, 1);
@@ -993,7 +990,6 @@ static bool transmit_image_packets(const uint8_t *image,
 
       if(c == SSDV_EOI) {
         TRACE_INFO("SSDV > ssdv_enc_get_packet returned EOI") {
-          image_packet_send_complete();
           break;
         }
       } else if(c != SSDV_OK) {
@@ -1001,8 +997,6 @@ static bool transmit_image_packets(const uint8_t *image,
         if(head != NULL) {
           pktReleaseBufferChain(head);
         }
-        /* Release semaphore. */
-        image_packet_send_complete();
         return false;
       }
 
@@ -1020,8 +1014,6 @@ static bool transmit_image_packets(const uint8_t *image,
         if(head != NULL) {
           pktReleaseBufferChain(head);
         }
-        /* Release semaphore. */
-        image_packet_send_complete();
         return false;
       }
       if(previous != NULL)
@@ -1036,6 +1028,12 @@ static bool transmit_image_packets(const uint8_t *image,
 
     /* If we have some image packet(s) to transmit then do it. */
     if(head != NULL) {
+      TRACE_DEBUG("IMG  > Get encode/transmit semaphore");
+      /* Get the semaphore for TX. */
+/*      if(chBSemWait(&tx_complete) == MSG_RESET)
+          return false;*/
+      if(chSemWait(&tx_complete) == MSG_RESET)
+                return false;
       if(!transmitOnRadioWithCallback(head,
                           conf->radio_conf.freq,
                           0,

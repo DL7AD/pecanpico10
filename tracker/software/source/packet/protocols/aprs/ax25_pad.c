@@ -372,13 +372,13 @@ packet_t ax25_from_text (char *monitor, int strict)
 	int ssid_temp, heard_temp;
 	char atemp[AX25_MAX_ADDR_LEN];
 
-	char info_part[AX25_MAX_INFO_LEN+1];
+	char info_part[AX25_MAX_INFO_LEN + 1];
 	uint16_t info_len;
 
 	packet_t this_p;
 	msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
 	/* If the semaphore is reset then exit. */
-	if(msg == MSG_RESET || this_p == NULL) {
+	if(msg == MSG_RESET || msg == MSG_TIMEOUT || this_p == NULL) {
       TRACE_ERROR("PKT  > No packet buffer available");
 	  return NULL;
 	}
@@ -394,30 +394,33 @@ packet_t ax25_from_text (char *monitor, int strict)
 	/* It is possible that will convert <0x00> to a nul character later. */
 	/* There we need to maintain a separate length and not use normal C string functions. */
 
-	strlcpy (stuff, monitor, sizeof(stuff));
+	if(strlcpy(stuff, monitor, sizeof(stuff)) >= sizeof(stuff)) {
+      TRACE_ERROR("PKT  > Source string is too large");
+      pktReleasePacketBuffer(this_p);
+	  return NULL;
+	}
 
 /*
  * Initialize the packet structure with two addresses and control/pid
  * for APRS.
  */
-	memset (this_p->frame_data + AX25_DESTINATION*7, ' ' << 1, 6);
-	this_p->frame_data[AX25_DESTINATION*7+6] = SSID_H_MASK | SSID_RR_MASK;
+	memset (this_p->frame_data + AX25_DESTINATION * AX25_ADDR_LEN, ' ' << 1, 6);
+	this_p->frame_data[AX25_DESTINATION *AX25_ADDR_LEN + 6] = SSID_H_MASK | SSID_RR_MASK;
  
-	memset (this_p->frame_data + AX25_SOURCE*7, ' ' << 1, 6);
-	this_p->frame_data[AX25_SOURCE*7+6] = SSID_H_MASK | SSID_RR_MASK | SSID_LAST_MASK;
+	memset (this_p->frame_data + AX25_SOURCE * AX25_ADDR_LEN, ' ' << 1, 6);
+	this_p->frame_data[AX25_SOURCE * AX25_ADDR_LEN + 6] = SSID_H_MASK | SSID_RR_MASK | SSID_LAST_MASK;
 
-	this_p->frame_data[14] = AX25_UI_FRAME;
-	this_p->frame_data[15] = AX25_PID_NO_LAYER_3;
+	this_p->frame_data[AX25_ADDR_LEN * AX25_MIN_ADDRS] = AX25_UI_FRAME;
+	this_p->frame_data[AX25_ADDR_LEN * AX25_MIN_ADDRS + 1] = AX25_PID_NO_LAYER_3;
 
-	this_p->frame_len = 7 + 7 + 1 + 1;
+	this_p->frame_len = (AX25_ADDR_LEN * AX25_MIN_ADDRS) + 2;
 	this_p->num_addr = (-1);
 
-	if(ax25_get_num_addr(this_p) != 2) {
-		TRACE_ERROR("PKT  > Error of unknown reason");
+	if(ax25_get_num_addr(this_p) != AX25_MIN_ADDRS) {
+		TRACE_ERROR("PKT  > Packet does not have required addresses after initialisation");
 		pktReleasePacketBuffer(this_p);
 		return NULL;
 	}
-
 
 /*
  * Separate the addresses from the rest.
@@ -523,11 +526,6 @@ packet_t ax25_from_text (char *monitor, int strict)
  */
 
 
-#if DEBUG14H
-	TRACE_DEBUG ("PKT  > BEFORE: %s\nSAFE:   ", pinfo);
-	ax25_safe_print (pinfo, -1, 0);
-#endif
-
 	info_len = 0;
 	while (*pinfo != '\0' && info_len < AX25_MAX_INFO_LEN) {
 
@@ -552,11 +550,6 @@ packet_t ax25_from_text (char *monitor, int strict)
 	  }
 	}
 	info_part[info_len] = '\0';
-
-#if DEBUG14H
-	TRACE_DEBUG ("PKT  > AFTER:  %s\nSAFE:   ", info_part);
-	ax25_safe_print (info_part, info_len, 0);
-#endif
 
 /*
  * Append the info part.  
@@ -629,8 +622,10 @@ packet_t ax25_from_frame (unsigned char *fbuf, uint16_t flen)
 
     msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
     /* If the semaphore is reset then exit. */
-    if(msg == MSG_RESET || this_p == NULL)
+    if(msg == MSG_RESET || msg == MSG_TIMEOUT || this_p == NULL) {
+      TRACE_ERROR("PKT  > No packet buffer available");
       return NULL;
+    }
 /*	if(this_p == NULL)
 	  return NULL;*/
 
@@ -687,10 +682,10 @@ packet_t ax25_dup (packet_t copy_from)
 
 	msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
     /* If the semaphore is reset then exit. */
-    if(msg == MSG_RESET)
+    if(msg == MSG_RESET || msg == MSG_TIMEOUT || this_p == NULL) {
+      TRACE_ERROR("PKT  > No packet buffer available");
       return NULL;
-	if(this_p == NULL)
-		return NULL;
+    }
 
 	save_seq = this_p->seq;
 
@@ -735,7 +730,7 @@ packet_t ax25_dup (packet_t copy_from)
  *
  *		out_heard	- True if "*" found.
  *
- * Returns:	True (1) if OK, false (0) if any error.
+ * Returns:	True if OK, false if any error.
  *
  *
  *------------------------------------------------------------------------------*/
@@ -745,8 +740,8 @@ static const char *position_name[1 + AX25_MAX_ADDRS] = {
 	"Digi1 ", "Digi2 ", "Digi3 ", "Digi4 ",
 	"Digi5 ", "Digi6 ", "Digi7 ", "Digi8 " };
 
-int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, int *out_ssid, int *out_heard)
-{
+bool ax25_parse_addr (int position, char *in_addr, int strict,
+                     char *out_addr, int *out_ssid, int *out_heard) {
 	char *p;
 	char sstr[8];		/* Should be 1 or 2 digits for SSID. */
 	int i, j, k;
@@ -768,19 +763,19 @@ int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, in
 	if (position > AX25_REPEATER_8) position = AX25_REPEATER_8;
 	position++;	/* Adjust for position_name above. */
 
-	maxlen = strict ? 6 : (AX25_MAX_ADDR_LEN-1);
+	maxlen = strict ? 6 : (AX25_MAX_ADDR_LEN - 1);
 	p = in_addr;
 	i = 0;
 	for (p = in_addr; isalnum(*p); p++) {
 	  if (i >= maxlen) {
 	    TRACE_ERROR ("PKT  > %sAddress is too long. \"%s\" has more than %d characters.", position_name[position], in_addr, maxlen);
-	    return 0;
+	    return false;
 	  }
 	  out_addr[i++] = *p;
 	  out_addr[i] = '\0';
 	  if (strict && islower(*p)) {
 	    TRACE_ERROR ("PKT  > %sAddress has lower case letters. \"%s\" must be all upper case.", position_name[position], in_addr);
-	    return 0;
+        return false;
 	  }
 	}
 	
@@ -790,19 +785,19 @@ int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, in
 	  for (p++; isalnum(*p); p++) {
 	    if (j >= 2) {
 	      TRACE_ERROR ("PKT  > %sSSID is too long. SSID part of \"%s\" has more than 2 characters.", position_name[position], in_addr);
-	      return 0;
+	      return false;
 	    }
 	    sstr[j++] = *p;
 	    sstr[j] = '\0';
 	    if (strict && ! isdigit(*p)) {
 	      TRACE_ERROR ("PKT  > %sSSID must be digits. \"%s\" has letters in SSID.", position_name[position], in_addr);
-	      return 0;
+	      return false;
 	    }
 	  }
 	  k = atoi(sstr);
 	  if (k < 0 || k > 15) {
 	    TRACE_ERROR ("PKT  > %sSSID out of range. SSID of \"%s\" not in range of 0 to 15.", position_name[position], in_addr);
-	    return 0;
+        return false;
 	  }
 	  *out_ssid = k;
 	}
@@ -814,10 +809,10 @@ int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, in
 
 	if (*p != '\0') {
 	    TRACE_ERROR ("PKT  > Invalid character \"%c\" found in %saddress \"%s\".", *p, position_name[position], in_addr);
-	  return 0;
+	      return false;
 	}
 
-	return (1);
+	return true;
 
 } /* end ax25_parse_addr */
 
@@ -994,9 +989,7 @@ void ax25_set_addr (packet_t this_p, int n, char *ad)
 	}
 	else { 
       TRACE_ERROR("PKT  > Internal error, ax25_set_addr, bad position %d for '%s'", n, ad);
-	  //TRACE_ERROR ("Internal error, ax25_set_addr, bad position %d for '%s'", n, ad);
 	}
-
 }
 
 
@@ -1121,9 +1114,9 @@ void ax25_remove_addr (packet_t this_p, int n)
 
 	this_p->num_addr--;
 
-	memmove (this_p->frame_data + n*AX25_ADDR_LEN,
-	         this_p->frame_data + (n+1)*AX25_ADDR_LEN,
-	         this_p->frame_len - ((n+1)*AX25_ADDR_LEN));
+	memmove (this_p->frame_data + (n * AX25_ADDR_LEN),
+	         this_p->frame_data + ((n + 1) * AX25_ADDR_LEN),
+	         this_p->frame_len - ((n + 1) * AX25_ADDR_LEN));
 	this_p->frame_len -= AX25_ADDR_LEN;
 
 	SET_LAST_ADDR_FLAG;
@@ -1270,7 +1263,7 @@ void ax25_get_addr_with_ssid (packet_t this_p, int n, char *station)
 	if (n < 0) {
 	  TRACE_ERROR ("PKT  > Internal error detected in ax25_get_addr_with_ssid, %s, line %d.", __FILE__, __LINE__);
 	  TRACE_ERROR ("PKT  > Address index, %d, is less than zero.", n);
-	  strlcpy (station, "??????", 10);
+      strlcpy (station, "??????", AX25_MAX_SSID_ADDR_LEN + 1);
 	  return;
 	}
 
@@ -1280,15 +1273,15 @@ void ax25_get_addr_with_ssid (packet_t this_p, int n, char *station)
 	  TRACE_ERROR ("PKT  > Address index, %d, is too large or "
 	      "exceeds number of addresses in this packet, %d.",
 	      n, this_p->num_addr);
-	  strlcpy (station, "??????", 10);
+	  strlcpy (station, "??????", AX25_MAX_SSID_ADDR_LEN + 1);
 	  return;
 	}
 
-	memset (station, 0, 7);
-	for (i=0; i<6; i++) {
+	memset (station, 0, AX25_ADDR_LEN);
+	for (i=0; i < AX25_ADDR_LEN - 1; i++) {
 	  unsigned char ch;
 
-	  ch = (this_p->frame_data[n*7+i] >> 1) & 0x7f;
+	  ch = (this_p->frame_data[n * AX25_ADDR_LEN + i] >> 1) & 0x7f;
 	  if (ch <= ' ') break;
 	  station[i] = ch;
 	}
@@ -1296,7 +1289,7 @@ void ax25_get_addr_with_ssid (packet_t this_p, int n, char *station)
 	ssid = ax25_get_ssid (this_p, n);
 	if (ssid != 0) {
 	  chsnprintf (sstr, sizeof(sstr), "-%d", ssid);
-	  strlcat (station, sstr, 10);
+	  strlcat (station, sstr, AX25_MAX_SSID_ADDR_LEN + 1);
 	}
 
 } /* end ax25_get_addr_with_ssid */
@@ -1336,24 +1329,24 @@ void ax25_get_addr_no_ssid (packet_t this_p, int n, char *station)
 
 
 	if (n < 0) {
-	  TRACE_ERROR ("PKT  > Internal error detected in ax25_get_addr_no_ssid, %s, line %d.", __FILE__, __LINE__);
+	  TRACE_ERROR ("PKT  > Internal error detected in ax25_get_addr_no_ssid");
 	  TRACE_ERROR ("PKT  > Address index, %d, is less than zero.", n);
 	  strlcpy (station, "??????", 7);
 	  return;
 	}
 
 	if (n >= this_p->num_addr) {
-	  TRACE_ERROR ("PKT  > Internal error detected in ax25_get_no_with_ssid, %s, line %d.", __FILE__, __LINE__);
+	  TRACE_ERROR ("PKT  > Internal error detected in ax25_get_no_with_ssid");
 	  TRACE_ERROR ("PKT  > Address index, %d, is too large for number of addresses, %d.", n, this_p->num_addr);
 	  strlcpy (station, "??????", 7);
 	  return;
 	}
 
-	memset (station, 0, 7);
-	for (i=0; i<6; i++) {
+	memset (station, 0, AX25_ADDR_LEN);
+	for (i=0; i < AX25_ADDR_LEN - 1; i++) {
 	  unsigned char ch;
 
-	  ch = (this_p->frame_data[n*7+i] >> 1) & 0x7f;
+	  ch = (this_p->frame_data[n * AX25_ADDR_LEN + i] >> 1) & 0x7f;
 	  if (ch <= ' ') break;
 	  station[i] = ch;
 	}
@@ -1744,7 +1737,7 @@ int ax25_get_dti (packet_t this_p)
 		return 0;
 	}
 
-	if (this_p->num_addr >= 2) {
+	if (this_p->num_addr >= AX25_MIN_ADDRS) {
 	  return (this_p->frame_data[ax25_get_info_offset(this_p)]);
 	}
 	return (' ');
@@ -2141,8 +2134,8 @@ ax25_frame_type_t ax25_frame_type (packet_t this_p, cmdres_t *cr, char *desc, in
 	  c2 = ax25_get_c2 (this_p);
 	}
 
-	int dst_c = this_p->frame_data[AX25_DESTINATION * 7 + 6] & SSID_H_MASK;
-	int src_c = this_p->frame_data[AX25_SOURCE * 7 + 6] & SSID_H_MASK;
+	int dst_c = this_p->frame_data[AX25_DESTINATION * AX25_ADDR_LEN + AX25_ADDR_LEN - 1] & SSID_H_MASK;
+	int src_c = this_p->frame_data[AX25_SOURCE * AX25_ADDR_LEN + AX25_ADDR_LEN - 1] & SSID_H_MASK;
 
 	char cr_text[8];
 	char pf_text[8];
@@ -2322,7 +2315,7 @@ int ax25_get_control (packet_t this_p)
 
 	if (this_p->frame_len == 0) return(-1);
 
-	if (this_p->num_addr >= 2) {
+	if (this_p->num_addr >= AX25_MIN_ADDRS) {
 	  return (this_p->frame_data[ax25_get_control_offset(this_p)]);
 	}
 	return (-1);
@@ -2337,7 +2330,7 @@ int ax25_get_c2 (packet_t this_p)
 
 	if (this_p->frame_len == 0) return(-1);
 
-	if (this_p->num_addr >= 2) {
+	if (this_p->num_addr >= AX25_MIN_ADDRS) {
 	  int offset2 = ax25_get_control_offset(this_p)+1;
 
 	  if (offset2 < this_p->frame_len) {

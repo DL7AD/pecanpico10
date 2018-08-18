@@ -1111,7 +1111,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 
 #if OV5640_USE_DMA_DBM == TRUE
 	dma_control.capture_buffer = buffer;
-
+	dma_control.dbm_index = (size / DMA_SEGMENT_SIZE);
     /*
      * Set the initial buffer addresses.
      * The updating of DMA:MxAR is done in the the DMA interrupt function.
@@ -1122,7 +1122,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 #else
     dmaStreamSetMemory0(dmastp, buffer);
     dmaStreamSetTransactionSize(dma_control.dmastp, size);
-
+    dma_control.dbm_index = 1;
 #endif
     dmaStreamSetMode(dma_control.dmastp, dmamode); // Setup DMA
     dmaStreamSetFIFO(dma_control.dmastp, STM32_DMA_FCR_DMDIS

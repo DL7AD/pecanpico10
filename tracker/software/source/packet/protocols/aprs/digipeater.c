@@ -217,9 +217,7 @@ packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec,
  */
 	regex(alias, repeater, &found_len);
 	if(found_len) {
-	  packet_t result;
-
-	  result = ax25_dup (pp);
+	   packet_t result = ax25_dup (pp);
       if(result == NULL)
         return NULL;
 
@@ -245,9 +243,7 @@ packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec,
 
 	    if (strcmp(repeater2, mycall_rec) == 0 ||
 	      found_len != 0) {
-	      packet_t result;
-
-	      result = ax25_dup (pp);
+	       packet_t result = ax25_dup (pp);
           if(result == NULL)
             return NULL;
 

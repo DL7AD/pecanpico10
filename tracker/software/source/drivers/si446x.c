@@ -475,9 +475,6 @@ static bool Si446x_init(const radio_unit_t radio) {
   /* PLL synthesizer settings. */
   Si446x_setProperty8(radio, Si446x_MODEM_CLKGEN_BAND, 0x0D);
 
-  /* Deviation set to +-0.5KHz. */
-  Si446x_setProperty24(radio, Si446x_MODEM_FREQ_DEV, 0x00, 0x00, 0x79);
-
   /* Ramp down after TX final symbol. */
   Si446x_setProperty8(radio, Si446x_MODEM_TX_RAMP_DELAY, 0x01);
 
@@ -570,12 +567,12 @@ bool Si446x_setBandParameters(const radio_unit_t radio,
   float ratio = (float)freq / (float)f_pfd;
   float rest  = ratio - (float)n;
 
-  uint32_t m = (uint32_t)(rest * 524288UL);
+  uint32_t m = (uint32_t)(rest * 0x80000UL);
   uint32_t m2 = m >> 16;
   uint32_t m1 = (m - m2 * 0x10000) >> 8;
   uint32_t m0 = (m - m2 * 0x10000 - (m1 << 8));
 
-  uint32_t channel_increment = 524288 * outdiv * step / (2 * Si446x_CCLK);
+  uint32_t channel_increment = 0x80000 * outdiv * step / (2 * Si446x_CCLK);
   uint8_t c1 = channel_increment / 0x100;
   uint8_t c0 = channel_increment - (0x100 * c1);
 
@@ -585,10 +582,12 @@ bool Si446x_setBandParameters(const radio_unit_t radio,
   Si446x_write(radio, set_frequency_property_command,
                sizeof(set_frequency_property_command));
 
+  /* Set TX deviation. */
   uint32_t x = ((((uint32_t)1 << 19) * outdiv * 1300.0)/(2*Si446x_CCLK))*2;
   uint8_t x2 = (x >> 16) & 0xFF;
   uint8_t x1 = (x >>  8) & 0xFF;
   uint8_t x0 = (x >>  0) & 0xFF;
+
   uint8_t set_deviation[] = {Si446x_SET_PROPERTY, 0x20, 0x03, 0x0a, x2, x1, x0};
   Si446x_write(radio, set_deviation, sizeof(set_deviation));
 
@@ -623,7 +622,10 @@ static void Si446x_setPowerLevel(const radio_unit_t radio,
                  sizeof(set_pa_pwr_lvl_property_command));
 }
 
+static void Si446x_setTransmitDeviation(const radio_unit_t radio,
+                                        deviation_hz_t deviation) {
 
+}
 
 /*
  *  Radio modulation settings
@@ -640,6 +642,12 @@ static void Si446x_setModemAFSK_TX(const radio_unit_t radio) {
 
     // Setup the NCO data rate for APRS
     Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE, 0x00, 0x33, 0x90);
+
+    /*
+     *  TODO: Set deviation set to +-2.0KHz
+     *  Currently deviation is set to 1.3KHz in setBand function.
+     */
+    //Si446x_setProperty24(radio, Si446x_MODEM_FREQ_DEV, 0x00, 0x01, 0xA3);
 
     // Use up-sampled AFSK from FIFO (PH)
     Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
@@ -805,6 +813,12 @@ static void Si446x_setModem2FSK_TX(const radio_unit_t radio,
     Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE,
                          (uint8_t)(speed >> 16),
                          (uint8_t)(speed >> 8), (uint8_t)speed);
+
+    /*
+     *  TODO: Set deviation according to data rate.
+     *  Currently deviation is set to 1.3KHz in setBand function.
+     */
+    //Si446x_setProperty24(radio, Si446x_MODEM_FREQ_DEV, 0x00, 0x00, 0x79);
 
     // Use 2FSK from FIFO (PH)
     Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);

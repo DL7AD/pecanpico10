@@ -16,7 +16,7 @@
 
 
 #define AX25_MAX_REPEATERS 8
-#define AX25_MIN_ADDRS 2	/* Destinatin & Source. */
+#define AX25_MIN_ADDRS 2	/* Destination & Source. */
 #define AX25_MAX_ADDRS 10	/* Destination, Source, 8 digipeaters. */	
 
 #define AX25_DESTINATION  0	/* Address positions in frame. */
@@ -36,6 +36,8 @@
 /* characters so throw in a couple extra bytes */
 /* to be safe. */
 #define AX25_MAX_ADDR_LEN 12
+
+#define AX25_MAX_SSID_ADDR_LEN 9
 
 /* The length of an address field in an AX25 header. */
 #define AX25_ADDR_LEN     7
@@ -356,7 +358,8 @@ extern void pktReleasePacketBuffer(packet_t pp);
 
 
 
-extern int ax25_parse_addr (int position, char *in_addr, int strict, char *out_addr, int *out_ssid, int *out_heard);
+extern bool ax25_parse_addr (int position, char *in_addr, int strict,
+                             char *out_addr, int *out_ssid, int *out_heard);
 extern int ax25_check_addresses (packet_t pp);
 
 extern packet_t ax25_unwrap_third_party (packet_t from_pp);
