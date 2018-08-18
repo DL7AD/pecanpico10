@@ -171,7 +171,7 @@ if args.device == 'I': # Source APRS-IS
 		else: # Data handling
 			received_data(buf)
 
-		time.sleep(0.01)
+		#time.sleep(0.001)
 
 elif args.device is '-': # Source stdin
 

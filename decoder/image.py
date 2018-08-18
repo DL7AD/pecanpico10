@@ -40,21 +40,22 @@ def imgproc():
 	global imageData
 
 	while True:
+		imageDataCpy = {}
 		with lock:
-			for _id in imageData:
-				(call, data) = imageData[_id]
-
-				filename = 'html/images/%s-%d.jpg' % (call.replace('-',''), _id)
-				f = open(filename, 'wb')
-				process = Popen(['./ssdv', '-d'], stdin=PIPE, stdout=f, stderr=PIPE)
-				process.stdin.write(data)
-				dummy,err = process.communicate()
-				f.close()
-
-				filename2 = 'html/images/%s.jpg' % (call.replace('-',''))
-				copyfile(filename, filename2)
-
+			imageDataCpy = imageData
 			imageData = {} # Clear data
+
+		for _id in imageDataCpy:
+			(call, data) = imageDataCpy[_id]
+			filename = 'html/images/%s-%d.jpg' % (call.replace('-',''), _id)
+			f = open(filename, 'wb')
+			process = Popen(['./ssdv', '-d'], stdin=PIPE, stdout=f, stderr=PIPE)
+			process.stdin.write(data)
+			dummy,err = process.communicate()
+			f.close()
+
+			filename2 = 'html/images/%s.jpg' % (call.replace('-',''))
+			copyfile(filename, filename2)
 
 		time.sleep(1)
 
@@ -120,11 +121,12 @@ def insert_image(db, receiver, call, data_b91):
 		db.commit()
 		w = time.time()
 
+	allData = ''
+	cur.execute("SELECT `data` FROM `image` WHERE `id` = %s ORDER BY `packetID`", (_id,))
+	for data, in cur.fetchall():
+		allData += '55' + data + (144*'0')
+
 	with lock:
-		allData = ''
-		cur.execute("SELECT `data` FROM `image` WHERE `id` = %s ORDER BY `packetID`", (_id,))
-		for data, in cur.fetchall():
-			allData += '55' + data + (144*'0')
 		imageData[_id] = (call, binascii.unhexlify(allData))
 
 	if imageProcessor is None:
