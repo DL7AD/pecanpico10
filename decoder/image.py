@@ -34,6 +34,7 @@ def encode_callsign(callsign):
 
 imageProcessor = None
 imageData = {}
+imageDataLcl = {}
 lock = threading.RLock()
 
 def imgproc():
@@ -61,7 +62,7 @@ def imgproc():
 
 w = time.time()
 def insert_image(db, receiver, call, data_b91):
-	global imageProcessor,imageData,w
+	global imageProcessor,imageData,imageDataLcl,w
 
 	data = base91.decode(data_b91)
 	if len(data) != 174:
@@ -117,17 +118,20 @@ def insert_image(db, receiver, call, data_b91):
 		(call, timd, imageID, packetID, data, _id)
 	)
 
-	if w+0.5 < time.time():
+	if w+1 < time.time():
 		db.commit()
+		with lock:
+			imageData = imageDataLcl
+			imageDataLcl = {}
 		w = time.time()
 
 	allData = ''
+
 	cur.execute("SELECT `data` FROM `image` WHERE `id` = %s ORDER BY `packetID`", (_id,))
 	for data, in cur.fetchall():
 		allData += '55' + data + (144*'0')
 
-	with lock:
-		imageData[_id] = (call, binascii.unhexlify(allData))
+	imageDataLcl[_id] = (call, binascii.unhexlify(allData))
 
 	if imageProcessor is None:
 		imageProcessor = threading.Thread(target=imgproc)
