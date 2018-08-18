@@ -895,7 +895,7 @@ static bool transmit_image_packet(const uint8_t *image,
 }
 
 /**
- * Callback to throttle image send.
+ * Callback used to throttle image send.
  * Next packet (or burst) is readied.
  */
 static void image_packet_send_complete(void) {
@@ -904,9 +904,9 @@ static void image_packet_send_complete(void) {
   return;
 }
 
-/*
+/**
  * Transmit image packets.
- * Return true if no SSDV encoding error or false on encoding error.
+ * Return true if no encoding, TX or memory error.
  */
 static bool transmit_image_packets(const uint8_t *image,
                                    uint32_t image_len,
@@ -916,8 +916,10 @@ static bool transmit_image_packets(const uint8_t *image,
   uint8_t pkt[SSDV_PKT_SIZE];
   uint8_t pkt_base91[256] = {0};
 
-  /* FIXME: This doesn't work with burst mode packet sends. */
-  // Process redundant transmission from last cycle
+  /**
+   * @brief  Process redundant transmission from last cycle
+   * @note   If redundant send is used packet burst mode is disabled.
+   */
   if(strlen((char*)pkt_base91)
       && conf->redundantTx) {
     packet_t packet = aprs_encode_data_packet(conf->call, conf->path,
@@ -951,14 +953,12 @@ static bool transmit_image_packets(const uint8_t *image,
   ssdv_enc_set_buffer(&ssdv, pkt);
   ssdv_enc_feed(&ssdv, image, 0);
 
-  //chBSemObjectInit(&tx_complete, false);
-
   while(c != SSDV_EOI) {
 
     TRACE_DEBUG("IMG  > Get encode/transmit semaphore");
     /* Get the semaphore for encode and TX. */
     if(chBSemWait(&tx_complete) == MSG_RESET)
-        break;
+        return false;
     /*
      * Next encode packets.
      * Packet burst send is available if redundant TX is not requested.

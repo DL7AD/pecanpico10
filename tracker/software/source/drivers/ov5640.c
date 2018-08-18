@@ -1034,6 +1034,39 @@ void OV5640_UnlockResourcesForCapture(void) {
  *
  */
 uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
+  /*
+   * Buffer address must be word aligned.
+   * Also note requirement for burst transfers from FIFO.
+   * A burst write from DMA FIFO to memory must not cross a 1K address boundary.
+   * See RM0430 9.3.12
+   *
+   * TODO: To use DMA_FIFO_BURST_ALIGN in setting of ssdv buffer alignment.
+   * Currently this is set to 32 manually in image.c.
+   */
+
+  if (((uint32_t)buffer % DMA_FIFO_BURST_ALIGN) != 0) {
+    OV5640_UnlockResourcesForCapture();
+    TRACE_ERROR("CAM  > Buffer not allocated on DMA burst boundary");
+    return 0;
+  }
+
+#if OV5640_USE_DMA_DBM == TRUE
+    /*
+     * Calculate the number of whole buffers.
+     * TODO: Make this include remainder memory as partial buffer?
+     */
+    if((size / DMA_SEGMENT_SIZE) < 2) {
+      OV5640_UnlockResourcesForCapture();
+      TRACE_ERROR("CAM  > Capture buffer less than 2 DMA segment segments");
+      return 0;
+    }
+#else
+    if((size > 0xFFFF) {
+      OV5640_UnlockResourcesForCapture();
+      TRACE_ERROR("CAM  > Capture buffer in non-DBM mode can not exceed 0xFFFF");
+      return 0;
+    }
+#endif
 
 	/*
 	 * Note:
@@ -1077,24 +1110,8 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	dmaStreamSetPeripheral(dma_control.dmastp, &GPIOA->IDR); // We want to read the data from here
 
 #if OV5640_USE_DMA_DBM == TRUE
-	//dma_buffer = buffer;
 	dma_control.capture_buffer = buffer;
 
-    /*
-     * Buffer address must be word aligned.
-     * Also note requirement for burst transfers from FIFO.
-     * A burst write from DMA FIFO to memory must not cross a 1K address boundary.
-     * See RM0430 9.3.12
-     *
-     * TODO: To use DMA_FIFO_BURST_ALIGN in setting of ssdv buffer alignment.
-     * Currently this is set to 32 manually in image.c.
-     */
-
-    if (((uint32_t)buffer % DMA_FIFO_BURST_ALIGN) != 0) {
-      OV5640_UnlockResourcesForCapture();
-      TRACE_ERROR("CAM  > Buffer not allocated on DMA burst boundary");
-      return 0;
-    }
     /*
      * Set the initial buffer addresses.
      * The updating of DMA:MxAR is done in the the DMA interrupt function.
@@ -1102,17 +1119,6 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
     dmaStreamSetMemory0(dma_control.dmastp, &buffer[0]);
     dmaStreamSetMemory1(dma_control.dmastp, &buffer[DMA_SEGMENT_SIZE]);
     dmaStreamSetTransactionSize(dma_control.dmastp, DMA_SEGMENT_SIZE);
-
-    /*
-     * Calculate the number of whole buffers.
-     * TODO: Make this include remainder memory as partial buffer?
-     */
-    dma_control.dbm_index = (size / DMA_SEGMENT_SIZE);
-    if(dma_control.dbm_index < 2) {
-      OV5640_UnlockResourcesForCapture();
-      TRACE_ERROR("CAM  > Capture buffer less than 2 DMA segment segments");
-      return 0;
-    }
 #else
     dmaStreamSetMemory0(dmastp, buffer);
     dmaStreamSetTransactionSize(dma_control.dmastp, size);
@@ -1156,15 +1162,14 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 #endif
 
 	// Wait for capture to be finished
-	uint8_t timout = 50; // 500ms max
+	uint8_t timeout = 50; // 500ms max
 	do {
 		chThdSleep(TIME_MS2I(10));
-	} while(!dma_control.capture && !dma_control.dma_error && --timout);
+	} while(!dma_control.capture && !dma_control.dma_error && --timeout);
 
     palDisableLineEvent(LINE_CAM_VSYNC);
 
-	if(!timout) {
-      TRACE_ERROR("CAM  > Image sampling timeout");
+	if(!timeout) {
       dma_control.dma_count = dma_stop(dma_control.dmastp);
       dma_control.timer->DIER &= ~TIM_DIER_CC1DE;
       dma_control.dma_error = true;
@@ -1193,7 +1198,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 			error = 0x5;
 			return 0;
 		}
-        TRACE_ERROR("CAM  > Unexpected DMA error %x", dma_control.dma_flags);
+        TRACE_ERROR("CAM  > DMA image capture timeout");
 		return 0;
 	}
     TRACE_INFO("CAM  > Capture success");

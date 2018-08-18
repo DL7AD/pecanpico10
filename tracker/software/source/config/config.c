@@ -14,7 +14,7 @@ const conf_t conf_flash_default = {
     .pos_pri = {
         .beacon = {
             .active = false,
-            .cycle = TIME_S2I(120),
+            .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(0),
             .fixed = false // Add lat, lon, alt fields when enabling fixed
         },
@@ -25,16 +25,16 @@ const conf_t conf_flash_default = {
             .cca = 0x5F,
         },
         // App identity
-        .call = "VK2GJ-15",
+        .call = "VK2GJ-5",
         .path = "WIDE1-1",
-        .symbol = SYM_BALLOON,
-        .aprs_msg = true, // Enable APRS message reception on this app
+        .symbol = SYM_DIGIPEATER,
+        .aprs_msg = false, // Enable APRS message reception on this app
     },
 
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 30), // Beacon interval
             .init_delay = TIME_S2I(0),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
@@ -59,7 +59,7 @@ const conf_t conf_flash_default = {
     .img_pri = {
         .svc_conf = {
             .active = true,
-            .cycle = CYCLE_CONTINUOUSLY,
+            .cycle = TIME_S2I(60 * 15),
             .init_delay = TIME_S2I(30),
             .send_spacing = TIME_S2I(10)
         },
@@ -85,7 +85,7 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = true,
-            .cycle = CYCLE_CONTINUOUSLY,
+            .cycle = TIME_S2I(60 * 10),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(0)
         },
@@ -132,7 +132,7 @@ const conf_t conf_flash_default = {
              .svc_conf = {
                  // The packet receive service is enabled if true
                  // Receive is paused and resumed by transmission
-                 .active = false,
+                 .active = true,
                  .init_delay = TIME_S2I(20)
              },
             // Receive radio configuration
@@ -188,7 +188,7 @@ const conf_t conf_flash_default = {
     // The base station identity.
     .base = {
         // If enabled tracker initiated APRS messages are addressed to this call sign
-       .enabled = false,
+       .enabled = true,
        .call = "VK2GJ-7",
        .path = "WIDE2-1",
     },
