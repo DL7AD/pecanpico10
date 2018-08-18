@@ -33,7 +33,7 @@
 #define AFSK_SPACE_FREQUENCY        2200U
 
 /* Thread working area size. */
-#define PKT_AFSK_DECODER_WA_SIZE    1024
+#define PKT_AFSK_DECODER_WA_SIZE    (1024 * 2)
 
 /* AFSK decoder type selection. */
 #define AFSK_NULL_DECODE            0
