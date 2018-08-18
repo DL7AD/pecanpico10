@@ -412,7 +412,13 @@ void pktStartDecoder(const radio_unit_t radio) {
       break;
     } /* End case. */
 
-    case MOD_2FSK: {
+    case MOD_2FSK_9k6:
+    case MOD_2FSK_19k2:
+    case MOD_2FSK_38k4:
+    case MOD_2FSK_57k6:
+    case MOD_2FSK_76k8:
+    case MOD_2FSK_96k:
+    case MOD_2FSK_115k2: {
       return;
     }
 
@@ -509,7 +515,13 @@ void pktStopDecoder(radio_unit_t radio) {
       break;
     } /* End case. */
 
-    case MOD_2FSK: {
+    case MOD_2FSK_9k6:
+    case MOD_2FSK_19k2:
+    case MOD_2FSK_38k4:
+    case MOD_2FSK_57k6:
+    case MOD_2FSK_76k8:
+    case MOD_2FSK_96k:
+    case MOD_2FSK_115k2: {
       return;
     }
 

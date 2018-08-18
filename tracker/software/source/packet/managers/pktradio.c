@@ -150,7 +150,13 @@ THD_FUNCTION(pktRadioManager, arg) {
         } /* End case PKT_RADIO_OPEN. */
 
         case MOD_NONE:
-        case MOD_2FSK: {
+        case MOD_2FSK_9k6:
+        case MOD_2FSK_19k2:
+        case MOD_2FSK_38k4:
+        case MOD_2FSK_57k6:
+        case MOD_2FSK_76k8:
+        case MOD_2FSK_96k:
+        case MOD_2FSK_115k2: {
           break;
         }
         break;
@@ -178,7 +184,13 @@ THD_FUNCTION(pktRadioManager, arg) {
         } /* End case MOD_AFSK. */
 
       case MOD_NONE:
-      case MOD_2FSK: {
+      case MOD_2FSK_9k6:
+      case MOD_2FSK_19k2:
+      case MOD_2FSK_38k4:
+      case MOD_2FSK_57k6:
+      case MOD_2FSK_76k8:
+      case MOD_2FSK_96k:
+      case MOD_2FSK_115k2: {
         break;
         }
       } /* End switch on task_object->type. */
@@ -196,7 +208,13 @@ THD_FUNCTION(pktRadioManager, arg) {
               } /* End case. */
 
             case MOD_NONE:
-            case MOD_2FSK: {
+            case MOD_2FSK_9k6:
+            case MOD_2FSK_19k2:
+            case MOD_2FSK_38k4:
+            case MOD_2FSK_57k6:
+            case MOD_2FSK_76k8:
+            case MOD_2FSK_96k:
+            case MOD_2FSK_115k2: {
               break;
               }
        } /* End switch. */
@@ -268,7 +286,13 @@ THD_FUNCTION(pktRadioManager, arg) {
         }
 
       case MOD_NONE:
-      case MOD_2FSK: {
+      case MOD_2FSK_9k6:
+      case MOD_2FSK_19k2:
+      case MOD_2FSK_38k4:
+      case MOD_2FSK_57k6:
+      case MOD_2FSK_76k8:
+      case MOD_2FSK_96k:
+      case MOD_2FSK_115k2: {
         break;
         } /* End case DECODE_FSK. */
       } /* End switch on link_type. */
@@ -961,7 +985,13 @@ bool pktLLDradioSendPacket(radio_task_object_t *rto) {
   bool status;
   /* TODO: Implement VMT to functions per radio type. */
   switch(rto->type) {
-  case MOD_2FSK:
+  case MOD_2FSK_9k6:
+  case MOD_2FSK_19k2:
+  case MOD_2FSK_38k4:
+  case MOD_2FSK_57k6:
+  case MOD_2FSK_76k8:
+  case MOD_2FSK_96k:
+  case MOD_2FSK_115k2:
     status = Si446x_blocSend2FSK(rto);
     break;
 

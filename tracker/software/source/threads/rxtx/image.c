@@ -966,7 +966,7 @@ static bool transmit_image_packets(const uint8_t *image,
     uint8_t buffers = fmin(((NUMBER_COMMON_PKT_BUFFERS / 2)
                             - RESERVE_BUFFERS_FOR_INTERNAL),
                            MAX_BUFFERS_FOR_BURST_SEND);
-    uint8_t chain = (conf->radio_conf.mod == MOD_2FSK
+    uint8_t chain = (IS_2FSK(conf->radio_conf.mod)
         && !conf->redundantTx) ?
         buffers : 1;
     TRACE_INFO("IMG  > Encode %i APRS/SSDV packet%s", chain,
@@ -1290,7 +1290,7 @@ THD_FUNCTION(imgThread, arg) {
         } /* End initSD() */
 
         /* Transmit on radio. */
-        if(conf->radio_conf.mod == MOD_2FSK && conf->redundantTx) {
+        if(IS_2FSK(conf->radio_conf.mod) && conf->redundantTx) {
           TRACE_WARN("IMG  > Redundant TX disables 2FSK burst send mode");
         }
 

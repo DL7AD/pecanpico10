@@ -5,6 +5,10 @@
 #include "ax25_pad.h"
 #include "ublox.h"
 
+#define IS_AFSK(m)	((m) == MOD_AFSK)
+#define IS_2FSK(m)	((m) == MOD_2FSK_9k6 || (m) == MOD_2FSK_19k2 || (m) == MOD_2FSK_38k4 || (m) == MOD_2FSK_57k6 \
+					 || (m) == MOD_2FSK_76k8 || (m) == MOD_2FSK_96k || (m) == MOD_2FSK_115k2)
+
 typedef enum {
 	FREQ_INVALID = 0,
 	FREQ_APRS_GEOFENCE,  /* Geofencing frequency (144.8 default). */
@@ -49,7 +53,13 @@ typedef struct {
 typedef enum { // Modulation type
     MOD_NONE,
 	MOD_AFSK,
-	MOD_2FSK
+	MOD_2FSK_9k6,
+	MOD_2FSK_19k2,
+	MOD_2FSK_38k4,
+	MOD_2FSK_57k6,
+	MOD_2FSK_76k8,
+	MOD_2FSK_96k,
+	MOD_2FSK_115k2
 } radio_mod_t;
 
 typedef enum {
@@ -67,7 +77,6 @@ typedef struct {
   radio_pwr_t       pwr;
   radio_freq_t      freq;
   radio_mod_t             mod;
-  link_speed_t      speed;
   union {
     radio_squelch_t   cca;
     radio_squelch_t   rssi;

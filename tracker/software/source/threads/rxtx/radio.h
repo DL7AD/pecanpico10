@@ -30,8 +30,8 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
                      const radio_squelch_t cca,
                      const radio_task_cb_t cb);
 
-inline const char *getModulation(uint8_t key) {
-    const char *val[] = {"NONE", "AFSK", "2FSK"};
+inline const char *getModulation(radio_mod_t key) {
+    const char *val[] = {"NONE", "AFSK", "2FSK 9k6", "2FSK 19k2", "2FSK 38k4", "2FSK 57k6", "2FSK 76k8", "2FSK 96k", "2FSK 115k2"};
     return val[key];
 };
 

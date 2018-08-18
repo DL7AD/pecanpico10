@@ -92,7 +92,7 @@ const conf_t conf_flash_default = {
         .radio_conf = {
             .pwr = 0x1F,
             .freq = 144800000,
-            .mod = MOD_2FSK,
+            .mod = MOD_2FSK_9k6,
             .cca = 0x5F
         },
         // App identity

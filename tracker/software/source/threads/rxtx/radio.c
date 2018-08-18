@@ -188,7 +188,16 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
     rt.step_hz = step;
     rt.channel = chan;
     rt.tx_power = pwr;
-    rt.tx_speed = (mod == MOD_2FSK ? 9600 : 1200);
+    switch(mod) {
+        case MOD_2FSK_9k6:      rt.tx_speed = 9600;     break;
+        case MOD_2FSK_19k2:     rt.tx_speed = 19200;    break;
+        case MOD_2FSK_38k4:     rt.tx_speed = 38400;    break;
+        case MOD_2FSK_57k6:     rt.tx_speed = 57600;    break;
+        case MOD_2FSK_76k8:     rt.tx_speed = 76800;    break;
+        case MOD_2FSK_96k:      rt.tx_speed = 96000;    break;
+        case MOD_2FSK_115k2:    rt.tx_speed = 115200;   break;
+        default:                                        break; // tx_speed not relevant for AFSK
+    }
     rt.squelch = cca;
     rt.packet_out = pp;
 

@@ -801,24 +801,16 @@ static void Si446x_setModem2FSK_TX(const radio_unit_t radio,
     uint8_t f0 = (s >>  0) & 0xFF;
     Si446x_setProperty32(radio, Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
 
-    // Setup the NCO data rate for 2GFSK
+    // Setup the NCO data rate for 2FSK
     Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE,
                          (uint8_t)(speed >> 16),
                          (uint8_t)(speed >> 8), (uint8_t)speed);
 
-    // Use 2GFSK from FIFO (PH)
-    Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x03);
+    // Use 2FSK from FIFO (PH)
+    Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
 
     /* Set PH bit order for 2FSK. */
     Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x01);
-
-    // Set 2GFSK filter (default per Si).
-    const uint8_t coeff[] = {0x01, 0x03, 0x08, 0x11, 0x21, 0x36, 0x4d, 0x60, 0x67};
-    uint8_t i;
-    for(i = 0; i < sizeof(coeff); i++) {
-        uint8_t msg[] = {0x11, 0x20, 0x01, 0x17-i, coeff[i]};
-        Si446x_write(radio, msg, sizeof(msg));
-    }
 }
 
 
@@ -1548,7 +1540,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
      * Tail length (HDLC zeros)
      * Scramble on
      */
-    pktStreamIteratorInit(&iterator, pp, 30, 10, 10, true);
+    pktStreamIteratorInit(&iterator, pp, 100, 10, 10, true);
 
     /* Compute size of NRZI stream. */
     uint16_t all = pktStreamEncodingIterator(&iterator, NULL, 0);
