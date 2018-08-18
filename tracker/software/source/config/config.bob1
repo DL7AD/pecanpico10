@@ -14,36 +14,36 @@ const conf_t conf_flash_default = {
     .pos_pri = {
         .beacon = {
             .active = false,
-            .cycle = TIME_S2I(120),
+            .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(0),
             .fixed = false // Add lat, lon, alt fields when enabling fixed
         },
         .radio_conf = {
-            .pwr = 0x7F,
+            .pwr = 0x1F,
             .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x5F,
         },
         // App identity
-        .call = "VK2GJ-15",
+        .call = "VK2GJ-5",
         .path = "WIDE1-1",
-        .symbol = SYM_BALLOON,
-        .aprs_msg = true, // Enable APRS message reception on this app
+        .symbol = SYM_DIGIPEATER,
+        .aprs_msg = false, // Enable APRS message reception on this app
     },
 
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 30), // Beacon interval
-            .init_delay = TIME_S2I(60),
+            .init_delay = TIME_S2I(0),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
             .lat = -337331175, // Degrees (expressed in 1e-7 form)
             .lon = 1511143478, // Degrees (expressed in 1e-7 form)
             .alt = 144 // Altitude in metres
         },
         .radio_conf = {
-            .pwr = 0x7F,
+            .pwr = 0x1F,
             .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x4F
@@ -58,13 +58,13 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = false,
-            .cycle = CYCLE_CONTINUOUSLY,
+            .active = true,
+            .cycle = TIME_S2I(60 * 15),
             .init_delay = TIME_S2I(30),
             .send_spacing = TIME_S2I(10)
         },
         .radio_conf = {
-            .pwr = 0x7F,
+            .pwr = 0x1F,
             .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x5F
@@ -77,32 +77,32 @@ const conf_t conf_flash_default = {
         // Image settings
         .res = RES_QVGA,
         .quality = 4,
-        .buf_size = 50 * 1024,
+        .buf_size = 30 * 1024,
         .redundantTx = false
     },
 
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 15),
-            .init_delay = TIME_S2I(15 * 1),
-            .send_spacing = TIME_S2I(2)
+            .active = true,
+            .cycle = TIME_S2I(60 * 10),
+            .init_delay = TIME_S2I(60),
+            .send_spacing = TIME_S2I(0)
         },
         .radio_conf = {
             .pwr = 0x1F,
-            .freq = FREQ_APRS_AUSTRALIA,
-            .mod = MOD_AFSK,
-            .cca = 0x4F
+            .freq = 144800000,
+            .mod = MOD_2FSK,
+            .cca = 0x5F
         },
         // App identity
         .call = "VK2GJ-12",
         .path = "",
 
         // Image settings
-        .res = RES_QVGA,
+        .res = RES_XGA,
         .quality = 4,
-        .buf_size = 15 * 1024,
+        .buf_size = 100 * 1024,
         .redundantTx = false
     },
 
@@ -139,7 +139,7 @@ const conf_t conf_flash_default = {
             .radio_conf = {
                 .freq = FREQ_APRS_AUSTRALIA,
                 .mod = MOD_AFSK,
-                .rssi = 0x3F
+                .rssi = 0x5F
             },
             // APRS identity used in message responses if digipeat is not enabled
             .call = "VK2GJ-4",
@@ -153,7 +153,7 @@ const conf_t conf_flash_default = {
                .freq = FREQ_RX_APRS,
                .pwr = 0x7F,
                .mod = MOD_AFSK,
-               .cca = 0x4F
+               .cca = 0x5F
            },
            // Digipeat transmission identity
            .call = "VK2GJ-5",
@@ -169,9 +169,9 @@ const conf_t conf_flash_default = {
 
     // Power control
     .keep_cam_switched_on = false,
-    .gps_on_vbat = 3600, // mV
-    .gps_off_vbat = 3400, // mV
-    .gps_onper_vbat = 4000, // mV
+    .gps_on_vbat = 3300, // mV
+    .gps_off_vbat = 3000, // mV
+    .gps_onper_vbat = 3500, // mV
 
     // GPS altitude model control (air pressure controlled using on-board BME280)
     .gps_pressure = 90000, // Air pressure (Pa) threshold for alt model switch
@@ -180,15 +180,15 @@ const conf_t conf_flash_default = {
 
     // APRS
     // How often to send telemetry config (global for beacons)
-    .tel_enc_cycle = TIME_S2I(60 * 60 * 2),
+    .tel_enc_cycle = TIME_S2I(3600),
 
     // The default APRS frequency when geofence is not resolved
-    .freq = FREQ_APRS_EUROPE,
+    .freq = FREQ_APRS_AUSTRALIA,
 
     // The base station identity.
     .base = {
         // If enabled tracker initiated APRS messages are addressed to this call sign
-       .enabled = false,
+       .enabled = true,
        .call = "VK2GJ-7",
        .path = "WIDE2-1",
     },

@@ -629,10 +629,10 @@ packet_t ax25_from_frame (unsigned char *fbuf, uint16_t flen)
 
     msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
     /* If the semaphore is reset then exit. */
-    if(msg == MSG_RESET)
+    if(msg == MSG_RESET || this_p == NULL)
       return NULL;
-	if(this_p == NULL)
-	  return NULL;
+/*	if(this_p == NULL)
+	  return NULL;*/
 
 #if AX25MEMDEBUG	
 	if (ax25memdebug) {
@@ -641,6 +641,13 @@ packet_t ax25_from_frame (unsigned char *fbuf, uint16_t flen)
 #endif
 
 /* Copy the whole thing intact. */
+
+    /* Check for buffer overflow. */
+    if(flen > AX25_MAX_PACKET_LEN) {
+      TRACE_ERROR ("PKT  > frame buffer overrun");
+      pktReleasePacketBuffer(this_p);
+      return (NULL);
+    }
 
 	memcpy (this_p->frame_data, fbuf, flen);
 	this_p->frame_data[flen] = 0;
@@ -1114,8 +1121,11 @@ void ax25_remove_addr (packet_t this_p, int n)
 
 	this_p->num_addr--;
 
-	memmove (this_p->frame_data + n*7, this_p->frame_data + (n+1)*7, this_p->frame_len - ((n+1)*7));
-	this_p->frame_len -= 7;
+	memmove (this_p->frame_data + n*AX25_ADDR_LEN,
+	         this_p->frame_data + (n+1)*AX25_ADDR_LEN,
+	         this_p->frame_len - ((n+1)*AX25_ADDR_LEN));
+	this_p->frame_len -= AX25_ADDR_LEN;
+
 	SET_LAST_ADDR_FLAG;
 
 	// Sanity check after messing with number of addresses.
@@ -1125,7 +1135,6 @@ void ax25_remove_addr (packet_t this_p, int n)
 	if (expect != ax25_get_num_addr (this_p)) {
 	  TRACE_ERROR ("PKT  > Internal error ax25_remove_addr expect %d, actual %d", expect, this_p->num_addr);
 	}
-
 }
 
 
@@ -2016,7 +2025,7 @@ void ax25_format_via_path (packet_t this_p, char *result, size_t result_size)
  *
  *------------------------------------------------------------------*/
 
-int ax25_pack (packet_t this_p, unsigned char result[AX25_MAX_PACKET_LEN]) 
+/*int ax25_pack (packet_t this_p, unsigned char result[AX25_MAX_PACKET_LEN])
 {
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
 		TRACE_ERROR("PKT  > Buffer overflow");
@@ -2027,11 +2036,17 @@ int ax25_pack (packet_t this_p, unsigned char result[AX25_MAX_PACKET_LEN])
 		TRACE_ERROR("PKT  > Packet length over-/underflow");
 		return -1;
 	}
+     Check for buffer overflow here.
+    if((this_p->frame_len + info_len) > AX25_MAX_PACKET_LEN) {
+      TRACE_ERROR ("PKT  > frame buffer overrun");
+      pktReleasePacketBuffer(this_p);
+      return (NULL);
+    }
 
 	memcpy (result, this_p->frame_data, this_p->frame_len);
 
 	return (this_p->frame_len);
-}
+}*/
 
 
 

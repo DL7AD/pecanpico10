@@ -750,11 +750,11 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
         myDemod->active_radio_object->peak = out;
 
       /* Write the in-band queue swap message to the current object. */
-  #if USE_12_BIT_PWM == TRUE
+#if USE_12_BIT_PWM == TRUE
       byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INFO_QUEUE_SWAP, 0}};
-  #else
+#else
       byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INFO_QUEUE_SWAP}};
-  #endif
+#endif
       msg_t qs = pktWritePWMQueueI(&myObject->queue, pack);
 
       /* Set the new object as the active PWM queue/buffer. */
@@ -767,7 +767,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
         return;
       }
     }
-#endif
+#endif /* USE_HEAP_PWM_BUFFER == TRUE */
 
     /*
      * Queue has space for one entry only.
