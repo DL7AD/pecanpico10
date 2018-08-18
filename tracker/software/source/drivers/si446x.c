@@ -531,9 +531,10 @@ bool Si446x_conditional_init(const radio_unit_t radio) {
  * This function also collects the chip temperature data at the moment.
  * TODO: Move temperature reading to???
  */
-bool Si446x_setBandParameters(const radio_unit_t radio,
+static bool Si446x_setBandParameters(const radio_unit_t radio,
                               radio_freq_t freq,
-                              channel_hz_t step) {
+                              channel_hz_t step,
+                              deviation_hz_t dev) {
 
   /* Check frequency is in range of chip. */
   if(freq < 144000000UL || freq > 900000000UL)
@@ -548,11 +549,6 @@ bool Si446x_setBandParameters(const radio_unit_t radio,
   if(freq < 353000000UL) {outdiv = 12; band = 3;}
   if(freq < 239000000UL) {outdiv = 16; band = 4;}
   if(freq < 177000000UL) {outdiv = 24; band = 5;}
-
-  /*
-   * Initialize radio.
-   */
-  //Si446x_conditional_init(radio);
 
   /* Set the band parameter. */
   uint32_t sy_sel = 8;
@@ -583,7 +579,7 @@ bool Si446x_setBandParameters(const radio_unit_t radio,
                sizeof(set_frequency_property_command));
 
   /* Set TX deviation. */
-  uint32_t x = ((((uint32_t)1 << 19) * outdiv * 1300.0)/(2*Si446x_CCLK))*2;
+  uint32_t x = ((((uint32_t)1 << 19) * outdiv * (float32_t)dev/*1300.0*/)/(2*Si446x_CCLK))*2;
   uint8_t x2 = (x >> 16) & 0xFF;
   uint8_t x1 = (x >>  8) & 0xFF;
   uint8_t x0 = (x >>  0) & 0xFF;
@@ -596,23 +592,6 @@ bool Si446x_setBandParameters(const radio_unit_t radio,
   return true;
 }
 
-/*static void Si446x_setShift(uint16_t shift)
-{
-    if(!shift)
-        return;
-
-    float units_per_hz = (( 0x40000 * outdiv ) / (float)Si446x_CCLK);
-
-    // Set deviation for 2FSK
-    uint32_t modem_freq_dev = (uint32_t)(units_per_hz * shift / 2.0 );
-    uint8_t modem_freq_dev_0 = 0xFF & modem_freq_dev;
-    uint8_t modem_freq_dev_1 = 0xFF & (modem_freq_dev >> 8);
-    uint8_t modem_freq_dev_2 = 0xFF & (modem_freq_dev >> 16);
-
-    uint8_t set_modem_freq_dev_command[] = {0x11, 0x20, 0x03, 0x0A, modem_freq_dev_2, modem_freq_dev_1, modem_freq_dev_0};
-    Si446x_write(set_modem_freq_dev_command, 7);
-}*/
-
 static void Si446x_setPowerLevel(const radio_unit_t radio,
 								 const radio_pwr_t level) {
     // Set the Power
@@ -620,11 +599,6 @@ static void Si446x_setPowerLevel(const radio_unit_t radio,
                                                  0x22, 0x01, 0x01, level};
     Si446x_write(radio, set_pa_pwr_lvl_property_command,
                  sizeof(set_pa_pwr_lvl_property_command));
-}
-
-static void Si446x_setTransmitDeviation(const radio_unit_t radio,
-                                        deviation_hz_t deviation) {
-
 }
 
 /*
@@ -984,6 +958,7 @@ static bool Si446x_transmit(const radio_unit_t radio,
                             const channel_hz_t step,
                             const radio_ch_t chan,
                             const radio_pwr_t power,
+                            const deviation_hz_t dev,
                             const uint16_t size,
                             const radio_squelch_t rssi,
                             sysinterval_t cca_timeout) {
@@ -1006,7 +981,7 @@ static bool Si446x_transmit(const radio_unit_t radio,
   }
 
   /* Frequency is an absolute frequency in Hz. */
-  Si446x_setBandParameters(radio, op_freq, step);
+  Si446x_setBandParameters(radio, op_freq, step, dev);
 
   /* Check for blind send request. */
   if(rssi != PKT_SI446X_NO_CCA_RSSI) {
@@ -1149,7 +1124,7 @@ bool Si4464_enableReceive(const radio_unit_t radio,
   Si446x_conditional_init(radio);
 
   /* Frequency must be an absolute frequency in Hz. */
-  if(!Si446x_setBandParameters(radio, op_freq, rx_step))
+  if(!Si446x_setBandParameters(radio, op_freq, rx_step, 0))
     return false;
 
   return Si446x_receiveNoLock(radio, op_freq, rx_step,
@@ -1262,8 +1237,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   Si446x_conditional_init(radio);
 
   /* Base frequency is an absolute frequency in Hz. */
-  Si446x_setBandParameters(radio, rto->base_frequency,
-                           rto->step_hz);
+/*  Si446x_setBandParameters(radio, rto->base_frequency,
+                           rto->step_hz);*/
 
   /* Set 446x back to READY. */
   Si446x_terminateReceive(radio);
@@ -1361,6 +1336,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                        rto->step_hz,
                        rto->channel,
                        rto->tx_power,
+                       2000, // Deviation in Hz
                        all,
                        rssi,
                        TIME_S2I(10))) {
@@ -1522,7 +1498,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   Si446x_terminateReceive(radio);
 
   /* Base frequency must be an absolute frequency in Hz. */
-  Si446x_setBandParameters(radio, rto->base_frequency, rto->step_hz);
+/*  Si446x_setBandParameters(radio, rto->base_frequency, rto->step_hz);*/
 
   /* Set parameters for 2FSK transmission. */
   Si446x_setModem2FSK_TX(radio, rto->tx_speed);
@@ -1616,6 +1592,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                        rto->step_hz,
                        rto->channel,
                        rto->tx_power,
+                       1300, // TODO: Deviation to be set based on data rate
                        all,
                        rssi,
                        TIME_S2I(10))) {

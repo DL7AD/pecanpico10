@@ -328,9 +328,9 @@ extern "C" {
   void Si446x_lockRadioByCamera(void);
   void Si446x_unlockRadioByCamera(void);
   bool Si446x_conditional_init(radio_unit_t radio);
-  bool Si446x_setBandParameters(const radio_unit_t radio,
+/*  bool Si446x_setBandParameters(const radio_unit_t radio,
                                 radio_freq_t freq,
-                                channel_hz_t step);
+                                channel_hz_t step);*/
   radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
   ICUDriver *Si446x_attachPWM(const radio_unit_t radio);
   bool Si446x_detachPWM(const radio_unit_t radio);

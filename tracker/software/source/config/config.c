@@ -6,8 +6,9 @@
 #include "config.h"
 #include "aprs.h"
 #include "geofence.h"
+#include "pktconf.h"
 
-conf_t conf_sram;
+conf_t conf_sram useCCM;
 
 const conf_t conf_flash_default = {
     // Primary position app
@@ -139,7 +140,7 @@ const conf_t conf_flash_default = {
             .radio_conf = {
                 .freq = FREQ_APRS_AUSTRALIA,
                 .mod = MOD_AFSK,
-                .rssi = 0x5F
+                .rssi = 0x3F
             },
             // APRS identity used in message responses if digipeat is not enabled
             .call = "VK2GJ-4",
