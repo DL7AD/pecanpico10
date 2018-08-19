@@ -8,7 +8,7 @@ import threading
 from shutil import copyfile
 import base91
 
-def decode_callsign(code):
+def ssdv_decode_callsign(code):
 	callsign = ''
 
 	while code > 0:
@@ -21,7 +21,7 @@ def decode_callsign(code):
 
 	return callsign
 
-def encode_callsign(callsign):
+def ssdv_encode_callsign(callsign):
 	x = 0
 	for i in range(len(callsign)-1,-1,-1):
 		x *= 40
@@ -46,7 +46,7 @@ def imgproc():
 
 				filename = 'html/images/%s-%d.jpg' % (call.replace('-',''), _id)
 				f = open(filename, 'wb')
-				process = Popen(['./ssdv', '-d'], stdin=PIPE, stdout=f, stderr=PIPE)
+				process = Popen(['./ssdv/ssdv', '-d'], stdin=PIPE, stdout=f, stderr=PIPE)
 				process.stdin.write(data)
 				dummy,err = process.communicate()
 				f.close()
@@ -84,7 +84,7 @@ def insert_image(db, receiver, call, data_b91):
 	else:
 		bcall = bcall[0][0:6] # Callsign has 6 chars, so take the call without SSID
 
-	data  = ('68%08x%02x%04x' % (encode_callsign(bcall), imageID, packetID)) + data
+	data  = ('68%08x%02x%04x' % (ssdv_encode_callsign(bcall), imageID, packetID)) + data
 	data += "%08x" % (binascii.crc32(binascii.unhexlify(data)) & 0xffffffff)
 
 	timd = int(datetime.now().timestamp())

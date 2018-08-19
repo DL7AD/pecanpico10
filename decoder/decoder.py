@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import serial,re,io
+import serial,re,io,os
 import sys
 import argparse
 import telnetlib
@@ -8,6 +8,7 @@ import time
 import mysql.connector as mariadb
 import image
 import position
+from subprocess import *
 
 # Parse arguments from terminal
 parser = argparse.ArgumentParser(description='APRS/SSDV decoder')
@@ -19,6 +20,8 @@ args = parser.parse_args()
 
 # Open SQLite database
 db = mariadb.connect(user='decoder', password='decoder', database='decoder')
+
+# Create all tables
 db.cursor().execute("""
 	CREATE TABLE IF NOT EXISTS `position`
 	(
@@ -87,7 +90,6 @@ db.cursor().execute("""
 		PRIMARY KEY (`call`,`rxtime`)
 	)
 """)
-
 
 """ Packet handler for received APRS packets"""
 def received_data(data):
