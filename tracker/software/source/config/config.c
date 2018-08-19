@@ -35,7 +35,7 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 30), // Beacon interval
             .init_delay = TIME_S2I(0),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
@@ -60,9 +60,9 @@ const conf_t conf_flash_default = {
     .img_pri = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 15),
+            .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(30),
-            .send_spacing = TIME_S2I(10)
+            .send_spacing = TIME_S2I(5)
         },
         .radio_conf = {
             .pwr = 0x1F,
@@ -86,7 +86,7 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 10),
+            .cycle = TIME_S2I(60 * 1),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(0)
         },
@@ -101,7 +101,7 @@ const conf_t conf_flash_default = {
         .path = "",
 
         // Image settings
-        .res = RES_XGA,
+        .res = RES_VGA,
         .quality = 4,
         .buf_size = 100 * 1024,
         .redundantTx = false

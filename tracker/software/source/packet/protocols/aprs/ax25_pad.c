@@ -353,12 +353,7 @@ void ax25_delete (packet_t this_p)
  *
  *------------------------------------------------------------------------------*/
 
-#if AX25MEMDEBUG
-packet_t ax25_from_text_debug (char *monitor, int strict, char *src_file, int src_line)
-#else
-packet_t ax25_from_text (char *monitor, int strict)
-#endif
-{
+packet_t ax25_from_text (char *monitor, int strict) {
 
 /*
  * Tearing it apart is destructive so make our own copy first.
@@ -377,16 +372,11 @@ packet_t ax25_from_text (char *monitor, int strict)
 
 	packet_t this_p;
 	msg_t msg = pktGetPacketBuffer(&this_p, TIME_INFINITE);
-	/* If the semaphore is reset then exit. */
+	/* If the semaphore is reset, timeout or no packet buffer then exit. */
 	if(msg == MSG_RESET || msg == MSG_TIMEOUT || this_p == NULL) {
       TRACE_ERROR("PKT  > No packet buffer available");
 	  return NULL;
 	}
-#if AX25MEMDEBUG	
-	if (ax25memdebug) {
-	  TRACE_DEBUG ("PKT  > ax25_from_text, seq=%d, called from %s %d", this_p->seq, src_file, src_line);
-	}
-#endif
 
 	/* Is it possible to have a nul character (zero byte) in the */
 	/* information field of an AX.25 frame? */

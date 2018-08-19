@@ -32,8 +32,9 @@ extern uint8_t current_trace_level;
 	chsnprintf(&error_list[error_counter][strcnt], ERROR_LIST_LENGTH-strcnt, (format), ##args); \
 	error_counter = (error_counter+1)%ERROR_LIST_SIZE; \
 }
-
-#if TRACE_TIME && TRACE_FILE
+#if TRACE_TIME && TRACE_FILE && TRACE_THREAD
+#define TRACE_TAB "                                                           "
+#elif TRACE_TIME && TRACE_FILE
 #define TRACE_TAB "                                               "
 #elif TRACE_TIME && !TRACE_FILE
 #define TRACE_TAB "                            "

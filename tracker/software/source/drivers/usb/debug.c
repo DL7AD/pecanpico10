@@ -50,6 +50,9 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
       if(TRACE_FILE) {
           chprintf((BaseSequentialStream*)&SDU1, "[%12s %04d]", filename, line);
       }
+      if(TRACE_THREAD && TRACE_TIME && TRACE_FILE) {
+          chprintf((BaseSequentialStream*)&SDU1, "[0x%08x]", chThdGetSelfX());
+      }
       chprintf((BaseSequentialStream*)&SDU1, " ");
       va_list args;
       va_start(args, format);
@@ -66,6 +69,9 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
 	if(TRACE_FILE) {
 		chprintf((BaseSequentialStream*)SERIAL_DEBUG_DRIVER, "[%12s %04d]", filename, line);
 	}
+    if(TRACE_THREAD && TRACE_TIME && TRACE_FILE) {
+        chprintf((BaseSequentialStream*)SERIAL_DEBUG_DRIVER, "[0x%08x]", chThdGetSelfX());
+    }
     chprintf((BaseSequentialStream*)SERIAL_DEBUG_DRIVER, " ");
     va_list args;
     va_start(args, format);

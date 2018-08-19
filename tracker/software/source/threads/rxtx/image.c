@@ -902,7 +902,7 @@ static bool transmit_image_packet(const uint8_t *image,
  */
 static void image_packet_send_complete(void) {
   chSemSignal(&tx_complete);
-  TRACE_DEBUG("IMG  > Signal encode/transmit semaphore");
+  TRACE_DEBUG("IMG  > Released transmit semaphore");
   return;
 }
 
@@ -911,9 +911,9 @@ static void image_packet_send_complete(void) {
  * Return true if no encoding, TX or memory error.
  */
 static bool transmit_image_packets(const uint8_t *image,
-                                   uint32_t image_len,
-                                   img_app_conf_t* conf,
-                                   uint8_t image_id) {
+                                   const uint32_t image_len,
+                                   img_app_conf_t *const conf,
+                                   const uint8_t image_id) {
 
   uint8_t pkt[SSDV_PKT_SIZE];
   uint8_t pkt_base91[256] = {0};
@@ -1028,12 +1028,12 @@ static bool transmit_image_packets(const uint8_t *image,
 
     /* If we have some image packet(s) to transmit then do it. */
     if(head != NULL) {
-      TRACE_DEBUG("IMG  > Get encode/transmit semaphore");
+
       /* Get the semaphore for TX. */
-/*      if(chBSemWait(&tx_complete) == MSG_RESET)
-          return false;*/
+      TRACE_DEBUG("IMG  > Waiting for transmit semaphore");
       if(chSemWait(&tx_complete) == MSG_RESET)
                 return false;
+      TRACE_DEBUG("IMG  > Acquired transmit semaphore");
       if(!transmitOnRadioWithCallback(head,
                           conf->radio_conf.freq,
                           0,
@@ -1084,11 +1084,12 @@ static bool transmit_image_packets(const uint8_t *image,
 /**
   * Analyzes the image for JPEG errors. Returns true if the image is error free.
   */
-static bool analyze_image(uint8_t *image, uint32_t image_len) {
+static bool analyze_image(const uint8_t *image, const uint32_t image_len) {
 
 #if !OV5640_USE_DMA_DBM
-  if(image_len >= 65535) {
-    TRACE_ERROR("CAM  > Camera has %d bytes allocated but DMA DBM not activated", image_len);
+  if(image_len > 65535) {
+    TRACE_ERROR("CAM  > Camera has %d bytes allocated but "
+        "DMA DBM not activated", image_len);
     TRACE_ERROR("CAM  > DMA can only use 65535 bytes");
     image_len = 65535;
   }
@@ -1096,7 +1097,7 @@ static bool analyze_image(uint8_t *image, uint32_t image_len) {
 
   ssdv_t ssdv;
   uint8_t pkt[SSDV_PKT_SIZE];
-  uint8_t *b;
+  const uint8_t *b;
   uint32_t bi = 0;
   uint32_t i = 0;
   uint8_t c = SSDV_OK;
@@ -1139,36 +1140,38 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 	camera_mtx_init = true;
 
 	// Lock camera
-	TRACE_INFO("IMG  > Lock camera");
+    TRACE_INFO("IMG  > Waiting to lock camera");
 	chMtxLock(&camera_mtx);
-
-	// Detect camera
+    TRACE_INFO("IMG  > Locked camera");
+	// Detect camera (is powered up if not already initialised).
 	if(camInitialized || OV5640_isAvailable()) { // OV5640 available
 
 		TRACE_INFO("IMG  > OV5640 found");
 
-		uint8_t cntr = 5;
-		bool jpegValid;
+
         // Init camera
-        if(!camInitialized) {
+/*        if(!camInitialized) {
             OV5640_init();
             camInitialized = true;
-        }
+        }*/
+        uint8_t cntr = 5;
+        bool jpegValid = false;
 		do {
-			// Init camera
-/*			if(!camInitialized) {
-				OV5640_init();
-				camInitialized = true;
-			}*/
+			// Switch on and init camera
+	        if(!camInitialized) {
+              OV5640_init();
+              camInitialized = true;
+	        }
+
 			// Sample data from pseudo DCMI through DMA into RAM
 			size_sampled = OV5640_Snapshot2RAM(buffer, size, res);
-            if(size_sampled == 0)
-                continue;
-			// Switch off camera
-/*			if(!conf_sram.keep_cam_switched_on) {
-				OV5640_deinit();
-				camInitialized = false;
-			}*/
+            if(size_sampled == 0) {
+              // Switch off camera
+              OV5640_deinit();
+              camInitialized = false;
+              chThdSleep(TIME_MS2I(10));
+              continue;
+            }
 
 			// Validate JPEG image
 			if(enableJpegValidation)
@@ -1183,7 +1186,7 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 
 	} else { // Camera not found
 
-		camInitialized = false;
+		//camInitialized = false;
 		TRACE_ERROR("IMG  > No camera found");
 	}
     // Switch off camera
@@ -1304,7 +1307,7 @@ THD_FUNCTION(imgThread, arg) {
       soi++;
     } /* End while soi < size_sampled - 1. */
     if(!soi_found) { /* No SOI found. */
-    TRACE_INFO("IMG  > No SOI found in image");
+      TRACE_INFO("IMG  > No SOI found in image");
     }
     /* Return the buffer to the heap. */
     chHeapFree(buffer);
@@ -1318,11 +1321,11 @@ THD_FUNCTION(imgThread, arg) {
 /*
  *
  */
-void start_image_thread(img_app_conf_t *conf)
+void start_image_thread(img_app_conf_t *conf, const char *name)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
 	                                   THD_WORKING_AREA_SIZE(30 * 1024),
-	                                   "IMG", LOWPRIO, imgThread, conf);
+	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread
 		TRACE_ERROR("IMG  > Could not startup thread"

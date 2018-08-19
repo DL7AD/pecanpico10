@@ -216,7 +216,7 @@
  * Can configured as being in CCM to save system core memory use.
  */
 #define NUMBER_COMMON_PKT_BUFFERS       20U
-#define RESERVE_BUFFERS_FOR_INTERNAL    2U
+#define RESERVE_BUFFERS_FOR_INTERNAL    5U
 #define MAX_BUFFERS_FOR_BURST_SEND      5U
 #if (MAX_BUFFERS_FOR_BURST_SEND >                                            \
     (NUMBER_COMMON_PKT_BUFFERS - RESERVE_BUFFERS_FOR_INTERNAL))
