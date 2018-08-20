@@ -1086,7 +1086,7 @@ static bool transmit_image_packets(const uint8_t *image,
   */
 static bool analyze_image(const uint8_t *image, const uint32_t image_len) {
 
-#if !OV5640_USE_DMA_DBM
+#if !PDCMI_USE_DMA_DBM
   if(image_len > 65535) {
     TRACE_ERROR("CAM  > Camera has %d bytes allocated but "
         "DMA DBM not activated", image_len);
@@ -1228,14 +1228,14 @@ THD_FUNCTION(imgThread, arg) {
     uint32_t my_image_id = gimage_id++;
     /* Create image capture buffer. */
     uint8_t *buffer = chHeapAllocAligned(NULL, conf->buf_size,
-                                         DMA_FIFO_BURST_ALIGN);
+                                         PDCMI_DMA_FIFO_BURST_ALIGN);
     if(buffer == NULL) {
       /* Could not get a capture buffer. */
-      TRACE_WARN("IMG  > Unable to get capture buffer for image %i",
+      TRACE_WARN("IMG  > Unable to get capture buffer for image ID=%d",
                  my_image_id);
-      /* Allow time for other threads. */
-      chThdSleep(TIME_MS2I(10));
-      /* Try again at next run time. */
+      /* Allow time for some heap to maybe be freed. */
+      chThdSleep(TIME_S2I(10));
+      /* Try again at next run time (which may be immediately). */
       time = waitForTrigger(time, conf->svc_conf.cycle);
       continue;
     }
@@ -1257,7 +1257,7 @@ THD_FUNCTION(imgThread, arg) {
                  my_image_id);
       if(!transmit_image_packets(noCameraFound, sizeof(noCameraFound),
                                  conf, (uint8_t)(my_image_id))) {
-        TRACE_ERROR("IMG  > Error in encoding dummy image %i"
+        TRACE_ERROR("IMG  > Error in encoding dummy image %d"
             " - discarded", my_image_id);
       }
       /* Return the buffer to the heap. */
@@ -1299,8 +1299,8 @@ THD_FUNCTION(imgThread, arg) {
         TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", my_image_id);
         if(!transmit_image_packets(buffer, size_sampled, conf,
                                    (uint8_t)(my_image_id))) {
-          TRACE_ERROR("IMG  > Error in encoding snapshot image"
-              " %i - discarded", my_image_id);
+          TRACE_ERROR("IMG  > Error in encode/transmit of image"
+              " ID=%d - discarded", my_image_id);
         }
       break;
       } /* End if SOI in buffer. */
@@ -1309,7 +1309,7 @@ THD_FUNCTION(imgThread, arg) {
     if(!soi_found) { /* No SOI found. */
       TRACE_INFO("IMG  > No SOI found in image");
     }
-    /* Return the buffer to the heap. */
+    /* Return the image buffer to the heap. */
     chHeapFree(buffer);
     /* Allow minimum time for other threads. */
     chThdSleep(TIME_MS2I(10));
@@ -1324,7 +1324,7 @@ THD_FUNCTION(imgThread, arg) {
 void start_image_thread(img_app_conf_t *conf, const char *name)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
-	                                   THD_WORKING_AREA_SIZE(30 * 1024),
+	                                   THD_WORKING_AREA_SIZE(35 * 1024),
 	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
 		// Print startup error, do not start watchdog for this thread

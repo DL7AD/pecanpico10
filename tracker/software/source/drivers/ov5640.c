@@ -763,7 +763,7 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
  *  The pseudo DCMI driver.
  */
 
-#if OV5640_USE_DMA_DBM == TRUE
+#if PDCMI_USE_DMA_DBM == TRUE
 
 #if !defined(dmaStreamGetCurrentTarget)
 /**
@@ -781,7 +781,7 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
     ((uint8_t)(((dmastp)->stream->CR >> DMA_SxCR_CT_Pos) & 1U))
 
 #endif /* !defined(dmaStreamGetCurrentTarget) */
-#endif /* OV5640_USE_DMA_DBM == TRUE */
+#endif /* PDCMI_USE_DMA_DBM == TRUE */
 
 inline void dma_start(const stm32_dma_stream_t *dmastp) {
   /* Clear any pending interrupts. */
@@ -798,10 +798,10 @@ inline uint16_t dma_stop(const stm32_dma_stream_t *dmastp) {
 	dmaStreamDisable(dmastp);
 	uint16_t transfer = dmaStreamGetTransactionSize(dmastp);
 	dmaStreamRelease(dmastp);
-	return (DMA_SEGMENT_SIZE - transfer);
+	return (PDCMI_DMA_SEGMENT_SIZE - transfer);
 }
 
-#if OV5640_USE_DMA_DBM == TRUE
+#if PDCMI_USE_DMA_DBM == TRUE
 
 /*
  *
@@ -877,7 +877,7 @@ static void dma_interrupt(void *p, uint32_t flags) {
      * Checking state of CT at TCIF may be too late because of IRQ latency.
      * i.e. the DMA controller may have already changed CT before IRQ is serviced.
      */
-    dma_control->segment_address += DMA_SEGMENT_SIZE;
+    dma_control->segment_address += PDCMI_DMA_SEGMENT_SIZE;
     if (dmaStreamGetCurrentTarget(dmastp) == 0) {
       dmaStreamSetMemory1(dmastp, dma_control->segment_address);
     } else {
@@ -891,7 +891,7 @@ static void dma_interrupt(void *p, uint32_t flags) {
     /*
      * Transfer complete for this segment.
      */
-    dma_control->dma_count += DMA_SEGMENT_SIZE;
+    dma_control->dma_count += PDCMI_DMA_SEGMENT_SIZE;
     dmaStreamClearInterrupt(dmastp);
     chSysUnlockFromISR();
     return;
@@ -1014,12 +1014,16 @@ msg_t OV5640_LockResourcesForCapture(void) {
   /* TODO: have to make this a loop which would handle multiple receivers. */
 
   /* Acquire radio after any active TX completes. */
-  msg_t msg = pktLockRadioTransmit(PKT_RADIO_1, TIME_INFINITE);
+  TRACE_DEBUG("CAM  > Lock request on radio %d", PKT_RADIO_1);
+  msg_t msg = pktLLDlockRadioTransmit(PKT_RADIO_1, TIME_INFINITE);
   if(msg != MSG_OK) {
+    TRACE_ERROR("CAM  > Lock failed on radio %d", PKT_RADIO_1);
     return msg;
   }
   if(pktIsReceiveActive(PKT_RADIO_1)) {
+    TRACE_DEBUG("CAM  > Request pause receive on radio %d", PKT_RADIO_1);
     pktLLDradioPauseDecoding(PKT_RADIO_1);
+    TRACE_DEBUG("CAM  > Executed pause receive on radio %d", PKT_RADIO_1);
     decode_pause = true;
   } else
     decode_pause = false;
@@ -1043,11 +1047,13 @@ void OV5640_UnlockResourcesForCapture(void) {
   I2C_Unlock();
   /* TODO: have to make this a loop which would handle multiple receivers. */
   if(pktIsReceivePaused(PKT_RADIO_1) && decode_pause) {
+    TRACE_INFO("CAM  > Resume receive on radio %d", PKT_RADIO_1);
     pktLLDradioResumeDecoding(PKT_RADIO_1);
   }
   //pktResumeDecoding(PKT_RADIO_1);
   /* Enable TX tasks to run. */
-  pktUnlockRadioTransmit(PKT_RADIO_1);
+  TRACE_INFO("CAM  > Unlock radio %d", PKT_RADIO_1);
+  pktLLDunlockRadioTransmit(PKT_RADIO_1);
 }
 
 /**
@@ -1062,16 +1068,16 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
    *
    */
 
-  if (((uint32_t)buffer % DMA_FIFO_BURST_ALIGN) != 0) {
+  if (((uint32_t)buffer % PDCMI_DMA_FIFO_BURST_ALIGN) != 0) {
     TRACE_ERROR("CAM  > Buffer not allocated on DMA burst boundary");
     return 0;
   }
 
-#if OV5640_USE_DMA_DBM == TRUE
+#if PDCMI_USE_DMA_DBM == TRUE
     /*
      * Calculate the number of whole buffers.
      */
-    if((size / DMA_SEGMENT_SIZE) < 2) {
+    if((size / PDCMI_DMA_SEGMENT_SIZE) < 2) {
       TRACE_ERROR("CAM  > Capture buffer less than 2 DMA DBM segment segments");
       return 0;
     }
@@ -1112,14 +1118,14 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	STM32_DMA_CR_MINC |
 	STM32_DMA_CR_DMEIE |
 	STM32_DMA_CR_TEIE |
-#if OV5640_USE_DMA_DBM == TRUE
+#if PDCMI_USE_DMA_DBM == TRUE
     STM32_DMA_CR_DBM |
     STM32_DMA_CR_HTIE |
 #endif
 	STM32_DMA_CR_TCIE;
 
 	/* Set stream, IRQ priority, IRQ handler & parameter. */
-	if(dmaStreamAllocate(dma_control.dmastp, 7,
+	if(dmaStreamAllocate(dma_control.dmastp, PDCMI_DMA_IRQ_PRIO,
 	                  (stm32_dmaisr_t)dma_interrupt, &dma_control)) {
 	    OV5640_UnlockResourcesForCapture();
 	    error = 0x9;
@@ -1129,17 +1135,16 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	/* Read data from GPIO port. */
 	dmaStreamSetPeripheral(dma_control.dmastp, &GPIOA->IDR);
 
-#if OV5640_USE_DMA_DBM == TRUE
+#if PDCMI_USE_DMA_DBM == TRUE
 	dma_control.segment_address = buffer;
 	dma_control.base_buffer = buffer;
-	dma_control.segment_count = (size / DMA_SEGMENT_SIZE);
+	dma_control.segment_count = (size / PDCMI_DMA_SEGMENT_SIZE);
     /*
      * Set the initial buffer addresses.
      * The updating of DMA:MxAR is done in the the DMA interrupt function.
      */
     dmaStreamSetMemory0(dma_control.dmastp, dma_control.segment_address);
-    //dmaStreamSetMemory1(dma_control.dmastp, &buffer[DMA_SEGMENT_SIZE]);
-    dmaStreamSetTransactionSize(dma_control.dmastp, DMA_SEGMENT_SIZE);
+    dmaStreamSetTransactionSize(dma_control.dmastp, PDCMI_DMA_SEGMENT_SIZE);
 #else
     dmaStreamSetMemory0(dmastp, buffer);
     dmaStreamSetTransactionSize(dma_control.dmastp, size);

@@ -170,16 +170,16 @@ THD_FUNCTION(pktRadioManager, arg) {
       /* The function switches on mod type so no need for switch here. */
       switch(task_object->type) {
       case MOD_AFSK: {
-        pktLockRadioTransmit(radio, TIME_INFINITE);
+        pktLLDlockRadioTransmit(radio, TIME_INFINITE);
         /* Enable receive. */
         if(!pktLLDradioEnableReceive(radio, task_object)) {
           TRACE_ERROR("RAD  > Receive on radio %d failed to start", radio);
-          pktUnlockRadioTransmit(radio);
+          pktLLDunlockRadioTransmit(radio);
           break;
         }
         pktLLDradioStartDecoder(radio);
         /* Unlock radio and allow transmit requests. */
-        pktUnlockRadioTransmit(radio);
+        pktLLDunlockRadioTransmit(radio);
         break;
         } /* End case MOD_AFSK. */
 
@@ -199,36 +199,36 @@ THD_FUNCTION(pktRadioManager, arg) {
 
     case PKT_RADIO_RX_STOP: {
       switch(task_object->type) {
-            case MOD_AFSK: {
-              /* TODO: Abstract acquire and release in LLD. */
-              pktLockRadioTransmit(radio, TIME_INFINITE);
-              pktLLDradioStopDecoder(radio);
-              pktUnlockRadioTransmit(radio);
-              break;
-              } /* End case. */
+        case MOD_AFSK: {
+          /* TODO: Abstract acquire and release in LLD. */
+          pktLLDlockRadioTransmit(radio, TIME_INFINITE);
+          pktLLDradioStopDecoder(radio);
+          pktLLDunlockRadioTransmit(radio);
+          break;
+        } /* End case. */
 
-            case MOD_NONE:
-            case MOD_2FSK_9k6:
-            case MOD_2FSK_19k2:
-            case MOD_2FSK_38k4:
-            case MOD_2FSK_57k6:
-            case MOD_2FSK_76k8:
-            case MOD_2FSK_96k:
-            case MOD_2FSK_115k2: {
-              break;
-              }
+        case MOD_NONE:
+        case MOD_2FSK_9k6:
+        case MOD_2FSK_19k2:
+        case MOD_2FSK_38k4:
+        case MOD_2FSK_57k6:
+        case MOD_2FSK_76k8:
+        case MOD_2FSK_96k:
+        case MOD_2FSK_115k2: {
+          break;
+        }
        } /* End switch. */
       break;
     } /* End case PKT_RADIO_RX_STOP. */
 
     case PKT_RADIO_TX_SEND: {
       /* Give each send a sequence number. */
-      ++handler->radio_tx_config.tx_seq_num;
+      //++handler->radio_tx_config.tx_seq_num;
       if(pktIsReceiveActive(radio)) {
         /* Pause the decoder. */
-        pktLockRadioTransmit(radio, TIME_INFINITE);
+        pktLLDlockRadioTransmit(radio, TIME_INFINITE);
         pktLLDradioPauseDecoding(radio);
-        pktUnlockRadioTransmit(radio);
+        pktLLDunlockRadioTransmit(radio);
       }
       if(pktLLDradioSendPacket(task_object)) {
         /*
@@ -248,15 +248,15 @@ THD_FUNCTION(pktRadioManager, arg) {
       packet_t pp = task_object->packet_out;
       pktReleaseBufferChain(pp);
       if(pktIsReceivePaused(radio)) {
-        pktLockRadioTransmit(radio, TIME_INFINITE);
+        pktLLDlockRadioTransmit(radio, TIME_INFINITE);
         if(!pktLLDradioResumeReceive(radio)) {
           TRACE_ERROR("RAD  > Receive on radio %d failed to "
               "resume after transmit", radio);
-          pktUnlockRadioTransmit(radio);
+          pktLLDunlockRadioTransmit(radio);
           break;
         }
         pktLLDradioResumeDecoding(radio);
-        pktUnlockRadioTransmit(radio);
+        pktLLDunlockRadioTransmit(radio);
       }
       break;
     } /* End case PKT_RADIO_TX. */
@@ -268,9 +268,9 @@ THD_FUNCTION(pktRadioManager, arg) {
       switch(task_object->type) {
       case MOD_AFSK: {
         /* Stop receive. */
-        pktLockRadioTransmit(radio, TIME_INFINITE);
+        pktLLDlockRadioTransmit(radio, TIME_INFINITE);
         pktLLDradioDisableReceive(radio);
-        pktUnlockRadioTransmit(radio);
+        pktLLDunlockRadioTransmit(radio);
         /* TODO: This should be a function back in pktservice or rxafsk. */
         esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
@@ -349,7 +349,7 @@ THD_FUNCTION(pktRadioManager, arg) {
                 "resume after transmit", radio);
             break;
           }
-          /* TODO: Implement LLD since resume depends on radio and mod type. */
+          /* Resume decoding. */
           pktLLDradioResumeDecoding(radio);
         } else {
           /* Enter standby state (low power). */
@@ -629,7 +629,7 @@ void pktSubmitRadioTask(const radio_unit_t radio,
  *
  * @api
  */
-msg_t pktLockRadioTransmit(const radio_unit_t radio,
+msg_t pktLLDlockRadioTransmit(const radio_unit_t radio,
                       const sysinterval_t timeout) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 #if PKT_USE_RADIO_MUTEX == TRUE
@@ -650,7 +650,7 @@ msg_t pktLockRadioTransmit(const radio_unit_t radio,
  *
  * @api
  */
-void pktUnlockRadioTransmit(const radio_unit_t radio) {
+void pktLLDunlockRadioTransmit(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 #if PKT_USE_RADIO_MUTEX == TRUE
   chMtxUnlock(&handler->radio_mtx);
@@ -739,25 +739,44 @@ int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
  * @notes   If a valid default is set in configuration use it
  * @notes   Else if a valid frequency is in the radio configuration use it
  * @notes   Else fall back to #defined DEFAULT_OPERATING_FREQUENCY
+ * @notes   Else return FREQ_INVALID
  *
  * @param[in] radio         Radio unit ID.
  *
- * @return      operating frequency
- * @retval      FREQ_INVALID if radio ID is invalid
- * @retval      Default frequency otherwise
+ * @return      Operating frequency
+ * @retval      Operating frequency if it is valid for this radio
+ * @retval      Default from system configuration if set and supported.
+ * @retval      Default for radio if set and supported.
+ * @retval      DEFAULT_OPERATING_FREQ if supported on this radio.
+ * @retval      FREQ_INVALID otherwise.
  *
  * @api
  */
 radio_freq_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
+
+  /* Check the system default. */
   radio_band_t *band = pktCheckAllowedFrequency(radio, conf_sram.freq);
   if(band != NULL)
     return conf_sram.freq;
+
+  /* System config frequency not supported by this radio. */
   const radio_config_t *radio_data = pktGetRadioData(radio);
+
+  /*
+   * Check if the radio has a valid default set.
+   * Could be set to 0 or maybe there is an incorrect configuration.
+  */
   if(pktCheckAllowedFrequency(radio, radio_data->def_aprs))
     /* Use default APRS frequency in radio configuration. */
     return radio_data->def_aprs;
+
   /* Fall back to defined default as last resort. */
-  return DEFAULT_OPERATING_FREQ;
+  if(pktCheckAllowedFrequency(radio, DEFAULT_OPERATING_FREQ))
+    /* Use default APRS frequency in radio configuration. */
+    return DEFAULT_OPERATING_FREQ;
+
+  /* None of the options are supported on this radio. */
+  return FREQ_INVALID;
 }
 
 /**

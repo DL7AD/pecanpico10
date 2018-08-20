@@ -22,11 +22,12 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-#define OV5640_I2C_ADR		    0x3C
+#define OV5640_I2C_ADR		        0x3C
 
-#define OV5640_USE_DMA_DBM      TRUE
-#define DMA_SEGMENT_SIZE        1024
-#define DMA_FIFO_BURST_ALIGN    16
+#define PDCMI_USE_DMA_DBM           TRUE
+#define PDCMI_DMA_SEGMENT_SIZE      1024
+#define PDCMI_DMA_FIFO_BURST_ALIGN  16
+#define PDCMI_DMA_IRQ_PRIO          2
 
 #ifdef __cplusplus
 extern "C" {

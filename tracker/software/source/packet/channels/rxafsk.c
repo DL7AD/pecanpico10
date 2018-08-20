@@ -817,11 +817,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
               /*
                *  This is an error condition.
                *  An in-band swap message should always have a linked object.
-               *  Error state will release the AX25 and PWM objects.
-               *  Then reset state will release the FIFO object.
+               *  Reset state releases AX25, PWM and stream FIFO objects.
                */
-
-              /* TODO: Need an EVT code freed up to add INVALID_SWAP. */
               pktAddEventFlags(myHandler, EVT_PWM_INVALID_SWAP);
               myDriver->active_demod_object->status |= STA_AFSK_INVALID_SWAP;
               myDriver->decoder_state = DECODER_RESET;

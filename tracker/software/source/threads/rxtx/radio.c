@@ -201,6 +201,9 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
     rt.squelch = cca;
     rt.packet_out = pp;
 
+    /* Serial number for this TX. */
+    rt.tx_seq_num++;
+
     /* Update the task mirror. */
     handler->radio_tx_config = rt;
 
@@ -210,7 +213,6 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
       pktReleaseBufferChain(pp);
       return false;
     }
-
   } else {
 
     TRACE_ERROR("RAD  > Information size is invalid for transmission, %d.%03d MHz, "

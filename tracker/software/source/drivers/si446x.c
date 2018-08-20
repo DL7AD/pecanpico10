@@ -1219,7 +1219,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
-  if(pktLockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
+  if(pktLLDlockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
     TRACE_ERROR("SI   > AFSK TX reset from radio acquisition");
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
@@ -1286,7 +1286,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       pktLLDradioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
-      pktUnlockRadioTransmit(radio);
+      pktLLDunlockRadioTransmit(radio);
 
       /* Exit thread. */
       chThdExit(MSG_ERROR);
@@ -1421,7 +1421,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   pktLLDradioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
-  pktUnlockRadioTransmit(radio);
+  pktLLDunlockRadioTransmit(radio);
 
   /* Exit thread. */
   chThdExit(exit_msg);
@@ -1478,7 +1478,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   chDbgAssert(pp != NULL, "no packet in radio task");
 
   /* Check for MSG_RESET which means system has forced radio release. */
-  if(pktLockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
+  if(pktLLDlockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
     TRACE_ERROR("SI   > 2FSK TX reset from radio acquisition");
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
@@ -1548,7 +1548,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       pktLLDradioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
-      pktUnlockRadioTransmit(radio);
+      pktLLDunlockRadioTransmit(radio);
 
       /* Exit thread. */
       chThdExit(MSG_ERROR);
@@ -1673,7 +1673,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   pktLLDradioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
-  pktUnlockRadioTransmit(radio);
+  pktLLDunlockRadioTransmit(radio);
 
   /* Exit thread. */
   chThdExit(exit_msg);

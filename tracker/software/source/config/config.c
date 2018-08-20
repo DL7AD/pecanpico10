@@ -101,7 +101,7 @@ const conf_t conf_flash_default = {
         .path = "",
 
         // Image settings
-        .res = RES_VGA,
+        .res = RES_XGA,
         .quality = 4,
         .buf_size = 100 * 1024,
         .redundantTx = false

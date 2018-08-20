@@ -166,9 +166,9 @@ extern "C" {
                           radio_task_cb_t cb);
   void      		pktScheduleThreadRelease(const radio_unit_t radio,
                                 thread_t *thread);
-  msg_t     		pktLockRadioTransmit(const radio_unit_t radio,
+  msg_t     		pktLLDlockRadioTransmit(const radio_unit_t radio,
             		                const sysinterval_t timeout);
-  void      		pktUnlockRadioTransmit(const radio_unit_t radio);
+  void      		pktLLDunlockRadioTransmit(const radio_unit_t radio);
   const radio_config_t *pktGetRadioList(void);
   uint8_t           pktGetNumRadios(void);
   radio_band_t 		*pktCheckAllowedFrequency(const radio_unit_t radio,
