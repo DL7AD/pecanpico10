@@ -86,7 +86,7 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 1),
+            .cycle = TIME_S2I(60 * 2),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(0)
         },
@@ -101,9 +101,9 @@ const conf_t conf_flash_default = {
         .path = "",
 
         // Image settings
-        .res = RES_XGA,
+        .res = RES_VGA,
         .quality = 4,
-        .buf_size = 100 * 1024,
+        .buf_size = 40 * 1024,
         .redundantTx = false
     },
 

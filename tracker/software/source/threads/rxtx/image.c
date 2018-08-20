@@ -1221,7 +1221,10 @@ THD_FUNCTION(imgThread, arg) {
     TRACE_INFO("POS  > Do module IMAGE cycle for %s on %s",
                conf->call, code_s);
     if(p_sleep(&conf->svc_conf.sleep_conf)) {
-      /* Re-check every minute. */
+      /*
+       * Re-check every minute.
+       * Don't make this short or the IO queue will be filled.
+       */
       chThdSleep(TIME_S2I(60));
       continue;
     }
@@ -1233,17 +1236,20 @@ THD_FUNCTION(imgThread, arg) {
       /* Could not get a capture buffer. */
       TRACE_WARN("IMG  > Unable to get capture buffer for image ID=%d",
                  my_image_id);
-      /* Allow time for some heap to maybe be freed. */
-      chThdSleep(TIME_S2I(10));
+      /*
+       * Re-check every minute.
+       * Don't make this short or the IO queue will be filled.
+       */
+      chThdSleep(TIME_S2I(60));
       /* Try again at next run time (which may be immediately). */
       time = waitForTrigger(time, conf->svc_conf.cycle);
       continue;
     }
     /*
      * History... compiler bug
-     * If size is > 65535 the compiled code wraps address around and kills CMM heap.
+     * If size is > 65535 the compiled code wraps address around and kills CCM heap.
      * Anyway clearing of the capture buffer is no longer needed.
-     * SOI is now aligned at index 0 and length >= EOI is returned by DMA.
+     * SOI is now aligned at index 0 and length >= EOI is returned by capture.
      */
 /*    uint32_t size = conf->buf_size;
     for(uint32_t i = 0; i < size ; i++)
