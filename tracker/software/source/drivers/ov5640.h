@@ -24,10 +24,39 @@
 
 #define OV5640_I2C_ADR		        0x3C
 
-#define PDCMI_USE_DMA_DBM           TRUE
+#if !defined(PDCMI_USE_DMA_DBM)
+#define PDCMI_USE_DMA_DBM           FALSE
+#endif
+
 #define PDCMI_DMA_SEGMENT_SIZE      1024
 #define PDCMI_DMA_FIFO_BURST_ALIGN  16
 #define PDCMI_DMA_IRQ_PRIO          2
+
+/*===========================================================================*/
+/* Module data structures and types.                                         */
+/*===========================================================================*/
+
+typedef enum {
+  PDCMI_NO_ERROR = 0,
+  PDCMI_DMA_ERROR,
+  PDCMI_DMA_UNKNOWN_IRQ,
+  PDCMI_DMA_END_BUFFER,
+  PDCMI_DMA_COUNT_END,
+  PDCMI_CAPTURE_TIMEOUT
+} pdcmi_err_code_t;
+
+typedef struct dmaControl {
+  const stm32_dma_stream_t  *dmastp;
+  TIM_TypeDef               *timer;
+  uint8_t                   *segment_address;
+  uint8_t                   *base_buffer;
+  uint16_t                  segment_count;
+  volatile bool             terminate;
+  uint32_t                  dma_flags;
+  volatile pdcmi_err_code_t pdcmi_status;
+  uint32_t                  dma_count;
+  ioline_t                  vsync_line;
+} dma_capture_t;
 
 #ifdef __cplusplus
 extern "C" {

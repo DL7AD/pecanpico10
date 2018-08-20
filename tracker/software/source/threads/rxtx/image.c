@@ -993,7 +993,7 @@ static bool transmit_image_packets(const uint8_t *image,
           break;
         }
       } else if(c != SSDV_OK) {
-        TRACE_ERROR("SSDV > ssdv_enc_get_packet failed: %i", c);
+        TRACE_ERROR("SSDV > ssdv_enc_get_packet failed with code: %i", c);
         if(head != NULL) {
           pktReleaseBufferChain(head);
         }
@@ -1063,7 +1063,7 @@ static bool transmit_image_packets(const uint8_t *image,
     if(packetRepeats[i].n_done && image_id == packetRepeats[i].image_id) {
       if(!transmit_image_packet(image, image_len, conf,
                                 image_id, packetRepeats[i].packet_id)) {
-        TRACE_ERROR("IMG  > Failed re-send of image %i", image_id);
+        TRACE_ERROR("IMG  > Failed re-send of image ID=%d", image_id);
       } else {
         packetRepeats[i].n_done = false; // Set done
       }
@@ -1084,14 +1084,14 @@ static bool transmit_image_packets(const uint8_t *image,
 /**
   * Analyzes the image for JPEG errors. Returns true if the image is error free.
   */
-static bool analyze_image(const uint8_t *image, const uint32_t image_len) {
+static bool analyze_image(const uint8_t *image, uint32_t image_len) {
 
 #if !PDCMI_USE_DMA_DBM
-  if(image_len > 65535) {
+  if(image_len > 65535UL) {
     TRACE_ERROR("CAM  > Camera has %d bytes allocated but "
         "DMA DBM not activated", image_len);
     TRACE_ERROR("CAM  > DMA can only use 65535 bytes");
-    image_len = 65535;
+    image_len = 65535UL;
   }
 #endif
 
