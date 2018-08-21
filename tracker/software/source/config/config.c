@@ -86,7 +86,7 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 2),
+            .cycle = TIME_S2I(60 * 1),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(0)
         },

@@ -1333,9 +1333,12 @@ void start_image_thread(img_app_conf_t *conf, const char *name)
 	                                   THD_WORKING_AREA_SIZE(35 * 1024),
 	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
-		// Print startup error, do not start watchdog for this thread
-		TRACE_ERROR("IMG  > Could not startup thread"
-		    " (not enough memory available)");
+      // Print startup error, do not start watchdog for this thread
+      TRACE_ERROR("IMG  > Could not startup thread"
+          " (not enough memory available)");
+      return;
 	}
+	TRACE_INFO("IMG  > Image capture using DMA %s in thread %s",
+	           PDCMI_USE_DMA_DBM ? "DBM" : "SBM", name);
 }
 
