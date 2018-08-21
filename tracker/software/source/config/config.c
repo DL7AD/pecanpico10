@@ -60,13 +60,13 @@ const conf_t conf_flash_default = {
     .img_pri = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 5),
+            .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(30),
-            .send_spacing = TIME_S2I(5)
+            .send_spacing = TIME_S2I(10)
         },
         .radio_conf = {
             .pwr = 0x1F,
-            .freq = FREQ_GEOFENCE,
+            .freq = 144800000,
             .mod = MOD_AFSK,
             .cca = 0x5F
 
@@ -86,9 +86,9 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 1),
+            .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
-            .send_spacing = TIME_S2I(0)
+            .send_spacing = TIME_S2I(10)
         },
         .radio_conf = {
             .pwr = 0x1F,

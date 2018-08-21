@@ -37,11 +37,14 @@
 /*===========================================================================*/
 
 typedef enum {
-  PDCMI_NO_ERROR = 0,
+  PDCMI_NOT_ACTIVE = 0,
+  PDCMI_WAIT_VSYNC,
+  PDCMI_CAPTURE_ACTIVE,
   PDCMI_DMA_ERROR,
   PDCMI_DMA_UNKNOWN_IRQ,
   PDCMI_DMA_END_BUFFER,
   PDCMI_DMA_COUNT_END,
+  PDCMI_VSYNC_END,
   PDCMI_CAPTURE_TIMEOUT
 } pdcmi_state_t;
 
@@ -54,10 +57,10 @@ typedef struct dmaControl {
   uint16_t                  page_count;
   volatile bool             terminate;
   uint32_t                  dma_flags;
-  pdcmi_state_t             pdcmi_state;
+  volatile pdcmi_state_t    pdcmi_state;
   uint32_t                  transfer_count;
   ioline_t                  vsync_line;
-} dma_capture_t;
+} pdcmi_capture_t;
 
 #ifdef __cplusplus
 extern "C" {
