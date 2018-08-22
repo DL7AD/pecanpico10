@@ -14,7 +14,7 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(0),
             .fixed = false // Add lat, lon, alt fields when enabling fixed
@@ -66,7 +66,7 @@ const conf_t conf_flash_default = {
         },
         .radio_conf = {
             .pwr = 0x1F,
-            .freq = 144800000,
+            .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x5F
 
@@ -78,7 +78,7 @@ const conf_t conf_flash_default = {
         // Image settings
         .res = RES_QVGA,
         .quality = 4,
-        .buf_size = 30 * 1024,
+        .buf_size = 15 * 1024,
         .redundantTx = false
     },
 
@@ -103,7 +103,7 @@ const conf_t conf_flash_default = {
         // Image settings
         .res = RES_VGA,
         .quality = 4,
-        .buf_size = 40 * 1024,
+        .buf_size = 50 * 1024,
         .redundantTx = false
     },
 

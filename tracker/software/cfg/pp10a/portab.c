@@ -44,7 +44,7 @@ const si446x_mcucfg_t radio1_cfg = {
 		.spi	= PKT_RADIO1_SPI,
         .icu    = PKT_RADIO1_ICU,
         .alt    = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2)),
-        .cfg    =  {
+        .cfg    = {
                       ICU_INPUT_ACTIVE_HIGH,
                       ICU_COUNT_FREQUENCY,      /**< ICU clock frequency. */
                     #if LINE_PWM_MIRROR != PAL_NOLINE
@@ -55,7 +55,7 @@ const si446x_mcucfg_t radio1_cfg = {
                       pktRadioICUPeriod,        /**< ICU period callback. */
                       pktRadioICUOverflow,      /**< ICU overflow callback. */
                       ICU_CHANNEL_1,            /**< Timer channel. */
-                      0
+                      0                         /**< DIER bits. */
                     }
 };
 

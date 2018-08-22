@@ -46,16 +46,16 @@ const si446x_mcucfg_t radio1_cfg = {
 		.alt    = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2)),
 		.cfg    = {
                       ICU_INPUT_ACTIVE_HIGH,
-                      ICU_COUNT_FREQUENCY,          /* ICU clock frequency. */
+                      ICU_COUNT_FREQUENCY,      /**< ICU clock frequency. */
                     #if LINE_PWM_MIRROR != PAL_NOLINE
-                      pktRadioICUWidth,             /* ICU width callback. */
+                      pktRadioICUWidth,         /**< ICU width callback. */
                     #else
-                      NULL,                         /* ICU width callback. */
+                      NULL,                     /**< ICU width callback. */
                     #endif
-                      pktRadioICUPeriod,            /* ICU period callback. */
-                      pktRadioICUOverflow,          /* ICU overflow callback. */
-                      ICU_CHANNEL_1,                /* Timer channel 0. */
-                      0
+                      pktRadioICUPeriod,        /**< ICU period callback. */
+                      pktRadioICUOverflow,      /**< ICU overflow callback. */
+                      ICU_CHANNEL_1,            /**< Timer channel 0. */
+                      0                         /**< DIER bits. */
                     }
 };
 

@@ -830,13 +830,13 @@ static void dma_interrupt(void *p, uint32_t flags) {
      */
     if(--dma_control->page_count == 0) {
       /*
-       * This is the last buffer so we have to terminate DMA.
+       * This is the last page so we have to terminate DMA.
        * The DBM switch is done in h/w.
        * DMA could write beyond total buffer if not stopped now.
        *
-       * Since this is the last DMA buffer this may be treated as an error.
-       * The DMA should normally be terminated by VSYNC before last buffer.
-       * In the case that the buffer size was too small we can be here.
+       * Since this is the last DMA page this may be treated as an error.
+       * The DMA should normally be terminated by VSYNC before the last page.
+       * In the case that the total buffer size was too small we can be here.
        *
        * Disable timer, DMA and flag fault.
        */
@@ -850,31 +850,28 @@ static void dma_interrupt(void *p, uint32_t flags) {
       chSysUnlockFromISR();
       return;
     }
+
     /*
      * Else Safe to allow buffer to fill.
      * DMA DBM will switch buffers in h/w when this one is full.
-     * Update non-active memory address register now.
-     * This is done at HTIF so that CT is known to be valid.
-     * Checking state of CT at TCIF may be too late because of IRQ latency.
-     * i.e. the DMA controller may have already changed CT before IRQ is serviced.
-     */
-    dma_control->page_address += dma_control->page_size;
-    if (dmaStreamGetCurrentTarget(dma_control->dmastp) == 0) {
-      dmaStreamSetMemory1(dma_control->dmastp, dma_control->page_address);
-    } else {
-      dmaStreamSetMemory0(dma_control->dmastp, dma_control->page_address);
-    }
+    */
     dmaStreamClearInterrupt(dma_control->dmastp);
     chSysUnlockFromISR();
     return;
   }
   if(flags & STM32_DMA_ISR_TCIF) {
     /*
-     * Transfer complete for this segment.
+     * Transfer complete for this page.
      * The memory address register has switched.
      * The DMA count is reloaded and counting down.
      */
     dma_control->transfer_count += dma_control->page_size;
+    dma_control->page_address += dma_control->page_size;
+    if (dmaStreamGetCurrentTarget(dma_control->dmastp) == 0) {
+      dmaStreamSetMemory1(dma_control->dmastp, dma_control->page_address);
+    } else {
+      dmaStreamSetMemory0(dma_control->dmastp, dma_control->page_address);
+    }
     dmaStreamClearInterrupt(dma_control->dmastp);
     chSysUnlockFromISR();
     return;
@@ -1149,6 +1146,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
      * The updating of DMA:MxAR is done in the the DMA interrupt function.
      */
     dmaStreamSetMemory0(dma_control.dmastp, dma_control.page_address);
+    dmaStreamSetMemory1(dma_control.dmastp, dma_control.page_address + dma_control.page_size);
     dmaStreamSetTransactionSize(dma_control.dmastp, PDCMI_DMA_DBM_PAGE_SIZE);
 #else
     dma_control.page_address = buffer;
@@ -1171,6 +1169,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 
 	/*
 	 * Setup timer for PCLK
+	 * TODO: Run TIM8 as ICU with DIER bit set may provide sufficient functionality?
 	 */
     dma_control.timer = TIM8;
 	rccEnableTIM8(FALSE);
