@@ -49,6 +49,15 @@
 #define SYM_SHIP						0x2F73
 #define SYM_DIGIPEATER					0x2F23
 #define SYM_ANTENNA                     0x2F72
+#define SYM_EYEBALL                     0x2F45
+#define SYM_SCHOOL                      0x2F4B
+#define SYM_DISH                        0x2F60
+#define SYM_PERSON                      0x2F5B
+#define SYM_RV                          0x2F52
+#define SYM_BIKE                        0x2F62
+#define SYM_YACHT                       0x2F5A
+#define SYM_SSTV                        0x2F54
+#define SYM_INFO                        0x5C3F
 
 #define APRS_PATH_LENGTH                16
 
