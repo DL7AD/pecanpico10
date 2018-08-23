@@ -57,6 +57,9 @@ int main(void) {
 	start_user_threads();		// Startup optional modules (eg. POSITION, LOG, ...)
 
 	TRACE_INFO("MAIN > Loop active");
+#if DISABLE_HW_WATCHDOG == TRUE
+	TRACE_WARN("MAIN > *** Hardware watchdog is disabled ***");
+#endif
 	while(true) {
 	  /* Trace events from packet decoder system. */
       pktTraceEvents();

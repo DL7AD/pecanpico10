@@ -15,7 +15,7 @@ const conf_t conf_flash_default = {
     .pos_pri = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 30),
+            .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(0),
             .fixed = false // Add lat, lon, alt fields when enabling fixed
         },

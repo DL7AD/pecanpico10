@@ -129,6 +129,7 @@
 #define LINE_SQUELCH_LED                PAL_NOLINE
 #define LINE_NO_FIFO_LED                PAL_NOLINE
 #define LINE_NO_BUFF_LED                PAL_NOLINE
+#define LINE_PWM_ERROR_LED              PAL_NOLINE
 
 /* Diagnostic PWM mirror port. */
 #define LINE_PWM_MIRROR                 PAL_NOLINE

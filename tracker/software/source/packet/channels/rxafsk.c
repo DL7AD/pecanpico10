@@ -816,6 +816,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             /* Radio made a queue swap (filled the buffer). */
             /* Get reference to next queue/buffer object. */
             radio_pwm_object_t *nextObject = qGetLink(&myFIFO->decode_pwm_queue->queue);
+            chDbgAssert(nextObject != NULL, "No linked queue in swap");
             if(nextObject != NULL) {
               pktAssertCCMdynamicCheck(nextObject);
               /*
