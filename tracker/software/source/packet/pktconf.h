@@ -49,9 +49,11 @@
 #define MSG_ERROR           (msg_t)-3   /**< @brief Error condition.  */
 
 /* General event definitions. */
-#define EVT_NONE                0
-#define EVT_PRIORITY_BASE       0
+#define EVT_NONE                    0
+#define EVT_PRIORITY_BASE           0
 
+/* Event diagnostics events. */
+#define PKT_DIAGNOSTIC_EVENT_CODE    0
 /*
  * Decoder global system event masks.
  * The packet channel object holds the global events.
@@ -75,7 +77,7 @@
 
 //#define STA_PWM_STREAM_CLOSED   EVENT_MASK(EVT_PRIORITY_BASE + 12)
 #define EVT_PWM_STREAM_TIMEOUT  EVENT_MASK(EVT_PRIORITY_BASE + 13)
-#define EVT_PWM_QUEUE_OVERRUN   EVENT_MASK(EVT_PRIORITY_BASE + 14)
+#define EVT_PWM_QUEUE_ERROR     EVENT_MASK(EVT_PRIORITY_BASE + 14)
 #define EVT_PWM_BUFFER_FAIL     EVENT_MASK(EVT_PRIORITY_BASE + 15)
 
 #define EVT_PWM_STREAM_OPEN     EVENT_MASK(EVT_PRIORITY_BASE + 16)
@@ -140,6 +142,7 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #define STA_AFSK_INVALID_SWAP       STATUS_MASK(9)
 #define STA_PWM_STREAM_TIMEOUT      STATUS_MASK(10)
 #define STA_PKT_NO_BUFFER           STATUS_MASK(11)
+#define STA_PWM_QUEUE_ERROR         STATUS_MASK(12)
 
 /**
  * Use this attribute to put variables in CCM.

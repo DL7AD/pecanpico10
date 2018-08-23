@@ -480,6 +480,7 @@ void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver) {
   /*
    *  No PWM memory pool objects should be in use now.
    *  So just release the PWM pool heap.
+   *  TODO: Add an assert that checks all objects are actually free.
    */
   chHeapFree(myDriver->pwm_queue_heap);
   myDriver->pwm_queue_heap = NULL;
@@ -508,6 +509,7 @@ uint8_t pktReleasePWMbuffers(AFSKDemodDriver *myDriver) {
   radio_pwm_object_t *next;
   do {
     next = qGetLink(&object->queue);
+    pktAssertCCMdynamicCheck(object);
     chPoolFree(&myDriver->pwm_buffer_pool, object);
     myDriver->active_demod_object->rlsd++;
   } while((object = next) != NULL);
@@ -694,6 +696,16 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
          */
         radio_pwm_fifo_t *myFIFO = myDriver->active_demod_object;
 
+        if((myFIFO->status & STA_PWM_QUEUE_ERROR) != 0) {
+          /*
+           * Error occurred in PWM queue.
+           * PWM side has set and broadcast event.
+           * Abort this packet.
+           */
+          myDriver->decoder_state = DECODER_RESET;
+          break;
+        }
+
 #if USE_HEAP_PWM_BUFFER == TRUE
         /* Get current PWM queue object address. */
         input_queue_t *myQueue = &myFIFO->decode_pwm_queue->queue;
@@ -702,7 +714,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         input_queue_t *myQueue = &myFIFO->radio_pwm_queue;
 #endif
         chDbgAssert(myQueue != NULL, "no queue assigned");
-
+        pktAssertCCMdynamicCheck(myQueue);
         byte_packed_pwm_t data;
         size_t n = iqReadTimeout(myQueue, data.bytes,
                                  sizeof(packed_pwm_counts_t),
@@ -713,7 +725,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         if(n != sizeof(packed_pwm_counts_t)) {
           /* PWM stream wait timeout. */
           pktAddEventFlags(myHandler, EVT_PWM_STREAM_TIMEOUT);
-          myDriver->active_demod_object->status |= STA_PWM_STREAM_TIMEOUT;
+          myFIFO->status |= STA_PWM_STREAM_TIMEOUT;
           myDriver->decoder_state = DECODER_RESET;
           break;
         }
@@ -805,6 +817,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             /* Get reference to next queue/buffer object. */
             radio_pwm_object_t *nextObject = qGetLink(&myFIFO->decode_pwm_queue->queue);
             if(nextObject != NULL) {
+              pktAssertCCMdynamicCheck(nextObject);
               /*
                *  Release the now empty prior buffer object back to the pool.
                *  Switch to the next queue/buffer object for decoding.
@@ -820,7 +833,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                *  Reset state releases AX25, PWM and stream FIFO objects.
                */
               pktAddEventFlags(myHandler, EVT_PWM_INVALID_SWAP);
-              myDriver->active_demod_object->status |= STA_AFSK_INVALID_SWAP;
+              myFIFO->status |= STA_AFSK_INVALID_SWAP;
               myDriver->decoder_state = DECODER_RESET;
             }
             continue; /* Decoder state switch. */
@@ -830,7 +843,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           default: {
             /* Unknown in-band message from PWM. */
             pktAddEventFlags(myHandler, EVT_PWM_INVALID_INBAND);
-            myDriver->active_demod_object->status |= STA_AFSK_INVALID_INBAND;
+            myFIFO->status |= STA_AFSK_INVALID_INBAND;
             myDriver->decoder_state = DECODER_RESET;
             continue;  /* Enclosing state switch. */
             } /* End case default. */
@@ -846,7 +859,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
            * Event sent by HDLC processor (common code for AFSK & 2FSK).
            * Set error state and don't dispatch the AX25 buffer.
            */
-          myDriver->active_demod_object->status |= STA_PKT_BUFFER_FULL;
+          myFIFO->status |= STA_PKT_BUFFER_FULL;
           myDriver->decoder_state = DECODER_RESET;
           break; /* From this case. */
         }
@@ -864,7 +877,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
         /* HDLC reset after frame open and minimum valid data received. */
         case FRAME_RESET:
-          myDriver->active_demod_object->status |= STA_AFSK_FRAME_RESET;
+          myFIFO->status |= STA_AFSK_FRAME_RESET;
           myDriver->decoder_state = DECODER_RESET;
           continue;
 
@@ -911,6 +924,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                            AX25_DUMP_RAW);
 #endif
 #if USE_CCM_HEAP_RX_BUFFERS == TRUE
+          pktAssertCCMdynamicCheck(myHandler->active_packet_object->buffer);
           /* Free the packet buffer referenced in the packet object. */
           chHeapFree(myHandler->active_packet_object->buffer);
 #endif

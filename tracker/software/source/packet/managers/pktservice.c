@@ -605,6 +605,7 @@ bool pktStoreBufferData(pkt_data_object_t *pkt_buffer, ax25char_t data) {
   }
   /* Buffer space available. */
 #if USE_CCM_HEAP_RX_BUFFERS == TRUE
+  pktAssertCCMdynamicCheck(pkt_buffer->buffer);
   *((pkt_buffer->buffer) + pkt_buffer->packet_size++) = data;
 #else
   pkt_buffer->buffer[pkt_buffer->packet_size++] = data;

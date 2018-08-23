@@ -13,15 +13,11 @@
  *
  * @addtogroup channels
  * @details The Radio PWM is a subsystem that will:
- *          - Respond to the CCA (squelch) gated to the radio NIRQ pin.
+ *          - Respond to the CCA (squelch) interrupt from the radio NIRQ pin.
  *          - Receive PWM format AFSK data from the si446x radio.
- *          - Buffer data in a shared access FIFO posted to the decoder process.
- *          .
- *          The PWM interface is designed to handle multiple sequential transmissions.
- *          A buffer is assigned after CCA is de-glitched.
- *          Radio PWM data is written to a shared queue.
- *          The Radio is the producer side. The decoder is the consumer side.
- *          The demodulator/decoder operates at thread level to decode PWM.<br>
+ *          - Buffer data in a shared stream between the radio and the decoder.
+ *          - Handle multiple sequential streams through a FIFO mechanism.
+ *
  * @pre     This subsystem requires an extended ICU data structure.
  *          see halconf.h for the configuration.
  * @note
@@ -255,6 +251,7 @@ void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
 #if USE_HEAP_PWM_BUFFER == TRUE
     input_queue_t *myQueue =
         &myDemod->active_radio_object->radio_pwm_queue->queue;
+    pktAssertCCMdynamicCheck(myQueue);
 #else
     input_queue_t *myQueue = &myDemod->active_radio_object->radio_pwm_queue;
 #endif
@@ -272,8 +269,8 @@ void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
        * In any case flag the error.
        */
       pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
-      //myDemod->active_radio_object->status |= EVT_PWM_QUEUE_OVERRUN;
-      pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_OVERRUN);
+      myDemod->active_radio_object->status |= STA_PWM_QUEUE_ERROR;
+      pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_ERROR);
     }
     /* Allow the decoder thread to release the stream FIFO object. */
     chBSemSignalI(&myDemod->active_radio_object->sem);
@@ -285,6 +282,7 @@ void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
     /* Remove object reference. */
     myDemod->active_radio_object = NULL;
   } else {
+    /* No object. Just send event broadcast. */
     pktAddEventFlagsI(myHandler, evt);
   }
   /* Return to ready state (inactive). */
@@ -349,7 +347,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
    *
    * As PWM data arrives the memory pool object buffer is filled with PWM data.
    * When the current buffer is full a new object is obtained from the pool.
-   * The embedded queue is initialized and points to the objects internal buffer.
+   * The embedded queue is initialised and points to the objects internal buffer.
    * The new object is chained to the prior buffer object.
    * The pointer is updated to point to the new object
    *
@@ -376,6 +374,10 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
     pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_HIGH);
     return;
   }
+
+  /* Verify object is in CCM. */
+  pktAssertCCMdynamicCheck(pwm_object);
+
   pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_LOW);
 
   /* Save this object as the one currently receiving PWM. */
@@ -730,6 +732,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
     /* Get another queue/buffer object. */
     radio_pwm_object_t *pwm_object = chPoolAllocI(&myDemod->pwm_buffer_pool);
     if(pwm_object != NULL) {
+      pktAssertCCMdynamicCheck(pwm_object);
       /* Initialize the new queue/buffer object. */
       iqObjectInit(&pwm_object->queue,
                          (*pwm_object).buffer.pwm_bytes,
@@ -828,6 +831,7 @@ msg_t pktQueuePWMDataI(ICUDriver *myICU) {
 #if USE_HEAP_PWM_BUFFER == TRUE
   input_queue_t *myQueue =
       &myDemod->active_radio_object->radio_pwm_queue->queue;
+  pktAssertCCMdynamicCheck(myQueue);
 #else
   input_queue_t *myQueue = &myDemod->active_radio_object->radio_pwm_queue;
 #endif

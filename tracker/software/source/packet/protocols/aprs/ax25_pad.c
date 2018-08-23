@@ -255,6 +255,7 @@ packet_t ax25_new (void) {
     /* Use CCM heap. */
     extern memory_heap_t *ccm_heap;
     this_p = chHeapAlloc(ccm_heap, sizeof (struct TXpacket));
+    pktAssertCCMdynamicCheck(this_p);
 #else /* USE_CCM_HEAP_FOR_PKT != TRUE */
     /* Use system heap. */
     this_p = chHeapAlloc(NULL, sizeof (struct TXpacket));
@@ -298,7 +299,10 @@ void ax25_delete (packet_t this_p)
 	  TRACE_ERROR ("PKT  > ERROR - NULL pointer passed to ax25_delete.");
 	  return;
 	}
-
+#if USE_CCM_HEAP_FOR_PKT == TRUE
+    /* Use CCM heap. */
+    pktAssertCCMdynamicCheck(this_p);
+#endif
 
 	delete_count++;
 
