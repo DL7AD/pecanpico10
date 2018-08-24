@@ -74,9 +74,11 @@ THD_FUNCTION(pktRadioManager, arg) {
   thread_t *initiator = chMsgWait();
   chMsgGet(initiator);
   if(!init) {
+    /* Failed to initialise our radio. */
     chMsgRelease(initiator, MSG_ERROR);
     chThdExit(MSG_OK);
   }
+  /* Tell initiator all is OK with radio init. */
   chMsgRelease(initiator, MSG_OK);
   /* Run until close request and no outstanding TX tasks. */
   while(true) {
@@ -370,10 +372,9 @@ THD_FUNCTION(pktRadioManager, arg) {
       task_object->callback(task_object);
     /* Return radio task object to free list. */
     chFifoReturnObject(radio_queue, (radio_task_object_t *)task_object);
-  } /* End while should terminate(). */
-  /* Thread has been terminated. */
-  chFactoryReleaseObjectsFIFO(handler->the_radio_fifo);
-  chThdExit(MSG_OK);
+  } /* End while. */
+/*  chFactoryReleaseObjectsFIFO(handler->the_radio_fifo);
+  chThdExit(MSG_OK);*/
 }
 
 /**

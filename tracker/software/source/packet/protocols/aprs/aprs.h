@@ -78,7 +78,7 @@ typedef struct APRSIdentity {
   /* Radio parameters. */
   radio_freq_t      freq;
   radio_pwr_t       pwr;
-  radio_mod_t             mod;
+  radio_mod_t       mod;
   radio_squelch_t   cca;
 } aprs_identity_t;
 

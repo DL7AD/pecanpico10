@@ -638,7 +638,145 @@ static void Si446x_setModemAFSK_TX(const radio_unit_t radio) {
     }
 }
 
+/**
+ *
+ */
 static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+/*
+# BatchName Si4464
+# Crys_freq(Hz): 26000000    Crys_tol(ppm): 20    IF_mode: 2
+# High_perf_Ch_Fil: 1    OSRtune: 0    Ch_Fil_Bw_AFC: 0
+# ANT_DIV: 0    PM_pattern: 15
+# MOD_type: 2    Rsymb(sps): 1200    Fdev(Hz): 500    RXBW(Hz): 150000
+# Manchester: 0    AFC_en: 0    Rsymb_error: 0.0    Chip-Version: 3
+# RF Freq.(MHz): 144    API_TC: 29    fhst: 12500    inputBW: 0
+# BERT: 0    RAW_dout: 0    D_source: 1    Hi_pfm_div: 1
+#
+# RX IF frequency is  -406250 Hz
+# WB filter 2 (BW =  14.89 kHz);  NB-filter 2 (BW = 14.89 kHz)
+#
+# Modulation index: 0.833
+*/
+
+  /* Set DIRECT_MODE (asynchronous mode as 2FSK). */
+  Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x0A);
+
+  /* Packet handler disabled in RX. */
+  Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x41);
+
+  if(is_part_Si4463(handler->radio_part)) {
+    /* Run 4463 in 4464 compatibility mode (set SEARCH2 to zero). */
+    Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0x00);
+  }
+  Si446x_setProperty8(radio, Si446x_MODEM_RAW_CONTROL, 0x8F);
+  Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH, 0xD6);
+  Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
+
+  /*
+   * OOK_MISC settings include parameters related to asynchronous mode.
+   * Asynchronous mode is used for AFSK reception passed to DSP decode.
+   */
+  Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x2A);
+  Si446x_setProperty8(radio, Si446x_MODEM_OOK_CNT1, 0x85);
+  Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
+
+  /* RX AFC control. */
+  Si446x_setProperty8(radio, Si446x_MODEM_AFC_GEAR, 0x54);
+  Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
+  Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
+  Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x02, 0x50);
+  Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0xC0); // 0x80
+
+  /* RX AGC control. */
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0); // 0xE2 (bit 1 not used in 4464. It is used in 4463.)
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
+
+  /* RX Bit clock recovery control. */
+  Si446x_setProperty8(radio, Si446x_MODEM_MDM_CTRL, 0x80);
+  Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x01, 0xC3);
+  Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x01, 0x22, 0x60);
+  Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x00, 0x91);
+  Si446x_setProperty8(radio, Si446x_MODEM_BCR_GEAR, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_BCR_MISC1, 0xC2);
+
+  /* RX IF controls. */
+  Si446x_setProperty8(radio, Si446x_MODEM_IF_CONTROL, 0x08);
+  Si446x_setProperty24(radio, Si446x_MODEM_IF_FREQ, 0x02, 0x80, 0x00);
+
+  /* RX IF filter decimation controls. */
+  Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x70);
+  Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
+  if(is_part_Si4463(handler->radio_part)) {
+    Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x0C);
+  }
+
+  /* RSSI latching disabled. */
+  Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL, 0x00);
+
+  /* RX IF filter coefficients. */
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xC4);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x30);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x7F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0x5F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xB5);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xB8);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xDE);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x05);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x17);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x16);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x0C);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0x03);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x00);
+
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xC4);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x30);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x7F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0x5F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xB5);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xB8);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xDE);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x05);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x17);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x16);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x0C);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0x03);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
+
+  Si446x_setProperty8(radio, Si446x_PREAMBLE_CONFIG, 0x21);
+
+  /* Unused Si4463 features for AFSK RX. */
+  if(is_part_Si4463(handler->radio_part)) {
+   /* DSA is not enabled. */
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL1, 0x00); // 0xA0
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL2, 0x00); // 0x04
+   Si446x_setProperty8(radio, Si446x_MODEM_SPIKE_DET, 0x00); // 0x03
+   Si446x_setProperty8(radio, Si446x_MODEM_ONE_SHOT_AFC, 0x00); // 0x07
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_QUAL, 0x00); // 0x06
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_RSSI, 0x00); // 0x78
+   Si446x_setProperty8(radio, Si446x_MODEM_RSSI_MUTE, 0x00);
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_MISC, 0x00); // 0x20
+  }
+}
+
+/**
+ *
+ */
+static void Si446x_setModemCCA_RX(const radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -935,8 +1073,10 @@ void Si446x_radioShutdown(const radio_unit_t radio) {
  * Get CCA over measurement interval.
  * Algorithm counts CCA pulses per millisecond (in systick time slices).
  * If more than one pulse per millisecond is counted then CCA is not true.
+ * i.e. True is returned when a signal is present above the RSSI threshold.
  */
-static bool Si446x_checkCCAthreshold(const radio_unit_t radio, uint8_t ms) {
+static bool Si446x_checkCCAthreshold(const radio_unit_t radio,
+                                     const uint8_t ms) {
   /* Get the CCA line. */
   ioline_t cca_line = Si446x_getConfig(radio)->nirq;
   uint16_t cca = 0;
@@ -985,10 +1125,18 @@ static bool Si446x_transmit(const radio_unit_t radio,
 
   /* Check for blind send request. */
   if(rssi != PKT_SI446X_NO_CCA_RSSI) {
+    /*
+     *  Listen on the TX frequency.
+     *  TODO: Rework CCA implementation.
+     *  Have to program receive parameters
+     *  Currently the AFSK direct (async) would be used (if RX has been enabled).
+     *  But if RX has not been used the RX settings are power on defaults.
+     *  TBD...
+     */
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_THRESH, rssi);
 
-    /* Listen on the TX frequency. */
     Si446x_setRXState(radio, chan);
+
     /* Wait for RX state. */
     while(Si446x_getState(radio) != Si446x_STATE_RX) {
       chThdSleep(TIME_MS2I(1));
@@ -1007,14 +1155,19 @@ static bool Si446x_transmit(const radio_unit_t radio,
         op_freq/1000000, (op_freq%1000000)/1000);
 #define CCA_VALID_TIME_MS   50
     sysinterval_t t0 = chVTGetSystemTime();
-    while((Si446x_getState(radio) != Si446x_STATE_RX
-        || Si446x_checkCCAthreshold(radio, CCA_VALID_TIME_MS))
+    while((Si446x_getState(radio) == Si446x_STATE_RX
+        && Si446x_checkCCAthreshold(radio, CCA_VALID_TIME_MS))
         && chVTIsSystemTimeWithinX(t0, t0 + cca_timeout)) {
       chThdSleep(TIME_MS2I(1));
     }
+    if(!chVTIsSystemTimeWithinX(t0, t0 + cca_timeout)) {
+      TRACE_INFO( "SI   > CCA timeout after %d milliseconds",
+                  chTimeI2MS(cca_timeout));
+    } else {
     /* Clear channel timing. */
     TRACE_INFO( "SI   > CCA attained in %d milliseconds",
                 chTimeI2MS(chVTTimeElapsedSinceX(t0)));
+    }
   }
 
   // Transmit
@@ -1051,7 +1204,7 @@ bool Si446x_receiveNoLock(const radio_unit_t radio,
                                                       RADIO_RX);
   if(op_freq == FREQ_INVALID) {
     TRACE_ERROR("SI   > Frequency out of range");
-    TRACE_ERROR("SI   > abort transmission");
+    TRACE_ERROR("SI   > Abort reception");
     return false;
   }
 
@@ -1064,8 +1217,8 @@ bool Si446x_receiveNoLock(const radio_unit_t radio,
 
     /* Remove TX state. */
     Si446x_setReadyState(radio);
-    TRACE_ERROR("SI   > Timeout waiting for TX state end");
-    TRACE_ERROR("SI   > Attempt start of receive");
+    TRACE_ERROR("SI   > Timeout waiting for TX state end "
+                 "before starting %s receive", getModulation(mod));
     break;
   }
 
@@ -1073,8 +1226,9 @@ bool Si446x_receiveNoLock(const radio_unit_t radio,
   if(mod == MOD_AFSK) {
       Si446x_setModemAFSK_RX(radio);
   } else {
-      TRACE_ERROR("SI   > Modulation type not supported in receive");
-      TRACE_ERROR("SI   > abort reception");
+      TRACE_ERROR("SI   > Modulation type %s not supported in receive",
+                  getModulation(mod));
+      TRACE_ERROR("SI   > Abort reception");
       return false;
   }
 
@@ -1243,6 +1397,12 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   /* Set 446x back to READY. */
   Si446x_terminateReceive(radio);
 
+  /*
+   * Set receive for CCA detection to AFSK.
+   * TODO: Implement a standard carrier detect setup.
+   */
+  Si446x_setModemCCA_RX(radio);
+
   /* Set the radio for AFSK upsampled mode. */
   Si446x_setModemAFSK_TX(radio);
 
@@ -1317,7 +1477,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
      * Start transmission timeout timer.
      * If the 446x gets locked up we'll exit TX and release packet object.
      */
-    chVTSet(&send_timer, TIME_S2I(10),
+#define SI446X_AFSK_TX_TIMEOUT 10
+    chVTSet(&send_timer, TIME_S2I(SI446X_AFSK_TX_TIMEOUT),
             (vtfunc_t)Si446x_transmitTimeoutI, chThdGetSelfX());
 
     /* The exit message if all goes well. */
@@ -1339,7 +1500,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                        2000, // Deviation in Hz
                        all,
                        rssi,
-                       TIME_S2I(10))) {
+                       TIME_S2I(SI446X_AFSK_TX_TIMEOUT / 2))) {
 
       /* Feed the FIFO while data remains to be sent. */
       while((all - c) > 0) {
@@ -1365,8 +1526,6 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
         eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
                                               chTimeUS2I(833 * 8));
         if(evt) {
-          /* Force 446x out of TX state. */
-          Si446x_setReadyState(radio);
           exit_msg = MSG_TIMEOUT;
           break;
         }
@@ -1408,6 +1567,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       /* Send failed so release any queue and terminate. */
       pktReleaseBufferChain(pp);
       np = NULL;
+      /* Force 446x out of TX state. */
+      Si446x_setReadyState(radio);
     }
 
     /* Process next packet. */
@@ -1497,8 +1658,11 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   /* Set 446x back to READY from RX (if active). */
   Si446x_terminateReceive(radio);
 
-  /* Base frequency must be an absolute frequency in Hz. */
-/*  Si446x_setBandParameters(radio, rto->base_frequency, rto->step_hz);*/
+  /*
+   * Set receive for CCA detection to AFSK.
+   * TODO: Implement a standard carrier detect setup.
+   */
+  Si446x_setModemCCA_RX(radio);
 
   /* Set parameters for 2FSK transmission. */
   Si446x_setModem2FSK_TX(radio, rto->tx_speed);
@@ -1573,7 +1737,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
      * Start/re-start transmission timeout timer for this packet.
      * If the 446x gets locked up we'll exit TX and release packet object(s).
      */
-    chVTSet(&send_timer, TIME_S2I(10),
+#define SI446X_2FSK_TX_TIMEOUT 10
+    chVTSet(&send_timer, TIME_S2I(SI446X_2FSK_TX_TIMEOUT),
             (vtfunc_t)Si446x_transmitTimeoutI, chThdGetSelfX());
 
     /* The exit message if all goes well. */
@@ -1595,7 +1760,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                        1300, // TODO: Deviation to be set based on data rate
                        all,
                        rssi,
-                       TIME_S2I(10))) {
+                       TIME_S2I(SI446X_2FSK_TX_TIMEOUT / 2))) {
       /* Feed the FIFO while data remains to be sent. */
       while((all - c) > 0) {
         /* Get TX FIFO free count. */
@@ -1619,8 +1784,6 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
         eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
                                               chTimeUS2I(104 * 8 * 10));
         if(evt) {
-          /* Force 446x out of TX state. */
-          Si446x_setReadyState(radio);
           exit_msg = MSG_TIMEOUT;
           break;
         }
@@ -1660,6 +1823,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       /* Send failed so release any queue and terminate. */
       pktReleaseBufferChain(pp);
       np = NULL;
+      /* Force 446x out of TX state. */
+      Si446x_setReadyState(radio);
     }
 
     /* Process next packet. */

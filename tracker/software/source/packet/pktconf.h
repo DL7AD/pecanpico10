@@ -97,8 +97,7 @@
 
 #define EVT_RADIO_CCA_SPIKE     EVENT_MASK(EVT_PRIORITY_BASE + 28)
 #define EVT_ICU_SLEEP_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 29)
-//#define EVT_ICU_OVERFLOW        EVENT_MASK(EVT_PRIORITY_BASE + 30)
-#define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 31)
+#define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 30)
 
 
 /* Decoder thread event masks (sent from initiator to decoder). */
