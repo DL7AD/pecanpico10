@@ -18,7 +18,6 @@
 /*===========================================================================*/
 
 memory_heap_t *ccm_heap = NULL;
-//guarded_memory_pool_t *ccm_pool = NULL;
 
 /*===========================================================================*/
 /* Driver exported variables.                                                */
@@ -40,11 +39,7 @@ packet_svc_t RPKTD2;
 /* Module local variables.                                                   */
 /*===========================================================================*/
 
-#if USE_CCM_HEAP_FOR_PKT == TRUE
 static memory_heap_t _ccm_heap;
-/*#elif USE_CCM_FOR_PKT_POOL == TRUE
-static guarded_memory_pool_t _ccm_pool;*/
-#endif
 
 /*===========================================================================*/
 /* Module local functions.                                                   */
@@ -96,19 +91,19 @@ bool pktSystemInit(void) {
                    (size_t)(__ram4_end__ - __ram4_free__));
   }
 
-#if USE_CCM_HEAP_FOR_PKT == TRUE
+/*#if USE_CCM_HEAP_FOR_PKT == TRUE*/
   /*
    * Create common AX25 transmit packet buffer control.
    */
   if(pktInitBufferControl() == NULL) {
     return false;
   }
-#endif
+/*#endif*/
   return true;
 }
 
 /**
- * @brief   Deinits the packet system.
+ * @brief   Deinit the packet system.
  *
  *@return   result of operation.
  *@retval   true    deinit success.
@@ -282,7 +277,7 @@ bool pktServiceWakeup(const radio_unit_t radio) {
  * @api
  */
 msg_t pktOpenRadioReceive(const radio_unit_t radio,
-                          const encoding_type_t encoding,
+                          const radio_mod_t encoding,
                           const radio_freq_t frequency,
                           const channel_hz_t ch_step) {
 
@@ -329,6 +324,18 @@ msg_t pktOpenRadioReceive(const radio_unit_t radio,
 }
 
 /**
+ * @brief   Callback for packet decoding started.
+ * @post    The decoder is running.
+ *
+ * @param[in]   handler pointer to a @p radio task object.
+ *
+ * @special
+ */
+void pktDecoderActive(radio_task_object_t *rt) {
+  (void)rt;
+}
+
+/**
  * @brief   Starts packet reception.
  * @pre     The packet service must have been opened.
  * @post    The radio is tuned to the specified channel.
@@ -367,7 +374,8 @@ msg_t pktEnableDataReception(const radio_unit_t radio,
 
   rt.command = PKT_RADIO_RX_START;
 
-  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
+  msg_t msg = pktSendRadioCommand(radio, &rt,
+                                  (radio_task_cb_t) pktDecoderActive);
   if(msg != MSG_OK)
     return MSG_TIMEOUT;
 
@@ -402,12 +410,12 @@ void pktStartDecoder(const radio_unit_t radio) {
   switch(handler->radio_rx_config.type) {
     case MOD_AFSK: {
 
-      esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
+      esp = pktGetEventSource((AFSKDemodDriver *)handler->rx_link_control);
 
       pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_START_EXEC);
 
       thread_t *the_decoder =
-          ((AFSKDemodDriver *)handler->link_controller)->decoder_thd;
+          ((AFSKDemodDriver *)handler->rx_link_control)->decoder_thd;
       chEvtSignal(the_decoder, DEC_COMMAND_START);
       break;
     } /* End case. */
@@ -505,12 +513,12 @@ void pktStopDecoder(radio_unit_t radio) {
 
   switch(handler->radio_rx_config.type) {
     case MOD_AFSK: {
-      esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
+      esp = pktGetEventSource((AFSKDemodDriver *)handler->rx_link_control);
 
       pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_STOP_EXEC);
 
       thread_t *the_decoder =
-          ((AFSKDemodDriver *)handler->link_controller)->decoder_thd;
+          ((AFSKDemodDriver *)handler->rx_link_control)->decoder_thd;
       chEvtSignal(the_decoder, DEC_COMMAND_STOP);
       break;
     } /* End case. */
@@ -664,9 +672,9 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer) {
     chFifoSendObject(pkt_fifo, pkt_buffer);
   } else {
     /* Schedule a callback. */
-    thread_t *cb_thd = pktCreateBufferCallback(pkt_buffer);
+    thread_t *cb_thd = pktCreateReceiveCallback(pkt_buffer);
 
-    chDbgAssert(cb_thd != NULL, "failed to create callback thread");
+    //chDbgAssert(cb_thd != NULL, "failed to create callback thread");
 
     if(cb_thd == NULL) {
       /* Failed to create CB thread. Release buffer. Broadcast event. */
@@ -696,7 +704,7 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer) {
  *
  * @api
  */
-thread_t *pktCreateBufferCallback(pkt_data_object_t *pkt_buffer) {
+thread_t *pktCreateReceiveCallback(pkt_data_object_t *pkt_buffer) {
 
   chDbgAssert(pkt_buffer != NULL, "invalid packet buffer");
 
@@ -707,7 +715,7 @@ thread_t *pktCreateBufferCallback(pkt_data_object_t *pkt_buffer) {
 
   /* Start a callback dispatcher thread. */
   thread_t *cb_thd = chThdCreateFromHeap(NULL,
-              THD_WORKING_AREA_SIZE(PKT_CALLBACK_WA_SIZE),
+              THD_WORKING_AREA_SIZE(PKT_RX_CALLBACK_WA_SIZE),
               pkt_buffer->cb_thd_name,
               NORMALPRIO - 20,
               pktCallback,
@@ -721,7 +729,6 @@ thread_t *pktCreateBufferCallback(pkt_data_object_t *pkt_buffer) {
  * @notes   Packet callbacks are processed by individual threads.
  * @notes   Thus packet callbacks are non-blocking to the decoder thread.
  * @notes   After callback completes the thread it is scheduled for release.
- * @notes   Release is initiated by posting the packet buffer to the queue.
  *
  * @post    Call back has been executed (for however long it takes).
  * @post    Callback thread release is completed in the terminator thread.
@@ -838,18 +845,16 @@ THD_FUNCTION(pktCompletion, arg) {
  *
  * @notapi
  */
-void pktCallbackManagerOpen(radio_unit_t radio) {
+/*void pktCallbackManagerOpen(radio_unit_t radio) {
 
-  packet_svc_t *handler = pktGetServiceObject(radio);
-
-  //chDbgAssert(handler != NULL, "invalid radio ID");
+  packet_svc_t *handler = pktGetServiceObject(radio);*/
 
   /* Create the callback handler thread name. */
-  chsnprintf(handler->cbend_name, sizeof(handler->cbend_name),
-             "%s%02i", PKT_CALLBACK_TERMINATOR_PREFIX, radio);
+/*  chsnprintf(handler->cbend_name, sizeof(handler->cbend_name),
+             "%s%02i", PKT_CALLBACK_TERMINATOR_PREFIX, radio);*/
 
   /* Start the callback thread terminator. */
-  thread_t *cbh = chThdCreateFromHeap(NULL,
+/*  thread_t *cbh = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(PKT_TERMINATOR_WA_SIZE),
               handler->cbend_name,
               NORMALPRIO - 30,
@@ -858,7 +863,7 @@ void pktCallbackManagerOpen(radio_unit_t radio) {
 
   chDbgAssert(cbh != NULL, "failed to create callback terminator thread");
   handler->cb_terminator = cbh;
-}
+}*/
 
 /*
  *
@@ -866,8 +871,6 @@ void pktCallbackManagerOpen(radio_unit_t radio) {
 dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
-
-  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the packet buffer name for this radio. */
   chsnprintf(handler->pbuff_name, sizeof(handler->pbuff_name),
@@ -958,7 +961,7 @@ void pktDeinitBufferControl() {
 /*
  * Send shares a common pool of buffers.
  * @retval MSG_RESET    if the semaphore has been reset using @p chSemReset().
- * @retval MSG_TIMEOUT  if the semaphore has not been signaled or reset within
+ * @retval MSG_TIMEOUT  if the semaphore has not been signalled or reset within
  *                      the specified timeout.
  */
 msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
@@ -1039,6 +1042,7 @@ void pktReleaseBufferSemaphore(radio_unit_t radio) {
 /*#endif*/
 }
 
+#if PKT_RX_RLS_USE_NO_FIFO != TRUE
 /*
  *
  */
@@ -1069,6 +1073,7 @@ thread_t *pktCallbackManagerCreate(radio_unit_t radio) {
   handler->cb_terminator = cbh;
   return cbh;
 }
+#endif
 
 /**
  *

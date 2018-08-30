@@ -45,9 +45,6 @@ eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(PKT_DIAGNOSTIC_EVENT_CODE));
     if(flags & EVT_PKT_NO_BUFFER) {
       TRACE_WARN("PKT  > AX25 FIFO exhausted");
     }
-    if(flags & EVT_ICU_SLEEP_TIMEOUT) {
-      TRACE_INFO("PKT  > PWM ICU has entered sleep");
-    }
     if(flags & EVT_PKT_BUFFER_FULL) {
       TRACE_WARN("PKT  > AX25 receive buffer full");
     }

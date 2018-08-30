@@ -89,7 +89,7 @@ THD_FUNCTION(pktConsole, arg) {
             "'exit' command to resume trace ***\r\n");
         shellInit();
         shelltp = chThdCreateFromHeap(NULL,
-                                      THD_WORKING_AREA_SIZE(4*1024),
+                                      THD_WORKING_AREA_SIZE(1 * 1024),
                                       "shell", NORMALPRIO + 1,
                                       shellThread,
                                       (void*)&shell_cfg);

@@ -96,7 +96,7 @@
 #define EVT_RADIO_CCA_GLITCH    EVENT_MASK(EVT_PRIORITY_BASE + 27)
 
 #define EVT_RADIO_CCA_SPIKE     EVENT_MASK(EVT_PRIORITY_BASE + 28)
-#define EVT_ICU_SLEEP_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 29)
+//#define EVT_ICU_SLEEP_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 29)
 #define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 30)
 
 
@@ -281,6 +281,9 @@ static inline msg_t pktSendRadioCommand(radio_unit_t radio,
  */
 static inline void pktReleaseBufferObject(packet_t pp) {
   chDbgAssert(pp != NULL, "no packet pointer");
+#if USE_CCM_HEAP_FOR_PKT == TRUE
+  pktAssertCCMdynamicCheck(pp);
+#endif
   pktReleasePacketBuffer(pp);
 }
 
@@ -298,7 +301,7 @@ static inline void pktReleaseBufferChain(packet_t pp) {
   /* Release all packets in linked list. */
   do {
     packet_t np = pp->nextp;
-    pktReleasePacketBuffer(pp);
+    pktReleaseBufferObject(pp);
     pp = np;
   } while(pp != NULL);
 }

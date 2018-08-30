@@ -142,12 +142,16 @@ THD_FUNCTION(pktRadioManager, arg) {
           /* TODO: abstract this into the LLD for the radio. */
           /* Create the AFSK decoder (includes PWM, filters, etc.). */
           AFSKDemodDriver *driver = pktCreateAFSKDecoder(handler);
-          handler->link_controller = driver;
+
           /* If AFSK start failed send event but leave managers running. */
           if(driver == NULL) {
             pktAddEventFlags(handler, (EVT_AFSK_START_FAIL));
+            handler->rx_link_type = MOD_NONE;
+            handler->rx_link_control = NULL;
             break;
           }
+          handler->rx_link_control = driver;
+          handler->rx_link_type = MOD_AFSK;
           break;
         } /* End case PKT_RADIO_OPEN. */
 
@@ -274,9 +278,9 @@ THD_FUNCTION(pktRadioManager, arg) {
         pktLLDradioDisableReceive(radio);
         pktLLDunlockRadioTransmit(radio);
         /* TODO: This should be a function back in pktservice or rxafsk. */
-        esp = pktGetEventSource((AFSKDemodDriver *)handler->link_controller);
+        esp = pktGetEventSource((AFSKDemodDriver *)handler->rx_link_control);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
-        decoder = ((AFSKDemodDriver *)(handler->link_controller))->decoder_thd;
+        decoder = ((AFSKDemodDriver *)(handler->rx_link_control))->decoder_thd;
 
         /* TODO: Check that decoder will release in WAIT state.
          * Send event to release AFSK resources and terminate thread.
@@ -1220,13 +1224,13 @@ const ICUConfig *pktLLDradioStartPWM(const radio_unit_t radio,
 /**
  *
  */
-void pktLLDradioStopPWM(const radio_unit_t radio) {
+void pktLLDradioPWMStopS(const radio_unit_t radio) {
   /*
    * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
    * - Lookup radio type from radio ID.
    * - Then call VMT dispatcher inside radio driver.
    */
-  Si446x_disablePWMevents(radio);
+  Si446x_disablePWMeventsS(radio);
 }
 
 /**

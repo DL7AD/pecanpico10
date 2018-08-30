@@ -22,7 +22,7 @@
 /*===========================================================================*/
 
 /* Thread working area size. */
-#define PKT_RADIO_MANAGER_WA_SIZE       4096
+#define PKT_RADIO_MANAGER_WA_SIZE       (1 * 1024)
 
 #define PKT_RADIO_TASK_QUEUE_PREFIX     "radm_"
 
@@ -201,7 +201,7 @@ extern "C" {
   void              pktLLDradioDetachPWM(const radio_unit_t radio);
   const ICUConfig   *pktLLDradioStartPWM(const radio_unit_t radio,
                                          palcallback_t cb);
-  void              pktLLDradioStopPWM(const radio_unit_t radio);
+  void              pktLLDradioPWMStopS(const radio_unit_t radio);
   void      		pktStartDecoder(const radio_unit_t radio);
   void      		pktStopDecoder(const radio_unit_t radio);
   int       	 	pktDisplayFrequencyCode(radio_freq_t code, char *buf,

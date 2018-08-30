@@ -1,5 +1,5 @@
-#ifndef __USB_H__
-#define __USB_H__
+#ifndef __CONSOLE_H__
+#define __CONSOLE_H__
 
 #include "ch.h"
 #include "hal.h"
@@ -20,5 +20,5 @@ void    startSDU(void);
 void    manageTraceAndShell(void);
 bool    isConsoleOutputAvailable(void);
 
-#endif
+#endif /* __CONSOLE_H__ */
 

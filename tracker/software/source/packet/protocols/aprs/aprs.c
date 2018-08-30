@@ -1063,7 +1063,7 @@ msg_t aprs_execute_img_command(aprs_identity_t *id,
  */
 static bool aprs_decode_message(packet_t pp) {
   // Get Info field
-  char src[127];
+  char src[255]; // TODO: Work out correct sizing.
   unsigned char *pinfo;
   if(ax25_get_info(pp, &pinfo) == 0)
     return false;

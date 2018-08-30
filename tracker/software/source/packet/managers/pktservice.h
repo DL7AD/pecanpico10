@@ -22,7 +22,7 @@
 #define PKT_SEND_BUFFER_SEM_NAME        "pbsem"
 
 
-#define PKT_CALLBACK_WA_SIZE             (1024 * 10)
+#define PKT_RX_CALLBACK_WA_SIZE          (1024 * 5)
 #define PKT_TERMINATOR_WA_SIZE           (1024 * 1)
 
 /*===========================================================================*/
@@ -34,12 +34,26 @@ typedef enum packetHandlerStates {
   PACKET_IDLE = 0,
   PACKET_READY,
   PACKET_OPEN,
+  PACKET_START,
   PACKET_DECODE,
   PACKET_PAUSE,
   PACKET_STOP,
   PACKET_CLOSE,
   PACKET_INVALID
-} packet_state_t;
+} pkt_svc_state_t;
+
+/* Packet handler states. */
+typedef enum rxHandlerStates {
+  PACKET_RX_IDLE = 0,
+  PACKET_RX_READY,
+  PACKET_RX_OPEN,
+  PACKET_RX_START,
+  PACKET_RX_DECODE,
+  PACKET_RX_PAUSE,
+  PACKET_RX_STOP,
+  PACKET_RX_CLOSE,
+  PACKET_RX_INVALID
+} pkt_rx_state_t;
 
 /* HDLC frame states. */
 typedef enum HDLCFrameStates {
@@ -53,7 +67,7 @@ typedef enum HDLCFrameStates {
 #include "types.h"
 
 /* Link level encoding type. */
-typedef radio_mod_t encoding_type_t;
+//typedef radio_mod_t encoding_type_t;
 
 #include "pktradio.h"
 
@@ -85,7 +99,12 @@ typedef struct packetHandlerData {
   /**
    * @brief State of the packet handler.
    */
-  packet_state_t            state;
+  pkt_svc_state_t            state;
+
+  /**
+   * @brief State of the packet handler.
+   */
+  pkt_svc_state_t            rx_state;
 
   /**
    * @brief Radio being managed.
@@ -147,7 +166,12 @@ typedef struct packetHandlerData {
   /**
    * @brief Pointer to link level protocol data.
    */
-  void                      *link_controller;
+  void                      *rx_link_control;
+
+  /**
+   * @brief Receive decoder type.
+   */
+  radio_mod_t               rx_link_type;
 
   /**
    * @brief names for the factory FIFOs.
@@ -231,7 +255,7 @@ extern "C" {
   bool pktServiceCreate(const radio_unit_t radio);
   bool pktServiceRelease(const radio_unit_t radio);
   msg_t pktOpenRadioReceive(const radio_unit_t radio,
-                                     const encoding_type_t encoding,
+                                     const radio_mod_t encoding,
                                      const radio_freq_t frequency,
                                      const channel_hz_t ch_step);
   msg_t pktEnableDataReception(const radio_unit_t radio,
@@ -244,12 +268,14 @@ extern "C" {
   msg_t pktCloseRadioReceive(const radio_unit_t radio);
   bool  pktStoreBufferData(pkt_data_object_t *buffer, ax25char_t data);
   eventflags_t  pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer);
-  thread_t *pktCreateBufferCallback(pkt_data_object_t *pkt_buffer);
+  thread_t *pktCreateReceiveCallback(pkt_data_object_t *pkt_buffer);
   void pktCallback(void *arg);
-  void pktCallbackManagerOpen(const radio_unit_t radio);
+  //void pktCallbackManagerOpen(const radio_unit_t radio);
   void pktCompletion(void *arg);
   dyn_objects_fifo_t *pktIncomingBufferPoolCreate(const radio_unit_t radio);
+#if PKT_RX_RLS_USE_NO_FIFO != TRUE
   thread_t *pktCallbackManagerCreate(const radio_unit_t radio);
+#endif
   void pktCallbackManagerRelease(packet_svc_t *handler);
   void pktIncomingBufferPoolRelease(packet_svc_t *handler);
   dyn_objects_fifo_t *pktCommonBufferPoolCreate(const radio_unit_t radio);
@@ -567,7 +593,7 @@ static inline bool pktGetAX25FrameStatus(pkt_data_object_t *object) {
  *
  * @api
  */
-static inline packet_state_t pktGetServiceState(radio_unit_t radio) {
+static inline pkt_svc_state_t pktGetServiceState(radio_unit_t radio) {
   /*
    * TODO: implement mapping from radio config to packet handler object.
    */
@@ -590,7 +616,7 @@ static inline packet_state_t pktGetServiceState(radio_unit_t radio) {
  * @api
  */
 static inline bool pktIsTransmitOpen(radio_unit_t radio) {
-  packet_state_t state = pktGetServiceState(radio);
+  pkt_svc_state_t state = pktGetServiceState(radio);
   return !(state == PACKET_IDLE || state == PACKET_INVALID);
 }
 
@@ -606,7 +632,7 @@ static inline bool pktIsTransmitOpen(radio_unit_t radio) {
  * @api
  */
 static inline bool pktIsReceiveActive(radio_unit_t radio) {
-  packet_state_t state = pktGetServiceState(radio);
+  pkt_svc_state_t state = pktGetServiceState(radio);
   return (state == PACKET_DECODE);
 }
 
@@ -622,7 +648,7 @@ static inline bool pktIsReceiveActive(radio_unit_t radio) {
  * @api
  */
 static inline bool pktIsReceivePaused(radio_unit_t radio) {
-  packet_state_t state = pktGetServiceState(radio);
+  pkt_svc_state_t state = pktGetServiceState(radio);
   return (state == PACKET_PAUSE);
 }
 

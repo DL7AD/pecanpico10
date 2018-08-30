@@ -60,13 +60,13 @@ endif
 # Stack size to be allocated to the Cortex-M process stack. This stack is
 # the stack used by the main() thread.
 ifeq ($(USE_PROCESS_STACKSIZE),)
-  USE_PROCESS_STACKSIZE = 0x5000
+  USE_PROCESS_STACKSIZE = 0x1000
 endif
 
 # Stack size to the allocated to the Cortex-M main/exceptions stack. This
 # stack is used for processing interrupts and exceptions.
 ifeq ($(USE_EXCEPTIONS_STACKSIZE),)
-  USE_EXCEPTIONS_STACKSIZE = 0xA000
+  USE_EXCEPTIONS_STACKSIZE = 0x4000
 endif
 
 # Enables the use of FPU (no, softfp, hard).
@@ -215,7 +215,7 @@ CPPWARN = -Wall -Wextra -Wundef
 
 # List all user C define here, like -D_DEBUG=1
 UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4 -DSHELL_CMD_TEST_ENABLED=0 \
-        -DSHELL_CMD_EXIT_ENABLED=1 -DSET_TRACE_LEVEL=5 -DPDCMI_USE_DMA_DBM=0 \
+        -DSHELL_CMD_EXIT_ENABLED=1 -DSET_TRACE_LEVEL=5 -DPDCMI_USE_DMA_DBM=1 \
         -DSHELL_CMD_MEM_ENABLED=0 -DDISABLE_HW_WATCHDOG=1
 
 # Define ASM defines here

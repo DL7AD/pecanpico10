@@ -900,9 +900,10 @@ static bool transmit_image_packet(const uint8_t *image,
  * Callback used to throttle image send.
  * Next packet (or burst) is readied.
  */
-static void image_packet_send_complete(void) {
+static void image_packet_send_complete(radio_task_object_t *rt) {
   chSemSignal(&tx_complete);
-  TRACE_DEBUG("IMG  > Released transmit semaphore");
+  TRACE_DEBUG("IMG  > Released transmit semaphore TX sequence %d",
+              rt->tx_seq_num);
   return;
 }
 
@@ -1047,7 +1048,7 @@ static bool transmit_image_packets(const uint8_t *image,
          *  Transmit on radio will release the packet chain.
          *  But we need to release the throttle semaphore.
         */
-        image_packet_send_complete();
+        chSemSignal(&tx_complete);
         return false;
       } else {
         // Packet spacing (delay)
@@ -1245,15 +1246,7 @@ THD_FUNCTION(imgThread, arg) {
       time = waitForTrigger(time, conf->svc_conf.cycle);
       continue;
     }
-    /*
-     * History... compiler bug
-     * If size is > 65535 the compiled code wraps address around and kills CCM heap.
-     * Anyway clearing of the capture buffer is no longer needed.
-     * SOI is now aligned at index 0 and length >= EOI is returned by capture.
-     */
-/*    uint32_t size = conf->buf_size;
-    for(uint32_t i = 0; i < size ; i++)
-        buffer[i] = 0;*/
+
     /* Take picture. */
     uint32_t size_sampled = takePicture(buffer, conf->buf_size,
                                         conf->res, true);
@@ -1330,7 +1323,7 @@ THD_FUNCTION(imgThread, arg) {
 void start_image_thread(img_app_conf_t *conf, const char *name)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
-	                                   THD_WORKING_AREA_SIZE(35 * 1024),
+	                                   THD_WORKING_AREA_SIZE(8 * 1024),
 	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
       // Print startup error, do not start watchdog for this thread

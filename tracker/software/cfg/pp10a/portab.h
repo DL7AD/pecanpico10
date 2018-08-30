@@ -189,7 +189,7 @@
  * The retired buffer is reticulated to the pool ready for re-use.
  */
 #define USE_HEAP_PWM_BUFFER         TRUE
-#define USE_CCM_BASED_HEAP          TRUE
+#define USE_CCM_BASED_PWM_HEAP          TRUE
 #define TRACE_PWM_BUFFER_STATS      FALSE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
@@ -207,7 +207,7 @@
 #endif /* USE_HEAP_PWM_BUFFER == TRUE */
 
 /* Number of frame receive buffers. */
-#define NUMBER_RX_PKT_BUFFERS       3U
+#define NUMBER_RX_PKT_BUFFERS       5U
 #define USE_CCM_HEAP_RX_BUFFERS     TRUE
 
 #define PKT_RX_RLS_USE_NO_FIFO      TRUE

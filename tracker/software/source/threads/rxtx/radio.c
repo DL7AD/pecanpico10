@@ -63,41 +63,6 @@ void mapCallback(pkt_data_object_t *pkt_buff) {
     TRACE_INFO("RX   > Frame has bad CRC - dropped");
   }
 }
-/**
- * TODO: Select a radio based on frequency and start that.
- */
-void start_aprs_threads(radio_unit_t radio, radio_freq_t base_freq,
-                     channel_hz_t step,
-                     radio_ch_t chan, radio_squelch_t rssi) {
-
-    if(base_freq == FREQ_RX_APRS) {
-      TRACE_ERROR("RX   > Cannot specify FREQ_RX_APRS for receiver");
-      return;
-    }
-
-    /* Open packet radio service.
-     * TODO: The parameter should be channel not step.
-     */
-    msg_t omsg = pktOpenRadioReceive(radio,
-                         MOD_AFSK,
-                         base_freq,
-                         step);
-
-    if(omsg != MSG_OK) {
-      TRACE_ERROR("RX   > Open of radio service failed");
-      return;
-    }
-
-    /* Start the decoder. */
-    msg_t smsg = pktEnableDataReception(radio,
-                           chan,
-                           rssi,
-                           mapCallback);
-    if(smsg != MSG_OK) {
-      pktCloseRadioReceive(radio);
-      TRACE_ERROR("RX   > Start of radio packet reception failed");
-    }
-}
 
 /*
  *
@@ -224,4 +189,61 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
     return false;
   }
   return true;
+}
+
+/**
+ *
+ */
+THD_FUNCTION(aprsThread, arg) {
+  thd_aprs_conf_t* conf = (thd_aprs_conf_t*)arg;
+
+  chThdSleep(conf->rx.svc_conf.init_delay);
+
+  do {
+    if(conf->rx.radio_conf.freq == FREQ_RX_APRS) {
+      TRACE_ERROR("RX   > Cannot specify FREQ_RX_APRS for receive");
+      break;
+    }
+
+    /* Open packet radio service.
+     * TODO: The parameter should be channel not step.
+     */
+    msg_t omsg = pktOpenRadioReceive(PKT_RADIO_1,
+                         MOD_AFSK,
+                         conf->rx.radio_conf.freq,
+                         0); // Step is 0 for now. Get from radio record.
+
+    if(omsg != MSG_OK) {
+      TRACE_ERROR("RX   > Open of radio service failed");
+      break;
+    }
+
+    /* Start the decoder. */
+    msg_t smsg = pktEnableDataReception(PKT_RADIO_1,
+                           0, // Chan = 0 for now
+                           conf->rx.radio_conf.rssi,
+                           mapCallback);
+    if(smsg != MSG_OK) {
+      pktCloseRadioReceive(PKT_RADIO_1);
+      TRACE_ERROR("RX   > Start of radio packet reception failed");
+      break;
+    }
+    TRACE_INFO("RX   > Radio %d now active", PKT_RADIO_1);
+  } while(0);
+  extern void pktThdTerminateSelf(void);
+  pktThdTerminateSelf();
+}
+
+/**
+ * TODO: Start radio manager for each radio.
+ */
+thread_t *start_aprs_threads(thd_aprs_conf_t *conf, const char *name) {
+
+  thread_t *th = chThdCreateFromHeap(NULL,
+                               THD_WORKING_AREA_SIZE(PKT_APRS_MAIN_WA_SIZE),
+                               name, LOWPRIO, aprsThread, conf);
+  if(!th) {
+    TRACE_ERROR("APRS > Could not start thread (insufficient memory)");
+  }
+  return th;
 }

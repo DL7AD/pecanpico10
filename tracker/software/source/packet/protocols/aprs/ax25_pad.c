@@ -369,7 +369,7 @@ packet_t ax25_from_text (char *monitor, int strict) {
 	char *saveptr;		/* Used with strtok_r because strtok is not thread safe. */
 
 	int ssid_temp, heard_temp;
-	char atemp[AX25_MAX_ADDR_LEN];
+	char atemp[AX25_MAX_ADDR_LEN + 1];
 
 	char info_part[AX25_MAX_INFO_LEN + 1];
 	uint16_t info_len;
@@ -857,8 +857,8 @@ bool ax25_parse_addr (int position, char *in_addr, int strict,
 int ax25_check_addresses (packet_t pp)
 {
 	int n;
-	char addr[AX25_MAX_ADDR_LEN];
-	char ignore1[AX25_MAX_ADDR_LEN];
+	char addr[AX25_MAX_ADDR_LEN + 1];
+	char ignore1[AX25_MAX_ADDR_LEN + 1];
 	int ignore2, ignore3;
 	int all_ok = 1;
 
@@ -939,7 +939,7 @@ packet_t ax25_unwrap_third_party (packet_t from_pp)
 void ax25_set_addr (packet_t this_p, int n, char *ad)
 {
 	int ssid_temp, heard_temp;
-	char atemp[AX25_MAX_ADDR_LEN];
+	char atemp[AX25_MAX_ADDR_LEN + 1];
 	int i;
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
@@ -1017,7 +1017,7 @@ void ax25_set_addr (packet_t this_p, int n, char *ad)
 void ax25_insert_addr (packet_t this_p, int n, char *ad)
 {
 	int ssid_temp, heard_temp;
-	char atemp[AX25_MAX_ADDR_LEN];
+	char atemp[AX25_MAX_ADDR_LEN + 1];
 	int i;
 	int expect;
 
@@ -1877,11 +1877,11 @@ packet_t ax25_get_nextp (packet_t this_p)
 
 // TODO: max len for result.  buffer overflow?
 
-void ax25_format_addrs (packet_t this_p, char *result, int8_t size)
+void ax25_format_addrs (packet_t this_p, char *result, int16_t size)
 {
 	int i;
 	int heard;
-	char stemp[AX25_MAX_ADDR_LEN];
+	char stemp[AX25_MAX_ADDR_LEN + 1];
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
 		TRACE_ERROR("PKT  > Buffer overflow");
@@ -1962,7 +1962,7 @@ void ax25_format_via_path (packet_t this_p, char *result, size_t result_size)
 {
 	int i;
 	int heard;
-	char stemp[AX25_MAX_ADDR_LEN];
+	char stemp[AX25_MAX_ADDR_LEN + 1];
 
 	if(this_p->magic1 != MAGIC || this_p->magic2 != MAGIC) {
 		TRACE_ERROR("PKT  > Buffer overflow");
@@ -2063,8 +2063,7 @@ void ax25_format_via_path (packet_t this_p, char *result, size_t result_size)
  *
  *------------------------------------------------------------------*/
 
-// TODO: need someway to ensure caller allocated enough space.
-// Should pass in as parameter.
+// TODO: Actually unused so deprecate.
 #define DESC_SIZ 40
 
 
@@ -2427,8 +2426,8 @@ int ax25_get_pid (packet_t this_p)
 unsigned short ax25_dedupe_crc (packet_t pp)
 {
 	unsigned short crc;
-	char src[AX25_MAX_ADDR_LEN];
-	char dest[AX25_MAX_ADDR_LEN];
+	char src[AX25_MAX_ADDR_LEN + 1];
+	char dest[AX25_MAX_ADDR_LEN + 1];
 	unsigned char *pinfo;
 	int info_len;
 

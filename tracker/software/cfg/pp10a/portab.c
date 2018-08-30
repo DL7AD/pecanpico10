@@ -19,7 +19,7 @@
 #include "chprintf.h"
 #include "pkttypes.h"
 #include "portab.h"
-#include "usb.h"
+#include "console.h"
 #include "types.h"
 #include "si446x.h"
 #include <stdarg.h>

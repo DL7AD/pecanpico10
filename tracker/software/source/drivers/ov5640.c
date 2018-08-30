@@ -769,7 +769,7 @@ inline void dma_start(pdcmi_capture_t *ppdcmi) {
 }
 
 /*
- * Stop DMA release stream and return count processed in current segment.
+ * Stop DMA, release stream and return count processed in current segment.
  * Note that any DMA FIFO transfer in progress will complete.
  * The Chibios DMAV2 driver waits for EN to clear before proceeding.
  */
@@ -793,7 +793,7 @@ static void dma_interrupt(void *p, uint32_t flags) {
 
   /*
    *  DMA has been terminated by initiating function.
-   *  DMA stop has already been executed.
+   *  DMA and timer stop has already been executed.
    *  If there was a pending interrupt can we get here?
    */
   if(dma_control->terminate) {
@@ -828,7 +828,7 @@ static void dma_interrupt(void *p, uint32_t flags) {
      * Half transfer complete.
      * Check if DMA is writing to the last buffer.
      */
-    if(--dma_control->page_count == 0) {
+    if(--dma_control->page_count < 1) {
       /*
        * This is the last page so we have to terminate DMA.
        * The DBM switch is done in h/w.
@@ -864,9 +864,14 @@ static void dma_interrupt(void *p, uint32_t flags) {
      * Transfer complete for this page.
      * The memory address register has switched.
      * The DMA count is reloaded and counting down.
+     * Update the memory address.
+     * Update the transfer count.
      */
     dma_control->transfer_count += dma_control->page_size;
     dma_control->page_address += dma_control->page_size;
+    chDbgAssert((dma_control->page_address >= dma_control->buffer_base)
+                && (dma_control->page_address <= dma_control->buffer_limit),
+                "bad buffer address");
     if (dmaStreamGetCurrentTarget(dma_control->dmastp) == 0) {
       dmaStreamSetMemory1(dma_control->dmastp, dma_control->page_address);
     } else {
@@ -1013,7 +1018,8 @@ void mode3_vsync_cb(void *arg) {
  */
 msg_t OV5640_LockResourcesForCapture(void) {
   /* TODO: have to make this a loop which would handle multiple receivers. */
-
+  I2C_Lock();
+  return MSG_OK;
   /* Acquire radio after any active TX completes. */
   TRACE_DEBUG("CAM  > Lock request on radio %d", PKT_RADIO_1);
   msg_t msg = pktLLDlockRadioTransmit(PKT_RADIO_1, TIME_INFINITE);
@@ -1022,19 +1028,13 @@ msg_t OV5640_LockResourcesForCapture(void) {
     return msg;
   }
   if(pktIsReceiveActive(PKT_RADIO_1)) {
-    TRACE_DEBUG("CAM  > Request pause receive on radio %d", PKT_RADIO_1);
+    TRACE_DEBUG("CAM  > Request receive pause on radio %d", PKT_RADIO_1);
     pktLLDradioPauseDecoding(PKT_RADIO_1);
-    TRACE_DEBUG("CAM  > Executed pause receive on radio %d", PKT_RADIO_1);
+    TRACE_DEBUG("CAM  > Receive paused on radio %d", PKT_RADIO_1);
     decode_pause = true;
   } else
     decode_pause = false;
   I2C_Lock();
-
-  //pktLLDradioPauseDecoding(PKT_RADIO_1);
-  //pktPauseDecoding(PKT_RADIO_1);
-  /* Hold TRACE output on USB. */
-/*  if(isUSBactive())
-    chMtxLock(&trace_mtx);*/
   return MSG_OK;
 }
 
@@ -1042,16 +1042,13 @@ msg_t OV5640_LockResourcesForCapture(void) {
  * Unlock competing drivers.
  */
 void OV5640_UnlockResourcesForCapture(void) {
-  /* Re-enable TRACE output on USB. */
-/*  if(isUSBactive())
-    chMtxUnlock(&trace_mtx);*/
   I2C_Unlock();
+  return;
   /* TODO: have to make this a loop which would handle multiple receivers. */
   if(pktIsReceivePaused(PKT_RADIO_1) && decode_pause) {
     TRACE_INFO("CAM  > Resume receive on radio %d", PKT_RADIO_1);
     pktLLDradioResumeDecoding(PKT_RADIO_1);
   }
-  //pktResumeDecoding(PKT_RADIO_1);
   /* Enable TX tasks to run. */
   TRACE_INFO("CAM  > Unlock radio %d", PKT_RADIO_1);
   pktLLDunlockRadioTransmit(PKT_RADIO_1);
@@ -1079,7 +1076,11 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
      * Calculate the number of whole buffers.
      */
     if((size / PDCMI_DMA_DBM_PAGE_SIZE) < 2) {
-      TRACE_ERROR("CAM  > Capture buffer less than 2 DMA DBM segment segments");
+      TRACE_ERROR("CAM  > Capture buffer is less than 2 DMA DBM pages");
+      return 0;
+    }
+    if(PDCMI_DMA_DBM_PAGE_SIZE % 4 != 0) {
+      TRACE_ERROR("CAM  > DBM page size must be multiple of 4 bytes");
       return 0;
     }
 #else
@@ -1105,7 +1106,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 
 	pdcmi_capture_t dma_control = {0};
 
-	/* Setup DMA for transfer on timer CC tigger.
+	/* Setup DMA for transfer on timer CC trigger.
 	 * For TIM8 this is DMA2 stream 2, channel 7.
 	 * Use PL 3 as camera PCLK rate is high and we need priority service.
 	 */
@@ -1137,20 +1138,27 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	dmaStreamSetPeripheral(dma_control.dmastp, &GPIOA->IDR);
 
 #if PDCMI_USE_DMA_DBM == TRUE
-	dma_control.page_address = buffer;
-	dma_control.base_buffer = buffer;
+
+    dma_control.buffer_base = buffer;
 	dma_control.page_count = (size / PDCMI_DMA_DBM_PAGE_SIZE);
+    dma_control.buffer_limit = buffer + size;
 	dma_control.page_size = PDCMI_DMA_DBM_PAGE_SIZE;
+    /*
+     * The next page(s) will be calculated in the interrupt handler.
+     * For M0 that would be page 3, 5, 7, ...
+     * And for M1 page 4, 6, 8, ...
+     */
+    dma_control.page_address = buffer + dma_control.page_size;
     /*
      * Set the initial buffer addresses.
      * The updating of DMA:MxAR is done in the the DMA interrupt function.
+     * Page 1 & 2 addresses set in memory address registers to start.
      */
-    dmaStreamSetMemory0(dma_control.dmastp, dma_control.page_address);
-    dmaStreamSetMemory1(dma_control.dmastp, dma_control.page_address + dma_control.page_size);
-    dmaStreamSetTransactionSize(dma_control.dmastp, PDCMI_DMA_DBM_PAGE_SIZE);
+    dmaStreamSetMemory0(dma_control.dmastp, buffer);
+    dmaStreamSetMemory1(dma_control.dmastp, dma_control.page_address);
+    dmaStreamSetTransactionSize(dma_control.dmastp, dma_control.page_size);
+
 #else
-    dma_control.page_address = buffer;
-    dma_control.base_buffer = buffer;
     dma_control.page_size = size;
     dma_control.page_count = 1;
     dmaStreamSetMemory0(dma_control.dmastp, buffer);
@@ -1160,6 +1168,8 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
     dmaStreamSetFIFO(dma_control.dmastp, STM32_DMA_FCR_DMDIS
                              | STM32_DMA_FCR_FTH_FULL
                              | STM32_DMA_FCR_FEIE);
+
+    /* Clear any pending interrupts. */
     dmaStreamClearInterrupt(dma_control.dmastp);
 
     dma_control.pdcmi_state = PDCMI_WAIT_VSYNC;
@@ -1168,8 +1178,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
     dma_control.terminate = false;
 
 	/*
-	 * Setup timer for PCLK
-	 * TODO: Run TIM8 as ICU with DIER bit set may provide sufficient functionality?
+	 * Setup timer for DMA trigger using PCLK as CC input.
 	 */
     dma_control.timer = TIM8;
 	rccEnableTIM8(FALSE);

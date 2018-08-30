@@ -207,8 +207,8 @@
 #define Si446x_FIFO_SEPARATE_SIZE                64
 #define Si446x_FIFO_COMBINED_SIZE               129
 
-#define SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE         1024
-#define SI_FSK_FIFO_FEEDER_WA_SIZE              1024
+#define SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE         (1 * 1024)
+#define SI_FSK_FIFO_FEEDER_WA_SIZE              (1 * 1024)
 
 /* AFSK NRZI up-sampler definitions. */
 #define PLAYBACK_RATE       13200
@@ -335,7 +335,7 @@ extern "C" {
   ICUDriver *Si446x_attachPWM(const radio_unit_t radio);
   bool Si446x_detachPWM(const radio_unit_t radio);
   const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio, palcallback_t cb);
-  void Si446x_disablePWMevents(const radio_unit_t radio);
+  void Si446x_disablePWMeventsS(const radio_unit_t radio);
   uint8_t Si446x_readCCA(const radio_unit_t radio);
 #ifdef __cplusplus
 }

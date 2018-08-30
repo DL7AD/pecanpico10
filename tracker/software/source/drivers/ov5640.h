@@ -28,7 +28,7 @@
 #define PDCMI_USE_DMA_DBM           FALSE
 #endif
 
-#define PDCMI_DMA_DBM_PAGE_SIZE     1024
+#define PDCMI_DMA_DBM_PAGE_SIZE     512
 #define PDCMI_DMA_FIFO_BURST_ALIGN  16
 #define PDCMI_DMA_IRQ_PRIO          2
 
@@ -48,13 +48,14 @@ typedef enum {
   PDCMI_CAPTURE_TIMEOUT
 } pdcmi_state_t;
 
-typedef struct dmaControl {
+typedef struct pdcmiControl {
   const stm32_dma_stream_t  *dmastp;
   TIM_TypeDef               *timer;
-  uint32_t                  page_size;
+  uint16_t                  page_size;
   uint8_t                   *page_address;
-  uint8_t                   *base_buffer;
-  uint16_t                  page_count;
+  uint8_t                   *buffer_base;
+  uint8_t                   *buffer_limit;
+  int16_t                   page_count;
   volatile bool             terminate;
   uint32_t                  dma_flags;
   volatile pdcmi_state_t    pdcmi_state;

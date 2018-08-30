@@ -14,7 +14,7 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(0),
             .fixed = false // Add lat, lon, alt fields when enabling fixed
@@ -35,9 +35,9 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 30), // Beacon interval
-            .init_delay = TIME_S2I(0),
+            .active = true,
+            .cycle = TIME_S2I(60 * 5), // Beacon interval
+            .init_delay = TIME_S2I(10),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
             .lat = -337331175, // Degrees (expressed in 1e-7 form)
             .lon = 1511143478, // Degrees (expressed in 1e-7 form)
@@ -45,8 +45,8 @@ const conf_t conf_flash_default = {
         },
         .radio_conf = {
             .pwr = 0x1F,
-            .freq = FREQ_GEOFENCE,
-            .mod = MOD_AFSK,
+            .freq = 144800000,
+            .mod = MOD_2FSK_9k6,
             .cca = 0x4F
         },
         // App identity
@@ -59,8 +59,8 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 30),
+            .active = true,
+            .cycle = TIME_S2I(60 * 15),
             .init_delay = TIME_S2I(30),
             .send_spacing = TIME_S2I(10)
         },
@@ -85,13 +85,13 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(10)
         },
         .radio_conf = {
-            .pwr = 0x1F,
+            .pwr = 0x7F,
             .freq = 144800000,
             .mod = MOD_2FSK_9k6,
             .cca = 0x5F
@@ -101,9 +101,9 @@ const conf_t conf_flash_default = {
         .path = "",
 
         // Image settings
-        .res = RES_VGA,
+        .res = RES_XGA,
         .quality = 4,
-        .buf_size = 50 * 1024,
+        .buf_size = 100 * 1024,
         .redundantTx = false
     },
 

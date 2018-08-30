@@ -95,7 +95,6 @@
 #define ICU_DRIVER_EXT_FIELDS                                                \
                         void *link;                                          \
                         virtual_timer_t cca_timer;                           \
-                        virtual_timer_t icu_timer;                           \
                         virtual_timer_t pwm_timer;
 #endif
 

@@ -1934,8 +1934,8 @@ const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio,
 /**
  *
  */
-void Si446x_disablePWMevents(radio_unit_t radio) {
-  palDisableLineEvent(Si446x_getConfig(radio)->nirq);
+void Si446x_disablePWMeventsS(radio_unit_t radio) {
+  palDisableLineEventI(Si446x_getConfig(radio)->nirq);
 }
 /**
  *
