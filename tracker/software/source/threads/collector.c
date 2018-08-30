@@ -647,7 +647,7 @@ void init_data_collector() {
     threadStarted = true;
     TRACE_INFO("COLL > Startup data collector thread");
     thread_t *th = chThdCreateFromHeap(NULL,
-                                       THD_WORKING_AREA_SIZE(1 * 1024),
+                                       THD_WORKING_AREA_SIZE(2 * 1024),
                                        "COL", LOWPRIO,
                                        collectorThread, chThdGetSelfX());
     collector_thd = th;
