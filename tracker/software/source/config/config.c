@@ -14,8 +14,8 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 5),
+            .active = true,
+            .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(0),
             .fixed = false // Add lat, lon, alt fields when enabling fixed
         },
@@ -26,9 +26,9 @@ const conf_t conf_flash_default = {
             .cca = 0x5F,
         },
         // App identity
-        .call = "VK2GJ-5",
+        .call = "VK2GJ-11",
         .path = "WIDE1-1",
-        .symbol = SYM_DIGIPEATER,
+        .symbol = SYM_ANTENNA,
         .aprs_msg = false, // Enable APRS message reception on this app
     },
 
@@ -60,7 +60,7 @@ const conf_t conf_flash_default = {
     .img_pri = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 15),
+            .cycle = TIME_S2I(60 * 60),
             .init_delay = TIME_S2I(30),
             .send_spacing = TIME_S2I(10)
         },
@@ -86,9 +86,9 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 5),
+            .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(60),
-            .send_spacing = TIME_S2I(10)
+            .send_spacing = TIME_S2I(0)
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -101,9 +101,9 @@ const conf_t conf_flash_default = {
         .path = "",
 
         // Image settings
-        .res = RES_XGA,
+        .res = RES_VGA,
         .quality = 4,
-        .buf_size = 100 * 1024,
+        .buf_size = 60 * 1024,
         .redundantTx = false
     },
 

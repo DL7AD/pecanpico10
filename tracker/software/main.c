@@ -1,7 +1,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "pktconf.h"
-
+#include "console.h"
 #include "debug.h"
 #include "threads.h"
 
@@ -39,6 +39,7 @@ int main(void) {
     /*
      * Create a packet radio service.
      * For now there is just one radio.
+     * TODO: Refactor. Only start services when a radio request is made.
      */
     while(!pktServiceCreate(PKT_RADIO_1)) {
       TRACE_ERROR("MAIN > Unable to create packet radio %d services",

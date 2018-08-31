@@ -7,8 +7,8 @@
 #include "ptime.h"
 #include "config.h"
 #include <string.h>
-#include "usbcfg.h"
-#include "console.h"
+//#include "usbcfg.h"
+//#include "console.h"
 
 #define ERROR_LIST_LENGTH	64
 #define ERROR_LIST_SIZE		32

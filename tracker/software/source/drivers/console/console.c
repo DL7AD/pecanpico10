@@ -4,6 +4,7 @@
 #include "shell.h"
 #include "commands.h"
 #include "pktconf.h"
+#include "console.h"
 
 
 static const ShellConfig shell_cfg = {

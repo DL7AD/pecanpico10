@@ -2,6 +2,8 @@
 #include "hal.h"
 #include "debug.h"
 #include "portab.h"
+#include "usbcfg.h"
+#include "console.h"
 
 mutex_t debug_mtx; // Used internal to synchronize multiple chprintf in debug.h
 

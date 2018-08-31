@@ -2,7 +2,7 @@
 #define __CONSOLE_H__
 
 #include "ch.h"
-#include "hal.h"
+//#include "hal.h"
 
 typedef enum consoleStates {
   CON_CHN_INIT = 0,
