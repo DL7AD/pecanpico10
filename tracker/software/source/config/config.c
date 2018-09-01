@@ -8,7 +8,7 @@
 #include "geofence.h"
 #include "pktconf.h"
 
-conf_t conf_sram;
+conf_t conf_sram useCCM;
 
 const conf_t conf_flash_default = {
     // Primary position app
