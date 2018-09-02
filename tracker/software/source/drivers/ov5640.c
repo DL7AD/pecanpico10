@@ -1020,22 +1020,6 @@ msg_t OV5640_LockResourcesForCapture(void) {
   /* TODO: have to make this a loop which would handle multiple receivers. */
   I2C_Lock();
   return MSG_OK;
-  /* Acquire radio after any active TX completes. */
-  TRACE_DEBUG("CAM  > Lock request on radio %d", PKT_RADIO_1);
-  msg_t msg = pktLLDlockRadioTransmit(PKT_RADIO_1, TIME_INFINITE);
-  if(msg != MSG_OK) {
-    TRACE_ERROR("CAM  > Lock failed on radio %d", PKT_RADIO_1);
-    return msg;
-  }
-  if(pktIsReceiveActive(PKT_RADIO_1)) {
-    TRACE_DEBUG("CAM  > Request receive pause on radio %d", PKT_RADIO_1);
-    pktLLDradioPauseDecoding(PKT_RADIO_1);
-    TRACE_DEBUG("CAM  > Receive paused on radio %d", PKT_RADIO_1);
-    decode_pause = true;
-  } else
-    decode_pause = false;
-  I2C_Lock();
-  return MSG_OK;
 }
 
 /*
@@ -1044,14 +1028,6 @@ msg_t OV5640_LockResourcesForCapture(void) {
 void OV5640_UnlockResourcesForCapture(void) {
   I2C_Unlock();
   return;
-  /* TODO: have to make this a loop which would handle multiple receivers. */
-  if(pktIsReceivePaused(PKT_RADIO_1) && decode_pause) {
-    TRACE_INFO("CAM  > Resume receive on radio %d", PKT_RADIO_1);
-    pktLLDradioResumeDecoding(PKT_RADIO_1);
-  }
-  /* Enable TX tasks to run. */
-  TRACE_INFO("CAM  > Unlock radio %d", PKT_RADIO_1);
-  pktLLDunlockRadioTransmit(PKT_RADIO_1);
 }
 
 /**

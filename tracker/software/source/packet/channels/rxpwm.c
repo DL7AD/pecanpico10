@@ -65,7 +65,7 @@ ICUDriver *pktAttachRadio(const radio_unit_t radio) {
   /*
    * Initialize the association between the radio and the PWM IO.
    */
-  ICUDriver *myICU = pktLLDradioAttachPWM(radio);
+  ICUDriver *myICU = pktLLDradioAttachStream(radio);
 
   chDbgAssert(myICU != NULL, "no ICU driver");
 
@@ -120,7 +120,7 @@ void pktDetachRadio(const radio_unit_t radio) {
   /*
    * Detach the radio from the PWM handlers.
    */
-  pktLLDradioDetachPWM(radio);
+  pktLLDradioDetachStream(radio);
   myDemod->icudriver = NULL;
 
   /* TODO: Implement LLD call to release indicator LEDs specific to radio. */
@@ -146,13 +146,16 @@ void pktDetachRadio(const radio_unit_t radio) {
  *
  * @api
  */
-void pktEnableRadioPWM(const radio_unit_t radio) {
+void pktEnableRadioStream(const radio_unit_t radio) {
 
   packet_svc_t *myHandler = pktGetServiceObject(radio);
 
   /* Is the AFSK decoder active? */
-  if(!((myHandler->state == PACKET_DECODE || myHandler->state == PACKET_PAUSE)
+/*  if(!((myHandler->state == PACKET_DECODE || myHandler->state == PACKET_PAUSE)
       && myHandler->rx_link_type == MOD_AFSK))
+    return;*/
+
+  if(myHandler->rx_state != PACKET_RX_OPEN)
     return;
 
   AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
@@ -162,7 +165,7 @@ void pktEnableRadioPWM(const radio_unit_t radio) {
   switch(myDemod->icustate) {
   case PKT_PWM_INIT: {
     /* Enable CCA callback. */
-    const ICUConfig *icucfg = pktLLDradioStartPWM(radio,
+    const ICUConfig *icucfg = pktLLDradioStreamEnable(radio,
                          (palcallback_t)pktRadioCCAInput);
 
     /* Start ICU and start capture. */
@@ -174,7 +177,7 @@ void pktEnableRadioPWM(const radio_unit_t radio) {
   }
   case PKT_PWM_STOP: {
     /* Enable CCA callback. */
-    pktLLDradioStartPWM(radio, (palcallback_t)pktRadioCCAInput);
+    pktLLDradioStreamEnable(radio, (palcallback_t)pktRadioCCAInput);
 
     /* Start ICU capture. */
     icuStartCapture(myDemod->icudriver);
@@ -202,15 +205,17 @@ void pktEnableRadioPWM(const radio_unit_t radio) {
  *
  * @api
  */
-void pktDisableRadioPWM(const radio_unit_t radio) {
+void pktDisableRadioStream(const radio_unit_t radio) {
 
   packet_svc_t *myHandler = pktGetServiceObject(radio);
 
   /* Is the AFSK decoder active? */
-  if(!((myHandler->state == PACKET_DECODE || myHandler->state == PACKET_PAUSE)
+/*  if(!((myHandler->state == PACKET_DECODE || myHandler->state == PACKET_PAUSE)
       && myHandler->rx_link_type == MOD_AFSK))
-    return;
+    return;*/
 
+  if(myHandler->rx_state != PACKET_RX_OPEN)
+    return;
   AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
   chDbgAssert(myDemod != NULL, "no link controller");
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
@@ -221,7 +226,7 @@ void pktDisableRadioPWM(const radio_unit_t radio) {
 
     chSysLock();
     /* Disable CCA line event. */
-    pktLLDradioPWMStopS(radio);
+    pktLLDradioStreamDisableS(radio);
 
     /* Stop any timeouts in ICU PWM handling. */
     pktStopAllICUtimersI(myDemod->icudriver);
@@ -233,7 +238,7 @@ void pktDisableRadioPWM(const radio_unit_t radio) {
      *  Post in-band PWM message.
      *
      */
-    pktClosePWMchannelI(myDemod->icudriver, EVT_NONE, PWM_TERM_DECODE_KILL);
+    pktClosePWMchannelI(myDemod->icudriver, EVT_NONE, PWM_TERM_PWM_STOP);
 
     myDemod->icustate = PKT_PWM_STOP;
 
@@ -259,7 +264,7 @@ void pktDisableRadioPWM(const radio_unit_t radio) {
 
     chSysLock();
     /* Disable CCA line event. */
-    pktLLDradioPWMStopS(radio);
+    pktLLDradioStreamDisableS(radio);
 
     /* Stop any timeouts in ICU PWM handling. */
     pktStopAllICUtimersI(myDemod->icudriver);

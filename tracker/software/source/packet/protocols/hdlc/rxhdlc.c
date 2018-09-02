@@ -110,7 +110,7 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
        /* Check if we have a byte accumulated. */
        if(++myDriver->bit_index == 8U) {
          myDriver->bit_index = 0;
-         if(pktStoreBufferData(myHandler->active_packet_object,
+         if(pktStoreReceiveData(myHandler->active_packet_object,
                          myDriver->current_byte)) {
            return true;
          }

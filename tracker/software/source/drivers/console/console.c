@@ -173,7 +173,7 @@ msg_t pktStartConsole(void) {
   /* Start serial over USB. */
   sduStart(&SDU1, &serusbcfg);
 
-  /* Signal thread to enter event monitoring. */
+  /* Signal thread to enter trace output and shell request monitoring. */
   smsg = chMsgSend(console, MSG_OK);
 
   return smsg;

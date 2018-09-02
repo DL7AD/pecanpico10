@@ -393,7 +393,7 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
 #if USE_CCM_BASED_PWM_HEAP == TRUE
   extern memory_heap_t *ccm_heap;
   myDriver->pwm_queue_heap = chHeapAllocAligned(ccm_heap,
-        sizeof(radio_pwm_object_t) * (PWM_DATA_BUFFERS + 1), sizeof(msg_t));
+        sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS, sizeof(msg_t));
 #else
   myDriver->pwm_queue_heap = chHeapAllocAligned(NULL,
         sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS, sizeof(msg_t));
@@ -467,7 +467,7 @@ void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver) {
   radio_unit_t radio = myDriver->packet_handler->radio;
 
   /* Stop PWM queue. */
-  pktDisableRadioPWM(radio);
+  pktDisableRadioStream(radio);
 
   /* Detach radio from this AFSK driver. */
   pktDetachRadio(radio);
@@ -593,7 +593,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         eventmask_t evt = chEvtWaitAnyTimeout(DEC_COMMAND_START,
                                   TIME_MS2I(DECODER_WAIT_TIME));
         if(evt) {
-          pktEnableRadioPWM(radio);
+          pktEnableRadioStream(radio);
           myDriver->decoder_state = DECODER_RESET;
           pktAddEventFlags(myDriver, DEC_START_EXEC);
           break;
@@ -624,7 +624,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
          */
         eventmask_t evt = chEvtGetAndClearEvents(DEC_COMMAND_STOP);
         if(evt) {
-          pktDisableRadioPWM(radio);
+          pktDisableRadioStream(radio);
           myDriver->decoder_state = DECODER_WAIT;
           pktAddEventFlags(myDriver, DEC_STOP_EXEC);
           break;
@@ -757,7 +757,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* Look for "in band" message in radio data. */
         if(stream.pwm.impulse == PWM_IN_BAND_PREFIX) {
           switch(stream.pwm.valley) {
-          case PWM_TERM_DECODE_KILL: {
+          case PWM_TERM_PWM_STOP: {
             /*
              *  The PWM stream has been aborted by a stop request.
              *  Can be TX or a service stop as part of closing a service.

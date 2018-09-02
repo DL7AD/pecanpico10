@@ -43,7 +43,7 @@
 #define PWM_TERM_ICU_OVERFLOW   2
 #define PWM_TERM_QUEUE_ERR      3
 #define PWM_ACK_DECODE_END      4
-#define PWM_TERM_DECODE_KILL    5
+#define PWM_TERM_PWM_STOP       5
 #define PWM_TERM_NO_DATA        6
 #define PWM_TERM_ICU_ZERO       7
 #define PWM_INFO_QUEUE_SWAP     8
@@ -249,8 +249,8 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
 extern "C" {
 #endif
   ICUDriver *pktAttachRadio(const radio_unit_t radio_id);
-  void pktEnableRadioPWM(const radio_unit_t radio);
-  void pktDisableRadioPWM(const radio_unit_t radio);
+  void pktEnableRadioStream(const radio_unit_t radio);
+  void pktDisableRadioStream(const radio_unit_t radio);
   void pktDetachRadio(const radio_unit_t radio_id);
   void pktRadioICUWidth(ICUDriver *myICU);
   void pktRadioICUPeriod(ICUDriver *myICU);

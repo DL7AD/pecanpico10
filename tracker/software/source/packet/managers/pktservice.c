@@ -175,6 +175,7 @@ bool pktServiceCreate(const radio_unit_t radio) {
   if (pktRadioManagerCreate(radio) == NULL)
     return false;
   handler->state = PACKET_READY;
+  handler->rx_state = PACKET_RX_IDLE;
   return true;
 }
 
@@ -310,14 +311,15 @@ msg_t pktOpenRadioReceive(const radio_unit_t radio,
   rt.command = PKT_RADIO_RX_OPEN;
 
   /*
-   * Open (init) the radio (via submit radio task).
+   * Open (init) the radio receive (via submit radio task).
    */
   msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
 
   if(msg != MSG_OK)
     return msg;
 
-  handler->state = PACKET_OPEN;
+  //handler->state = PACKET_OPEN;
+  //handler->rx_state = PACKET_RX_OPEN;
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
 
   return MSG_OK;
@@ -362,9 +364,14 @@ msg_t pktEnableDataReception(const radio_unit_t radio,
   if(handler == NULL)
     return MSG_RESET;
 
-  if(!(handler->state == PACKET_OPEN || handler->state == PACKET_STOP))
+/*  if(!(handler->state == PACKET_OPEN || handler->state == PACKET_STOP))
+    return MSG_RESET;*/
+
+  if(handler->state != PACKET_READY)
     return MSG_RESET;
 
+  if(handler->rx_state != PACKET_RX_OPEN)
+    return MSG_RESET;
   handler->usr_callback = cb;
 
   handler->radio_rx_config.channel = channel;
@@ -380,7 +387,7 @@ msg_t pktEnableDataReception(const radio_unit_t radio,
     return MSG_TIMEOUT;
 
   /* Wait in PAUSE state for a decoder start. */
-  handler->state = PACKET_PAUSE;
+  //handler->state = PACKET_PAUSE;
   pktAddEventFlags(handler, EVT_PKT_DECODER_START);
   return MSG_OK;
 }
@@ -398,7 +405,7 @@ void pktStartDecoder(const radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  if(!pktIsReceivePaused(radio)) {
+  if(!pktIsReceiveReady(radio)) {
     /* Wrong state. */
     chDbgAssert(false, "wrong state for decoder start");
     return;
@@ -445,7 +452,8 @@ void pktStartDecoder(const radio_unit_t radio) {
     evt = chEvtGetAndClearFlags(&el);
   } while (evt != DEC_START_EXEC);
   pktUnregisterEventListener(esp, &el);
-  handler->state = PACKET_DECODE;
+  //handler->state = PACKET_DECODE;
+  handler->rx_state =   PACKET_RX_ACTIVE;
 }
 
 /**
@@ -472,7 +480,11 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
   if(handler == NULL)
     return MSG_RESET;
 
-  if(handler->state != PACKET_DECODE || handler->state != PACKET_PAUSE)
+  //if(handler->state != PACKET_DECODE || handler->state != PACKET_PAUSE)
+  if(handler->state != PACKET_READY)
+    return MSG_RESET;
+
+  if(handler->rx_state != PACKET_RX_ACTIVE)
     return MSG_RESET;
 
   /* Stop the radio processing. */
@@ -485,7 +497,7 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
   if(msg != MSG_OK)
     return msg;
 
-  handler->state = PACKET_STOP;
+  //handler->state = PACKET_STOP;
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_STOP);
   return MSG_OK;
 }
@@ -547,7 +559,8 @@ void pktStopDecoder(radio_unit_t radio) {
     evt = chEvtGetAndClearFlags(&el);
   } while (evt != DEC_STOP_EXEC);
   pktUnregisterEventListener(esp, &el);
-  handler->state = PACKET_PAUSE;
+  //handler->state = PACKET_PAUSE;
+  handler->rx_state = PACKET_RX_ACTIVE;
 }
 
 /**
@@ -571,10 +584,12 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
   if(handler == NULL)
     return MSG_RESET;
 
-  if(!(handler->state == PACKET_STOP || handler->state == PACKET_CLOSE))
+/*  if(!(handler->state == PACKET_STOP || handler->state == PACKET_CLOSE))
+    return MSG_RESET;*/
+  chDbgCheck(handler->state == PACKET_READY);
+  if(handler->state != PACKET_READY)
     return MSG_RESET;
-
-  handler->state = PACKET_CLOSE;
+  //handler->state = PACKET_CLOSE;
 
   /* Set parameters for radio. */;
 
@@ -588,13 +603,13 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
     return msg;
 
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_CLOSE);
-  handler->state = PACKET_READY;
+  //handler->state = PACKET_READY;
+  //handler->rx_state = PACKET_RX_IDLE;
   return MSG_OK;
 }
 
 /**
- * @brief   Stores data in a packet channel buffer.
- * @notes   If the data is an HDLC value it will be escape encoded.
+ * @brief   Stores receive data in a packet channel buffer.
  * @post    The character is stored and the internal buffer index is updated.
  *
  * @param[in] pkt_buffer    pointer to a @p packet buffer object.
@@ -606,7 +621,7 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
  *
  * @api
  */
-bool pktStoreBufferData(pkt_data_object_t *pkt_buffer, ax25char_t data) {
+bool pktStoreReceiveData(pkt_data_object_t *pkt_buffer, ax25char_t data) {
   if((pkt_buffer->packet_size + 1U) > pkt_buffer->buffer_size) {
     /* Buffer full. */
     return false;

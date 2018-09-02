@@ -17,18 +17,21 @@ const conf_t conf_flash_default = {
             .active = true,
             .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(0),
-            .fixed = false // Add lat, lon, alt fields when enabling fixed
+            .fixed = true, // Add lat, lon alt fields when enabling fixed
+            .lat = -337331175, // Degrees (expressed in 1e-7 form)
+            .lon = 1511143478, // Degrees (expressed in 1e-7 form)
+            .alt = 144 // Altitude in metres
         },
         .radio_conf = {
-            .pwr = 0x1F,
+            .pwr = 0x7F,
             .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x5F,
         },
         // App identity
-        .call = "VK2GJ-11",
+        .call = "VK2GJ-5",
         .path = "WIDE1-1",
-        .symbol = SYM_ANTENNA,
+        .symbol = SYM_DIGIPEATER,
         .aprs_msg = false, // Enable APRS message reception on this app
     },
 
@@ -38,10 +41,7 @@ const conf_t conf_flash_default = {
             .active = true,
             .cycle = TIME_S2I(60 * 5), // Beacon interval
             .init_delay = TIME_S2I(10),
-            .fixed = true, // Add lat, lon alt fields when enabling fixed
-            .lat = -337331175, // Degrees (expressed in 1e-7 form)
-            .lon = 1511143478, // Degrees (expressed in 1e-7 form)
-            .alt = 144 // Altitude in metres
+            .fixed = false
         },
         .radio_conf = {
             .pwr = 0x1F,
@@ -50,9 +50,9 @@ const conf_t conf_flash_default = {
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-5",
+        .call = "VK2GJ-11",
         .path = "WIDE2-1",
-        .symbol = SYM_DIGIPEATER,
+        .symbol = SYM_ANTENNA,
         .aprs_msg = false, // Enable APRS message reception on this app
     },
 
@@ -65,14 +65,14 @@ const conf_t conf_flash_default = {
             .send_spacing = TIME_S2I(10)
         },
         .radio_conf = {
-            .pwr = 0x1F,
+            .pwr = 0x7F,
             .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x5F
 
         },
         // App identity
-        .call = "VK2GJ-15",
+        .call = "VK2GJ-5",
         .path = "",
 
         // Image settings
@@ -86,7 +86,7 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 30),
+            .cycle = TIME_S2I(60 * 15),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(0)
         },
@@ -97,7 +97,7 @@ const conf_t conf_flash_default = {
             .cca = 0x5F
         },
         // App identity
-        .call = "VK2GJ-12",
+        .call = "VK2GJ-11",
         .path = "",
 
         // Image settings
