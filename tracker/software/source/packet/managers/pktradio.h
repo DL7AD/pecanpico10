@@ -206,7 +206,7 @@ extern "C" {
   void              pktLLDradioDetachStream(const radio_unit_t radio);
   const ICUConfig   *pktLLDradioStreamEnable(const radio_unit_t radio,
                                          palcallback_t cb);
-  void              pktLLDradioStreamDisableS(const radio_unit_t radio);
+  void              pktLLDradioStreamDisableI(const radio_unit_t radio);
   void      		pktStartDecoder(const radio_unit_t radio);
   void      		pktStopDecoder(const radio_unit_t radio);
   int       	 	pktDisplayFrequencyCode(radio_freq_t code, char *buf,

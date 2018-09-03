@@ -882,7 +882,7 @@ static void dma_interrupt(void *p, uint32_t flags) {
     return;
   }
   /*
-   *  Unknown DMA IRQ.
+   * Unknown DMA IRQ.
    * Disable timer, DMA and flag fault.
    */
   dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
@@ -1014,19 +1014,19 @@ void mode3_vsync_cb(void *arg) {
 }
 
 /*
- * Other drivers using resources that can cause DMA competition are locked.
+ * TODO: Deprecate. No longer used.
+ * DMA and IRQ priorities configured enabling OV5640 PDCMI concurrent with other H/W.
  */
 msg_t OV5640_LockResourcesForCapture(void) {
-  /* TODO: have to make this a loop which would handle multiple receivers. */
-  I2C_Lock();
+  //I2C_Lock();
   return MSG_OK;
 }
 
 /*
- * Unlock competing drivers.
+ * TODO: Deprecate
  */
 void OV5640_UnlockResourcesForCapture(void) {
-  I2C_Unlock();
+  //I2C_Unlock();
   return;
 }
 
@@ -1287,64 +1287,64 @@ void OV5640_InitGPIO(void)
 void OV5640_TransmitConfig(void)
 {
 	TRACE_INFO("CAM  > ... Software reset");
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3103, 0x11);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3008, 0x82);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3103, 0x11);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3008, 0x82);
 	chThdSleep(TIME_MS2I(100));
 
 	TRACE_INFO("CAM  > ... Initialization");
 	for(uint32_t i=0; (OV5640YUV_Sensor_Dvp_Init[i].reg != 0xffff) || (OV5640YUV_Sensor_Dvp_Init[i].val != 0xff); i++)
-		I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640YUV_Sensor_Dvp_Init[i].reg, OV5640YUV_Sensor_Dvp_Init[i].val);
+		I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640YUV_Sensor_Dvp_Init[i].reg, OV5640YUV_Sensor_Dvp_Init[i].val);
 
 	chThdSleep(TIME_MS2I(500));
 
 	/* TODO: Implement a basic JPEG configuration dataset versus using QSXGA. */
 	TRACE_INFO("CAM  > ... Configure JPEG");
 	for(uint32_t i=0; (OV5640_JPEG_QSXGA[i].reg != 0xffff) || (OV5640_JPEG_QSXGA[i].val != 0xff); i++)
-		I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_JPEG_QSXGA[i].reg, OV5640_JPEG_QSXGA[i].val);
+		I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_JPEG_QSXGA[i].reg, OV5640_JPEG_QSXGA[i].val);
 
 	TRACE_INFO("CAM  > ... Light Mode: Auto");
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3406, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3400, 0x04);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3401, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3402, 0x04);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3403, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3404, 0x04);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3405, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0xa3); // lanuch group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5183, 0x0 );
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3406, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3400, 0x04);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3401, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3402, 0x04);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3403, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3404, 0x04);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3405, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // lanuch group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5183, 0x0 );
 
 	TRACE_INFO("CAM  > ... Saturation: 0");
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5381, 0x1c);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5382, 0x5a);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5383, 0x06);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5384, 0x1a);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5385, 0x66);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5386, 0x80);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5387, 0x82);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5388, 0x80);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5389, 0x02);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x538b, 0x98);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x538a, 0x01);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5381, 0x1c);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5382, 0x5a);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5383, 0x06);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5384, 0x1a);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5385, 0x66);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5386, 0x80);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5387, 0x82);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5388, 0x80);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5389, 0x02);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x538b, 0x98);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x538a, 0x01);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
 
 	TRACE_INFO("CAM  > ... Brightness: 0");
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5587, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5588, 0x01);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5587, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5588, 0x01);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
 
 	TRACE_INFO("CAM  > ... Contrast: 0");
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5586, 0x20);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5585, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5586, 0x20);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5585, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
 }
 
 void OV5640_SetResolution(resolution_t res)
@@ -1353,27 +1353,27 @@ void OV5640_SetResolution(resolution_t res)
 	switch(res) {
 		case RES_QQVGA:
 			for(uint32_t i=0; (OV5640_QSXGA2QQVGA[i].reg != 0xffff) || (OV5640_QSXGA2QQVGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2QQVGA[i].reg, OV5640_QSXGA2QQVGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QQVGA[i].reg, OV5640_QSXGA2QQVGA[i].val);
 			break;
 
 		case RES_QVGA:
 			for(uint32_t i=0; (OV5640_QSXGA2QVGA[i].reg != 0xffff) || (OV5640_QSXGA2QVGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
 			break;
 
 		case RES_VGA:
 			for(uint32_t i=0; (OV5640_QSXGA2VGA[i].reg != 0xffff) || (OV5640_QSXGA2VGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2VGA[i].reg, OV5640_QSXGA2VGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2VGA[i].reg, OV5640_QSXGA2VGA[i].val);
 			break;
 
 		case RES_XGA:
 			for(uint32_t i=0; (OV5640_QSXGA2XGA[i].reg != 0xffff) || (OV5640_QSXGA2XGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2XGA[i].reg, OV5640_QSXGA2XGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2XGA[i].reg, OV5640_QSXGA2XGA[i].val);
 			break;
 
 		case RES_UXGA:
 			for(uint32_t i=0; (OV5640_QSXGA2UXGA[i].reg != 0xffff) || (OV5640_QSXGA2UXGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2UXGA[i].reg, OV5640_QSXGA2UXGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2UXGA[i].reg, OV5640_QSXGA2UXGA[i].val);
 			break;
 
 		case RES_NONE: // No configuration is made
@@ -1381,7 +1381,7 @@ void OV5640_SetResolution(resolution_t res)
 
 		default: // Default QVGA
 			for(uint32_t i=0; (OV5640_QSXGA2QVGA[i].reg != 0xffff) || (OV5640_QSXGA2QVGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
 	}
 }
 
@@ -1441,8 +1441,8 @@ bool OV5640_isAvailable(void) {
 
   uint8_t val, val2;
   bool ret;
-  if(I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300A, &val)
-      && I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300B, &val2)) {
+  if(I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x300A, &val)
+      && I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x300B, &val2)) {
       ret = val == 0x56 && val2 == 0x40;
   } else {
       error = 0x1;
@@ -1458,9 +1458,9 @@ bool OV5640_isAvailable(void) {
 void OV5640_setLightIntensity(void)
 {
 	uint8_t val1,val2,val3;
-	I2C_read8_16bitreg(OV5640_I2C_ADR, 0x3C1B, &val1);
-	I2C_read8_16bitreg(OV5640_I2C_ADR, 0x3C1C, &val2);
-	I2C_read8_16bitreg(OV5640_I2C_ADR, 0x3C1D, &val3);
+	I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1B, &val1);
+	I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1C, &val2);
+	I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1D, &val3);
 	lightIntensity = (val1 << 16) | (val2 << 8) | val3;
 }
 

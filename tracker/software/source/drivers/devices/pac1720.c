@@ -5,6 +5,7 @@
 #include "pac1720.h"
 #include "padc.h"
 #include <stdlib.h>
+#include "portab.h"
 
 /* 
  * FSP = FSC * FSV
@@ -48,8 +49,8 @@ int16_t pac1720_get_pbat(void) {
 	int16_t val;
 	uint8_t sign;
 
-	if(I2C_read16(PAC1720_ADDRESS, PAC1720_CH2_PWR_RAT_HIGH, (uint16_t*)&val)) {
-		I2C_read8(PAC1720_ADDRESS, PAC1720_CH2_VSENSE_HIGH, &sign);
+	if(I2C_read16(I2C_BUS1_DRIVER, PAC1720_ADDRESS, PAC1720_CH2_PWR_RAT_HIGH, (uint16_t*)&val)) {
+		I2C_read8(I2C_BUS1_DRIVER, PAC1720_ADDRESS, PAC1720_CH2_VSENSE_HIGH, &sign);
 		return (sign >> 7 ? -1 : 1) * 10 * (val * fsp / 65535);
 	} else {
 		error |= 0x1;
@@ -62,8 +63,8 @@ int16_t pac1720_get_psol(void) {
 	int16_t val;
 	uint8_t sign;
 
-	if(I2C_read16(PAC1720_ADDRESS, PAC1720_CH1_PWR_RAT_HIGH, (uint16_t*)&val)) {
-		I2C_read8(PAC1720_ADDRESS, PAC1720_CH1_VSENSE_HIGH, &sign);
+	if(I2C_read16(I2C_BUS1_DRIVER, PAC1720_ADDRESS, PAC1720_CH1_PWR_RAT_HIGH, (uint16_t*)&val)) {
+		I2C_read8(I2C_BUS1_DRIVER, PAC1720_ADDRESS, PAC1720_CH1_VSENSE_HIGH, &sign);
 		return (sign >> 7 ? -1 : 1) * 10 * (val * fsp / 65535);
 	} else {
 		error |= 0x1;
@@ -73,7 +74,7 @@ int16_t pac1720_get_psol(void) {
 
 uint16_t pac1720_get_vbat(void) {
 	uint16_t val;
-	if(!I2C_read16(PAC1720_ADDRESS, PAC1720_CH2_VSOURCE_HIGH, &val)) {
+	if(!I2C_read16(I2C_BUS1_DRIVER, PAC1720_ADDRESS, PAC1720_CH2_VSOURCE_HIGH, &val)) {
 		error |= 0x1;
 		return 0; // PAC1720 not available (maybe Vcc too low)
 	}
@@ -88,7 +89,7 @@ uint16_t pac1720_get_vbat(void) {
 
 uint16_t pac1720_get_vsol(void) {
 	uint16_t val;
-	if(!I2C_read16(PAC1720_ADDRESS, PAC1720_CH1_VSOURCE_HIGH, &val)) {
+	if(!I2C_read16(I2C_BUS1_DRIVER, PAC1720_ADDRESS, PAC1720_CH1_VSOURCE_HIGH, &val)) {
 		error |= 0x1;
 		return 0; // PAC1720 not available (maybe Vcc too low)
 	}
@@ -100,7 +101,7 @@ uint16_t pac1720_get_vsol(void) {
 bool pac1720_isAvailable(void)
 {
 	uint8_t val;
-	if(I2C_read8(PAC1720_ADDRESS, PAC1720_PRODUCT_ID, &val)) {
+	if(I2C_read8(I2C_BUS1_DRIVER, PAC1720_ADDRESS, PAC1720_PRODUCT_ID, &val)) {
 		error |= val != 0x57;
 		return val == 0x57;
 	} else {
@@ -116,9 +117,9 @@ static void sendConfig(void)
 	 * Current sensing average enabled 0x3
 	 * Current sensing range +-10mV (FSR)
 	 */
-	I2C_write8(PAC1720_ADDRESS, PAC1720_CH1_VSENSE_SAMP_CONFIG, 0x5C);
-	I2C_write8(PAC1720_ADDRESS, PAC1720_CH2_VSENSE_SAMP_CONFIG, 0x5C);
-	I2C_write8(PAC1720_ADDRESS, PAC1720_V_SOURCE_SAMP_CONFIG,   0xFF);
+	I2C_write8(I2C_BUS1_DRIVER, PAC1720_ADDRESS, PAC1720_CH1_VSENSE_SAMP_CONFIG, 0x5C);
+	I2C_write8(I2C_BUS1_DRIVER, PAC1720_ADDRESS, PAC1720_CH2_VSENSE_SAMP_CONFIG, 0x5C);
+	I2C_write8(I2C_BUS1_DRIVER, PAC1720_ADDRESS, PAC1720_V_SOURCE_SAMP_CONFIG,   0xFF);
 }
 
 void pac1720_get_avg(uint16_t* vbat, uint16_t* vsol, int16_t* pbat, int16_t* psol) {

@@ -226,7 +226,7 @@ void pktDisableRadioStream(const radio_unit_t radio) {
 
     chSysLock();
     /* Disable CCA line event. */
-    pktLLDradioStreamDisableS(radio);
+    pktLLDradioStreamDisableI(radio);
 
     /* Stop any timeouts in ICU PWM handling. */
     pktStopAllICUtimersI(myDemod->icudriver);
@@ -264,7 +264,7 @@ void pktDisableRadioStream(const radio_unit_t radio) {
 
     chSysLock();
     /* Disable CCA line event. */
-    pktLLDradioStreamDisableS(radio);
+    pktLLDradioStreamDisableI(radio);
 
     /* Stop any timeouts in ICU PWM handling. */
     pktStopAllICUtimersI(myDemod->icudriver);

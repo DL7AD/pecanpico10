@@ -518,7 +518,7 @@ uint8_t pktReleasePWMbuffers(AFSKDemodDriver *myDriver) {
     /* Check if the object is in CCM first. */
     pktAssertCCMdynamicCheck(object);
 #endif
-    qSetLink(&object->queue, NULL);
+    //qSetLink(&object->queue, NULL);
     chPoolFree(&myDriver->pwm_buffer_pool, object);
 #if USE_CCM_BASED_PWM_HEAP == TRUE
     /* Then check that the pool reference points to CCM. */

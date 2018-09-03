@@ -1474,8 +1474,10 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     uint16_t c = (all > free) ? free : all;
 
     /*
-     * Start transmission timeout timer.
-     * If the 446x gets locked up we'll exit TX and release packet object.
+     * Start/re-start transmission timeout timer for this packet.
+     * If the 446x gets locked up we'll exit TX and release packet object(s).
+     * FIXME: The CCA wait timeout is currently be set to 50% this timer.
+     * This is a quick fix to ensure CAA t/O is less than transmit T/O.
      */
 #define SI446X_AFSK_TX_TIMEOUT 10
     chVTSet(&send_timer, TIME_S2I(SI446X_AFSK_TX_TIMEOUT),
@@ -1736,6 +1738,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     /*
      * Start/re-start transmission timeout timer for this packet.
      * If the 446x gets locked up we'll exit TX and release packet object(s).
+     * FIXME: The CCA wait timeout is currently be set to 50% this timer.
+     * This is a quick fix to ensure CAA t/O is less than transmit T/O.
      */
 #define SI446X_2FSK_TX_TIMEOUT 10
     chVTSet(&send_timer, TIME_S2I(SI446X_2FSK_TX_TIMEOUT),
@@ -1934,7 +1938,7 @@ const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio,
 /**
  *
  */
-void Si446x_disablePWMeventsS(radio_unit_t radio) {
+void Si446x_disablePWMeventsI(radio_unit_t radio) {
   palDisableLineEventI(Si446x_getConfig(radio)->nirq);
 }
 /**

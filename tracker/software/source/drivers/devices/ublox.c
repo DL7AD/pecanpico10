@@ -35,9 +35,7 @@ static const char *model[] = {GPS_MODEL_NAMES};
  * Get pointer to model name as string
  */
 const char *gps_get_model_name(uint8_t index) {
-  if(index > GPS_MODEL_MAX)
-    return "INVALID";
-  return model[index];
+  return (index > GPS_MODEL_MAX ? "INVALID" : model[index]);
 }
 
 /**
@@ -46,7 +44,7 @@ const char *gps_get_model_name(uint8_t index) {
 void gps_transmit_string(uint8_t *cmd, uint8_t length) {
   gps_calc_ubx_csum(cmd, length);
 #if UBLOX_USE_I2C == TRUE
-  I2C_writeN(UBLOX_MAX_ADDRESS, cmd, length);
+  I2C_writeN(PKT_GPS_I2C, UBLOX_MAX_ADDRESS, cmd, length);
 #elif defined(UBLOX_UART_CONNECTED)
   sdWrite(&SD5, cmd, length);
 #endif
@@ -59,9 +57,9 @@ void gps_transmit_string(uint8_t *cmd, uint8_t length) {
 bool gps_receive_byte(uint8_t *data) {
 #if UBLOX_USE_I2C == TRUE
 	uint16_t len;
-	I2C_read16(UBLOX_MAX_ADDRESS, 0xFD, &len);
+	I2C_read16(PKT_GPS_I2C, UBLOX_MAX_ADDRESS, 0xFD, &len);
 	if(len) {
-		I2C_read8(UBLOX_MAX_ADDRESS, 0xFF, data);
+		I2C_read8(PKT_GPS_I2C, UBLOX_MAX_ADDRESS, 0xFF, data);
 		return true;
 	}
 #elif defined(UBLOX_UART_CONNECTED)

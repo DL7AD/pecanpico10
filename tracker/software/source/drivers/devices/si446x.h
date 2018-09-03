@@ -335,7 +335,7 @@ extern "C" {
   ICUDriver *Si446x_attachPWM(const radio_unit_t radio);
   bool Si446x_detachPWM(const radio_unit_t radio);
   const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio, palcallback_t cb);
-  void Si446x_disablePWMeventsS(const radio_unit_t radio);
+  void Si446x_disablePWMeventsI(const radio_unit_t radio);
   uint8_t Si446x_readCCA(const radio_unit_t radio);
 #ifdef __cplusplus
 }

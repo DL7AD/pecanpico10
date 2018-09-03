@@ -70,17 +70,14 @@
 #define STM32_PLLI2SR_VALUE                 4
 #define STM32_PLLI2SQ_VALUE                 4
 
-
-
-
 /*
  * ADC driver system settings.
  */
 #define STM32_ADC_ADCPRE                    ADC_CCR_ADCPRE_DIV4
 #define STM32_ADC_USE_ADC1                  TRUE
 #define STM32_ADC_ADC1_DMA_STREAM           STM32_DMA_STREAM_ID(2, 4)
-#define STM32_ADC_ADC1_DMA_PRIORITY         2
-#define STM32_ADC_IRQ_PRIORITY              6
+#define STM32_ADC_ADC1_DMA_PRIORITY         0
+#define STM32_ADC_IRQ_PRIORITY              10
 #define STM32_ADC_ADC1_DMA_IRQ_PRIORITY     6
 
 /*
@@ -224,7 +221,7 @@
 #define STM32_SPI_SPI5_TX_DMA_STREAM        STM32_DMA_STREAM_ID(2, 6)
 #define STM32_SPI_SPI1_DMA_PRIORITY         3
 #define STM32_SPI_SPI2_DMA_PRIORITY         3
-#define STM32_SPI_SPI3_DMA_PRIORITY         3
+#define STM32_SPI_SPI3_DMA_PRIORITY         2
 #define STM32_SPI_SPI4_DMA_PRIORITY         3
 #define STM32_SPI_SPI5_DMA_PRIORITY         3
 #define STM32_SPI_SPI1_IRQ_PRIORITY         10

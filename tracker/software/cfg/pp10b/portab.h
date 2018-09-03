@@ -28,6 +28,28 @@
  */
 #define PKT_RADIO1_SPI              SPI_BUS1_DRIVER
 
+/**
+ * I2C definitions
+ */
+#define I2C_BUS1_DRIVER             &I2CD1
+
+/**
+ * UBLOX I2C definition
+ */
+
+#define PKT_GPS_I2C                 I2C_BUS1_DRIVER
+
+/**
+ * OV5640 I2C definition
+ */
+#define PKT_CAM_I2C                 I2C_BUS1_DRIVER
+
+/**
+ * BME280 I2C definition
+ */
+#define PKT_BMEI_I2C                I2C_BUS1_DRIVER
+#define PKT_BMEE_I2C                NULL
+
 // Camera pins
 #define LINE_CAM_XCLK               PAL_LINE(GPIOC, 9U)
 #define LINE_CAM_PCLK               PAL_LINE(GPIOC, 6U)

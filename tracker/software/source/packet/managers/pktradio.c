@@ -155,6 +155,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         } /* End case PKT_RADIO_OPEN. */
 
         case MOD_NONE:
+        case MOD_2FSK_300:
         case MOD_2FSK_9k6:
         case MOD_2FSK_19k2:
         case MOD_2FSK_38k4:
@@ -178,6 +179,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       } /* End case MOD_AFSK. */
 
       case MOD_NONE:
+      case MOD_2FSK_300:
       case MOD_2FSK_9k6:
       case MOD_2FSK_19k2:
       case MOD_2FSK_38k4:
@@ -199,6 +201,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         } /* End case. */
 
         case MOD_NONE:
+        case MOD_2FSK_300:
         case MOD_2FSK_9k6:
         case MOD_2FSK_19k2:
         case MOD_2FSK_38k4:
@@ -287,6 +290,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         }
 
       case MOD_NONE:
+      case MOD_2FSK_300:
       case MOD_2FSK_9k6:
       case MOD_2FSK_19k2:
       case MOD_2FSK_38k4:
@@ -1070,6 +1074,7 @@ bool pktLLDradioSendPacket(radio_task_object_t *rto) {
   bool status;
   /* TODO: Implement VMT to functions per radio type. */
   switch(rto->type) {
+  case MOD_2FSK_300:
   case MOD_2FSK_9k6:
   case MOD_2FSK_19k2:
   case MOD_2FSK_38k4:
@@ -1266,13 +1271,13 @@ const ICUConfig *pktLLDradioStreamEnable(const radio_unit_t radio,
 /**
  *
  */
-void pktLLDradioStreamDisableS(const radio_unit_t radio) {
+void pktLLDradioStreamDisableI(const radio_unit_t radio) {
   /*
    * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
    * - Lookup radio type from radio ID.
    * - Then call VMT dispatcher inside radio driver.
    */
-  Si446x_disablePWMeventsS(radio);
+  Si446x_disablePWMeventsI(radio);
 }
 
 /**
