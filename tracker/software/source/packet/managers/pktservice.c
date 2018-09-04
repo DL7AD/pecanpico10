@@ -410,7 +410,8 @@ void pktStartDecoder(const radio_unit_t radio) {
     chDbgAssert(false, "wrong state for decoder start");
     return;
   }
-
+  /* Set state before starting decoder. */
+  handler->rx_state = PACKET_RX_ENABLED;
   event_listener_t el;
   event_source_t *esp;
 
@@ -447,13 +448,13 @@ void pktStartDecoder(const radio_unit_t radio) {
     /* In reality this is redundant as the only masked event is START. */
     chEvtWaitAny(USR_COMMAND_ACK);
 
-    /* Wait for correct event at source.
+    /*
+     *  Wait for correct event at source.
+     *  The decoder has attached the stream and started.
      */
     evt = chEvtGetAndClearFlags(&el);
   } while (evt != DEC_START_EXEC);
   pktUnregisterEventListener(esp, &el);
-  //handler->state = PACKET_DECODE;
-  handler->rx_state =   PACKET_RX_ACTIVE;
 }
 
 /**
@@ -484,7 +485,7 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
   if(handler->state != PACKET_READY)
     return MSG_RESET;
 
-  if(handler->rx_state != PACKET_RX_ACTIVE)
+  if(handler->rx_state != PACKET_RX_ENABLED)
     return MSG_RESET;
 
   /* Stop the radio processing. */
@@ -515,7 +516,7 @@ void pktStopDecoder(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  if(!pktIsReceiveActive(radio)) {
+  if(!pktIsReceiveEnabled(radio)) {
     /* Wrong state. */
     chDbgAssert(false, "wrong state for decoder stop");
     return;
@@ -560,7 +561,7 @@ void pktStopDecoder(radio_unit_t radio) {
   } while (evt != DEC_STOP_EXEC);
   pktUnregisterEventListener(esp, &el);
   //handler->state = PACKET_PAUSE;
-  handler->rx_state = PACKET_RX_ACTIVE;
+  handler->rx_state = PACKET_RX_ENABLED;
 }
 
 /**

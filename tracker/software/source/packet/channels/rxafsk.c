@@ -593,7 +593,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         eventmask_t evt = chEvtWaitAnyTimeout(DEC_COMMAND_START,
                                   TIME_MS2I(DECODER_WAIT_TIME));
         if(evt) {
+          /* Start stream from radio. */
           pktEnableRadioStream(radio);
+          /* Reset decoder data ready for decode. */
           myDriver->decoder_state = DECODER_RESET;
           pktAddEventFlags(myDriver, DEC_START_EXEC);
           break;
@@ -624,6 +626,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
          */
         eventmask_t evt = chEvtGetAndClearEvents(DEC_COMMAND_STOP);
         if(evt) {
+          /* Stop stream from radio. */
           pktDisableRadioStream(radio);
           myDriver->decoder_state = DECODER_WAIT;
           pktAddEventFlags(myDriver, DEC_STOP_EXEC);

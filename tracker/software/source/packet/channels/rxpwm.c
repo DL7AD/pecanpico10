@@ -155,7 +155,7 @@ void pktEnableRadioStream(const radio_unit_t radio) {
       && myHandler->rx_link_type == MOD_AFSK))
     return;*/
 
-  if(myHandler->rx_state != PACKET_RX_OPEN)
+  if(myHandler->rx_state != PACKET_RX_ENABLED)
     return;
 
   AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
@@ -186,6 +186,8 @@ void pktEnableRadioStream(const radio_unit_t radio) {
   }
 
   case PKT_PWM_READY:
+    return;
+
   case PKT_PWM_ACTIVE: {
     chDbgAssert(false, "wrong PWM state");
     return;
@@ -214,7 +216,7 @@ void pktDisableRadioStream(const radio_unit_t radio) {
       && myHandler->rx_link_type == MOD_AFSK))
     return;*/
 
-  if(myHandler->rx_state != PACKET_RX_OPEN)
+  if(myHandler->rx_state != PACKET_RX_ENABLED)
     return;
   AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
   chDbgAssert(myDemod != NULL, "no link controller");
@@ -251,6 +253,9 @@ void pktDisableRadioStream(const radio_unit_t radio) {
   }
 
   case PKT_PWM_STOP:
+    /* Stream is already stopped. */
+    return;
+
   case PKT_PWM_INIT: {
     chDbgAssert(false, "wrong PWM state");
     return;

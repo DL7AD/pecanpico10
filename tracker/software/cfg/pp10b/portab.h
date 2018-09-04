@@ -211,7 +211,7 @@
  */
 #define USE_HEAP_PWM_BUFFER             TRUE
 #define USE_CCM_BASED_PWM_HEAP          TRUE
-#define TRACE_PWM_BUFFER_STATS          TRUE
+#define TRACE_PWM_BUFFER_STATS          FALSE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
 #if USE_HEAP_PWM_BUFFER == TRUE

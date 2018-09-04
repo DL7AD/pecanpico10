@@ -218,21 +218,37 @@ THD_FUNCTION(pktRadioManager, arg) {
 
     case PKT_RADIO_TX_SEND: {
       /* Give each send a sequence number. */
-      //++handler->radio_tx_config.tx_seq_num;
-      if(pktIsReceiveActive(radio)) {
-        /* Stop the PWM stream. */
+      if(pktIsReceiveEnabled(radio)) {
         pktLLDlockRadioTransmit(radio, TIME_INFINITE);
-        //pktLLDradioPauseDecoding(radio);
         /*
-         * Detach and stop packet stream data.
-         * The decoder can continue if a packet decode is in progress.
-         * If the stream has the complete packet then the decode can complete.
-         * Else the decoder will discover the in-stream stop message.
-         * In that case the packet is dropped and the decode resets.
+         * TODO: Review experimental implementation of RX in progress wait.
+         * It is a simple loop for now.
+         * Could hook the radio squelch close event code perhaps or ??
          */
-        pktLLDradioDetachStream(radio);
+        if(pktIsReceiveInProgress(radio)
+            && task_object->squelch != PKT_SI446X_NO_CCA_RSSI) {
+          sysinterval_t wait = TIME_MS2I(300);
+          while(pktLLDradioGetInProgress(radio) && --wait) {
+            chThdSleep(TIME_MS2I(1));
+          }
+          TRACE_INFO("RAD  > Waited %d ms for in progress receive to complete",
+                    300 - chTimeI2MS(wait));
+        }
+        /*
+         * Stop transport layer stream data.
+         * The decoder can continue if a packet decode is in progress.
+         * For a framed HDLC packet then the decode can complete.
+         * If the frame is still open the decoder will see the in-stream stop message.
+         * In that case the packet is dropped and the decoder resets.
+         */
+        pktDisableRadioStream(radio);
+        //pktLLDradioDetachStream(radio);
         pktLLDunlockRadioTransmit(radio);
       }
+      /*
+       * Queue transmission.
+       * This is non blocking as each radio send runs in a thread.
+       */
       if(pktLLDradioSendPacket(task_object)) {
         /*
          * Keep count of active sends.
@@ -241,8 +257,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         handler->tx_count++;
 
         /* Send Successfully enqueued.
-         * Unlike receive the task object is held by the TX until complete.
-         * This is non blocking as each radio transmit runs in a thread.
+         * The task object is held by the TX process until complete.
          * The radio task object is released through a TX thread release task.
          */
         continue;
@@ -250,7 +265,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       /* Send failed so release send packet object(s) and task object. */
       packet_t pp = task_object->packet_out;
       pktReleaseBufferChain(pp);
-      if(pktIsReceiveActive(radio)) {
+      if(pktIsReceiveEnabled(radio)) {
         pktLLDlockRadioTransmit(radio, TIME_INFINITE);
         if(!pktLLDradioResumeReceive(radio)) {
           TRACE_ERROR("RAD  > Receive on radio %d failed to "
@@ -258,7 +273,6 @@ THD_FUNCTION(pktRadioManager, arg) {
           pktLLDunlockRadioTransmit(radio);
           break;
         }
-        //pktLLDradioResumeDecoding(radio);
         pktEnableRadioStream(radio);
         pktLLDunlockRadioTransmit(radio);
       }
@@ -348,7 +362,7 @@ THD_FUNCTION(pktRadioManager, arg) {
       /* If no transmissions pending then enable RX or power down. */
       if(--handler->tx_count == 0) {
         /* Check at handler level is OK. No LLD required. */
-        if(pktIsReceiveActive(radio)) {
+        if(pktIsReceiveEnabled(radio)) {
           /*
            *  Reconfigure radio for packet receive.
            *  Resume packet stream capture.
@@ -358,7 +372,9 @@ THD_FUNCTION(pktRadioManager, arg) {
                 "resume after transmit", radio);
             break;
           }
-          /* Resume packet stream. */
+          /*
+           * TODO: Rationalise/rework the stream enable.
+           * Resume packet stream. */
           pktEnableRadioStream(radio);
           //pktLLDradioAttachStream(radio);
           //pktEnableRadioPWM(radio);
@@ -501,7 +517,7 @@ bool pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
   pktLLDradioStartDecoder(radio);
   //pktStartDecoder(radio);
   /* Unlock radio and allow transmit requests. */
-  handler->rx_state = PACKET_RX_ACTIVE;
+  handler->rx_state = PACKET_RX_ENABLED;
   pktLLDunlockRadioTransmit(radio);
   return true;
 }
@@ -863,7 +879,7 @@ radio_freq_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
 radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   radio_freq_t op_freq;
-  if(pktIsReceiveActive(radio)) {
+  if(pktIsReceiveEnabled(radio)) {
     if(handler->radio_rx_config.base_frequency < FREQ_CODES_END)
       /* Frequency code. */
       return handler->radio_rx_config.base_frequency;
@@ -1023,6 +1039,27 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
 }
 
 /**
+ * @brief   Called by transmit threads to schedule release after completing.
+ * @post    A thread release task is posted to the radio manager queue.
+ *
+ * @param[in]   rto     reference to radio task object.
+ * @param[in]   thread  thread reference of thread terminating.
+ *
+ * @api
+ */
+void pktRadioSendComplete(radio_task_object_t *rto, thread_t *thread) {
+
+  //packet_svc_t *handler = rto->handler;
+
+  radio_unit_t radio = rto->handler->radio;
+  /* The handler and radio ID are set in returned object. */
+  rto->command = PKT_RADIO_TX_DONE;
+  rto->thread = thread;
+  /* Submit guaranteed to succeed by design. */
+  pktSubmitRadioTask(radio, rto, rto->callback);
+}
+
+/**
  * HAL functions
  */
 bool pktLLDradioInit(const radio_unit_t radio) {
@@ -1040,7 +1077,6 @@ bool pktLLDradioInit(const radio_unit_t radio) {
 
 void pktLLDradioShutdown(const radio_unit_t radio) {
   /* TODO: Implement hardware mapping. */
-  //(void)radio;
 
   /*
    * Put radio in shutdown mode.
@@ -1051,7 +1087,6 @@ void pktLLDradioShutdown(const radio_unit_t radio) {
 
 void pktLLDradioStandby(const radio_unit_t radio) {
   /* TODO: Implement hardware mapping. */
-  //(void)radio;
 
   /*
    * Put radio in standby (low power) mode.
@@ -1093,28 +1128,6 @@ bool pktLLDradioSendPacket(radio_task_object_t *rto) {
     status = false;
   } /* End switch on task_object->type. */
   return status;
-}
-
-/**
- * @brief   Called by transmit threads to schedule release after completing.
- * @post    A thread release task is posted to the radio manager queue.
- *
- * @param[in]   rto     reference to radio task object.
- * @param[in]   thread  thread reference of thread terminating.
- *
- * @api
- */
-void pktLLDradioSendComplete(radio_task_object_t *rto,
-                              thread_t *thread) {
-
-  packet_svc_t *handler = rto->handler;
-
-  radio_unit_t radio = handler->radio;
-  /* The handler and radio ID are set in returned object. */
-  rto->command = PKT_RADIO_TX_DONE;
-  rto->thread = thread;
-  /* Submit guaranteed to succeed by design. */
-  pktSubmitRadioTask(radio, rto, rto->callback);
 }
 
 /**
@@ -1175,8 +1188,6 @@ void pktLLDradioStopReceive(const radio_unit_t radio) {
 bool pktLLDradioResumeReceive(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  //chDbgAssert(handler != NULL, "invalid radio ID");
-
   radio_freq_t freq = handler->radio_rx_config.base_frequency;
   channel_hz_t step = handler->radio_rx_config.step_hz;
   radio_ch_t chan = handler->radio_rx_config.channel;
@@ -1214,6 +1225,10 @@ void pktLLDradioStartDecoder(const radio_unit_t radio) {
    * - Then call VMT dispatcher inside radio driver.
    * In case of AFSK the radio has to be started, the MCU DSP chain and HDLC.
    * In the case of 2FSK the radio, radio PH and HDLC.
+   * For now this function simply calls the service level start.
+   * It should implement the radio start which should be moved here.
+   * Or this function can be integrated into radio start instead.
+   * TBD.
    */
   pktStartDecoder(radio);
 }
@@ -1290,6 +1305,42 @@ uint8_t pktLLDradioReadCCA(const radio_unit_t radio) {
    * - Then call VMT dispatcher inside radio driver.
    */
   return Si446x_readCCA(radio);
+}
+
+/**
+ *
+ */
+bool pktLLDradioGetInProgress(const radio_unit_t radio) {
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  if(!pktIsReceiveEnabled(radio))
+    return false;
+
+  switch(handler->rx_link_type) {
+  case MOD_2FSK_300:
+  case MOD_2FSK_9k6:
+  case MOD_2FSK_19k2:
+  case MOD_2FSK_38k4:
+  case MOD_2FSK_57k6:
+  case MOD_2FSK_76k8:
+  case MOD_2FSK_96k:
+  case MOD_2FSK_115k2:
+    return false;
+
+  case MOD_AFSK: {
+    /* TODO: Put a macro in rxpwm.c */
+    AFSKDemodDriver *myDemod = handler->rx_link_control;
+    chDbgAssert(myDemod != NULL, "no demod driver");
+
+    if(myDemod->icustate == PKT_PWM_ACTIVE)
+      return true;
+    break;
+  }
+
+  case MOD_NONE:
+    return false;
+  } /* End switch on rx_link_type. */
+  return false;
 }
 
 /**

@@ -1379,7 +1379,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     pktReleaseBufferChain(pp);
 
     /* Schedule thread and task object memory release. */
-    pktLLDradioSendComplete(rto, chThdGetSelfX());
+    pktRadioSendComplete(rto, chThdGetSelfX());
 
     /* Exit thread. */
     chThdExit(MSG_RESET);
@@ -1443,7 +1443,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       pktReleaseBufferChain(pp);
 
       /* Schedule thread and task object memory release. */
-      pktLLDradioSendComplete(rto, chThdGetSelfX());
+      pktRadioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
       pktLLDunlockRadioTransmit(radio);
@@ -1473,16 +1473,6 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     /* Calculate initial FIFO fill. */
     uint16_t c = (all > free) ? free : all;
 
-    /*
-     * Start/re-start transmission timeout timer for this packet.
-     * If the 446x gets locked up we'll exit TX and release packet object(s).
-     * FIXME: The CCA wait timeout is currently be set to 50% this timer.
-     * This is a quick fix to ensure CAA t/O is less than transmit T/O.
-     */
-#define SI446X_AFSK_TX_TIMEOUT 10
-    chVTSet(&send_timer, TIME_S2I(SI446X_AFSK_TX_TIMEOUT),
-            (vtfunc_t)Si446x_transmitTimeoutI, chThdGetSelfX());
-
     /* The exit message if all goes well. */
     exit_msg = MSG_OK;
 
@@ -1490,9 +1480,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     for(uint16_t i = 0;  i < c; i++)
       localBuffer[i] = Si446x_getUpsampledNRZIbits(&upsampler, layer0);
     Si446x_writeFIFO(radio, localBuffer, c);
-
     uint8_t lower = 0;
-
+#define SI446X_AFSK_TX_TIMEOUT 10
     /* Request start of transmission. */
     if(Si446x_transmit(radio,
                        rto->base_frequency,
@@ -1503,6 +1492,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                        all,
                        rssi,
                        TIME_S2I(SI446X_AFSK_TX_TIMEOUT / 2))) {
+
+      /*
+       * Start/re-start transmission timeout timer for this packet.
+       * If the 446x gets locked up we'll exit TX and release packet object(s).
+       */
+      chVTSet(&send_timer, TIME_S2I(SI446X_AFSK_TX_TIMEOUT),
+              (vtfunc_t)Si446x_transmitTimeoutI, chThdGetSelfX());
 
       /* Feed the FIFO while data remains to be sent. */
       while((all - c) > 0) {
@@ -1581,7 +1577,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   rto->result = exit_msg;
 
   /* Finished send so schedule thread memory and task object release. */
-  pktLLDradioSendComplete(rto, chThdGetSelfX());
+  pktRadioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
   pktLLDunlockRadioTransmit(radio);
@@ -1647,7 +1643,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     pktReleaseBufferChain(pp);
 
     /* Schedule thread and task object memory release. */
-    pktLLDradioSendComplete(rto, chThdGetSelfX());
+    pktRadioSendComplete(rto, chThdGetSelfX());
 
     /* Exit thread. */
     chThdExit(MSG_RESET);
@@ -1711,7 +1707,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       rto->result = MSG_ERROR;
 
       /* Schedule thread and task object memory release. */
-      pktLLDradioSendComplete(rto, chThdGetSelfX());
+      pktRadioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
       pktLLDunlockRadioTransmit(radio);
@@ -1735,16 +1731,6 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     /* Calculate initial FIFO fill. */
     uint16_t c = (all > free) ? free : all;
 
-    /*
-     * Start/re-start transmission timeout timer for this packet.
-     * If the 446x gets locked up we'll exit TX and release packet object(s).
-     * FIXME: The CCA wait timeout is currently be set to 50% this timer.
-     * This is a quick fix to ensure CAA t/O is less than transmit T/O.
-     */
-#define SI446X_2FSK_TX_TIMEOUT 10
-    chVTSet(&send_timer, TIME_S2I(SI446X_2FSK_TX_TIMEOUT),
-            (vtfunc_t)Si446x_transmitTimeoutI, chThdGetSelfX());
-
     /* The exit message if all goes well. */
     exit_msg = MSG_OK;
 
@@ -1754,7 +1740,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     Si446x_writeFIFO(radio, bufp, c);
     bufp += c;
     uint8_t lower = 0;
-
+#define SI446X_2FSK_TX_TIMEOUT 10
     /* Request start of transmission. */
     if(Si446x_transmit(radio,
                        rto->base_frequency,
@@ -1765,6 +1751,14 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                        all,
                        rssi,
                        TIME_S2I(SI446X_2FSK_TX_TIMEOUT / 2))) {
+
+      /*
+       * Start/re-start transmission timeout timer for this packet.
+       * If the 446x gets locked up we'll exit TX and release packet object(s).
+       */
+      chVTSet(&send_timer, TIME_S2I(SI446X_2FSK_TX_TIMEOUT),
+              (vtfunc_t)Si446x_transmitTimeoutI, chThdGetSelfX());
+
       /* Feed the FIFO while data remains to be sent. */
       while((all - c) > 0) {
         /* Get TX FIFO free count. */
@@ -1839,7 +1833,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   rto->result = exit_msg;
 
   /* Finished send so schedule thread memory and task object release. */
-  pktLLDradioSendComplete(rto, chThdGetSelfX());
+  pktRadioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
   pktLLDunlockRadioTransmit(radio);

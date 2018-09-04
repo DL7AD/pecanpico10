@@ -200,13 +200,14 @@ extern "C" {
   void      		pktLLDradioResumeDecoding(const radio_unit_t radio);
   void      		pktLLDradioStartDecoder(const radio_unit_t radio);
   void      		pktLLDradioStopDecoder(const radio_unit_t radio);
-  void      		pktLLDradioSendComplete(radio_task_object_t *rto,
+  void      		pktRadioSendComplete(radio_task_object_t *rto,
                                 thread_t *thread);
   ICUDriver         *pktLLDradioAttachStream(const radio_unit_t radio);
   void              pktLLDradioDetachStream(const radio_unit_t radio);
   const ICUConfig   *pktLLDradioStreamEnable(const radio_unit_t radio,
                                          palcallback_t cb);
   void              pktLLDradioStreamDisableI(const radio_unit_t radio);
+  bool              pktLLDradioGetInProgress(const radio_unit_t radio);
   void      		pktStartDecoder(const radio_unit_t radio);
   void      		pktStopDecoder(const radio_unit_t radio);
   int       	 	pktDisplayFrequencyCode(radio_freq_t code, char *buf,

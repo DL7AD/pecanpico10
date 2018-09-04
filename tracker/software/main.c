@@ -29,8 +29,9 @@ int main(void) {
 #endif
 
 	/*
-	 * Setup buffers in CCM if available.
-	 * Setup packet primary data.
+	 * Setup CCM based heap.
+	 * Most DSP related data is held in CCM.
+	 * There is no DMA involved in DSP filtering/decoding.
 	 */
 	bool pkt = pktSystemInit();
 

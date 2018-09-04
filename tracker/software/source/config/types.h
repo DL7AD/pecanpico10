@@ -6,8 +6,10 @@
 #include "ublox.h"
 
 #define IS_AFSK(m)	((m) == MOD_AFSK)
-#define IS_2FSK(m)	((m) == MOD_2FSK_9k6 || (m) == MOD_2FSK_19k2 || (m) == MOD_2FSK_38k4 || (m) == MOD_2FSK_57k6 \
-					 || (m) == MOD_2FSK_76k8 || (m) == MOD_2FSK_96k || (m) == MOD_2FSK_115k2)
+#define IS_2FSK(m)	((m) == MOD_2FSK_300 || (m) == MOD_2FSK_9k6              \
+                     || (m) == MOD_2FSK_19k2 || (m) == MOD_2FSK_38k4         \
+                     || (m) == MOD_2FSK_57k6 || (m) == MOD_2FSK_76k8         \
+                     || (m) == MOD_2FSK_96k  || (m) == MOD_2FSK_115k2)
 
 typedef enum {
 	FREQ_INVALID = 0,
@@ -77,7 +79,7 @@ typedef enum {
 typedef struct {
   radio_pwr_t       pwr;
   radio_freq_t      freq;
-  radio_mod_t             mod;
+  radio_mod_t       mod;
   union {
     radio_squelch_t   cca;
     radio_squelch_t   rssi;
@@ -87,14 +89,16 @@ typedef struct {
 typedef struct {
   radio_pwr_t       pwr;
   radio_freq_t      freq;
-  radio_mod_t             mod;
+  radio_mod_t       mod;
   link_speed_t      speed;
   radio_squelch_t   cca;
+  sysinterval_t     rx_wait;
+  sysinterval_t     cca_wait;
 } radio_tx_conf_t; // Radio / Modulation
 
 typedef struct {
   radio_freq_t      freq;
-  radio_mod_t             mod;
+  radio_mod_t       mod;
   link_speed_t      speed;
   radio_squelch_t   rssi;
 } radio_rx_conf_t; // Radio / Modulation

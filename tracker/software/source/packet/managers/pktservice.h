@@ -41,7 +41,7 @@ typedef enum handlerSvcStates {
 typedef enum handlerRxStates {
   PACKET_RX_IDLE = 0,
   PACKET_RX_OPEN,
-  PACKET_RX_ACTIVE,
+  PACKET_RX_ENABLED,
   PACKET_RX_CLOSE,
   PACKET_RX_INVALID
 } pkt_rx_state_t;
@@ -612,20 +612,34 @@ static inline bool pktIsTransmitOpen(radio_unit_t radio) {
 }
 
 /**
- * @brief   Tests if receive is active on the radio.
+ * @brief   Tests if receive is enabled on the radio.
  *
  * @param[in] radio    radio unit ID.
  *
  * @return        Result.
- * @retval true   If receive is active.
- * @retval false  If receive is paused.
+ * @retval true   If receive is enabled.
+ * @retval false  If receive is not enabled.
  *
  * @api
  */
-static inline bool pktIsReceiveActive(radio_unit_t radio) {
+static inline bool pktIsReceiveEnabled(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  //pkt_svc_state_t state = pktGetServiceState(radio);
-  return (handler->rx_state == PACKET_RX_ACTIVE);
+  return (handler->rx_state == PACKET_RX_ENABLED);
+}
+
+/**
+ * @brief   Tests if receive is in progress.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @return        Result.
+ * @retval true   If receive is in progress.
+ * @retval false  If receive is not in progress.
+ *
+ * @api
+ */
+static inline bool pktIsReceiveInProgress(radio_unit_t radio) {
+    return pktLLDradioGetInProgress(radio);
 }
 
 /**
@@ -640,7 +654,6 @@ static inline bool pktIsReceiveActive(radio_unit_t radio) {
  * @api
  */
 static inline bool pktIsReceiveReady(radio_unit_t radio) {
-  //pkt_svc_state_t state = pktGetServiceState(radio);
   packet_svc_t *handler = pktGetServiceObject(radio);
   return (handler->rx_state == PACKET_RX_OPEN);
 }
