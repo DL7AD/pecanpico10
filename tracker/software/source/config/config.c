@@ -38,7 +38,7 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
@@ -59,7 +59,7 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 60),
             .init_delay = TIME_S2I(30),
             .send_spacing = TIME_S2I(10)
@@ -85,7 +85,7 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 15),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(0)

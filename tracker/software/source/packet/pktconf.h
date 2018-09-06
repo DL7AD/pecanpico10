@@ -108,6 +108,7 @@
 
 /* Console thread event masks. */
 #define CONSOLE_CHANNEL_EVT     EVENT_MASK(EVT_PRIORITY_BASE + 0)
+#define CONSOLE_SHELL_EVT       EVENT_MASK(EVT_PRIORITY_BASE + 1)
 
 /* Response thread event masks (from decoder to initiator). */
 #define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 15)
