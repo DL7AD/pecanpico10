@@ -11,6 +11,12 @@
 int main(void) {
 	halInit();					// Startup HAL
 	chSysInit();				// Startup RTOS
+    /*
+     * Setup CCM based heap.
+     * Most DSP related data is held in CCM.
+     * There is no DMA involved in DSP filtering/decoding.
+     */
+    pktSystemInit();
 
     /* Setup core IO peripherals. */
     pktConfigureCoreIO();
@@ -27,15 +33,6 @@ int main(void) {
     pktStartConsole();
     TRACE_INFO("MAIN > Console startup");
 #endif
-
-	/*
-	 * Setup CCM based heap.
-	 * Most DSP related data is held in CCM.
-	 * There is no DMA involved in DSP filtering/decoding.
-	 */
-	bool pkt = pktSystemInit();
-
-    chDbgAssert(pkt == true, "failed to init packet system");
 
     /*
      * Create a packet radio service.

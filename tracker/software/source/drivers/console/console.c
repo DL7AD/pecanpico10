@@ -220,6 +220,20 @@ THD_FUNCTION(pktConsole, arg) {
   event_listener_t con_el;
   event_listener_t shell_el;
 
+  /*Wait for start permission. */
+  thread_t *initiator = chMsgWait();
+  (void)chMsgGet(initiator);
+
+  console_state = CON_CHN_INIT;
+
+  /* Signal that basic init is done. */
+  chMsgRelease(initiator, MSG_OK);
+
+  /* Wait for serial channel to be started for us. */
+  initiator = chMsgWait();
+  (void)chMsgGet(initiator);
+
+  /* Attach event listener to serial channel. */
   chEvtRegisterMaskWithFlags(
                       chnGetEventSource((BaseAsynchronousChannel *)chp),
                       &con_el, CONSOLE_CHANNEL_EVT,
@@ -232,24 +246,10 @@ THD_FUNCTION(pktConsole, arg) {
                                       NULL
   };
 
-  console_state = CON_CHN_INIT;
-
-  /* Next run the handshake protocol for thread startup. */
-
-  /*Wait for start from initiator. */
-  thread_t *initiator = chMsgWait();
-  (void)chMsgGet(initiator);
-
-  /* Release the initiator which next enables the channel. */
+  /* Flag that channel setup is done. */
   chMsgRelease(initiator, MSG_OK);
 
-  /* Wait for channel to be started. */
-  initiator = chMsgWait();
-  (void)chMsgGet(initiator);
-
-  /* Release the initiator which then completes. */
-  chMsgRelease(initiator, MSG_OK);
-
+  /* Run. */
   do {
     eventmask_t evt = chEvtWaitAny(CONSOLE_CHANNEL_EVT | CONSOLE_SHELL_EVT);
     eventflags_t evtf = chEvtGetAndClearFlags(&con_el);
@@ -366,16 +366,12 @@ msg_t pktStartConsole(void) {
   if(con_thd == NULL)
     return MSG_TIMEOUT;
 
-  /* Wait for thread to start. */
+  /* Wait for thread to initialise. */
   msg_t smsg = chMsgSend(con_thd, MSG_OK);
 
   /* Start serial over USB. */
   sduStart(&SDU1, &serusbcfg);
 
-  /* Set SDIS in USB controller. */
-  usbDisconnectBus(&USBD1);
-
-  /* Wait for USB host poll. */
   chThdSleep(TIME_MS2I(100));
 
   /* Signal thread to enter trace output and shell request monitoring. */
@@ -383,7 +379,15 @@ msg_t pktStartConsole(void) {
 
   chThdSleep(TIME_MS2I(100));
 
-  /* Remove SDIS. */
+  /* Signal soft disconnect to the host (DP pull-up disconnected). */
+  usbDisconnectBus(&USBD1);
+
+  chThdSleep(TIME_MS2I(1500));
+
+  /*
+   * Notify host we are here.
+   * If the cable is connected the host should enumerate USB.
+   */
   usbConnectBus(&USBD1);
 
   return smsg;

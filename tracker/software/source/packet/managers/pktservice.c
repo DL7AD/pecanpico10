@@ -91,15 +91,12 @@ bool pktSystemInit(void) {
                    (size_t)(__ram4_end__ - __ram4_free__));
   }
 
-/*#if USE_CCM_HEAP_FOR_PKT == TRUE*/
   /*
    * Create common AX25 transmit packet buffer control.
    */
-  if(pktInitBufferControl() == NULL) {
-    return false;
-  }
-/*#endif*/
-  return true;
+  dyn_semaphore_t *buffers = pktInitBufferControl();
+  chDbgAssert(buffers != NULL, "failed to init packet buffers");
+  return buffers != NULL;
 }
 
 /**
