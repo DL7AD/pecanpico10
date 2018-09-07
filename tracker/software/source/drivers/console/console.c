@@ -266,11 +266,11 @@ THD_FUNCTION(pktConsole, arg) {
       case CON_CHN_CONNECT: {
         /* Flush any garbage input. */
         do {
-          /* Flush the input queue. */
-          flushConsoleInputQueue(chp);
           /* Flush input events. */
           (void)chEvtWaitAnyTimeout(CONSOLE_CHANNEL_EVT, TIME_MS2I(500));
         } while(chEvtGetAndClearFlags(&con_el) & CHN_INPUT_AVAILABLE);
+        /* Flush the input queue. */
+        flushConsoleInputQueue(chp);
         chThdSleep(TIME_MS2I(100));
         if(console_state == CON_CHN_CONNECT) {
           /* Put out our welcome message and enable trace. */
@@ -281,8 +281,6 @@ THD_FUNCTION(pktConsole, arg) {
         /* Else we start or resume shell mode. */
         chprintf(chp, "\r\n*** Trace suspended - type ^D or use the "
                       "'exit' command to resume trace ***\r\n");
-        /* Flush the input queue. */
-/*        flushConsoleInputQueue(chp);*/
         chDbgAssert(shelltp == NULL, "shell thread still assigned");
         shellInit();
         shelltp = chThdCreateFromHeap(NULL,
