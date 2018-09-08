@@ -254,9 +254,7 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
 {
 	if(argc < 2)
 	{
-		chprintf(chp, "Argument missing!\r\n");
-		chprintf(chp, "Argument 1: Destination\r\n");
-		chprintf(chp, "Argument 2: Message\r\n");
+	    shellUsage(chp, "msg destination message");
 		return;
 	}
 

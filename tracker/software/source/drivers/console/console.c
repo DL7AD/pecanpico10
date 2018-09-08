@@ -284,7 +284,7 @@ THD_FUNCTION(pktConsole, arg) {
         chDbgAssert(shelltp == NULL, "shell thread still assigned");
         shellInit();
         shelltp = chThdCreateFromHeap(NULL,
-                                      THD_WORKING_AREA_SIZE(1 * 1024),
+                                      THD_WORKING_AREA_SIZE(3 * 1024),
                                       "shell", NORMALPRIO + 1,
                                       shellThread,
                                       (void *)&shell_cfg);
