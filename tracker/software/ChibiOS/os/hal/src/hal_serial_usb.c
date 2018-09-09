@@ -190,6 +190,7 @@ static void obnotify(io_buffers_queue_t *bqp) {
   if (!usbGetTransmitStatusI(sdup->config->usbp, sdup->config->bulk_in)) {
     /* Trying to get a full buffer.*/
     uint8_t *buf = obqGetFullBufferI(&sdup->obqueue, &n);
+    osalDbgAssert(buf != NULL, "full output buffer not found in queue");
     if (buf != NULL) {
       /* Buffer found, starting a new transaction.*/
       usbStartTransmitI(sdup->config->usbp, sdup->config->bulk_in, buf, n);

@@ -333,7 +333,7 @@
  * @note    The default is 2 buffers.
  */
 #if !defined(SERIAL_USB_BUFFERS_NUMBER) || defined(__DOXYGEN__)
-#define SERIAL_USB_BUFFERS_NUMBER   2
+#define SERIAL_USB_BUFFERS_NUMBER   4
 #endif
 
 /*===========================================================================*/

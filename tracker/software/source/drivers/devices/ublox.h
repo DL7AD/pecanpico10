@@ -23,7 +23,6 @@
 
 
 /* Model limits. */
-//#define GPS_MODEL_UNSET         -1
 #define GPS_MODEL_MAX           GPS_MODEL_AIRBORNE4G
 
 /**

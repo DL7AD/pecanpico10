@@ -4,6 +4,9 @@
 #include "ch.h"
 //#include "hal.h"
 
+#define  CON_RESUME_SHELL   FALSE
+#define  CON_DEBUG_TRACE    FALSE
+
 typedef enum consoleStates {
   CON_CHN_INIT = 0,
   CON_CHN_IDLE,
@@ -15,7 +18,16 @@ typedef enum consoleStates {
   CON_CHN_CONNECT
 } con_chn_state_t;
 
-//#define isUSBactive() (SDU1.config->usbp->state == USB_ACTIVE)
+/* State limit. */
+#define CONSOLE_STATE_MAX           CON_CHN_CONNECT
+
+/**
+ * @brief   Console states as array of strings.
+ * @details Each element in an array initialized with this macro can be
+ *          indexed using a numeric console state value.
+ */
+#define CONSOLE_STATE_NAMES                                                 \
+  "INIT", "IDLE", "WAIT", "TERM", "TRACE", "SHELL", "FLUSH", "CONNECT"
 
 msg_t   pktStartConsole(void);
 void    startSDU(void);

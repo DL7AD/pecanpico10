@@ -33,19 +33,37 @@ static con_chn_state_t console_state;
 thread_t *shelltp = NULL;
 
 /**
- *
+ * Array for looking up console state.
+ */
+static const char *state[] = {CONSOLE_STATE_NAMES};
+
+/*===========================================================================*/
+/* Module local functions.                                                   */
+/*===========================================================================*/
+
+/**
+ * Get pointer to console state as string
+ */
+const char *console_state_name(uint8_t index) {
+  return (index > CONSOLE_STATE_MAX ? "INVALID" : state[index]);
+}
+
+/**
+ * Event handlers.
  */
 static void pktConsoleConnected(eventid_t id) {
   (void)id;
   switch(console_state) {
   case CON_CHN_INIT:
     console_state = CON_CHN_CONNECT;
-    TRACE_DEBUG("CON  > Connect event when in INIT");
+    if(CON_DEBUG_TRACE)
+      TRACE_DEBUG("CON  > Connect event when in INIT");
     break;
 
   case CON_CHN_IDLE: {
     console_state = CON_CHN_CONNECT;
-    TRACE_DEBUG("CON  > Connect event when in IDLE");
+    if(CON_DEBUG_TRACE)
+      TRACE_DEBUG("CON  > Connect event when in IDLE");
     break;
   }
 
@@ -71,7 +89,8 @@ static void pktConsoleConnected(eventid_t id) {
 
   case CON_CHN_WAIT: {
     /* Re-establish the shell session. */
-    TRACE_DEBUG("CON  > Connected event when in WAIT");
+    if(CON_DEBUG_TRACE)
+      TRACE_DEBUG("CON  > Connected event when in WAIT");
     console_state = CON_CHN_FLUSH;
     break;
   }
@@ -97,19 +116,22 @@ static void pktConsoleDisconnected(eventid_t id) {
 
   case CON_CHN_IDLE: {
     /* When the USB cable is unplugged it is possible to get a flood of events. */
-    TRACE_DEBUG("CON  > Disconnect event when in IDLE");
+    if(CON_DEBUG_TRACE)
+      TRACE_DEBUG("CON  > Disconnect event when in IDLE");
     break;
   }
 
   case CON_CHN_TRACE: {
     /* When the USB cable is unplugged it is possible to get a flood of events. */
-    TRACE_DEBUG("CON  > Disconnect event when in TRACE");
+    if(CON_DEBUG_TRACE)
+      TRACE_DEBUG("CON  > Disconnect event when in TRACE");
     console_state = CON_CHN_IDLE;
     break;
   }
 
   case CON_CHN_SHELL: {
-    TRACE_DEBUG("CON  > Disconnect event when in SHELL");
+    if(CON_DEBUG_TRACE)
+      TRACE_DEBUG("CON  > Disconnect event when in SHELL");
 
     /*
      *  Wait for shell to time out in serial read.
@@ -122,7 +144,7 @@ static void pktConsoleDisconnected(eventid_t id) {
 
     /*
      * Set state here.
-     * The shell event handler waits for shell exit and unregisters event listener.
+     * At shell termination set re-connect state to re-start shell or trace state.
      */
     console_state = CON_CHN_TERM;
     break;
@@ -134,7 +156,8 @@ static void pktConsoleDisconnected(eventid_t id) {
   }
 
   case CON_CHN_CONNECT: {
-    TRACE_DEBUG("CON  > Disconnect event when in CONNECT");
+    if(CON_DEBUG_TRACE)
+      TRACE_DEBUG("CON  > Disconnect event when in CONNECT");
     console_state = CON_CHN_IDLE;
     break;
   }
@@ -169,7 +192,8 @@ static void pktConsoleInputAvailable(eventid_t id) {
   }
 
   case CON_CHN_TRACE: {
-    TRACE_DEBUG("CON  > Input available event when in TRACE");
+    if(CON_DEBUG_TRACE)
+      TRACE_DEBUG("CON  > Input available event when in TRACE");
     console_state = CON_CHN_FLUSH;
     break;
   }
@@ -197,7 +221,8 @@ static void pktConsoleInputAvailable(eventid_t id) {
   }
 
   case CON_CHN_TERM: {
-    TRACE_DEBUG("CON  > Input available event when in TERM");
+    if(CON_DEBUG_TRACE)
+      TRACE_DEBUG("CON  > Input available event when in TERM");
     /* Ignore input when disconnecting and terminating shell. */
     break;
   }
@@ -253,22 +278,24 @@ THD_FUNCTION(pktConsole, arg) {
   do {
     eventmask_t evt = chEvtWaitAny(CONSOLE_CHANNEL_EVT | CONSOLE_SHELL_EVT);
     eventflags_t evtf = chEvtGetAndClearFlags(&con_el);
-    TRACE_DEBUG("CON  > Events %x with flags %x in state %x",
-                evt, evtf, console_state);
+    if(CON_DEBUG_TRACE)
+      TRACE_DEBUG("CON  > Events %x with flags %x in state %s",
+                evt, evtf, console_state_name(console_state));
     if(evt & CONSOLE_CHANNEL_EVT) {
+      /* Execute the event handlers. */
       chEvtDispatch(handlers, evtf);
+      /* Process state either current or as updated by event handlers. */
       switch(console_state) {
-
-      case CON_CHN_FLUSH:
-        /* Falls through. */
+      /* The next two cases are entered by a channel connect happening. */
       case CON_CHN_WAIT:
         /* Falls through. */
-      case CON_CHN_CONNECT: {
-        /* Flush any garbage input. */
-        do {
-          /* Flush input events. */
-          (void)chEvtWaitAnyTimeout(CONSOLE_CHANNEL_EVT, TIME_MS2I(500));
-        } while(chEvtGetAndClearFlags(&con_el) & CHN_INPUT_AVAILABLE);
+      case CON_CHN_CONNECT:
+        /* Wait for any garbage input to subside. */
+        chThdSleep(TIME_MS2I(1200));
+       (void)chEvtGetAndClearEvents(CONSOLE_CHANNEL_EVT);
+       (void)chEvtGetAndClearFlags(&con_el);
+       /* Falls through. */
+      case CON_CHN_FLUSH: {
         /* Flush the input queue. */
         flushConsoleInputQueue(chp);
         chThdSleep(TIME_MS2I(100));
@@ -276,6 +303,7 @@ THD_FUNCTION(pktConsole, arg) {
           /* Put out our welcome message and enable trace. */
           chprintf(chp, "\r\n*** Terminal connected ***\r\n");
           console_state = CON_CHN_TRACE;
+          /* Wait for next event. */
           continue;
         }
         /* Else we start or resume shell mode. */
@@ -291,6 +319,7 @@ THD_FUNCTION(pktConsole, arg) {
         if(shelltp == NULL) {
           console_state = CON_CHN_TRACE;
           TRACE_ERROR("CON  > Failed to create shell");
+          /* Wait for next event. */
           continue;
         }
         /* Register for shell terminate event. */
@@ -299,10 +328,12 @@ THD_FUNCTION(pktConsole, arg) {
                             &shell_el, CONSOLE_SHELL_EVT,
                             (eventflags_t)0);
         console_state = CON_CHN_SHELL;
+        /* Wait for next event. */
         continue;
       } /* End case CON_CHN_CONNECT or CON_CHN_WAIT. */
 
       default:
+        /* Check if there was a shell event. */
         break;
       } /* End switch on console_state. */
     } /* End if(evt & CONSOLE_CHANNEL_EVT). */
@@ -319,8 +350,10 @@ THD_FUNCTION(pktConsole, arg) {
        * Wait for the thread to exit.
        * If the channel disconnected go to IDLE else resume TRACE
        */
-      TRACE_DEBUG("CON  > Terminating shell thread %x with evt %x & evtf %x in state %x",
-                  shelltp, evt, evtf, console_state);
+      if(CON_DEBUG_TRACE)
+        TRACE_DEBUG("CON  > Terminating shell thread %x with events %x & flags %x"
+                          " in state %s",
+                  shelltp, evt, evtf, console_state_name(console_state));
       if(shelltp != NULL) {
         chEvtUnregister(&shell_terminated, &shell_el);
         chThdWait(shelltp);
@@ -335,8 +368,12 @@ THD_FUNCTION(pktConsole, arg) {
         console_state = CON_CHN_TRACE;
         continue;
       }
-      /* Set next state when coming out of disconnected. */
-      console_state = (console_state == CON_CHN_TERM) ? CON_CHN_WAIT
+      /*
+       * Set next state to be used when coming out of disconnected.
+       * If the shell is open then re-establish it on re-connect.
+      */
+      console_state = ((console_state == CON_CHN_TERM) && CON_RESUME_SHELL)
+                                                      ? CON_CHN_WAIT
                                                       : CON_CHN_IDLE;
     } /* End of shell event block. */
   } while(true);
