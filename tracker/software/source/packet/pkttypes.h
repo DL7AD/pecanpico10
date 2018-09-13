@@ -74,6 +74,7 @@ typedef enum radioMode {
 //typedef struct radioBand radio_band_t;
 typedef struct packetHandlerData pkt_service_t;
 typedef struct AFSK_data AFSKDemodDriver;
+typedef struct indicatorIO indicator_io_t;
 
 /* Type for a radio band. */
 typedef struct radioBand {
@@ -91,6 +92,7 @@ typedef struct radioConfig {
   void              *dat;
   radio_freq_t      def_aprs;       /**< A frequency in one of the bands. */
   radio_band_t      **bands;
+  indicator_io_t    *ind_set;
 } radio_config_t;
 
 typedef uint8_t ax25char_t;

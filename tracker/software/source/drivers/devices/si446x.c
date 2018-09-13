@@ -1373,7 +1373,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
-  if(pktLLDlockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
+  if(pktLockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
     TRACE_ERROR("SI   > AFSK TX reset from radio acquisition");
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
@@ -1386,6 +1386,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     /* We never arrive here. */
     chSysHalt("TX AFSK exit");
   }
+  pktSetReceiveInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
+                        ? TIME_IMMEDIATE : TIME_MS2I(300));
 
   /* Initialize radio before any commands as it may have been powered down. */
   Si446x_conditional_init(radio);
@@ -1446,7 +1448,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       pktRadioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
-      pktLLDunlockRadioTransmit(radio);
+      pktUnlockRadioTransmit(radio);
 
       /* Exit thread. */
       chThdExit(MSG_ERROR);
@@ -1580,7 +1582,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   pktRadioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
-  pktLLDunlockRadioTransmit(radio);
+  pktUnlockRadioTransmit(radio);
 
   /* Exit thread. */
   chThdExit(exit_msg);
@@ -1637,7 +1639,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   chDbgAssert(pp != NULL, "no packet in radio task");
 
   /* Check for MSG_RESET which means system has forced radio release. */
-  if(pktLLDlockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
+  if(pktLockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
     TRACE_ERROR("SI   > 2FSK TX reset from radio acquisition");
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
@@ -1649,6 +1651,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     chThdExit(MSG_RESET);
     /* We never arrive here. */
   }
+  pktSetReceiveInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
+                        ? TIME_IMMEDIATE : TIME_MS2I(300));
 
   /* Initialize radio before any commands as it may have been powered down. */
   Si446x_conditional_init(radio);
@@ -1710,7 +1714,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       pktRadioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
-      pktLLDunlockRadioTransmit(radio);
+      pktUnlockRadioTransmit(radio);
 
       /* Exit thread. */
       chThdExit(MSG_ERROR);
@@ -1836,7 +1840,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   pktRadioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
-  pktLLDunlockRadioTransmit(radio);
+  pktUnlockRadioTransmit(radio);
 
   /* Exit thread. */
   chThdExit(exit_msg);

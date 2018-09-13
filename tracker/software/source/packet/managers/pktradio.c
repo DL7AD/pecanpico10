@@ -218,33 +218,23 @@ THD_FUNCTION(pktRadioManager, arg) {
 
     case PKT_RADIO_TX_SEND: {
       /* Give each send a sequence number. */
-      if(pktIsReceiveEnabled(radio)) {
-        pktLLDlockRadioTransmit(radio, TIME_INFINITE);
-        /*
-         * TODO: Review experimental implementation of RX in progress wait.
-         * It is a simple loop for now.
-         * Could hook the radio squelch close event code perhaps or ??
-         */
+/*      if(pktIsReceiveEnabled(radio)) {
+        pktLockRadioTransmit(radio, TIME_INFINITE);
         if(pktIsReceiveInProgress(radio)
             && task_object->squelch != PKT_SI446X_NO_CCA_RSSI) {
-          sysinterval_t wait = TIME_MS2I(300);
-          while(pktLLDradioGetInProgress(radio) && --wait) {
+          sysinterval_t timeout = TIME_MS2I(300);
+          systime_t start = chVTGetSystemTime();
+          systime_t end = chTimeAddX(chVTGetSystemTime(), timeout);
+          while(pktRadioGetInProgress(radio)
+              && chVTIsSystemTimeWithin(start, end)) {
             chThdSleep(TIME_MS2I(1));
           }
           TRACE_INFO("RAD  > Waited %d ms for in progress receive to complete",
-                    300 - chTimeI2MS(wait));
+                     chTimeI2MS(chVTGetSystemTime() - start));
         }
-        /*
-         * Stop transport layer stream data.
-         * The decoder can continue if a packet decode is in progress.
-         * For a framed HDLC packet then the decode can complete.
-         * If the frame is still open the decoder will see the in-stream stop message.
-         * In that case the packet is dropped and the decoder resets.
-         */
         pktDisableRadioStream(radio);
-        //pktLLDradioDetachStream(radio);
-        pktLLDunlockRadioTransmit(radio);
-      }
+        pktUnlockRadioTransmit(radio);
+      }*/
       /*
        * Queue transmission.
        * This is non blocking as each radio send runs in a thread.
@@ -266,15 +256,15 @@ THD_FUNCTION(pktRadioManager, arg) {
       packet_t pp = task_object->packet_out;
       pktReleaseBufferChain(pp);
       if(pktIsReceiveEnabled(radio)) {
-        pktLLDlockRadioTransmit(radio, TIME_INFINITE);
+        pktLockRadioTransmit(radio, TIME_INFINITE);
         if(!pktLLDradioResumeReceive(radio)) {
           TRACE_ERROR("RAD  > Receive on radio %d failed to "
               "resume after transmit", radio);
-          pktLLDunlockRadioTransmit(radio);
+          pktUnlockRadioTransmit(radio);
           break;
         }
         pktEnableRadioStream(radio);
-        pktLLDunlockRadioTransmit(radio);
+        pktUnlockRadioTransmit(radio);
       }
       break;
     } /* End case PKT_RADIO_TX. */
@@ -286,9 +276,9 @@ THD_FUNCTION(pktRadioManager, arg) {
       switch(task_object->type) {
       case MOD_AFSK: {
         /* Stop receive. */
-        pktLLDlockRadioTransmit(radio, TIME_INFINITE);
+        pktLockRadioTransmit(radio, TIME_INFINITE);
         pktLLDradioStopReceive(radio);
-        pktLLDunlockRadioTransmit(radio);
+        pktUnlockRadioTransmit(radio);
         /* TODO: This should be a function back in pktservice or rxafsk. */
         esp = pktGetEventSource((AFSKDemodDriver *)handler->rx_link_control);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
@@ -502,11 +492,11 @@ void pktRadioManagerRelease(const radio_unit_t radio) {
  */
 bool pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  pktLLDlockRadioTransmit(radio, TIME_INFINITE);
+  pktLockRadioTransmit(radio, TIME_INFINITE);
   /* Configure receive. */
   if(!pktLLDradioStartReceive(radio, rto)) {
     TRACE_ERROR("RAD  > Receive on radio %d failed to start", radio);
-    pktLLDunlockRadioTransmit(radio);
+    pktUnlockRadioTransmit(radio);
     return false;
   }
 
@@ -514,11 +504,11 @@ bool pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
    * Start the AFSK decoder.
    * The decoder attaches the packet stream and waits for data.
    */
-  pktLLDradioStartDecoder(radio);
+  pktRadioStartDecoder(radio);
   //pktStartDecoder(radio);
   /* Unlock radio and allow transmit requests. */
   handler->rx_state = PACKET_RX_ENABLED;
-  pktLLDunlockRadioTransmit(radio);
+  pktUnlockRadioTransmit(radio);
   return true;
 }
 
@@ -538,11 +528,11 @@ bool pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
 bool pktStopRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
   (void)rto;
   packet_svc_t *handler = pktGetServiceObject(radio);
-  pktLLDlockRadioTransmit(radio, TIME_INFINITE);
-  pktLLDradioStopDecoder(radio);
+  pktLockRadioTransmit(radio, TIME_INFINITE);
+  pktRadioStopDecoder(radio);
   //pktStopDecoder(radio);
   handler->rx_state = PACKET_RX_OPEN;
-  pktLLDunlockRadioTransmit(radio);
+  pktUnlockRadioTransmit(radio);
   return true;
 }
 
@@ -715,7 +705,7 @@ void pktSubmitRadioTask(const radio_unit_t radio,
  *
  * @api
  */
-msg_t pktLLDlockRadioTransmit(const radio_unit_t radio,
+msg_t pktLockRadioTransmit(const radio_unit_t radio,
                       const sysinterval_t timeout) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 #if PKT_USE_RADIO_MUTEX == TRUE
@@ -736,7 +726,7 @@ msg_t pktLLDlockRadioTransmit(const radio_unit_t radio,
  *
  * @api
  */
-void pktLLDunlockRadioTransmit(const radio_unit_t radio) {
+void pktUnlockRadioTransmit(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 #if PKT_USE_RADIO_MUTEX == TRUE
   chMtxUnlock(&handler->radio_mtx);
@@ -966,7 +956,7 @@ radio_unit_t pktSelectRadioForFrequency(const radio_freq_t freq,
 
 /**
  * Get radio data.
- * TODO: refactor to use num radios in loop.
+ * TODO: refactor to use num radios in loop?
  */
 const radio_config_t *pktGetRadioData(radio_unit_t radio) {
   const radio_config_t *radio_list = pktGetRadioList();
@@ -978,6 +968,60 @@ const radio_config_t *pktGetRadioData(radio_unit_t radio) {
   }
   return NULL;
 }
+
+/**
+ * @brief   Set receive inactive.
+ * @notes   Will wait a timeout for receive in progress before setting inactive.
+ * @notes   This function is called by radio transmit threads.
+ * @notes   Transmit threads can lock the radio before calling this function.
+ * @notes   Receive completion relates with the receiver front end.
+ * @notes   The receive will be stopped if activity continues past timeout.
+ * @notes   Decoding of currently buffered data will continue and may complete.
+ * @post    The radio receive is stopped.
+ * @post    The radio manager will resume RX after TX completes.
+ *
+ * @param[in] radio     Radio unit ID.
+ * @param[in] timeout   the number of ticks before the operation times out.
+ *                      the following special values are allowed:
+ *                      - @a TIME_IMMEDIATE immediate timeout.
+ *                      - @a TIME_INFINITE no timeout.
+ *
+ * @return  status of request
+ * @retval  MSG_OK          receive was not active or ceased within the timeout.
+ * @retval  MSG_TIMEOUT     receive was stopped as it did not cease within t/o.
+ *
+ * @api
+ */
+msg_t pktSetReceiveInactive(const radio_unit_t radio, sysinterval_t timeout) {
+  msg_t msg = MSG_OK;
+  if(pktIsReceiveEnabled(radio)) {
+  /* Handle setting of receive inactive using timeout. */
+    if(pktIsReceiveInProgress(radio) && timeout != TIME_IMMEDIATE) {
+      systime_t start = chVTGetSystemTime();
+      systime_t end = chTimeAddX(chVTGetSystemTime(), timeout);
+      while(pktRadioGetInProgress(radio)
+          && (timeout == TIME_INFINITE
+              || chVTIsSystemTimeWithin(start, end))) {
+        /* Check receive every 1ms. */
+        chThdSleep(TIME_MS2I(1));
+      }
+      if(timeout == TIME_INFINITE || !chVTIsSystemTimeWithin(start, end))
+        msg = MSG_TIMEOUT;
+        TRACE_INFO("RAD  > Waited %d ms for in progress receive to complete",
+                 chTimeI2MS(chVTGetSystemTime() - start));
+    }
+    /*
+     * Stop transport layer stream data.
+     * The decoder will process buffered data from the radio.
+     * If the frame is incomplete the decoder will see an in-stream stop message.
+     * In that case the packet is dropped and the decoder resets.
+     * Otherwise the decoder can continue processing a complete buffered packet.
+     */
+    pktDisableRadioStream(radio);
+  }
+return msg;
+}
+
 
 /**
  * @brief   Compute an operating frequency.
@@ -1057,6 +1101,36 @@ void pktRadioSendComplete(radio_task_object_t *rto, thread_t *thread) {
   rto->thread = thread;
   /* Submit guaranteed to succeed by design. */
   pktSubmitRadioTask(radio, rto, rto->callback);
+}
+
+/**
+ *
+ */
+void pktRadioStartDecoder(const radio_unit_t radio) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   * In case of AFSK the radio has to be started, the MCU DSP chain and HDLC.
+   * In the case of 2FSK the radio, radio PH and HDLC.
+   * For now this function simply calls the service level start.
+   * It should implement the radio start which should be moved here.
+   * Or this function can be integrated into radio start instead.
+   * TBD.
+   */
+  pktStartDecoder(radio);
+}
+
+/**
+ *
+ */
+void pktRadioStopDecoder(const radio_unit_t radio) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+  pktStopDecoder(radio);
 }
 
 /**
@@ -1218,36 +1292,6 @@ void pktLLDradioCaptureRSSI(const radio_unit_t radio) {
 /**
  *
  */
-void pktLLDradioStartDecoder(const radio_unit_t radio) {
-  /*
-   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
-   * - Lookup radio type from radio ID.
-   * - Then call VMT dispatcher inside radio driver.
-   * In case of AFSK the radio has to be started, the MCU DSP chain and HDLC.
-   * In the case of 2FSK the radio, radio PH and HDLC.
-   * For now this function simply calls the service level start.
-   * It should implement the radio start which should be moved here.
-   * Or this function can be integrated into radio start instead.
-   * TBD.
-   */
-  pktStartDecoder(radio);
-}
-
-/**
- *
- */
-void pktLLDradioStopDecoder(const radio_unit_t radio) {
-  /*
-   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
-   * - Lookup radio type from radio ID.
-   * - Then call VMT dispatcher inside radio driver.
-   */
-  pktStopDecoder(radio);
-}
-
-/**
- *
- */
 ICUDriver *pktLLDradioAttachStream(const radio_unit_t radio) {
   /*
    * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
@@ -1310,7 +1354,7 @@ uint8_t pktLLDradioReadCCA(const radio_unit_t radio) {
 /**
  *
  */
-bool pktLLDradioGetInProgress(const radio_unit_t radio) {
+bool pktRadioGetInProgress(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   if(!pktIsReceiveEnabled(radio))
@@ -1332,9 +1376,7 @@ bool pktLLDradioGetInProgress(const radio_unit_t radio) {
     AFSKDemodDriver *myDemod = handler->rx_link_control;
     chDbgAssert(myDemod != NULL, "no demod driver");
 
-    if(myDemod->icustate == PKT_PWM_ACTIVE)
-      return true;
-    break;
+    return myDemod->icustate == PKT_PWM_ACTIVE;
   }
 
   case MOD_NONE:
@@ -1344,26 +1386,103 @@ bool pktLLDradioGetInProgress(const radio_unit_t radio) {
 }
 
 /**
- *
+ * @brief   Configure indicator for a radio.
+ * @notes   A radio can have more than one output type per indicator.
  */
-void pktLLDradioConfigIndicators(const radio_unit_t radio) {
-  (void)radio;
+void pktLLDradioConfigIndicator(const radio_unit_t radio,
+                                const indicator_t ind) {
+  const radio_config_t *data = pktGetRadioData(radio);
+  indicator_io_t *inds = data->ind_set;
+  if(inds == NULL)
+    /* Radio has no indicators. */
+    return;
+  do {
+    if(inds->ind != ind)
+      /* This is not the indicator specified. */
+      continue;
+    switch(inds->type) {
+    case PKT_IND_GPIO_LINE: {
+      if(inds->address.line != PAL_NOLINE)
+        palSetLineMode(inds->address.line, inds->driver.mode);
+      continue;
+    }
+
+    case PKT_IND_EXT_I2C:
+      continue;
+
+    case PKT_IND_EXT_SPI:
+      continue;
+    }
+  } while((inds++)->ind != PKT_INDICATOR_NONE);
 }
 
 /**
- *
+ * @brief   De-configure indicator output(s) for a radio.
+ * @notes   A radio can have more than one output type per indicator.
  */
-void pktLLDradioDeconfigIndicators(const radio_unit_t radio) {
-  (void)radio;
+void pktLLDradioDeconfigIndicator(const radio_unit_t radio,
+                                  const indicator_t ind) {
+  const radio_config_t *data = pktGetRadioData(radio);
+  indicator_io_t *inds = data->ind_set;
+  if(inds == NULL)
+    return;
+  do {
+    switch(inds->type) {
+    if(inds->ind != ind)
+      /* This is not the indicator specified. */
+      continue;
+    case PKT_IND_GPIO_LINE: {
+      if(inds->address.line != PAL_NOLINE)
+        palSetLineMode(inds->address.line, PAL_MODE_INPUT);
+      continue;
+    }
+
+    case PKT_IND_EXT_I2C:
+      continue;
+
+    case PKT_IND_EXT_SPI:
+      continue;
+    }
+  } while((inds++)->ind != PKT_INDICATOR_NONE);
 }
 
 /**
- *
+ * @brief   Update an indicator for a radio.
+ * @notes   A radio can have more than one output type per indicator.
+ * TODO: Implement so that value can be a scalar or pointer.
+ * Then an indicator could get an object or string reference.
  */
 void pktLLDradioUpdateIndicator(const radio_unit_t radio,
-                             radio_indicator_t ind) {
-  (void)radio;
-  (void)ind;
+                                const indicator_t ind,
+                                const indicator_msg_t val) {
+  const radio_config_t *data = pktGetRadioData(radio);
+  const indicator_io_t *inds = data->ind_set;
+  if(inds == NULL)
+    /* Radio has no indicators. */
+    return;
+  do {
+    if(inds->ind != ind)
+      /* This is not the indicator specified. */
+      continue;
+    switch(inds->type) {
+    /* Switch on output type. */
+    case PKT_IND_GPIO_LINE: {
+      if(inds->address.line == PAL_NOLINE)
+        continue;
+      if(val == PAL_TOGGLE)
+        palToggleLine(inds->address.line);
+      else
+        palWriteLine(inds->address.line, val);
+      return;
+    }
+
+    case PKT_IND_EXT_I2C:
+      continue;
+
+    case PKT_IND_EXT_SPI:
+      continue;
+    }
+  } while((inds++)->ind != PKT_INDICATOR_NONE);
 }
 
 /** @} */

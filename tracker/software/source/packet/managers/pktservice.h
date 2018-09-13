@@ -282,6 +282,12 @@ extern "C" {
 #endif
 
 /*===========================================================================*/
+/* Macro definitions      .                                                  */
+/*===========================================================================*/
+
+#define pktIsReceiveInProgress(radio) pktRadioGetInProgress(radio)
+
+/*===========================================================================*/
 /* Module inline functions.                                                  */
 /*===========================================================================*/
 
@@ -638,9 +644,9 @@ static inline bool pktIsReceiveEnabled(radio_unit_t radio) {
  *
  * @api
  */
-static inline bool pktIsReceiveInProgress(radio_unit_t radio) {
-    return pktLLDradioGetInProgress(radio);
-}
+/*static inline bool pktIsReceiveInProgress(radio_unit_t radio) {
+    return pktRadioGetInProgress(radio);
+}*/
 
 /**
  * @brief   Tests if receive is ready to start.

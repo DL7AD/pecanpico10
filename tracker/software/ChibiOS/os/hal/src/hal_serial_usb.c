@@ -352,7 +352,7 @@ void sduConfigureHookI(SerialUSBDriver *sdup) {
   bqResumeX(&sdup->obqueue);
   chnAddFlagsI(sdup, CHN_CONNECTED);
   bool r = sdu_start_receive(sdup);
-  osalDbgAssert(!r, "failed to start receive");
+  osalDbgAssert(!r, "failed start receive");
 }
 
 /**
@@ -512,7 +512,7 @@ void sduDataReceived(USBDriver *usbp, usbep_t ep) {
      so a packet is in the buffer for sure. Trying to get a free buffer
      for the next transaction.*/
   bool r = sdu_start_receive(sdup);
-  osalDbgAssert(!r, "failed to start receive");
+  osalDbgAssert(!r, "failed setup for next receive");
 
   osalSysUnlockFromISR();
 }
