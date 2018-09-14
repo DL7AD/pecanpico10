@@ -86,9 +86,9 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = false,
-            .cycle = TIME_S2I(60 * 15),
+            .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
-            .send_spacing = TIME_S2I(0)
+            .send_spacing = TIME_S2I(3)
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -104,7 +104,8 @@ const conf_t conf_flash_default = {
         .res = RES_VGA,
         .quality = 4,
         .buf_size = 60 * 1024,
-        .redundantTx = false
+        .redundantTx = false,
+        .no_burst = false
     },
 
     // Log app

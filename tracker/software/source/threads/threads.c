@@ -14,7 +14,7 @@
 #include "ax25_pad.h"
 #include "flash.h"
 
-sysinterval_t watchdog_tracking;
+systime_t watchdog_tracking;
 
 void start_essential_threads(void)
 {

@@ -995,31 +995,32 @@ const radio_config_t *pktGetRadioData(radio_unit_t radio) {
 msg_t pktSetReceiveInactive(const radio_unit_t radio, sysinterval_t timeout) {
   msg_t msg = MSG_OK;
   if(pktIsReceiveEnabled(radio)) {
-  /* Handle setting of receive inactive using timeout. */
-    if(pktIsReceiveInProgress(radio) && timeout != TIME_IMMEDIATE) {
-      systime_t start = chVTGetSystemTime();
-      systime_t end = chTimeAddX(chVTGetSystemTime(), timeout);
-      while(pktRadioGetInProgress(radio)
-          && (timeout == TIME_INFINITE
-              || chVTIsSystemTimeWithin(start, end))) {
-        /* Check receive every 1ms. */
-        chThdSleep(TIME_MS2I(1));
-      }
-      if(timeout == TIME_INFINITE || !chVTIsSystemTimeWithin(start, end))
-        msg = MSG_TIMEOUT;
+    if(timeout != TIME_IMMEDIATE) {
+      packet_svc_t *handler = pktGetServiceObject(radio);
+      event_source_t *esp = pktGetEventSource((packet_svc_t *)handler);
+      /* Register for EVT_PWM_STREAM_CLOSE event. */
+      event_listener_t el;
+      pktRegisterEventListener(esp, &el, GTE_RECEIVE_INACTIVE,
+                               EVT_RAD_STREAM_CLOSE);
+      if(pktIsReceiveInProgress(radio)) {
+        systime_t start = chVTGetSystemTime();
+        chEvtWaitAnyTimeout(GTE_RECEIVE_INACTIVE, timeout);
+        systime_t end = chVTGetSystemTime();
         TRACE_INFO("RAD  > Waited %d ms for in progress receive to complete",
-                 chTimeI2MS(chVTGetSystemTime() - start));
+                 chTimeI2MS(end - start));
+      }
+      pktUnregisterEventListener(esp, &el);
     }
-    /*
-     * Stop transport layer stream data.
-     * The decoder will process buffered data from the radio.
-     * If the frame is incomplete the decoder will see an in-stream stop message.
-     * In that case the packet is dropped and the decoder resets.
-     * Otherwise the decoder can continue processing a complete buffered packet.
-     */
-    pktDisableRadioStream(radio);
   }
-return msg;
+  /*
+   * Stop transport layer stream data.
+   * The decoder will process buffered data from the radio.
+   * If the frame is incomplete the decoder will see an in-stream stop message.
+   * In that case the packet is dropped and the decoder resets.
+   * Otherwise the decoder can continue processing a complete buffered packet.
+   */
+  pktDisableRadioStream(radio);
+  return msg;
 }
 
 

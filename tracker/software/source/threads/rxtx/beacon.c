@@ -29,9 +29,9 @@ THD_FUNCTION(bcnThread, arg) {
 
   // Set telemetry configuration transmission variables
   // Each beacon send configuration data as the call signs may differ
-  sysinterval_t last_conf_transmission =
+  systime_t last_conf_transmission =
       chVTGetSystemTime() - conf_sram.tel_enc_cycle;
-  sysinterval_t time = chVTGetSystemTime();
+  systime_t time = chVTGetSystemTime();
 
   /* Now wait for our delay before starting. */
 

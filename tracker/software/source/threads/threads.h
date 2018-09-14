@@ -12,6 +12,6 @@ void pktIdleThread(void);
 /* Module inline functions.                                                  */
 /*===========================================================================*/
 
-extern sysinterval_t watchdog_tracking; // Last update time for module TRACKING
+extern systime_t watchdog_tracking; // Last update time for module TRACKING
 
 #endif /* __THREADS_H__ */

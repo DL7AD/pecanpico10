@@ -710,7 +710,7 @@ static resolution_t last_res = RES_NONE;
   */
 uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
                              uint32_t size, resolution_t res) {
-	uint8_t cntr = 1; // Retry is implemented next level up so only do this once.
+	//uint8_t cntr = 1; // Retry is implemented next level up so only do this once.
 	uint32_t size_sampled;
 
 	// Set resolution (if not already done earlier)
@@ -725,15 +725,15 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
 	// Capture image until we get a good image or reach max retries.
     TRACE_INFO("CAM  > Capture image into buffer @ 0x%08x size 0x%08x",
                buffer, size);
-	do {
+/*	do {*/
 		size_sampled = OV5640_Capture(buffer, size);
 		if(size_sampled > 0) {
 		  TRACE_INFO("CAM  > Captured %d bytes", size_sampled);
 		  return size_sampled;
 		}
 		/* Allow time for other threads. */
-		chThdSleep(TIME_MS2I(10));
-	} while(--cntr);
+		//chThdSleep(TIME_MS2I(10));
+/*	} while(--cntr);*/
     TRACE_ERROR("CAM  > No image captured");
 	return 0;
 }

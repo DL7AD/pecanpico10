@@ -72,7 +72,7 @@ typedef enum radioMode {
 
 /* Forward declaration. */
 //typedef struct radioBand radio_band_t;
-typedef struct packetHandlerData pkt_service_t;
+typedef struct packetHandlerData packet_svc_t;
 typedef struct AFSK_data AFSKDemodDriver;
 typedef struct indicatorIO indicator_io_t;
 
@@ -86,7 +86,7 @@ typedef struct radioBand {
 typedef struct radioConfig {
   radio_unit_t      unit;
   radio_type_t      type;
-  pkt_service_t     *pkt;
+  packet_svc_t      *pkt;
   AFSKDemodDriver   *afsk;
   void              *cfg;
   void              *dat;

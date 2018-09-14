@@ -363,7 +363,7 @@ extern "C" {
  * @api
  */
 #define pktRegisterEventListener(ip, listener, events, flags) {              \
-    chEvtRegisterMaskWithFlags(ip, listener, events, flags);       \
+    chEvtRegisterMaskWithFlags(ip, listener, events, flags);                 \
 }
 
 /**
@@ -396,7 +396,7 @@ extern "C" {
  */
 static inline pkt_data_object_t *pktTakeDataBuffer(packet_svc_t *handler,
                                                     objects_fifo_t *fifo,
-                                                    systime_t timeout) {
+                                                    sysinterval_t timeout) {
   pkt_data_object_t *pkt_buffer = chFifoTakeObjectTimeout(fifo, timeout);
   handler->active_packet_object = pkt_buffer;
   if(pkt_buffer != NULL) {

@@ -41,7 +41,7 @@ THD_FUNCTION(logThread, arg)
 	if(conf->svc_conf.init_delay) chThdSleep(conf->svc_conf.init_delay);
 	TRACE_INFO("LOG  > Startup logging thread");
 
-	sysinterval_t time = chVTGetSystemTime();
+	systime_t time = chVTGetSystemTime();
 	while(true)
 	{
 		TRACE_INFO("LOG  > Do module LOG cycle");

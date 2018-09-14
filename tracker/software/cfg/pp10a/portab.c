@@ -78,7 +78,7 @@ const radio_config_t radio_list[] = {
   { /* Radio #1 */
     .unit = PKT_RADIO_1,
     .type = SI446X,
-    .pkt    = (pkt_service_t *const)&RPKTD1,
+    .pkt    = (packet_svc_t *const)&RPKTD1,
     .afsk   = (AFSKDemodDriver *const)&AFSKD1,
 	.cfg	= (si446x_mcucfg_t *const)&radio1_cfg,
     .dat    = (si446x_data_t *)&radio1_dat,

@@ -273,7 +273,7 @@
 extern const radio_band_t band_2m;
 extern const radio_band_t band_70cm;
 extern const radio_config_t radio_list[];
-extern pkt_service_t RPKTD1;
+extern packet_svc_t RPKTD1;
 extern AFSKDemodDriver AFSKD1;
 
 #ifdef __cplusplus

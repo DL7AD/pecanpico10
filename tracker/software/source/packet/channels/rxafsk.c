@@ -518,7 +518,6 @@ uint8_t pktReleasePWMbuffers(AFSKDemodDriver *myDriver) {
     /* Check if the object is in CCM first. */
     pktAssertCCMdynamicCheck(object);
 #endif
-    //qSetLink(&object->queue, NULL);
     chPoolFree(&myDriver->pwm_buffer_pool, object);
 #if USE_CCM_BASED_PWM_HEAP == TRUE
     /* Then check that the pool reference points to CCM. */
@@ -570,16 +569,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   /* Save the priority that calling thread gave us. */
   tprio_t decoder_idle_priority = chThdGetPriorityX();
 
-  /*
-   * Setup LED for decoder blinker.
-   * TODO: Make LED mapping by radio.
-   * Probably use a struct in radio config object.
-   *
-   */
-  //pktSetGPIOlineMode(LINE_DECODER_LED, PAL_MODE_OUTPUT_PUSHPULL);
+  /* Setup LED for decoder blinker.  */
   pktLLDradioConfigIndicator(radio, PKT_INDICATOR_DECODE);
-
-  //pktWriteGPIOline(LINE_DECODER_LED, PAL_HIGH);
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
 
    /* Acknowledge open then wait for start or close of decoder. */
@@ -612,9 +603,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /* Something went wrong if we arrive here. */
           chSysHalt("ThdExit");
         }
-        /* Toggle decoder LED in wait state. */
+        /* Toggle indicator LED in wait state. */
 
-        //pktWriteGPIOline(LINE_DECODER_LED, PAL_TOGGLE);
         pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_TOGGLE);
         continue;
       }
@@ -648,10 +638,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         if(fifo_msg != MSG_OK) {
           /* Give decoder LED a quick blink if we've been idle for > cycle time. */
           if(led_count < DECODER_LED_POLL_PULSE)
-            //pktWriteGPIOline(LINE_DECODER_LED, PAL_HIGH);
             pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
           if(--led_count < 0) {
-            //pktWriteGPIOline(LINE_DECODER_LED, PAL_LOW);
+            /* Extinguish the indicator. */
             pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_LOW);
             led_count = DECODER_LED_POLL_CYCLE;
           }
@@ -705,8 +694,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* Increase thread priority. */
         (void)chThdSetPriority(DECODER_RUN_PRIORITY);
         /* Turn on the decoder LED. */
-        //pktWriteGPIOline(LINE_DECODER_LED, PAL_HIGH);
-        pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
+        //pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
         /* Enable processing of incoming PWM stream. */
         myDriver->decoder_state = DECODER_ACTIVE;
         break;
@@ -893,18 +881,17 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* Check for change of frame state. */
         switch(myDriver->frame_state) {
         case FRAME_SEARCH:
-          //pktWriteGPIOline(LINE_DECODER_LED, PAL_TOGGLE);
-          pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_TOGGLE);
+          //pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_TOGGLE);
           continue;
 
         case FRAME_OPEN:
         case FRAME_DATA:
-          //pktWriteGPIOline(LINE_DECODER_LED, PAL_HIGH);
           pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
           continue;
 
         /* HDLC reset after frame open and minimum valid data received. */
         case FRAME_RESET:
+          pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_LOW);
           myFIFO->status |= STA_AFSK_FRAME_RESET;
           myDriver->decoder_state = DECODER_RESET;
           continue;
@@ -921,6 +908,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
        * RESET readies the decoder for the next session.
        * It frees any held buffers/objects.
        * The DSP system is reset and then transitions to IDLE.
+       * The decoder indicator is extinguished.
        */
       case DECODER_RESET: {
 #if AFSK_DEBUG_TYPE == AFSK_PACKET_RESET_STATUS
@@ -1011,8 +999,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* Reset the correlation decoder and its filters. */
         pktResetAFSKDecoder(myDriver);
 
-        /* Turn off decoder and reset time interval. */
-        //pktWriteGPIOline(LINE_DECODER_LED, PAL_LOW);
+        /* Turn off decoder indicator and reset wink time interval. */
         pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_LOW);
         led_count = 0;
 

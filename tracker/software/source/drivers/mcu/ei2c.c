@@ -49,7 +49,7 @@ static void i2c_start_cond(void) {
 		// set SDA to 1
 		set_SDA();
 		set_SCL();
-		sysinterval_t t0 = chVTGetSystemTime();
+		systime_t t0 = chVTGetSystemTime();
 		while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
 		}
 	}
@@ -66,7 +66,7 @@ static void i2c_stop_cond(void) {
 	clear_SDA();
 	set_SCL();
 	// Clock stretching
-	sysinterval_t t0 = chVTGetSystemTime();
+	systime_t t0 = chVTGetSystemTime();
 	while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
 	}
 
@@ -89,7 +89,7 @@ static void i2c_write_bit(bool bit) {
 	set_SCL();
 
 	// Wait for SDA value to be read by slave, minimum of 4us for standard mode
-	sysinterval_t t0 = chVTGetSystemTime();
+	systime_t t0 = chVTGetSystemTime();
 	while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
 	}
 
@@ -111,7 +111,7 @@ static bool i2c_read_bit(void) {
 	// Set SCL high to indicate a new valid SDA value is available
 	set_SCL();
 
-	sysinterval_t t0 = chVTGetSystemTime();
+	systime_t t0 = chVTGetSystemTime();
 	while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
 	}
 

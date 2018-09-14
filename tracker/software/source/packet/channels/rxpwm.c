@@ -25,6 +25,7 @@
  */
 
 #include "pktconf.h"
+#include "pktradio.h"
 
 /*===========================================================================*/
 /* Module local definitions.                                                 */
@@ -78,19 +79,32 @@ ICUDriver *pktAttachRadio(const radio_unit_t radio) {
 
   /* TODO: Implement LLD call to setup indicator LEDs specific to radio. */
   /* Setup the squelch LED. */
-  pktSetGPIOlineMode(LINE_SQUELCH_LED, PAL_MODE_OUTPUT_PUSHPULL);
-  pktWriteGPIOline(LINE_SQUELCH_LED, PAL_LOW);
+  pktLLDradioConfigIndicator(radio, PKT_INDICATOR_SQUELCH);
+  pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_SQUELCH, PAL_LOW);
+  //pktSetGPIOlineMode(LINE_SQUELCH_LED, PAL_MODE_OUTPUT_PUSHPULL);
+  //pktWriteGPIOline(LINE_SQUELCH_LED, PAL_LOW);
 
   /* Setup the overflow LED. */
-  pktSetGPIOlineMode(LINE_OVERFLOW_LED, PAL_MODE_OUTPUT_PUSHPULL);
-  pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_LOW);
+  pktLLDradioConfigIndicator(radio, PKT_INDICATOR_OVERFLOW);
+  pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_OVERFLOW, PAL_LOW);
+  //pktSetGPIOlineMode(LINE_OVERFLOW_LED, PAL_MODE_OUTPUT_PUSHPULL);
+  //pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_LOW);
 
   /* Setup the no FIFO LED. */
-  pktSetGPIOlineMode(LINE_NO_FIFO_LED, PAL_MODE_OUTPUT_PUSHPULL);
-  pktWriteGPIOline(LINE_NO_FIFO_LED, PAL_LOW);
+  pktLLDradioConfigIndicator(radio, PKT_INDICATOR_FIFO);
+  pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_FIFO, PAL_LOW);
+  //pktSetGPIOlineMode(LINE_NO_FIFO_LED, PAL_MODE_OUTPUT_PUSHPULL);
+  //pktWriteGPIOline(LINE_NO_FIFO_LED, PAL_LOW);
 
+  /* Setup the no buffer LED. */
+  pktLLDradioConfigIndicator(radio, PKT_INDICATOR_NO_BUFF);
+  pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_NO_BUFF, PAL_LOW);
+
+  /* Setup the PWM error LED. */
+  pktLLDradioConfigIndicator(radio, PKT_INDICATOR_PWM_ERROR);
+  pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_PWM_ERROR, PAL_LOW);
   /* If using PWM mirror to output to a diagnostic port. */
-  pktSetGPIOlineMode(LINE_PWM_MIRROR, PAL_MODE_OUTPUT_PUSHPULL);
+  //pktSetGPIOlineMode(LINE_PWM_MIRROR, PAL_MODE_OUTPUT_PUSHPULL);
 
   return myICU;
 }
@@ -125,16 +139,19 @@ void pktDetachRadio(const radio_unit_t radio) {
 
   /* TODO: Implement LLD call to release indicator LEDs specific to radio. */
   /* Disable the squelch LED. */
-  pktUnsetGPIOlineMode(LINE_SQUELCH_LED);
+  pktLLDradioDeconfigIndicator(radio, PKT_INDICATOR_SQUELCH);
+  //pktUnsetGPIOlineMode(LINE_SQUELCH_LED);
 
   /* Disable overflow LED. */
-  pktUnsetGPIOlineMode(LINE_OVERFLOW_LED);
+  pktLLDradioDeconfigIndicator(radio, PKT_INDICATOR_OVERFLOW);
+  //pktUnsetGPIOlineMode(LINE_OVERFLOW_LED);
 
   /* Disable no FIFO LED. */
-  pktUnsetGPIOlineMode(LINE_NO_FIFO_LED);
+  pktLLDradioDeconfigIndicator(radio, PKT_INDICATOR_FIFO);
+  //pktUnsetGPIOlineMode(LINE_NO_FIFO_LED);
 
   /* If using PWM mirror disable diagnostic port. */
-  pktUnsetGPIOlineMode(LINE_PWM_MIRROR);
+  //pktUnsetGPIOlineMode(LINE_PWM_MIRROR);
 }
 
 /**
@@ -302,12 +319,15 @@ void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
   packet_svc_t *myHandler = myDemod->packet_handler;
   chDbgAssert(myDemod != NULL, "no demod linked");
 
+  radio_unit_t radio = myHandler->radio;
+
   chVTResetI(&myICU->pwm_timer);
 
   /*
    * Turn off the squelch LED.
    */
-  pktWriteGPIOline(LINE_SQUELCH_LED, PAL_LOW);
+  pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_SQUELCH, PAL_LOW);
+  //pktWriteGPIOline(LINE_SQUELCH_LED, PAL_LOW);
 
   /* Stop the ICU notification (callback). */
   //icuDisableNotificationsI(myICU);
@@ -343,7 +363,13 @@ void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
          * This may be due to a pending ICU interrupt?
          * In any case flag the error.
          */
-        pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
+        if(qs == MSG_ERROR)
+          pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_PWM_ERROR, PAL_HIGH);
+          //pktWriteGPIOline(LINE_PWM_ERROR_LED, PAL_HIGH);
+
+        if(qs == MSG_TIMEOUT)
+          pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_OVERFLOW, PAL_HIGH);
+          //pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
 
         pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_ERROR);
         myDemod->active_radio_stream->status |= STA_PWM_QUEUE_ERROR;
@@ -363,7 +389,7 @@ void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
     myDemod->active_radio_stream = NULL;
   } else {
     /* No object. Just send event broadcast. */
-    pktAddEventFlagsI(myHandler, evt);
+    pktAddEventFlagsI(myHandler, (evt | EVT_RAD_STREAM_CLOSE));
   }
   /* Return to ready state (inactive). */
   myDemod->icustate = PKT_PWM_READY;
@@ -386,9 +412,11 @@ void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
 void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   AFSKDemodDriver *myDemod = myICU->link;
   packet_svc_t *myHandler = myDemod->packet_handler;
+  radio_unit_t radio = myHandler->radio;
 
   /* Turn on the squelch LED. */
-  pktWriteGPIOline(LINE_SQUELCH_LED, PAL_HIGH);
+  pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_SQUELCH, PAL_HIGH);
+  //pktWriteGPIOline(LINE_SQUELCH_LED, PAL_HIGH);
 
   if(myDemod->active_radio_stream != NULL) {
     /* TODO: Work out correct handling. We should not have an open channel.
@@ -410,7 +438,8 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
     icuDisableNotificationsI(myICU);
 
     /* Turn on the FIFO out LED. */
-    pktWriteGPIOline(LINE_NO_FIFO_LED, PAL_HIGH);
+    pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_FIFO, PAL_HIGH);
+    //pktWriteGPIOline(LINE_NO_FIFO_LED, PAL_HIGH);
     return;
   }
 
@@ -451,7 +480,8 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
     pktAddEventFlagsI(myHandler, EVT_PWM_BUFFER_FAIL);
     icuDisableNotificationsI(myICU);
     /* Turn on the PWM buffer out LED. */
-    pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_HIGH);
+    pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_OVERFLOW, PAL_HIGH);
+    //pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_HIGH);
     return;
   }
 
@@ -459,8 +489,8 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   /* Verify object is in CCM. */
   pktAssertCCMdynamicCheck(pwm_object);
 #endif
-
-  pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_LOW);
+  pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_NO_BUFF, PAL_HIGH);
+  //pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_LOW);
 
   /* Save this object as the one currently receiving PWM. */
   myFIFO->radio_pwm_queue = pwm_object;
@@ -576,9 +606,9 @@ void pktRadioCCALeadTimer(ICUDriver *myICU) {
       break;
       }
 
-    /* CCA still high so open PWM channel now it is validated. */
+    /* CCA still high so start PWM stream now CCA is validated. */
     case PAL_HIGH: {
-      pktOpenPWMChannelI(myICU, EVT_PWM_STREAM_OPEN);
+      pktOpenPWMChannelI(myICU, EVT_RAD_STREAM_OPEN);
       break;
     }
   }
@@ -697,7 +727,7 @@ void pktRadioCCAInput(ICUDriver *myICU) {
  */
 void pktRadioICUWidth(ICUDriver *myICU) {
   (void)myICU;
-  pktWriteGPIOline(LINE_PWM_MIRROR, PAL_LOW);
+  //pktWriteGPIOline(LINE_PWM_MIRROR, PAL_LOW);
 }
 #endif
 
@@ -716,7 +746,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    *
    * See halconf.h for the definition.
    */
-  pktWriteGPIOline(LINE_PWM_MIRROR, PAL_HIGH);
+  //pktWriteGPIOline(LINE_PWM_MIRROR, PAL_HIGH);
 
   AFSKDemodDriver *myDemod = myICU->link;
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
@@ -841,7 +871,10 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
      * Queue has space for one entry only.
      * Close channel and write in-band message indicating queue full.
      */
-    pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
+    radio_unit_t radio = myDemod->packet_handler->radio;
+
+    pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_OVERFLOW, PAL_HIGH);
+    //pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
     pktClosePWMchannelI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);
     chSysUnlockFromISR();
     return;
@@ -951,7 +984,6 @@ msg_t pktWritePWMQueueI(input_queue_t *queue,
 
   if(empty % sizeof(byte_packed_pwm_t) != 0) {
     chDbgAssert(false, "invalid PWM chunk size");
-    pktWriteGPIOline(LINE_PWM_ERROR_LED, PAL_HIGH);
     return MSG_ERROR;
   }
 

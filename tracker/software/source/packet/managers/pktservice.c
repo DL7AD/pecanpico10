@@ -558,7 +558,7 @@ void pktStopDecoder(radio_unit_t radio) {
   } while (evt != DEC_STOP_EXEC);
   pktUnregisterEventListener(esp, &el);
   //handler->state = PACKET_PAUSE;
-  handler->rx_state = PACKET_RX_ENABLED;
+  //handler->rx_state = PACKET_RX_ENABLED;
 }
 
 /**

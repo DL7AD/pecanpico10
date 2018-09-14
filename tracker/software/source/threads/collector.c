@@ -127,7 +127,7 @@ static void getPositionFallback(dataPoint_t* tp,
  */
 static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
                            sysinterval_t timeout) {
-  sysinterval_t start = chVTGetSystemTime();
+  systime_t start = chVTGetSystemTime();
 
   gpsFix_t gpsFix = {0};
 

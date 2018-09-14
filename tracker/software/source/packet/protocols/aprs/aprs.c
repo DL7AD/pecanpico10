@@ -1328,7 +1328,7 @@ void aprs_decode_packet(packet_t pp) {
       && (!strncmp("WIDE", call, 4) || !strncmp("TRACE", call, 5)));
 
   // Fill/Update direct list
-  sysinterval_t first_time = 0xFFFFFFFF;	// Timestamp of oldest heard list entry
+  systime_t first_time = (systime_t)-1;	// Timestamp of oldest heard list entry
   uint8_t first_id = 0;					// ID of oldest heard list entry
 
   for(uint8_t i=0; i <= APRS_HEARD_LIST_SIZE; i++) {

@@ -138,9 +138,9 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
 	uint16_t payload_cnt = 0;
 	uint16_t payload_len = 0;
 
-	sysinterval_t sNow = chVTGetSystemTime();
+	systime_t sNow = chVTGetSystemTime();
 
-	while(chVTIsSystemTimeWithin(sNow, sNow + TIME_MS2I(timeout))) {
+	while(chVTIsSystemTimeWithin(sNow, chTimeAddX(sNow, TIME_MS2I(timeout)))) {
 
 		// Receive one byte
       if(!gps_receive_byte(&rx_byte)) {

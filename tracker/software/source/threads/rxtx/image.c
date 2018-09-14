@@ -902,8 +902,12 @@ static bool transmit_image_packet(const uint8_t *image,
  */
 static void image_packet_send_complete(radio_task_object_t *rt) {
   chSemSignal(&tx_complete);
+#if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
   TRACE_DEBUG("IMG  > Released transmit semaphore TX sequence %d",
               rt->tx_seq_num);
+#else
+  (void)rt;
+#endif
   return;
 }
 
@@ -966,7 +970,7 @@ static bool transmit_image_packets(const uint8_t *image,
                               / PKT_MAXIMUM_QUEUED_IMAGE_TX_THREADS)
                             - RESERVE_BUFFERS_FOR_INTERNAL),
                            MAX_BUFFERS_FOR_BURST_SEND);
-    uint8_t chain = (IS_2FSK(conf->radio_conf.mod)
+    uint8_t chain = (IS_2FSK(conf->radio_conf.mod) && !conf->no_burst
         && !conf->redundantTx) ?
         buffers : 1;
     TRACE_INFO("IMG  > Encode %i APRS/SSDV packet%s", chain,
@@ -1031,10 +1035,14 @@ static bool transmit_image_packets(const uint8_t *image,
     if(head != NULL) {
 
       /* Get the semaphore for TX. */
+#if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
       TRACE_DEBUG("IMG  > Waiting for transmit semaphore");
+#endif
       if(chSemWait(&tx_complete) == MSG_RESET)
                 return false;
+#if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
       TRACE_DEBUG("IMG  > Acquired transmit semaphore");
+#endif
       if(!transmitOnRadioWithCallback(head,
                           conf->radio_conf.freq,
                           0,
@@ -1214,7 +1222,7 @@ THD_FUNCTION(imgThread, arg) {
   // Create buffer
   //uint8_t buffer[conf->buf_size] __attribute__((aligned(DMA_FIFO_BURST_ALIGN)));
 
-  sysinterval_t time = chVTGetSystemTime();
+  systime_t time = chVTGetSystemTime();
   while(true) {
     char code_s[100];
     pktDisplayFrequencyCode(conf->radio_conf.freq,

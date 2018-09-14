@@ -1154,13 +1154,14 @@ static bool Si446x_transmit(const radio_unit_t radio,
         (float32_t)(TIME_I2MS(cca_timeout) / 1000),
         op_freq/1000000, (op_freq%1000000)/1000);
 #define CCA_VALID_TIME_MS   50
-    sysinterval_t t0 = chVTGetSystemTime();
+    systime_t t0 = chVTGetSystemTime();
+    systime_t t1 = chTimeAddX(t0, cca_timeout);
     while((Si446x_getState(radio) == Si446x_STATE_RX
         && Si446x_checkCCAthreshold(radio, CCA_VALID_TIME_MS))
-        && chVTIsSystemTimeWithinX(t0, t0 + cca_timeout)) {
+        && chVTIsSystemTimeWithinX(t0, t1)) {
       chThdSleep(TIME_MS2I(1));
     }
-    if(!chVTIsSystemTimeWithinX(t0, t0 + cca_timeout)) {
+    if(!chVTIsSystemTimeWithinX(t0, t1)) {
       TRACE_INFO( "SI   > CCA timeout after %d milliseconds",
                   chTimeI2MS(cca_timeout));
     } else {

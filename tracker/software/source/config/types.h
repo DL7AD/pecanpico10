@@ -92,7 +92,7 @@ typedef struct {
   radio_mod_t       mod;
   link_speed_t      speed;
   radio_squelch_t   cca;
-  sysinterval_t     rx_wait;
+  sysinterval_t     rx_wait; // TODO: implement into in progress RX wait.
   sysinterval_t     cca_wait;
 } radio_tx_conf_t; // Radio / Modulation
 
@@ -149,6 +149,7 @@ typedef struct {
   resolution_t      res;					// Picture resolution
   uint8_t           quality;				// SSDV Quality ranging from 0-7
   bool              flip;                   // 180 image rotation
+  bool              no_burst;               // Disable burst send
   uint32_t          buf_size;		    	// SRAM buffer size for the picture
 } img_app_conf_t;
 
