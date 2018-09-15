@@ -159,6 +159,21 @@ const char *get_gps_state_name(uint8_t index);
                               || dp->gps_state == GPS_LOG)
 
 /**
+ * @brief   Is position current.
+ *
+ * @param[in] pointer to data point
+ *
+ * @returns result of check
+ * @retval  true if position data is from satellite or fixed.
+ * @retval  false if position not valid.
+ *
+ * @api
+ */
+#define isPositionCurrent(dp)   (dp->gps_state == GPS_LOCKED1                \
+                              || dp->gps_state == GPS_LOCKED2                \
+                              || dp->gps_state == GPS_FIXED)
+
+/**
  * @brief   Is position from a satellite.
  * @notes   This is an alias for hasGPSacquiredLock
  *

@@ -450,9 +450,11 @@ packet_t aprs_encode_position_and_telemetry(const char *callsign,
                               APRS_DEVICE_CALLSIGN,
                               path);
 
-    uint8_t gpsFix = dataPoint->gps_state == GPS_LOCKED1
+    uint8_t gpsFix = isPositionCurrent(dataPoint)
+                                ? GSP_FIX_CURRENT : GSP_FIX_OLD;
+/*    uint8_t gpsFix = dataPoint->gps_state == GPS_LOCKED1
         || dataPoint->gps_state == GPS_LOCKED2
-        || dataPoint->gps_state == GPS_FIXED ? GSP_FIX_CURRENT : GSP_FIX_OLD;
+        || dataPoint->gps_state == GPS_FIXED ? GSP_FIX_CURRENT : GSP_FIX_OLD;*/
 
     uint8_t src = NMEA_SRC_GGA;
     uint8_t origin = ORIGIN_PICO;
@@ -489,7 +491,7 @@ packet_t aprs_encode_position_and_telemetry(const char *callsign,
 		switch(i) {
 			case 0: t = dataPoint->adc_vbat;				break;
 			case 1: t = dataPoint->adc_vsol;				break;
-			case 2: t = dataPoint->pac_pbat+4096;			break;
+			case 2: t = dataPoint->pac_pbat + 4096;			break;
 			case 3: t = dataPoint->sen_i1_temp/10 + 1000;	break;
 			case 4: t = dataPoint->sen_i1_press/125 - 40;	break;
 		}

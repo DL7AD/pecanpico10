@@ -22,6 +22,7 @@
 #include "console.h"
 #include "types.h"
 #include "si446x.h"
+#include "pktradio.h"
 #include <stdarg.h>
 
 /*===========================================================================*/
@@ -73,16 +74,30 @@ const radio_band_t *const radio_bands[] = {
                  NULL
 };
 
+/* List of indicators controlled by this radio. */
+const indicator_io_t const radio1_ind[] = {
+  {
+   .ind = PKT_INDICATOR_DECODE,
+   .type = PKT_IND_GPIO_LINE,
+   .address.line = LINE_IO_BLUE,
+   .driver.mode = PAL_MODE_OUTPUT_PUSHPULL
+  },
+  {
+   .ind = PKT_INDICATOR_NONE
+  }
+};
+
 /* Configuration objects for radios on this board. */
 const radio_config_t radio_list[] = {
   { /* Radio #1 */
-    .unit = PKT_RADIO_1,
-    .type = SI446X,
-    .pkt    = (packet_svc_t *const)&RPKTD1,
-    .afsk   = (AFSKDemodDriver *const)&AFSKD1,
-	.cfg	= (si446x_mcucfg_t *const)&radio1_cfg,
-    .dat    = (si446x_data_t *)&radio1_dat,
-    .bands  = (radio_band_t **const)radio_bands
+    .unit       = PKT_RADIO_1,
+    .type       = SI446X,
+    .pkt        = (packet_svc_t *const)&RPKTD1,
+    .afsk       = (AFSKDemodDriver *const)&AFSKD1,
+	.cfg	    = (si446x_mcucfg_t *const)&radio1_cfg,
+    .dat        = (si446x_data_t *)&radio1_dat,
+    .bands      = (radio_band_t **const)radio_bands,
+    .ind_set    = (indicator_io_t *const)radio1_ind
   }, /* End radio1 */
   {
      .unit = PKT_RADIO_NONE
