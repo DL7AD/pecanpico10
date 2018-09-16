@@ -399,7 +399,8 @@ packet_t aprs_encode_stamped_position_and_telemetry(const char *callsign,
  * @notes  Base 91 telemetry encoding is used.
  * @notes  The comments are filled with:
  * @notes  - Battery voltage in mV
- * @notes  - Solar voltage in mW (if tracker is solar-enabled)
+ * @notes  - Solar voltage in mV (if tracker is solar-enabled)
+ * @notes  - Battery power consumption in mW + 4096 (???)
  * @notes  - Temperature in Celcius
  * @notes  - Air pressure in Pascal
  * @notes  - Number of satellites being used
@@ -452,9 +453,6 @@ packet_t aprs_encode_position_and_telemetry(const char *callsign,
 
     uint8_t gpsFix = isPositionCurrent(dataPoint)
                                 ? GSP_FIX_CURRENT : GSP_FIX_OLD;
-/*    uint8_t gpsFix = dataPoint->gps_state == GPS_LOCKED1
-        || dataPoint->gps_state == GPS_LOCKED2
-        || dataPoint->gps_state == GPS_FIXED ? GSP_FIX_CURRENT : GSP_FIX_OLD;*/
 
     uint8_t src = NMEA_SRC_GGA;
     uint8_t origin = ORIGIN_PICO;
@@ -1306,10 +1304,10 @@ packet_t aprs_encode_telemetry_configuration(const char *originator,
                  "PARM.Vbat,Vsol,Pbat,Temp,AirP,"
                  "IO1,IO2,IO3,IO4,IO5,IO6,IO7,IO8", false);
 		case 1: return aprs_format_transmit_message(originator, path, destination,
-                 "UNIT.V,V,W,degC,Pa,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi", false);
+                 "UNIT.V,V,mW,degC,Pa,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi", false);
 		case 2: return aprs_format_transmit_message(originator, path, destination,
-                 "EQNS.0,0.001,0,0,0.001,0,0,0.001,"
-                 "-4.096,0,0.1,-100,0,12.5,500", false);
+                 "EQNS.0,0.001,0,0,0.001,0,0,0.1,"
+                 "-409.6,0,0.1,-100,0,12.5,500", false);
 		case 3: return aprs_format_transmit_message(originator, path, destination,
                  "BITS.11111111,Pecan Pico", false);
 		default: return NULL;
