@@ -71,6 +71,7 @@ dataPoint_t* getLastDataPoint(void) {
 
 /**
  * @brief   Determine best fallback data when GPS not operable.
+ * @notes   If the last point is valid that prior data is carried forward.
  * @post    The provided data point (record) is updated.
  *
  * @param[in]   tp      pointer to current @p datapoint structure
@@ -137,9 +138,6 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   uint16_t batt = stm32_get_vbat();
   if(batt < conf_sram.gps_on_vbat) {
     getPositionFallback(tp, ltp, GPS_LOWBATT1);
-/*    tp->gps_sats = 0;
-    tp->gps_ttff = 0;
-    tp->gps_pdop = 0;*/
     /* In case GPS was already on power it off. */
     GPS_Deinit();
     return false;
@@ -148,9 +146,6 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   /* Try to switch on GPS. */
   if(!GPS_Init()) {
     getPositionFallback(tp, ltp, GPS_ERROR);
-/*    tp->gps_sats = 0;
-    tp->gps_ttff = 0;
-    tp->gps_pdop = 0;*/
     GPS_Deinit();
     return false;
   }
@@ -175,7 +170,7 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
     gps_get_fix(&gpsFix);
   } while(!isGPSLocked(&gpsFix)
       && batt >= conf_sram.gps_off_vbat
-      && chVTIsSystemTimeWithin(start, start + timeout));
+      && chVTIsSystemTimeWithin(start, chTimeAddX(start, timeout)));
 
   if(batt < conf_sram.gps_off_vbat) {
     /*
@@ -185,9 +180,6 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
 
     TRACE_WARN("COLL > GPS acquisition stopped due low battery");
     getPositionFallback(tp, ltp, GPS_LOWBATT2);
-/*    tp->gps_sats = 0;
-    tp->gps_ttff = 0;
-    tp->gps_pdop = 0;*/
     GPS_Deinit();
     return false;
 
@@ -199,9 +191,6 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
      */
     TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
     getPositionFallback(tp, ltp, GPS_LOSS);
-/*    tp->gps_sats = 0;
-    tp->gps_ttff = 0;
-    tp->gps_pdop = 0;*/
     return false;
   }
 
@@ -212,6 +201,8 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
    */
   TRACE_INFO("GPS  > Lock acquired. Model in use is %s",
              gps_get_model_name(gpsFix.model));
+  /* Enable power saving mode. */
+  gps_switch_power_save_mode(true);
   gps_svinfo_t svinfo;
   if(gps_get_sv_info(&svinfo, sizeof(svinfo))) {
     TRACE_INFO("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d",

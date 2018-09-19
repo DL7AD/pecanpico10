@@ -1,6 +1,6 @@
 #include "ch.h"
 #include "hal.h"
-#include "usbcfg.h"
+#include "usbcfg2.h"
 #include "shell.h"
 #include "commands.h"
 #include "pktconf.h"
@@ -241,8 +241,9 @@ static void pktConsoleInputAvailable(eventid_t id) {
  */
 THD_FUNCTION(pktConsole, arg) {
 
-  BaseSequentialStream* chp = (BaseSequentialStream *)arg;
+  BaseSequentialStream* chp = arg;
 
+  /* Even listener objects. */
   event_listener_t con_el;
   event_listener_t shell_el;
 
@@ -385,15 +386,7 @@ THD_FUNCTION(pktConsole, arg) {
 /*
  *
  */
-msg_t pktStartConsole(void) {
-
-  /* Init and start USB. */
-  usbObjectInit(&USBD1);
-
-  usbStart(&USBD1, &usbcfg);
-
-  /* Init serial over USB. */
-  sduObjectInit(&SDU1);
+msg_t pktStartConsole(BaseAsynchronousChannel *ser) {
 
   /* Start the console handler. */
   thread_t *con_thd = chThdCreateFromHeap(NULL,
@@ -401,33 +394,15 @@ msg_t pktStartConsole(void) {
               "CON",
               LOWPRIO + 10,
               pktConsole,
-              &SDU1);
+              ser);
   if(con_thd == NULL)
     return MSG_TIMEOUT;
 
   /* Wait for thread to initialise. */
   msg_t smsg = chMsgSend(con_thd, MSG_OK);
 
-  /* Start serial over USB. */
-  sduStart(&SDU1, &serusbcfg);
-
-  chThdSleep(TIME_MS2I(100));
-
   /* Signal thread to enter trace output and shell request monitoring. */
   smsg = chMsgSend(con_thd, MSG_OK);
-
-  chThdSleep(TIME_MS2I(100));
-
-  /* Signal soft disconnect to the host (DP pull-up disconnected). */
-  usbDisconnectBus(&USBD1);
-
-  chThdSleep(TIME_MS2I(1500));
-
-  /*
-   * Notify host we are here.
-   * If the cable is connected the host should enumerate USB.
-   */
-  usbConnectBus(&USBD1);
 
   return smsg;
 }

@@ -16,7 +16,8 @@
 /*
  * Serial port definitions
  */
-#define SERIAL_DEBUG_DRIVER		    &SD3
+#define SERIAL_DEBUG_DRIVER		    SD3
+#define SERIAL_CONSOLE_DRIVER       SDU1
 
 /*
  * SPI definitions
@@ -275,6 +276,8 @@ extern const radio_band_t band_70cm;
 extern const radio_config_t radio_list[];
 extern packet_svc_t RPKTD1;
 extern AFSKDemodDriver AFSKD1;
+extern SerialUSBDriver SDU1;
+extern SerialUSBDriver SDU2;
 
 #ifdef __cplusplus
 extern "C" {

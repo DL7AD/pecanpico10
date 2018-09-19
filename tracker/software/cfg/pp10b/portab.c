@@ -163,7 +163,7 @@ uint8_t pktReadIOlines() {
 void pktSerialStart(void) {
 #if ENABLE_SERIAL_DEBUG == TRUE
   pktConfigSerialDiag();
-  sdStart(SERIAL_DEBUG_DRIVER, &debug_config);
+  sdStart(&SERIAL_DEBUG_DRIVER, &debug_config);
 #endif
   /* Setup diagnostic resource access semaphore. */
   //extern binary_semaphore_t debug_out_sem;
@@ -173,7 +173,7 @@ void pktSerialStart(void) {
 void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len) {
   (void)level;
 #if ENABLE_SERIAL_DEBUG == TRUE
-  chnWrite((BaseSequentialStream*)SERIAL_DEBUG_DRIVER, buf, len);
+  chnWrite((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, buf, len);
 #else
   (void)buf;
   (void)len;
@@ -187,7 +187,7 @@ int dbgPrintf(uint8_t level, const char *format, ...) {
   int done;
 
   va_start(arg, format);
-  done = chvprintf((BaseSequentialStream*)SERIAL_DEBUG_DRIVER, format, arg);
+  done = chvprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, format, arg);
   va_end(arg);
 
   return done;
@@ -199,7 +199,7 @@ int dbgPrintf(uint8_t level, const char *format, ...) {
 
 void pktWrite(uint8_t *buf, uint32_t len) {
 #if ENABLE_SERIAL_DEBUG == TRUE
-  chnWrite((BaseSequentialStream*)SERIAL_DEBUG_DRIVER, buf, len);
+  chnWrite((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, buf, len);
 #else
   (void)buf;
   (void)len;

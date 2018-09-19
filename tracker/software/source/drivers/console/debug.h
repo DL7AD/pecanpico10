@@ -77,7 +77,7 @@ static inline heap_header_t *pktSystemHeapIntegrityCheck(memory_heap_t *heap) {
 
 extern mutex_t debug_mtx;
 
-void debug_init(void);
+void pktConfigureSerialIO(void);
 void debug_print(char *type, char* filename, uint32_t line, char* format, ...);
 
 #endif /* __TRACE_H__ */

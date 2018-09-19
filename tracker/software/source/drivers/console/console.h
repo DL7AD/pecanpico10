@@ -29,8 +29,8 @@ typedef enum consoleStates {
 #define CONSOLE_STATE_NAMES                                                 \
   "INIT", "IDLE", "WAIT", "TERM", "TRACE", "SHELL", "FLUSH", "CONNECT"
 
-msg_t   pktStartConsole(void);
-void    startSDU(void);
+msg_t   pktStartConsole(BaseAsynchronousChannel *ser);
+//void    startSDU(void);
 bool    isConsoleOutputAvailable(void);
 
 #endif /* __CONSOLE_H__ */

@@ -1,7 +1,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "pktconf.h"
-#include "console.h"
+//#include "console.h"
 #include "debug.h"
 #include "threads.h"
 
@@ -12,48 +12,17 @@ int main(void) {
 	halInit();					// Startup HAL
 	chSysInit();				// Startup RTOS
     /*
-     * Setup CCM based heap.
-     * Most DSP related data is held in CCM.
-     * There is no DMA involved in DSP filtering/decoding.
+     * Setup packet system...
+     * Create memory (CCM based heap).
+     * - Most DSP related data is held in CCM.
+     * - There is no DMA involved in DSP filtering/decoding.
+     * Configure core IO/bus devices
+     * Setup the debug output (UART, USB)
+     * Configure radios.
+     * Start packet event monitoring.
+     * Start applications.
      */
     pktSystemInit();
-
-    /* Setup core IO peripherals. */
-    pktConfigureCoreIO();
-
-    /*
-     * Setup serial channel for debug.
-     * The mutex for trace output is initialized.
-     * The UART port/GPIO is setup.
-     */
-    debug_init();
-
-#if ACTIVATE_CONSOLE
-    /* Start console. */
-    pktStartConsole();
-    TRACE_INFO("MAIN > Console startup");
-#endif
-
-    /*
-     * Create a packet radio service.
-     * For now there is just one radio.
-     * TODO: Refactor. Only start services when a radio request is made.
-     */
-    while(!pktServiceCreate(PKT_RADIO_1)) {
-      TRACE_ERROR("MAIN > Unable to create packet radio %d services",
-                  PKT_RADIO_1);
-      chThdSleep(TIME_S2I(10));
-    }
-
-    pktEnableEventTrace(PKT_RADIO_1);
-    TRACE_INFO("MAIN > Started packet radio service for radio %d",
-               PKT_RADIO_1);
-
-    TRACE_INFO("MAIN > Starting application and ancillary threads");
-
-	// Startup threads
-	start_essential_threads();	// Startup required modules (tracking manager, watchdog)
-	start_user_threads();		// Startup optional modules (eg. POSITION, LOG, ...)
 
 	TRACE_INFO("MAIN > Loop active");
 #if DISABLE_HW_WATCHDOG == TRUE

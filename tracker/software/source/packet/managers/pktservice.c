@@ -8,6 +8,8 @@
 
 #include "pktconf.h"
 #include "portab.h"
+#include "console.h"
+#include "threads.h"
 
 /*===========================================================================*/
 /* Module local definitions.                                                 */
@@ -49,9 +51,8 @@ static memory_heap_t _ccm_heap;
 /* Module exported functions.                                                */
 /*===========================================================================*/
 
-
 /**
- * @brief   Initializes the packet system.
+ * @brief   Initializes the packet system memory.
  * @notes   Allocates a heap in remaining available CCM.
  * @notes   Unless variables are allocated to CCM the heap will be all of CCM.
  * @notes   Buffers (non DMA) are then allocated from the CCM heap.
@@ -62,41 +63,98 @@ static memory_heap_t _ccm_heap;
  *
  * @notapi
  */
-bool pktSystemInit(void) {
-
-/*
- * The definition for CCM is in pktconf.h as follows...
- *  #define useCCM  __attribute__((section(".ram4")))
- * How to allocate a variable in CCM...
- *  int example useCCM;
- *
- * The remainder available in CCM is used to create a heap.
- * This can be used for non-DMA access data only in the F413.
- */
-
- /* Reference the linker created CCM variables to get the available heap area. */
-  extern uint8_t __ram4_free__[];
-  extern uint8_t __ram4_end__[];
-
-  chDbgAssert(ccm_heap == NULL, "CCM heap already exists");
+bool pktMemoryInit(void) {
   /*
-   * Create heap in CCM.
-   * Once created the CCM heap remains available.
-   * TODO: Move CCM heap creation to system level.
-   * Include in sysConfigureCoreIO(...) and rename that function. */
-  if(ccm_heap == NULL) {
-    /* CCM heap not created yet. */
-  ccm_heap = &_ccm_heap;
-  chHeapObjectInit(ccm_heap, (void *)__ram4_free__,
-                   (size_t)(__ram4_end__ - __ram4_free__));
-  }
-
-  /*
-   * Create common AX25 transmit packet buffer control.
+   * The definition for CCM is in pktconf.h as follows...
+   *  #define useCCM  __attribute__((section(".ram4")))
+   * How to allocate a variable in CCM...
+   *  int example useCCM;
+   *
+   * The remainder available in CCM is used to create a heap.
+   * This can be used for non-DMA access data only in the F413.
    */
-  dyn_semaphore_t *buffers = pktInitBufferControl();
-  chDbgAssert(buffers != NULL, "failed to init packet buffers");
-  return buffers != NULL;
+
+   /* Reference the linker created CCM variables to get the available heap area. */
+    extern uint8_t __ram4_free__[];
+    extern uint8_t __ram4_end__[];
+
+    chDbgAssert(ccm_heap == NULL, "CCM heap already exists");
+    /*
+     * Create heap in CCM.
+     * Once created the CCM heap remains available.
+     * TODO: Move CCM heap creation to system level.
+     * Include in sysConfigureCoreIO(...) and rename that function. */
+    if(ccm_heap == NULL) {
+      /* CCM heap not created yet. */
+    ccm_heap = &_ccm_heap;
+    chHeapObjectInit(ccm_heap, (void *)__ram4_free__,
+                     (size_t)(__ram4_end__ - __ram4_free__));
+    }
+
+    /*
+     * Create common AX25 transmit packet buffer control.
+     */
+    dyn_semaphore_t *buffers = pktInitBufferControl();
+    chDbgAssert(buffers != NULL, "failed to init packet buffers");
+    return buffers != NULL;
+}
+
+/**
+ * @brief   Initializes the packet system.
+ * @notes   Allocates a heap in remaining available CCM.
+ * @notes   Unless variables are allocated to CCM the heap will be all of CCM.
+ * @notes   Buffers (non DMA) are then allocated from the CCM heap.
+ *
+ *@return   result of operation.
+ *@retval   false  system initialized.
+ *@retval   true   initialization failed.
+ *
+ * @notapi
+ */
+bool pktSystemInit(void) {
+  bool result = false;
+
+  /* Create memory spaces. */
+  result |= pktMemoryInit();
+
+  /* Setup core IO peripherals. */
+  pktConfigureCoreIO();
+
+  /*
+   * Setup serial channel for debug.
+   * The mutex for trace output is initialized.
+   * The UART port/GPIO is setup.
+   * The SDU over USB are setup.
+   */
+  pktConfigureSerialIO();
+
+#if ACTIVATE_CONSOLE
+    /* Start console. */
+    pktStartConsole((BaseAsynchronousChannel *)&SERIAL_CONSOLE_DRIVER);
+    TRACE_INFO("MAIN > Console startup");
+#endif
+
+    /*
+     * Create a packet radio service.
+     * For now there is just one radio.
+     * TODO: Refactor. Only start services when a radio request is made.
+     */
+    while(!pktServiceCreate(PKT_RADIO_1)) {
+      TRACE_ERROR("MAIN > Unable to create packet radio %d services",
+                  PKT_RADIO_1);
+      result |= true;
+      chThdSleep(TIME_S2I(10));
+    }
+
+    pktEnableEventTrace(PKT_RADIO_1);
+    TRACE_INFO("MAIN > Started packet radio service for radio %d",
+               PKT_RADIO_1);
+
+    TRACE_INFO("MAIN > Starting application and ancillary threads");
+    // Startup threads
+    start_essential_threads();  // Startup required modules (tracking manager, watchdog)
+    start_user_threads();       // Startup optional modules (eg. POSITION, LOG, ...)
+  return result;
 }
 
 /**
