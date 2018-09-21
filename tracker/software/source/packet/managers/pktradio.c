@@ -1341,15 +1341,19 @@ void pktLLDradioStreamDisableI(const radio_unit_t radio) {
 }
 
 /**
- *
+ * @brief Read the CCA line when in AFSK PWM receive mode.
+ * @notes Used to read a port where CCA is mapped.
+ * @notes Must be useable from ISR level so use GPIO read only.
  */
-uint8_t pktLLDradioReadCCA(const radio_unit_t radio) {
+uint8_t pktLLDradioReadCCAline(const radio_unit_t radio) {
   /*
    * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
    * - Lookup radio type from radio ID.
    * - Then call VMT dispatcher inside radio driver.
    */
-  return Si446x_readCCA(radio);
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  return Si446x_readCCAlineForRX(radio, handler->rx_link_type);
 }
 
 /**

@@ -115,11 +115,11 @@
 /*
  * Radio GPIO definitions.
  */
-#define LINE_RADIO_CS               PAL_LINE(GPIOC, 12U)
-#define LINE_RADIO_SDN              PAL_LINE(GPIOC, 10U)
-#define LINE_RADIO_NIRQ             PAL_LINE(GPIOD, 2U)
-#define LINE_RADIO_GPIO0            PAL_LINE(GPIOB, 7U)
-#define LINE_RADIO_GPIO1            PAL_LINE(GPIOB, 6U)
+#define LINE_RADIO1_CS              PAL_LINE(GPIOC, 12U)
+#define LINE_RADIO1_SDN             PAL_LINE(GPIOC, 10U)
+#define LINE_RADIO1_NIRQ            PAL_LINE(GPIOD, 2U)
+#define LINE_RADIO1_GPIO0           PAL_LINE(GPIOB, 7U)
+#define LINE_RADIO1_GPIO1           PAL_LINE(GPIOB, 6U)
 
 // SPI
 #define LINE_SPI_SCK                PAL_LINE(GPIOB, 3U)

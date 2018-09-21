@@ -595,7 +595,7 @@ void pktRadioCCALeadTimer(ICUDriver *myICU) {
     chSysUnlockFromISR();
     return;
   }
-  uint8_t cca = pktLLDradioReadCCA(myHandler->radio);
+  uint8_t cca = pktLLDradioReadCCAline(myHandler->radio);
   /* CCA de-glitch timer expired. */
   switch(cca) {
     case PAL_LOW: {
@@ -636,7 +636,7 @@ void pktRadioCCATrailTimer(ICUDriver *myICU) {
   }
 
   packet_svc_t *myHandler = myDemod->packet_handler;
-  uint8_t cca = pktLLDradioReadCCA(myHandler->radio);
+  uint8_t cca = pktLLDradioReadCCAline(myHandler->radio);
   /* CCA de-glitch timer for trailing edge expired. */
   switch(cca) {
     case PAL_LOW: {
@@ -681,7 +681,7 @@ void pktRadioCCAInput(ICUDriver *myICU) {
     return;
   }
   packet_svc_t *myHandler = myDemod->packet_handler;
-  uint8_t cca = pktLLDradioReadCCA(myHandler->radio);
+  uint8_t cca = pktLLDradioReadCCAline(myHandler->radio);
   /* CCA changed. */
   switch(cca) {
     case PAL_LOW: {

@@ -33,33 +33,110 @@
 /* Module exported variables.                                                */
 /*===========================================================================*/
 
-/* Definition of PKT_RADIO_1. */
+/**
+ * @brief  Configuration for radio(s) on this board.
+ */
 const si446x_mcucfg_t radio1_cfg = {
-		.gpio0 	= LINE_RADIO_GPIO0,
-		.gpio1 	= LINE_RADIO_GPIO1,
-		.gpio2 	= PAL_NOLINE,
-		.gpio3 	= PAL_NOLINE,
-		.nirq	= LINE_RADIO_NIRQ,
-		.sdn	= LINE_RADIO_SDN,
-		.cs		= LINE_RADIO_CS,
-        .spi    = PKT_RADIO1_SPI,
-		.icu    = PKT_RADIO1_ICU,
-		.alt    = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2)),
-		.cfg    = {
-                      ICU_INPUT_ACTIVE_HIGH,
-                      ICU_COUNT_FREQUENCY,      /**< ICU clock frequency. */
-                    #if LINE_PWM_MIRROR != PAL_NOLINE
-                      pktRadioICUWidth,         /**< ICU width callback. */
-                    #else
-                      NULL,                     /**< ICU width callback. */
-                    #endif
-                      pktRadioICUPeriod,        /**< ICU period callback. */
-                      pktRadioICUOverflow,      /**< ICU overflow callback. */
-                      ICU_CHANNEL_1,            /**< Timer channel 0. */
-                      0                         /**< DIER bits. */
-                    }
+  .gpio0    = LINE_RADIO1_GPIO0,
+  .gpio1    = LINE_RADIO1_GPIO1,
+  .gpio2    = PAL_NOLINE,
+  .gpio3    = PAL_NOLINE,
+  .nirq     = LINE_RADIO1_NIRQ,
+  .sdn      = LINE_RADIO1_SDN,
+  .cs       = LINE_RADIO1_CS,
+  .spi      = PKT_RADIO1_SPI,
+  .init     = {
+    .gpio       = {
+     .gpio0 = 00,          /**< DONOTHING. */
+     .gpio1 = 00,          /**< DONOTHING. */
+     .gpio2 = 0x21,        /**< RX_STATE. */
+     .gpio3 = 0x20,        /**< TX_STATE. */
+     .nirq  = 00,          /**< DONOTHING. */
+     .sdo   = 00,          /**< DONOTHING. */
+     .cfg   = 00           /**< HIGH DRIVE. */
+    }
+  },
+  .rafsk    = {
+    .gpio       = {
+      .gpio0 = 00,          /**< DONOTHING. */
+      .gpio1 = 0x15,        /**< RAW_RX_DATA. */
+      .gpio2 = 00,          /**< DONOTHING. */
+      .gpio3 = 00,          /**< DONOTHING. */
+      .nirq  = 0x1B,        /**< CCA. */
+      .sdo   = 00,          /**< DONOTHING. */
+      .cfg   = 00           /**< HIGH DRIVE. */
+    },
+    .pwm     = {
+               .line = &radio1_cfg.gpio1,
+               .mode = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2))
+    },
+    .cca     = {
+               .line = &radio1_cfg.nirq,
+               .mode = PAL_MODE_INPUT_PULLUP
+    },
+    .icu     = PKT_RADIO1_ICU,
+    .cfg     = {
+       ICU_INPUT_ACTIVE_HIGH,
+       ICU_COUNT_FREQUENCY,      /**< ICU clock frequency. */
+     #if LINE_PWM_MIRROR != PAL_NOLINE
+       pktRadioICUWidth,         /**< ICU width callback. */
+     #else
+       NULL,                     /**< ICU width callback. */
+     #endif
+       pktRadioICUPeriod,        /**< ICU period callback. */
+       pktRadioICUOverflow,      /**< ICU overflow callback. */
+       ICU_CHANNEL_1,            /**< Timer channel. */
+       0                         /**< DIER bits. */
+    }
+  },
+  .tafsk    = {
+    .gpio       = {
+     .gpio0 = 00,          /**< DONOTHING. */
+     .gpio1 = 00,          /**< DONOTHING. */
+     .gpio2 = 00,          /**< DONOTHING. */
+     .gpio3 = 00,          /**< DONOTHING. */
+     .nirq  = 0x1B,        /**< CCA. */
+     .sdo   = 00,          /**< DONOTHING. */
+     .cfg   = 00           /**< HIGH DRIVE. */
+    },
+    .cca     = {
+               .line = &radio1_cfg.nirq,
+               .mode = PAL_MODE_INPUT_PULLUP
+    },
+  },
+  .r2fsk    = {
+    .gpio       = {
+     .gpio0 = 00,          /**< DONOTHING. */
+     .gpio1 = 00,          /**< DONOTHING. */
+     .gpio2 = 00,          /**< DONOTHING. */
+     .gpio3 = 00,          /**< DONOTHING. */
+     .nirq  = 0x1B,        /**< CCA. */
+     .sdo   = 00,          /**< DONOTHING. */
+     .cfg   = 00           /**< HIGH DRIVE. */
+    },
+    .cca     = {
+               .line = &radio1_cfg.nirq,
+               .mode = PAL_MODE_INPUT_PULLUP
+    },
+  },
+  .t2fsk    = {
+    .gpio       = {
+     .gpio0 = 00,          /**< DONOTHING. */
+     .gpio1 = 00,          /**< DONOTHING. */
+     .gpio2 = 00,          /**< DONOTHING. */
+     .gpio3 = 00,          /**< DONOTHING. */
+     .nirq  = 0x1B,        /**< CCA. */
+     .sdo   = 00,          /**< DONOTHING. */
+     .cfg   = 00           /**< HIGH DRIVE. */
+    },
+    .cca     = {
+               .line = &radio1_cfg.nirq,
+               .mode = PAL_MODE_INPUT_PULLUP
+    },
+  }
 };
 
+/* Variable data for a radio. */
 si446x_data_t radio1_dat = {
         .lastTemp = 0x7FFF
         // TODO: Move part and func structs into here and add functions to get

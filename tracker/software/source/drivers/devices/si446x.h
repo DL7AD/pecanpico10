@@ -202,28 +202,36 @@
 #define Si446x_FREQ_CONTROL_W_SIZE              0x4006
 #define Si446x_FREQ_CONTROL_VCOCNT_RX_ADJ       0x4007
 
+/* RSSI setting which bypasses CCA checks. */
 #define PKT_SI446X_NO_CCA_RSSI                  0xFF
 
 #define Si446x_FIFO_SEPARATE_SIZE                64
 #define Si446x_FIFO_COMBINED_SIZE               129
 
+/* Transmit threads working areas. */
 #define SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE         (1 * 1024)
 #define SI_FSK_FIFO_FEEDER_WA_SIZE              (1 * 1024)
 
-/* AFSK NRZI up-sampler definitions. */
+/*
+ *  AFSK NRZI up-sampler definitions.
+ */
 #define PLAYBACK_RATE       13200
-#define BAUD_RATE           1200                                    /* APRS AFSK baudrate */
-#define SAMPLES_PER_BAUD    (PLAYBACK_RATE / BAUD_RATE)             /* Samples per baud (13200Hz / 1200baud = 11samp/baud) */
-#define PHASE_DELTA_1200    (((2 * 1200) << 16) / PLAYBACK_RATE)    /* Delta-phase per sample for 1200Hz tone */
-#define PHASE_DELTA_2200    (((2 * 2200) << 16) / PLAYBACK_RATE)    /* Delta-phase per sample for 2200Hz tone */
+/* APRS AFSK baudrate */
+#define BAUD_RATE           1200
+/* Samples per baud (13200Hz / 1200baud = 11samp/baud) */
+#define SAMPLES_PER_BAUD    (PLAYBACK_RATE / BAUD_RATE)
+/* Delta-phase per sample for 1200Hz tone */
+#define PHASE_DELTA_1200    (((2 * 1200) << 16) / PLAYBACK_RATE)
+/* Delta-phase per sample for 2200Hz tone */
+#define PHASE_DELTA_2200    (((2 * 2200) << 16) / PLAYBACK_RATE)
 
 /*===========================================================================*/
 /* Module macros.                                                            */
 /*===========================================================================*/
 
-#define Si446x_getGPIO0()           palReadLine(LINE_RADIO_GPIO0)
-#define Si446x_getGPIO1()           palReadLine(LINE_RADIO_GPIO1)
-#define Si446x_getCCA(cca_line)		palReadLine(cca_line)
+//#define Si446x_getGPIO0()           palReadLine(LINE_RADIO_GPIO0)
+//#define Si446x_getGPIO1()           palReadLine(LINE_RADIO_GPIO1)
+//#define Si446x_getCCA(cca_line)		palReadLine(cca_line)
 
  /* Frequency offset corrected oscillator frequency */
 #define Si446x_CCLK                 ((Si446x_CLK) + (Si446x_CLK_OFFSET)      \
@@ -238,6 +246,7 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
+/* AFSK encoder/up-sampler control object. */
 typedef struct {
   uint32_t  phase_delta;            // 1200/2200 for standard AX.25
   uint32_t  phase;                  // Fixed point 9.7 (2PI = TABLE_SIZE)
@@ -246,8 +255,36 @@ typedef struct {
   uint8_t   current_byte;
 } up_sampler_t;
 
+/* Indexes of GPIO parameters in 446x GPIO command. */
+typedef enum {
+  Si446x_GPIO0  = 0,
+  Si446x_GPIO1  = 1,
+  Si446x_GPIO2  = 2,
+  Si446x_GPIO3  = 3,
+  Si446x_NIRQ   = 4,
+  Si446x_SDO    = 5,
+  Si446x_CFG    = 6
+} si446x_gpix_t;
+
+typedef struct iolineRef {
+  const ioline_t  *line;
+  const iomode_t  mode;
+} ioline_ref_t;
+
+/* Configuration of GPIO for a radio. */
+typedef struct Si446x_GPIO {
+    uint8_t     gpio0;
+    uint8_t     gpio1;
+    uint8_t     gpio2;
+    uint8_t     gpio3;
+    uint8_t     nirq;
+    uint8_t     sdo;
+    uint8_t     cfg;
+} si446x_gpio_t;
+
 /* MCU IO configuration for a specific radio. */
 typedef struct Si446x_MCUCFG {
+  /* IO line connections from radio GPIO to MCU GPIO. */
 	const ioline_t	    gpio0;
 	const ioline_t      gpio1;
 	const ioline_t      gpio2;
@@ -255,22 +292,41 @@ typedef struct Si446x_MCUCFG {
 	const ioline_t      nirq;
 	const ioline_t	    sdn;
 	const ioline_t	    cs;
+	/* SPI bus this radio is connected to. */
 	SPIDriver	        *spi;
-	ICUDriver           *icu;
-	const iomode_t      alt;   /* Alt GPIO mode used to gate to timer. */
-	const ICUConfig     cfg;
+	/* Radio GPIO setting after init. */
+    struct {
+      si446x_gpio_t     gpio;
+    } init;
+    /* CCA detection only. */
+/*    struct {
+      si446x_gpio_t     gpio;
+      ioline_ref_t      cca;
+    } rcca;*/
+    /* AFSK receive settings. */
+	struct {
+      si446x_gpio_t     gpio;   /**< Radio GPIO config for this mode. */
+	  ioline_ref_t      pwm;    /**< PWM (RAW_RX) from radio to MCU GPIO. */
+	  ioline_ref_t      cca;    /**< CCA (NIRQ) from radio to MCU GPIO. */
+	  ICUDriver         *icu;   /**< ICU (TIM) for capturing radio PWM. */
+	  ICUConfig         cfg;
+	} rafsk;
+	/* AFSK transmit settings. */
+	struct {
+	  si446x_gpio_t     gpio;
+      ioline_ref_t      cca;
+	} tafsk;
+	/* 2FSK receive settings. */
+    struct {
+      si446x_gpio_t     gpio;
+      ioline_ref_t      cca;    /**< CCA (NIRQ) from radio to MCU GPIO. */
+    } r2fsk;
+    /* 2FSK transmit settings. */
+    struct {
+      si446x_gpio_t     gpio;
+      ioline_ref_t      cca;
+    } t2fsk;
 } si446x_mcucfg_t;
-
-/* Configuration of GPIO in a specific radio. */
-typedef struct Si446x_GPIO {
-	uint8_t		gpio0;
-	uint8_t		gpio1;
-	uint8_t		gpio2;
-	uint8_t		gpio3;
-	uint8_t		nirq;
-	uint8_t		sdo;
-	uint8_t		cfg;
-} si446x_gpio_t;
 
 typedef int16_t si446x_temp_t;
 
@@ -305,9 +361,9 @@ extern "C" {
   bool Si446x_radioStartup(const radio_unit_t radio);
   void Si446x_radioShutdown(const radio_unit_t radio);
   void Si446x_radioStandby(const radio_unit_t radio);
-  void Si446x_sendAFSK(packet_t pp);
+  //void Si446x_sendAFSK(packet_t pp);
   bool Si446x_blocSendAFSK(radio_task_object_t *rto);
-  void Si446x_send2FSK(packet_t pp);
+  //void Si446x_send2FSK(packet_t pp);
   bool Si446x_blocSend2FSK(radio_task_object_t *rto);
   void Si446x_disableReceive(radio_unit_t radio);
   void Si446x_stopDecoder(void);
@@ -328,15 +384,12 @@ extern "C" {
   void Si446x_lockRadioByCamera(void);
   void Si446x_unlockRadioByCamera(void);
   bool Si446x_conditional_init(radio_unit_t radio);
-/*  bool Si446x_setBandParameters(const radio_unit_t radio,
-                                radio_freq_t freq,
-                                channel_hz_t step);*/
   radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
   ICUDriver *Si446x_attachPWM(const radio_unit_t radio);
   bool Si446x_detachPWM(const radio_unit_t radio);
   const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio, palcallback_t cb);
   void Si446x_disablePWMeventsI(const radio_unit_t radio);
-  uint8_t Si446x_readCCA(const radio_unit_t radio);
+  uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio, radio_mod_t mod);
 #ifdef __cplusplus
 }
 #endif

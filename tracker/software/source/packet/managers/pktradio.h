@@ -241,7 +241,7 @@ extern "C" {
   int       	 	pktDisplayFrequencyCode(radio_freq_t code, char *buf,
             	 	                        size_t size);
   const radio_config_t	*pktGetRadioData(radio_unit_t radio);
-  uint8_t           pktLLDradioReadCCA(const radio_unit_t radio);
+  uint8_t           pktLLDradioReadCCAline(const radio_unit_t radio);
   void              pktLLDradioConfigIndicator(const radio_unit_t radio,
                                                const indicator_t ind);
   void              pktLLDradioDeconfigIndicator(const radio_unit_t radio,

@@ -40,6 +40,7 @@ static SPIConfig ls_spicfg = {
     .cr1    = SPI_CR1_MSTR
 };
 
+
 /**
  * Get pointer to the radio specific configuration.
  */
@@ -281,6 +282,20 @@ static bool Si446x_read(const radio_unit_t radio,
     return true;
 }
 
+/**
+ * @brief Configure transceiver GPIOs.
+ */
+static void Si446x_configureGPIO(const radio_unit_t radio,
+                                 const si446x_gpio_t *gpio) {
+
+  uint8_t gpio_pin_cfg_command[sizeof(si446x_gpio_t) + 1] = {
+      Si446x_GPIO_PIN_CFG   // Command type = GPIO settings
+  };
+
+  memcpy(&gpio_pin_cfg_command[1], gpio, sizeof(si446x_gpio_t));
+  Si446x_write(radio, gpio_pin_cfg_command, sizeof(gpio_pin_cfg_command));
+}
+
 /* TODO: Make set property a single func with size parameter. */
 static void Si446x_setProperty8(const radio_unit_t radio,
 		uint16_t reg, uint8_t val) {
@@ -410,23 +425,8 @@ static bool Si446x_init(const radio_unit_t radio) {
 
   handler->radio_patch = (func_info.info[5] << 8) + func_info.info[6];
 
-  /*
-   * Set transceiver GPIOs.
-   * GPIO0, 1 and NIRQ can now be reconfigured as required by TX or RX modes.
-   * In that case each needs to setup GPIOs as required.
-   */
-  uint8_t gpio_pin_cfg_command2[] = {
-      Si446x_GPIO_PIN_CFG,   // Command type = GPIO settings
-      0x00,   // GPIO0        GPIO_MODE = DONOTHING
-      0x15,   // GPIO1        GPIO_MODE = RAW_RX_DATA
-      0x21,   // GPIO2        GPIO_MODE = RX_STATE
-      0x20,   // GPIO3        GPIO_MODE = TX_STATE
-      0x1B,   // NIRQ         NIRQ_MODE = CCA
-      0x0B,   // SDO          SDO_MODE = SDO
-      0x00    // GEN_CONFIG
-  };
-
-  Si446x_write(radio, gpio_pin_cfg_command2, sizeof(gpio_pin_cfg_command2));
+  /* Set the radio GPIOs to the basic configuration. */
+  Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->init).gpio);
 
   /* TODO: We should clear interrupts here with a GET_INT_STATUS. */
 
@@ -601,41 +601,202 @@ static void Si446x_setPowerLevel(const radio_unit_t radio,
                  sizeof(set_pa_pwr_lvl_property_command));
 }
 
+/**
+ * @brief  Simple receive mode for CCA carrier detection only.
+ */
+static void Si446x_setModemCCAdetection(const radio_unit_t radio) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+/*
+# BatchName Si4464
+# Crys_freq(Hz): 26000000    Crys_tol(ppm): 20    IF_mode: 2
+# High_perf_Ch_Fil: 1    OSRtune: 0    Ch_Fil_Bw_AFC: 0
+# ANT_DIV: 0    PM_pattern: 15
+# MOD_type: 2    Rsymb(sps): 1200    Fdev(Hz): 500    RXBW(Hz): 150000
+# Manchester: 0    AFC_en: 0    Rsymb_error: 0.0    Chip-Version: 3
+# RF Freq.(MHz): 144    API_TC: 29    fhst: 12500    inputBW: 0
+# BERT: 0    RAW_dout: 0    D_source: 1    Hi_pfm_div: 1
+#
+# RX IF frequency is  -406250 Hz
+# WB filter 2 (BW =  14.89 kHz);  NB-filter 2 (BW = 14.89 kHz)
+#
+# Modulation index: 0.833
+*/
+
+  /* Configure radio GPIOs. */
+  //Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->rcca).gpio);
+
+  /*
+  * Set up GPIO port where the NIRQ from the radio is connected.
+  * The NIRQ line is configured in the radio to output the CCA condition.
+  */
+/*  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rcca.cca.line,
+                     Si446x_getConfig(radio)->rcca.cca.mode);*/
+
+  /* TODO: Rework the receive mode.... just use raw carrier detect. */
+  /* Set DIRECT_MODE (asynchronous mode as 2FSK). */
+  Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x0A);
+
+  /* Packet handler disabled in RX. */
+  Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x41);
+
+  if(is_part_Si4463(handler->radio_part)) {
+    /* Run 4463 in 4464 compatibility mode (set SEARCH2 to zero). */
+    Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0x00);
+  }
+  Si446x_setProperty8(radio, Si446x_MODEM_RAW_CONTROL, 0x8F);
+  Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH, 0xD6);
+  Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
+
+  /*
+   * OOK_MISC settings include parameters related to asynchronous mode.
+   * Asynchronous mode is used for AFSK reception passed to DSP decode.
+   */
+  Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x2A);
+  Si446x_setProperty8(radio, Si446x_MODEM_OOK_CNT1, 0x85);
+  Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
+
+  /* RX AFC control. */
+  Si446x_setProperty8(radio, Si446x_MODEM_AFC_GEAR, 0x54);
+  Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
+  Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
+  Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x02, 0x50);
+  Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0xC0); // 0x80
+
+  /* RX AGC control. */
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0); // 0xE2 (bit 1 not used in 4464. It is used in 4463.)
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
+
+  /* RX Bit clock recovery control. */
+  Si446x_setProperty8(radio, Si446x_MODEM_MDM_CTRL, 0x80);
+  Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x01, 0xC3);
+  Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x01, 0x22, 0x60);
+  Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x00, 0x91);
+  Si446x_setProperty8(radio, Si446x_MODEM_BCR_GEAR, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_BCR_MISC1, 0xC2);
+
+  /* RX IF controls. */
+  Si446x_setProperty8(radio, Si446x_MODEM_IF_CONTROL, 0x08);
+  Si446x_setProperty24(radio, Si446x_MODEM_IF_FREQ, 0x02, 0x80, 0x00);
+
+  /* RX IF filter decimation controls. */
+  Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x70);
+  Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
+  if(is_part_Si4463(handler->radio_part)) {
+    Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x0C);
+  }
+
+  /* RSSI latching disabled. */
+  Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL, 0x00);
+
+  /* RX IF filter coefficients. */
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xC4);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x30);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x7F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0x5F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xB5);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xB8);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xDE);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x05);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x17);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x16);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x0C);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0x03);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x00);
+
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xC4);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x30);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x7F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0x5F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xB5);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xB8);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xDE);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x05);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x17);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x16);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x0C);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0x03);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
+
+  Si446x_setProperty8(radio, Si446x_PREAMBLE_CONFIG, 0x21);
+
+  /* Unused Si4463 features for AFSK RX. */
+  if(is_part_Si4463(handler->radio_part)) {
+   /* DSA is not enabled. */
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL1, 0x00); // 0xA0
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL2, 0x00); // 0x04
+   Si446x_setProperty8(radio, Si446x_MODEM_SPIKE_DET, 0x00); // 0x03
+   Si446x_setProperty8(radio, Si446x_MODEM_ONE_SHOT_AFC, 0x00); // 0x07
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_QUAL, 0x00); // 0x06
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_RSSI, 0x00); // 0x78
+   Si446x_setProperty8(radio, Si446x_MODEM_RSSI_MUTE, 0x00);
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_MISC, 0x00); // 0x20
+  }
+}
+
 /*
  *  Radio modulation settings
  */
 
 static void Si446x_setModemAFSK_TX(const radio_unit_t radio) {
-    // Setup the NCO modulo and oversampling mode
-    uint32_t s = Si446x_CCLK / 10;
-    uint8_t f3 = (s >> 24) & 0xFF;
-    uint8_t f2 = (s >> 16) & 0xFF;
-    uint8_t f1 = (s >>  8) & 0xFF;
-    uint8_t f0 = (s >>  0) & 0xFF;
-    Si446x_setProperty32(radio, Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
 
-    // Setup the NCO data rate for APRS
-    Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE, 0x00, 0x33, 0x90);
+  /* Configure radio GPIOs. */
+  Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->tafsk).gpio);
 
-    /*
-     *  TODO: Set deviation set to +-2.0KHz
-     *  Currently deviation is set to 1.3KHz in setBand function.
-     */
-    //Si446x_setProperty24(radio, Si446x_MODEM_FREQ_DEV, 0x00, 0x01, 0xA3);
+  /*
+  * Set up GPIO port where the NIRQ from the radio is connected.
+  * The NIRQ line is configured in the radio to output the CCA condition.
+  * TODO: Cater for situation where CCA is not defined in the radio config.
+  */
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->tafsk.cca.line,
+                     Si446x_getConfig(radio)->tafsk.cca.mode);
 
-    // Use up-sampled AFSK from FIFO (PH)
-    Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
+  /* Set receiver for CCA detection. */
+  Si446x_setModemCCAdetection(radio);
 
-    /* Set PH bit order for AFSK. */
-    Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x01);
+  // Setup the NCO modulo and oversampling mode
+  uint32_t s = Si446x_CCLK / 10;
+  uint8_t f3 = (s >> 24) & 0xFF;
+  uint8_t f2 = (s >> 16) & 0xFF;
+  uint8_t f1 = (s >>  8) & 0xFF;
+  uint8_t f0 = (s >>  0) & 0xFF;
+  Si446x_setProperty32(radio, Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
 
-    // Set AFSK filter
-    const uint8_t coeff[] = {0x81, 0x9f, 0xc4, 0xee, 0x18, 0x3e, 0x5c, 0x70, 0x76};
-    uint8_t i;
-    for(i = 0; i < sizeof(coeff); i++) {
-        uint8_t msg[] = {0x11, 0x20, 0x01, 0x17-i, coeff[i]};
-        Si446x_write(radio, msg, 5);
-    }
+  // Setup the NCO data rate for APRS
+  Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE, 0x00, 0x33, 0x90);
+
+  /*
+   *  TODO: Set deviation set to +-2.0KHz
+   *  Currently deviation is set to 1.3KHz in setBand function.
+   */
+  //Si446x_setProperty24(radio, Si446x_MODEM_FREQ_DEV, 0x00, 0x01, 0xA3);
+
+  // Use up-sampled AFSK from FIFO (PH)
+  Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
+
+  /* Set PH bit order for AFSK. */
+  Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x01);
+
+  // Set AFSK filter
+  const uint8_t coeff[] = {0x81, 0x9f, 0xc4, 0xee, 0x18, 0x3e, 0x5c, 0x70, 0x76};
+  uint8_t i;
+  for(i = 0; i < sizeof(coeff); i++) {
+      uint8_t msg[] = {0x11, 0x20, 0x01, 0x17-i, coeff[i]};
+      Si446x_write(radio, msg, 5);
+  }
 }
 
 /**
@@ -660,6 +821,8 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
 #
 # Modulation index: 0.833
 */
+  /* Configure radio GPIOs. */
+  Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->rafsk).gpio);
 
   /* Set DIRECT_MODE (asynchronous mode as 2FSK). */
   Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x0A);
@@ -773,172 +936,70 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   }
 }
 
-/**
- *
- */
-static void Si446x_setModemCCA_RX(const radio_unit_t radio) {
 
-  packet_svc_t *handler = pktGetServiceObject(radio);
-
-/*
-# BatchName Si4464
-# Crys_freq(Hz): 26000000    Crys_tol(ppm): 20    IF_mode: 2
-# High_perf_Ch_Fil: 1    OSRtune: 0    Ch_Fil_Bw_AFC: 0
-# ANT_DIV: 0    PM_pattern: 15
-# MOD_type: 2    Rsymb(sps): 1200    Fdev(Hz): 500    RXBW(Hz): 150000
-# Manchester: 0    AFC_en: 0    Rsymb_error: 0.0    Chip-Version: 3
-# RF Freq.(MHz): 144    API_TC: 29    fhst: 12500    inputBW: 0
-# BERT: 0    RAW_dout: 0    D_source: 1    Hi_pfm_div: 1
-#
-# RX IF frequency is  -406250 Hz
-# WB filter 2 (BW =  14.89 kHz);  NB-filter 2 (BW = 14.89 kHz)
-#
-# Modulation index: 0.833
-*/
-
-  /* Set DIRECT_MODE (asynchronous mode as 2FSK). */
-  Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x0A);
-
-  /* Packet handler disabled in RX. */
-  Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x41);
-
-  if(is_part_Si4463(handler->radio_part)) {
-    /* Run 4463 in 4464 compatibility mode (set SEARCH2 to zero). */
-    Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0x00);
-  }
-  Si446x_setProperty8(radio, Si446x_MODEM_RAW_CONTROL, 0x8F);
-  Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH, 0xD6);
-  Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
-
-  /*
-   * OOK_MISC settings include parameters related to asynchronous mode.
-   * Asynchronous mode is used for AFSK reception passed to DSP decode.
-   */
-  Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x2A);
-  Si446x_setProperty8(radio, Si446x_MODEM_OOK_CNT1, 0x85);
-  Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
-
-  /* RX AFC control. */
-  Si446x_setProperty8(radio, Si446x_MODEM_AFC_GEAR, 0x54);
-  Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
-  Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
-  Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x02, 0x50);
-  Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0xC0); // 0x80
-
-  /* RX AGC control. */
-  Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0); // 0xE2 (bit 1 not used in 4464. It is used in 4463.)
-  Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
-  Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
-  Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
-
-  /* RX Bit clock recovery control. */
-  Si446x_setProperty8(radio, Si446x_MODEM_MDM_CTRL, 0x80);
-  Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x01, 0xC3);
-  Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x01, 0x22, 0x60);
-  Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x00, 0x91);
-  Si446x_setProperty8(radio, Si446x_MODEM_BCR_GEAR, 0x00);
-  Si446x_setProperty8(radio, Si446x_MODEM_BCR_MISC1, 0xC2);
-
-  /* RX IF controls. */
-  Si446x_setProperty8(radio, Si446x_MODEM_IF_CONTROL, 0x08);
-  Si446x_setProperty24(radio, Si446x_MODEM_IF_FREQ, 0x02, 0x80, 0x00);
-
-  /* RX IF filter decimation controls. */
-  Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x70);
-  Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
-  if(is_part_Si4463(handler->radio_part)) {
-    Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x0C);
-  }
-
-  /* RSSI latching disabled. */
-  Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL, 0x00);
-
-  /* RX IF filter coefficients. */
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xC4);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x30);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x7F);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0x5F);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xB5);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xB8);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xDE);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x05);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x17);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x16);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x0C);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0x03);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0x00);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x00);
-
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xC4);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x30);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x7F);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0x5F);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xB5);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xB8);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xDE);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x05);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x17);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x16);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x0C);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0x03);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0x00);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
-
-  Si446x_setProperty8(radio, Si446x_PREAMBLE_CONFIG, 0x21);
-
-  /* Unused Si4463 features for AFSK RX. */
-  if(is_part_Si4463(handler->radio_part)) {
-   /* DSA is not enabled. */
-   Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL1, 0x00); // 0xA0
-   Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL2, 0x00); // 0x04
-   Si446x_setProperty8(radio, Si446x_MODEM_SPIKE_DET, 0x00); // 0x03
-   Si446x_setProperty8(radio, Si446x_MODEM_ONE_SHOT_AFC, 0x00); // 0x07
-   Si446x_setProperty8(radio, Si446x_MODEM_DSA_QUAL, 0x00); // 0x06
-   Si446x_setProperty8(radio, Si446x_MODEM_DSA_RSSI, 0x00); // 0x78
-   Si446x_setProperty8(radio, Si446x_MODEM_RSSI_MUTE, 0x00);
-   Si446x_setProperty8(radio, Si446x_MODEM_DSA_MISC, 0x00); // 0x20
-  }
-}
 
 /**
  *
  */
 static void Si446x_setModem2FSK_TX(const radio_unit_t radio,
 		const uint32_t speed) {
-    // Setup the NCO modulo and oversampling mode
-    uint32_t s = Si446x_CCLK / 10;
-    uint8_t f3 = (s >> 24) & 0xFF;
-    uint8_t f2 = (s >> 16) & 0xFF;
-    uint8_t f1 = (s >>  8) & 0xFF;
-    uint8_t f0 = (s >>  0) & 0xFF;
-    Si446x_setProperty32(radio, Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
 
-    // Setup the NCO data rate for 2FSK
-    Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE,
-                         (uint8_t)(speed >> 16),
-                         (uint8_t)(speed >> 8), (uint8_t)speed);
+  /* Configure radio GPIOs. */
+  Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->t2fsk).gpio);
 
-    /*
-     *  TODO: Set deviation according to data rate.
-     *  Currently deviation is set to 1.3KHz in setBand function.
-     */
-    //Si446x_setProperty24(radio, Si446x_MODEM_FREQ_DEV, 0x00, 0x00, 0x79);
+  /*
+  * Set up GPIO port where the NIRQ from the radio is connected.
+  * The NIRQ line is configured in the radio to output the CCA condition.
+  * TODO: Cater for situation where CCA is not defined in the radio config.
+  */
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->t2fsk.cca.line,
+                     Si446x_getConfig(radio)->t2fsk.cca.mode);
 
-    // Use 2FSK from FIFO (PH)
-    Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
 
-    /* Set PH bit order for 2FSK. */
-    Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x01);
+  /* Set receiver for CCA detection. */
+  Si446x_setModemCCAdetection(radio);
+
+  // Setup the NCO modulo and oversampling mode
+  uint32_t s = Si446x_CCLK / 10;
+  uint8_t f3 = (s >> 24) & 0xFF;
+  uint8_t f2 = (s >> 16) & 0xFF;
+  uint8_t f1 = (s >>  8) & 0xFF;
+  uint8_t f0 = (s >>  0) & 0xFF;
+  Si446x_setProperty32(radio, Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
+
+  // Setup the NCO data rate for 2FSK
+  Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE,
+                       (uint8_t)(speed >> 16),
+                       (uint8_t)(speed >> 8), (uint8_t)speed);
+
+  /*
+   *  TODO: Set deviation according to data rate.
+   *  Currently deviation is set to 1.3KHz in setBand function.
+   */
+  //Si446x_setProperty24(radio, Si446x_MODEM_FREQ_DEV, 0x00, 0x00, 0x79);
+
+  /* Use 2FSK from FIFO (PH). */
+  Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
+
+  /* Set PH bit order for 2FSK. */
+  Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x01);
 }
 
+/**
+ *
+ */
+static void Si446x_setModem2FSK_RX(const radio_unit_t radio,
+                                   const radio_mod_t mod) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+
+  /* Configure radio GPIOs. */
+  Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->r2fsk).gpio);
+
+  /* TODO: Everything.... */
+  (void)handler;
+  (void)mod;
+}
 
 /**
  * Radio Settings
@@ -1070,19 +1131,46 @@ void Si446x_radioShutdown(const radio_unit_t radio) {
 
 
 /**
+ * @brief Used by TX to check CCA.
  * Get CCA over measurement interval.
  * Algorithm counts CCA pulses per millisecond (in systick time slices).
  * If more than one pulse per millisecond is counted then CCA is not true.
  * i.e. True is returned when a signal is present above the RSSI threshold.
  */
-static bool Si446x_checkCCAthreshold(const radio_unit_t radio,
-                                     const uint8_t ms) {
-  /* Get the CCA line. */
-  ioline_t cca_line = Si446x_getConfig(radio)->nirq;
+static bool Si446x_checkCCAthresholdForTX(const radio_unit_t radio,
+                                          const radio_mod_t mod,
+                                          const uint8_t ms) {
+
+  ioline_t cca_line;
+  /* Read CAA as setup by mod type. */
+  switch(mod) {
+  case MOD_2FSK_300:
+  case MOD_2FSK_9k6:
+  case MOD_2FSK_19k2:
+  case MOD_2FSK_38k4:
+  case MOD_2FSK_57k6:
+  case MOD_2FSK_76k8:
+  case MOD_2FSK_96k:
+  case MOD_2FSK_115k2:
+    cca_line = *Si446x_getConfig(radio)->t2fsk.cca.line;
+    break;
+
+  case MOD_AFSK: {
+    cca_line = *Si446x_getConfig(radio)->tafsk.cca.line;
+    break;
+  }
+
+  case MOD_NONE:
+    cca_line = PAL_NOLINE;
+    break;
+  }
+
+  if(cca_line == PAL_NOLINE)
+    return true;
   uint16_t cca = 0;
   /* Measure sliced CCA instances in period. */
   for(uint16_t i = 0; i < (ms * TIME_MS2I(1)); i++) {
-    cca += Si446x_getCCA(cca_line);
+    cca += palReadLine(cca_line);
     /* Sleep one tick. */
     chThdSleep(1);
   }
@@ -1098,11 +1186,13 @@ static bool Si446x_transmit(const radio_unit_t radio,
                             const channel_hz_t step,
                             const radio_ch_t chan,
                             const radio_pwr_t power,
+                            const radio_mod_t mod,
                             const deviation_hz_t dev,
                             const uint16_t size,
                             const radio_squelch_t rssi,
                             sysinterval_t cca_timeout) {
 
+  (void)mod;
   /* Get an absolute operating frequency in Hz. */
   radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
                                                       step, chan, RADIO_TX);
@@ -1126,12 +1216,11 @@ static bool Si446x_transmit(const radio_unit_t radio,
   /* Check for blind send request. */
   if(rssi != PKT_SI446X_NO_CCA_RSSI) {
     /*
-     *  Listen on the TX frequency.
-     *  TODO: Rework CCA implementation.
-     *  Have to program receive parameters
-     *  Currently the AFSK direct (async) would be used (if RX has been enabled).
-     *  But if RX has not been used the RX settings are power on defaults.
-     *  TBD...
+     *  Listen on the TX frequency for a clear channel.
+     *  - The radio must have been setup for CCA receive mode.
+     *  - Set the RSSI threshold in the radio.
+     *  - Put the radio into RX state.
+     *  - Measure the CCA level.
      */
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_THRESH, rssi);
 
@@ -1154,11 +1243,13 @@ static bool Si446x_transmit(const radio_unit_t radio,
         (float32_t)(TIME_I2MS(cca_timeout) / 1000),
         op_freq/1000000, (op_freq%1000000)/1000);
 #define CCA_VALID_TIME_MS   50
+
     systime_t t0 = chVTGetSystemTime();
     systime_t t1 = chTimeAddX(t0, cca_timeout);
     while((Si446x_getState(radio) == Si446x_STATE_RX
-        && Si446x_checkCCAthreshold(radio, CCA_VALID_TIME_MS))
+        && Si446x_checkCCAthresholdForTX(radio, mod, CCA_VALID_TIME_MS))
         && chVTIsSystemTimeWithinX(t0, t1)) {
+      /* Wait 1mS. */
       chThdSleep(TIME_MS2I(1));
     }
     if(!chVTIsSystemTimeWithinX(t0, t1)) {
@@ -1224,13 +1315,31 @@ bool Si446x_receiveNoLock(const radio_unit_t radio,
   }
 
   /* Configure radio for modulation type. */
-  if(mod == MOD_AFSK) {
-      Si446x_setModemAFSK_RX(radio);
-  } else {
-      TRACE_ERROR("SI   > Modulation type %s not supported in receive",
-                  getModulation(mod));
-      TRACE_ERROR("SI   > Abort reception");
-      return false;
+  switch(mod) {
+  case MOD_2FSK_300:
+  case MOD_2FSK_9k6:
+  case MOD_2FSK_19k2:
+  case MOD_2FSK_38k4:
+  case MOD_2FSK_57k6:
+  case MOD_2FSK_76k8:
+  case MOD_2FSK_96k:
+  case MOD_2FSK_115k2:
+    Si446x_setModem2FSK_RX(radio, mod);
+    TRACE_ERROR("SI   > Modulation type %s not supported in receive",
+                getModulation(mod));
+    TRACE_ERROR("SI   > Abort reception");
+    return false;
+
+  case MOD_AFSK: {
+    Si446x_setModemAFSK_RX(radio);
+    break;
+  }
+
+  case MOD_NONE:
+    TRACE_ERROR("SI   > Invalid modulation type %s in receive",
+                getModulation(mod));
+    TRACE_ERROR("SI   > Abort reception");
+    return false;
   }
 
   TRACE_INFO("SI   > Tune Si446x to %d.%03d MHz (RX)",
@@ -1404,7 +1513,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
    * Set receive for CCA detection to AFSK.
    * TODO: Implement a standard carrier detect setup.
    */
-  Si446x_setModemCCA_RX(radio);
+  //Si446x_setModemCCAdetection(radio);
 
   /* Set the radio for AFSK upsampled mode. */
   Si446x_setModemAFSK_TX(radio);
@@ -1491,6 +1600,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                        rto->step_hz,
                        rto->channel,
                        rto->tx_power,
+                       rto->type,
                        2000, // Deviation in Hz
                        all,
                        rssi,
@@ -1665,7 +1775,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
    * Set receive for CCA detection to AFSK.
    * TODO: Implement a standard carrier detect setup.
    */
-  Si446x_setModemCCA_RX(radio);
+  //Si446x_setModemCCAdetection(radio);
 
   /* Set parameters for 2FSK transmission. */
   Si446x_setModem2FSK_TX(radio, rto->tx_speed);
@@ -1752,6 +1862,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                        rto->step_hz,
                        rto->channel,
                        rto->tx_power,
+                       rto->type,
                        1300, // TODO: Deviation to be set based on data rate
                        all,
                        rssi,
@@ -1887,27 +1998,26 @@ si446x_temp_t Si446x_getLastTemperature(const radio_unit_t radio) {
  *
  */
 ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
-  /* The RX_RAW_DATA input is routed to ICU timer channel.
-   * TODO: The STM32 Alternate mode should be in the radio config data.
-   * Then the ICU GPIO setting can be generalized.
-   */
-  //(void)pktSetLineModeICU(Si446x_getConfig(radio)->gpio1);
-  pktSetGPIOlineMode(Si446x_getConfig(radio)->gpio1,
-                     Si446x_getConfig(radio)->alt);
+  /* The RX_RAW_DATA input is routed to ICU timer channel.  */
+
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.pwm.line,
+                     Si446x_getConfig(radio)->rafsk.pwm.mode);
 
   /*
   * Set up GPIO port where the NIRQ from the radio is connected.
   * The NIRQ line is configured in the radio to output the CCA condition.
+  * The MCU GPIO will be setup to interrupt on CCA changes.
   */
-  pktSetGPIOlineMode(Si446x_getConfig(radio)->nirq, PAL_MODE_INPUT_PULLUP);
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.cca.line,
+                     Si446x_getConfig(radio)->rafsk.cca.mode);
 
   /*
    * Return the ICU this radio is assigned to.
    * TODO: Check that the ICU is not already taken?
-   * This would only be a config error.
+   * This would only be made possible by a config error.
    * Packet channel control enforces single use of decoder PWM for AFSK.
    */
-  return Si446x_getConfig(radio)->icu;
+  return Si446x_getConfig(radio)->rafsk.icu;
 }
 
 /**
@@ -1919,30 +2029,52 @@ bool Si446x_detachPWM(const radio_unit_t radio) {
 }
 
 /**
- *
+ * TODO: The radio GPIO mapping needs to be considered.
  */
 const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio,
                           palcallback_t cb) {
   /* Set callback for squelch events. */
-  palSetLineCallback(Si446x_getConfig(radio)->nirq, cb,
-                     Si446x_getConfig(radio)->icu);
+  palSetLineCallback(*Si446x_getConfig(radio)->rafsk.cca.line, cb,
+                     Si446x_getConfig(radio)->rafsk.icu);
 
   /* Enabling events on both edges of CCA.*/
-  palEnableLineEvent(Si446x_getConfig(radio)->nirq,
+  palEnableLineEvent(*Si446x_getConfig(radio)->rafsk.cca.line,
                      PAL_EVENT_MODE_BOTH_EDGES);
 
-  return &Si446x_getConfig(radio)->cfg;
+  return &Si446x_getConfig(radio)->rafsk.cfg;
 }
 
 /**
  *
  */
 void Si446x_disablePWMeventsI(radio_unit_t radio) {
-  palDisableLineEventI(Si446x_getConfig(radio)->nirq);
+  palDisableLineEventI(*Si446x_getConfig(radio)->rafsk.cca.line);
 }
+
 /**
  *
  */
-uint8_t Si446x_readCCA(const radio_unit_t radio) {
-  return palReadLine(Si446x_getConfig(radio)->nirq);
+uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio,
+                           const radio_mod_t mod) {
+
+  /* Read CAA as setup by mod type. */
+  switch(mod) {
+  case MOD_2FSK_300:
+  case MOD_2FSK_9k6:
+  case MOD_2FSK_19k2:
+  case MOD_2FSK_38k4:
+  case MOD_2FSK_57k6:
+  case MOD_2FSK_76k8:
+  case MOD_2FSK_96k:
+  case MOD_2FSK_115k2:
+    return palReadLine(*Si446x_getConfig(radio)->r2fsk.cca.line);
+
+  case MOD_AFSK: {
+    return palReadLine(*Si446x_getConfig(radio)->rafsk.cca.line);
+  }
+
+  case MOD_NONE:
+    break;
+  }
+  return 0;
 }
