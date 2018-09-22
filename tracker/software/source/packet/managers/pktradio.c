@@ -1432,10 +1432,10 @@ void pktLLDradioDeconfigIndicator(const radio_unit_t radio,
   if(inds == NULL)
     return;
   do {
-    switch(inds->type) {
     if(inds->ind != ind)
       /* This is not the indicator specified. */
       continue;
+    switch(inds->type) {
     case PKT_IND_GPIO_LINE: {
       if(inds->address.line != PAL_NOLINE)
         palSetLineMode(inds->address.line, PAL_MODE_INPUT);
