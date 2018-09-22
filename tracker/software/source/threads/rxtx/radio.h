@@ -7,6 +7,8 @@
 #include "ax25_pad.h"
 #include "pktconf.h"
 
+#define PKT_APRS_MAIN_WA_SIZE       1024
+
 // APRS region frequencies
 #define APRS_FREQ_OTHER				144800000
 #define APRS_FREQ_AMERICA			144390000
@@ -19,8 +21,7 @@
 #define APRS_FREQ_ARGENTINA			144930000
 #define APRS_FREQ_BRAZIL			145575000
 
-void start_aprs_threads(radio_unit_t radio, radio_freq_t freq, channel_hz_t step,
-                     radio_ch_t chan, radio_squelch_t rssi);
+thread_t *start_aprs_threads(thd_aprs_conf_t *conf, const char *name);
 bool transmitOnRadio(packet_t pp, radio_freq_t freq, channel_hz_t step,
                      radio_ch_t chan, radio_pwr_t pwr, radio_mod_t mod,
                      radio_squelch_t rssi);
@@ -31,7 +32,9 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
                      const radio_task_cb_t cb);
 
 inline const char *getModulation(radio_mod_t key) {
-    const char *val[] = {"NONE", "AFSK", "2FSK 9k6", "2FSK 19k2", "2FSK 38k4", "2FSK 57k6", "2FSK 76k8", "2FSK 96k", "2FSK 115k2"};
+    const char *val[] = {"NONE", "AFSK", "2FSK 300", "2FSK 9k6", "2FSK 19k2",
+                         "2FSK 38k4", "2FSK 57k6", "2FSK 76k8", "2FSK 96k",
+                         "2FSK 115k2"};
     return val[key];
 };
 

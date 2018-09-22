@@ -190,6 +190,7 @@ static void obnotify(io_buffers_queue_t *bqp) {
   if (!usbGetTransmitStatusI(sdup->config->usbp, sdup->config->bulk_in)) {
     /* Trying to get a full buffer.*/
     uint8_t *buf = obqGetFullBufferI(&sdup->obqueue, &n);
+    osalDbgAssert(buf != NULL, "full output buffer not found in queue");
     if (buf != NULL) {
       /* Buffer found, starting a new transaction.*/
       usbStartTransmitI(sdup->config->usbp, sdup->config->bulk_in, buf, n);
@@ -310,6 +311,8 @@ void sduStop(SerialUSBDriver *sdup) {
  */
 void sduSuspendHookI(SerialUSBDriver *sdup) {
 
+  if(bqIsSuspendedX(&sdup->ibqueue) && bqIsSuspendedX(&sdup->obqueue))
+    return;
   chnAddFlagsI(sdup, CHN_DISCONNECTED);
   bqSuspendI(&sdup->ibqueue);
   bqSuspendI(&sdup->obqueue);
@@ -348,7 +351,8 @@ void sduConfigureHookI(SerialUSBDriver *sdup) {
   obqResetI(&sdup->obqueue);
   bqResumeX(&sdup->obqueue);
   chnAddFlagsI(sdup, CHN_CONNECTED);
-  (void) sdu_start_receive(sdup);
+  bool r = sdu_start_receive(sdup);
+  osalDbgAssert(!r, "failed start receive");
 }
 
 /**
@@ -507,7 +511,8 @@ void sduDataReceived(USBDriver *usbp, usbep_t ep) {
   /* The endpoint cannot be busy, we are in the context of the callback,
      so a packet is in the buffer for sure. Trying to get a free buffer
      for the next transaction.*/
-  (void) sdu_start_receive(sdup);
+  bool r = sdu_start_receive(sdup);
+  osalDbgAssert(!r, "failed setup for next receive");
 
   osalSysUnlockFromISR();
 }

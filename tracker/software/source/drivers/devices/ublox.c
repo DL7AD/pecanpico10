@@ -35,9 +35,7 @@ static const char *model[] = {GPS_MODEL_NAMES};
  * Get pointer to model name as string
  */
 const char *gps_get_model_name(uint8_t index) {
-  if(index > GPS_MODEL_MAX)
-    return "INVALID";
-  return model[index];
+  return (index > GPS_MODEL_MAX ? "INVALID" : model[index]);
 }
 
 /**
@@ -46,7 +44,7 @@ const char *gps_get_model_name(uint8_t index) {
 void gps_transmit_string(uint8_t *cmd, uint8_t length) {
   gps_calc_ubx_csum(cmd, length);
 #if UBLOX_USE_I2C == TRUE
-  I2C_writeN(UBLOX_MAX_ADDRESS, cmd, length);
+  I2C_writeN(PKT_GPS_I2C, UBLOX_MAX_ADDRESS, cmd, length);
 #elif defined(UBLOX_UART_CONNECTED)
   sdWrite(&SD5, cmd, length);
 #endif
@@ -59,9 +57,9 @@ void gps_transmit_string(uint8_t *cmd, uint8_t length) {
 bool gps_receive_byte(uint8_t *data) {
 #if UBLOX_USE_I2C == TRUE
 	uint16_t len;
-	I2C_read16(UBLOX_MAX_ADDRESS, 0xFD, &len);
+	I2C_read16(PKT_GPS_I2C, UBLOX_MAX_ADDRESS, 0xFD, &len);
 	if(len) {
-		I2C_read8(UBLOX_MAX_ADDRESS, 0xFF, data);
+		I2C_read8(PKT_GPS_I2C, UBLOX_MAX_ADDRESS, 0xFF, data);
 		return true;
 	}
 #elif defined(UBLOX_UART_CONNECTED)
@@ -140,9 +138,9 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
 	uint16_t payload_cnt = 0;
 	uint16_t payload_len = 0;
 
-	sysinterval_t sNow = chVTGetSystemTime();
+	systime_t sNow = chVTGetSystemTime();
 
-	while(chVTIsSystemTimeWithin(sNow, sNow + TIME_MS2I(timeout))) {
+	while(chVTIsSystemTimeWithin(sNow, chTimeAddX(sNow, TIME_MS2I(timeout)))) {
 
 		// Receive one byte
       if(!gps_receive_byte(&rx_byte)) {
@@ -240,50 +238,50 @@ bool gps_get_fix(gpsFix_t *fix) {
 		return false;
 	}
 
-      // Extract data from message
-      fix->fixOK = navstatus[5] & 0x1;
-      fix->pdop = navpvt[76] + (navpvt[77] << 8);
+    // Extract data from message
+    fix->fixOK = navstatus[5] & 0x1;
+    fix->pdop = navpvt[76] + (navpvt[77] << 8);
 
-      fix->num_svs = navpvt[23];
-      fix->type = navpvt[20];
+    fix->num_svs = navpvt[23];
+    fix->type = navpvt[20];
 
-      fix->time.year = navpvt[4] + (navpvt[5] << 8);
-      fix->time.month = navpvt[6];
-      fix->time.day = navpvt[7];
-      fix->time.hour = navpvt[8];
-      fix->time.minute = navpvt[9];
-      fix->time.second = navpvt[10];
+    fix->time.year = navpvt[4] + (navpvt[5] << 8);
+    fix->time.month = navpvt[6];
+    fix->time.day = navpvt[7];
+    fix->time.hour = navpvt[8];
+    fix->time.minute = navpvt[9];
+    fix->time.second = navpvt[10];
 
-      fix->lat = (int32_t) (
-              (uint32_t)(navpvt[28])
-              + ((uint32_t)(navpvt[29]) << 8)
-              + ((uint32_t)(navpvt[30]) << 16)
-              + ((uint32_t)(navpvt[31]) << 24)
-              );
-      fix->lon = (int32_t) (
-              (uint32_t)(navpvt[24])
-              + ((uint32_t)(navpvt[25]) << 8)
-              + ((uint32_t)(navpvt[26]) << 16)
-              + ((uint32_t)(navpvt[27]) << 24)
-              );
-      int32_t alt_tmp = (((int32_t)
-              ((uint32_t)(navpvt[36])
-                  + ((uint32_t)(navpvt[37]) << 8)
-                  + ((uint32_t)(navpvt[38]) << 16)
-                  + ((uint32_t)(navpvt[39]) << 24))
-              ) / 1000);
-      if (alt_tmp <= 0) {
-          fix->alt = 1;
-      } else if (alt_tmp > 50000) {
-          fix->alt = 50000;
-      } else {
-          fix->alt = (uint16_t)alt_tmp;
-      }
-      fix->model = gps_model;
-	TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%02d.%02d model=%s",
-		fix->time.year, fix->time.month, fix->time.day, fix->time.hour, fix->time.minute, fix->time.second,
-		fix->lat/10000000, (fix->lat > 0 ? 1:-1)*(fix->lat/100)%100000, fix->lon/10000000, (fix->lon > 0 ? 1:-1)*(fix->lon/100)%100000,
-		fix->alt, fix->num_svs, fix->fixOK, fix->pdop/100, fix->pdop%100, gps_get_model_name(fix->model)
+    fix->lat = (int32_t) (
+            (uint32_t)(navpvt[28])
+            + ((uint32_t)(navpvt[29]) << 8)
+            + ((uint32_t)(navpvt[30]) << 16)
+            + ((uint32_t)(navpvt[31]) << 24)
+            );
+    fix->lon = (int32_t) (
+            (uint32_t)(navpvt[24])
+            + ((uint32_t)(navpvt[25]) << 8)
+            + ((uint32_t)(navpvt[26]) << 16)
+            + ((uint32_t)(navpvt[27]) << 24)
+            );
+    int32_t alt_tmp = (((int32_t)
+            ((uint32_t)(navpvt[36])
+                + ((uint32_t)(navpvt[37]) << 8)
+                + ((uint32_t)(navpvt[38]) << 16)
+                + ((uint32_t)(navpvt[39]) << 24))
+            ) / 1000);
+    if (alt_tmp <= 0) {
+        fix->alt = 1;
+    } else if (alt_tmp > 50000) {
+        fix->alt = 50000;
+    } else {
+        fix->alt = (uint16_t)alt_tmp;
+    }
+    fix->model = gps_model;
+    TRACE_INFO("GPS  > Polling OK time=%04d-%02d-%02d %02d:%02d:%02d lat=%d.%05d lon=%d.%05d alt=%dm sats=%d fixOK=%d pDOP=%02d.%02d model=%s",
+      fix->time.year, fix->time.month, fix->time.day, fix->time.hour, fix->time.minute, fix->time.second,
+      fix->lat/10000000, (fix->lat > 0 ? 1:-1)*(fix->lat/100)%100000, fix->lon/10000000, (fix->lon > 0 ? 1:-1)*(fix->lon/100)%100000,
+      fix->alt, fix->num_svs, fix->fixOK, fix->pdop/100, fix->pdop%100, gps_get_model_name(fix->model)
 	);
 
 	return true;
@@ -505,8 +503,8 @@ uint8_t gps_set_airborne_model(void) {
   * returns ACK/NAK result
   *
   */
-uint8_t gps_set_power_save(void) {
-	uint8_t powersave[] = {
+uint8_t gps_set_power_options(void) {
+	uint8_t poweroptions[] = {
 		0xB5, 0x62, 0x06, 0x3B, 44, 0,		// UBX-CFG-PM2
 		0x01, 0x00, 0x00, 0x00, 			// v1, reserved 1..3
 		0x00, 0b00010000, 0b00000010, 0x00,	// cyclic tracking, update ephemeris
@@ -523,18 +521,18 @@ uint8_t gps_set_power_save(void) {
 		0x00, 0x00                          // CRC place holders
 	};
 
-	gps_transmit_string(powersave, sizeof(powersave));
+	gps_transmit_string(poweroptions, sizeof(poweroptions));
 	return gps_receive_ack(0x06, 0x3B, 1000);
 }
 
 /**
-  * gps_power_save
+  * gps_switch_power_save_mode
   *
   * enables or disables the power save mode (which was configured before)
   *
   * returns ACK/NAK result
   */
-uint8_t gps_power_save(int on) {
+uint8_t gps_switch_power_save_mode(bool on) {
 	uint8_t recvmgmt[] = {
 		0xB5, 0x62, 0x06, 0x11, 2, 0,	// UBX-CFG-RXM
 		0x08, on ? 0x01 : 0x00,	        // reserved, enable power save mode
@@ -627,6 +625,14 @@ bool GPS_Init() {
 		TRACE_ERROR("GPS  > Communication Error [disable NMEA]");
 		return false;
 	}
+    cntr = 3;
+    while((status = gps_set_power_options()) == false && cntr--);
+    if(status) {
+        TRACE_INFO("GPS  > ... Set power options OK");
+    } else {
+        TRACE_ERROR("GPS  > Communication Error [power options]");
+        return false;
+    }
     gps_enabled = true;
 	return true;
 }

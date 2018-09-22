@@ -900,9 +900,14 @@ static bool transmit_image_packet(const uint8_t *image,
  * Callback used to throttle image send.
  * Next packet (or burst) is readied.
  */
-static void image_packet_send_complete(void) {
+static void image_packet_send_complete(radio_task_object_t *rt) {
   chSemSignal(&tx_complete);
-  TRACE_DEBUG("IMG  > Released transmit semaphore");
+#if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
+  TRACE_DEBUG("IMG  > Released transmit semaphore TX sequence %d",
+              rt->tx_seq_num);
+#else
+  (void)rt;
+#endif
   return;
 }
 
@@ -965,7 +970,7 @@ static bool transmit_image_packets(const uint8_t *image,
                               / PKT_MAXIMUM_QUEUED_IMAGE_TX_THREADS)
                             - RESERVE_BUFFERS_FOR_INTERNAL),
                            MAX_BUFFERS_FOR_BURST_SEND);
-    uint8_t chain = (IS_2FSK(conf->radio_conf.mod)
+    uint8_t chain = (IS_2FSK(conf->radio_conf.mod) && !conf->no_burst
         && !conf->redundantTx) ?
         buffers : 1;
     TRACE_INFO("IMG  > Encode %i APRS/SSDV packet%s", chain,
@@ -993,7 +998,7 @@ static bool transmit_image_packets(const uint8_t *image,
           break;
         }
       } else if(c != SSDV_OK) {
-        TRACE_ERROR("SSDV > ssdv_enc_get_packet failed: %i", c);
+        TRACE_ERROR("SSDV > ssdv_enc_get_packet failed with code: %i", c);
         if(head != NULL) {
           pktReleaseBufferChain(head);
         }
@@ -1030,10 +1035,14 @@ static bool transmit_image_packets(const uint8_t *image,
     if(head != NULL) {
 
       /* Get the semaphore for TX. */
+#if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
       TRACE_DEBUG("IMG  > Waiting for transmit semaphore");
+#endif
       if(chSemWait(&tx_complete) == MSG_RESET)
                 return false;
+#if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
       TRACE_DEBUG("IMG  > Acquired transmit semaphore");
+#endif
       if(!transmitOnRadioWithCallback(head,
                           conf->radio_conf.freq,
                           0,
@@ -1047,7 +1056,7 @@ static bool transmit_image_packets(const uint8_t *image,
          *  Transmit on radio will release the packet chain.
          *  But we need to release the throttle semaphore.
         */
-        image_packet_send_complete();
+        chSemSignal(&tx_complete);
         return false;
       } else {
         // Packet spacing (delay)
@@ -1063,7 +1072,7 @@ static bool transmit_image_packets(const uint8_t *image,
     if(packetRepeats[i].n_done && image_id == packetRepeats[i].image_id) {
       if(!transmit_image_packet(image, image_len, conf,
                                 image_id, packetRepeats[i].packet_id)) {
-        TRACE_ERROR("IMG  > Failed re-send of image %i", image_id);
+        TRACE_ERROR("IMG  > Failed re-send of image ID=%d", image_id);
       } else {
         packetRepeats[i].n_done = false; // Set done
       }
@@ -1084,14 +1093,14 @@ static bool transmit_image_packets(const uint8_t *image,
 /**
   * Analyzes the image for JPEG errors. Returns true if the image is error free.
   */
-static bool analyze_image(const uint8_t *image, const uint32_t image_len) {
+static bool analyze_image(const uint8_t *image, uint32_t image_len) {
 
 #if !PDCMI_USE_DMA_DBM
-  if(image_len > 65535) {
+  if(image_len > 65535UL) {
     TRACE_ERROR("CAM  > Camera has %d bytes allocated but "
         "DMA DBM not activated", image_len);
     TRACE_ERROR("CAM  > DMA can only use 65535 bytes");
-    image_len = 65535;
+    image_len = 65535UL;
   }
 #endif
 
@@ -1213,7 +1222,7 @@ THD_FUNCTION(imgThread, arg) {
   // Create buffer
   //uint8_t buffer[conf->buf_size] __attribute__((aligned(DMA_FIFO_BURST_ALIGN)));
 
-  sysinterval_t time = chVTGetSystemTime();
+  systime_t time = chVTGetSystemTime();
   while(true) {
     char code_s[100];
     pktDisplayFrequencyCode(conf->radio_conf.freq,
@@ -1245,15 +1254,7 @@ THD_FUNCTION(imgThread, arg) {
       time = waitForTrigger(time, conf->svc_conf.cycle);
       continue;
     }
-    /*
-     * History... compiler bug
-     * If size is > 65535 the compiled code wraps address around and kills CCM heap.
-     * Anyway clearing of the capture buffer is no longer needed.
-     * SOI is now aligned at index 0 and length >= EOI is returned by capture.
-     */
-/*    uint32_t size = conf->buf_size;
-    for(uint32_t i = 0; i < size ; i++)
-        buffer[i] = 0;*/
+
     /* Take picture. */
     uint32_t size_sampled = takePicture(buffer, conf->buf_size,
                                         conf->res, true);
@@ -1330,12 +1331,15 @@ THD_FUNCTION(imgThread, arg) {
 void start_image_thread(img_app_conf_t *conf, const char *name)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
-	                                   THD_WORKING_AREA_SIZE(35 * 1024),
+	                                   THD_WORKING_AREA_SIZE(8 * 1024),
 	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
-		// Print startup error, do not start watchdog for this thread
-		TRACE_ERROR("IMG  > Could not startup thread"
-		    " (not enough memory available)");
+      // Print startup error, do not start watchdog for this thread
+      TRACE_ERROR("IMG  > Could not startup thread"
+          " (not enough memory available)");
+      return;
 	}
+	TRACE_INFO("IMG  > Image capture using DMA %s in thread %s",
+	           PDCMI_USE_DMA_DBM ? "DBM" : "SBM", name);
 }
 

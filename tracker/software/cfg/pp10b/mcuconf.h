@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
     limitations under the License.
 */
 
-#ifndef _MCUCONF_H_
-#define _MCUCONF_H_
+#ifndef MCUCONF_H_
+#define MCUCONF_H_
 
 /*
  * STM32F4xx drivers configuration.
@@ -38,11 +38,15 @@
  * HAL driver system settings.
  */
 #define STM32_NO_INIT                       FALSE
+#define STM32_PVD_ENABLE                    FALSE
+#define STM32_PLS                           STM32_PLS_LEV0
+#define STM32_BKPRAM_ENABLE                 FALSE
 #define STM32_HSI_ENABLED                   FALSE
 #define STM32_LSI_ENABLED                   TRUE
 #define STM32_HSE_ENABLED                   TRUE
 #define STM32_LSE_ENABLED                   FALSE
 #define STM32_CLOCK48_REQUIRED              TRUE
+#define STM32_CK48MSEL                      STM32_CK48MSEL_PLL
 #define STM32_SW                            STM32_SW_PLL
 #define STM32_PLLSRC                        STM32_PLLSRC_HSE
 #define STM32_PLLM_VALUE                    26
@@ -52,22 +56,19 @@
 #define STM32_HPRE                          STM32_HPRE_DIV1
 #define STM32_PPRE1                         STM32_PPRE1_DIV1
 #define STM32_PPRE2                         STM32_PPRE2_DIV1
+#define STM32_PLLI2SSRC                     STM32_PLLI2SSRC_PLLSRC
+#define STM32_TIMPRE                        STM32_TIMPRE_PCLK
 #define STM32_RTCSEL                        STM32_RTCSEL_LSI
 #define STM32_RTCPRE_VALUE                  8
 #define STM32_MCO1SEL                       STM32_MCO1SEL_PLL
 #define STM32_MCO1PRE                       STM32_MCO1PRE_DIV1
 #define STM32_MCO2SEL                       STM32_MCO2SEL_PLL
 #define STM32_MCO2PRE                       STM32_MCO2PRE_DIV2
-#define STM32_I2SSRC                        STM32_I2SSRC_CKIN
+#define STM32_I2SSRC                        STM32_PLLI2SSRC_CKIN
 #define STM32_PLLI2SM_VALUE                 26
-#define STM32_PLLI2SN_VALUE                 384
+#define STM32_PLLI2SN_VALUE                 192
 #define STM32_PLLI2SR_VALUE                 4
-#define STM32_PLLI2SQ_VALUE                 8
-#define STM32_PVD_ENABLE                    FALSE
-#define STM32_PLS                           STM32_PLS_LEV0
-#define STM32_BKPRAM_ENABLE                 FALSE
-#define STM32_TIMPRE                        STM32_TIMPRE_PCLK
-#define STM32_CK48MSEL                      STM32_CK48MSEL_PLL
+#define STM32_PLLI2SQ_VALUE                 4
 
 /*
  * ADC driver system settings.
@@ -75,25 +76,27 @@
 #define STM32_ADC_ADCPRE                    ADC_CCR_ADCPRE_DIV4
 #define STM32_ADC_USE_ADC1                  TRUE
 #define STM32_ADC_ADC1_DMA_STREAM           STM32_DMA_STREAM_ID(2, 4)
-#define STM32_ADC_ADC1_DMA_PRIORITY         2
-#define STM32_ADC_IRQ_PRIORITY              6
+#define STM32_ADC_ADC1_DMA_PRIORITY         0
+#define STM32_ADC_IRQ_PRIORITY              10
 #define STM32_ADC_ADC1_DMA_IRQ_PRIORITY     6
 
 /*
- * EXT driver system settings.
+ * IRQ system settings.
  */
-#define STM32_EXT_EXTI0_IRQ_PRIORITY        6
-#define STM32_EXT_EXTI1_IRQ_PRIORITY        6
-#define STM32_EXT_EXTI2_IRQ_PRIORITY        6
-#define STM32_EXT_EXTI3_IRQ_PRIORITY        6
-#define STM32_EXT_EXTI4_IRQ_PRIORITY        6
-#define STM32_EXT_EXTI5_9_IRQ_PRIORITY      6
-#define STM32_EXT_EXTI10_15_IRQ_PRIORITY    3
-#define STM32_EXT_EXTI16_IRQ_PRIORITY       6
-#define STM32_EXT_EXTI17_IRQ_PRIORITY       15
-#define STM32_EXT_EXTI18_IRQ_PRIORITY       6
-#define STM32_EXT_EXTI19_IRQ_PRIORITY       6
-#define STM32_EXT_EXTI22_IRQ_PRIORITY       15
+#define STM32_IRQ_EXTI0_PRIORITY            6
+#define STM32_IRQ_EXTI1_PRIORITY            6
+#define STM32_IRQ_EXTI2_PRIORITY            6
+#define STM32_IRQ_EXTI3_PRIORITY            6
+#define STM32_IRQ_EXTI4_PRIORITY            6
+#define STM32_IRQ_EXTI5_9_PRIORITY          6
+#define STM32_IRQ_EXTI10_15_PRIORITY        3
+#define STM32_IRQ_EXTI16_PRIORITY           6
+#define STM32_IRQ_EXTI17_PRIORITY           15
+#define STM32_IRQ_EXTI18_PRIORITY           6
+#define STM32_IRQ_EXTI19_PRIORITY           6
+#define STM32_IRQ_EXTI20_PRIORITY           6
+#define STM32_IRQ_EXTI21_PRIORITY           15
+#define STM32_IRQ_EXTI22_PRIORITY           15
 
 /*
  * GPT driver system settings.
@@ -157,12 +160,14 @@
 #define STM32_ICU_USE_TIM3                  FALSE
 #define STM32_ICU_USE_TIM4                  TRUE
 #define STM32_ICU_USE_TIM5                  FALSE
+#define STM32_ICU_USE_TIM8                  FALSE
 #define STM32_ICU_USE_TIM9                  FALSE
 #define STM32_ICU_TIM1_IRQ_PRIORITY         7
 #define STM32_ICU_TIM2_IRQ_PRIORITY         7
 #define STM32_ICU_TIM3_IRQ_PRIORITY         7
 #define STM32_ICU_TIM4_IRQ_PRIORITY         7
 #define STM32_ICU_TIM5_IRQ_PRIORITY         7
+#define STM32_ICU_TIM8_IRQ_PRIORITY         7
 #define STM32_ICU_TIM9_IRQ_PRIORITY         7
 
 /*
@@ -216,7 +221,7 @@
 #define STM32_SPI_SPI5_TX_DMA_STREAM        STM32_DMA_STREAM_ID(2, 6)
 #define STM32_SPI_SPI1_DMA_PRIORITY         3
 #define STM32_SPI_SPI2_DMA_PRIORITY         3
-#define STM32_SPI_SPI3_DMA_PRIORITY         3
+#define STM32_SPI_SPI3_DMA_PRIORITY         2
 #define STM32_SPI_SPI4_DMA_PRIORITY         3
 #define STM32_SPI_SPI5_DMA_PRIORITY         3
 #define STM32_SPI_SPI1_IRQ_PRIORITY         10
@@ -267,13 +272,11 @@
 #define STM32_USB_USE_OTG1                  TRUE
 #define STM32_USB_OTG1_IRQ_PRIORITY         14
 #define STM32_USB_OTG1_RX_FIFO_SIZE         512
-#define STM32_USB_OTG_THREAD_PRIO           LOWPRIO
-#define STM32_USB_OTG_THREAD_STACK_SIZE     128
-#define STM32_USB_OTGFIFO_FILL_BASEPRI      0
+#define STM32_USB_HOST_WAKEUP_DURATION      2
 
 /*
  * WDG driver system settings.
  */
 #define STM32_WDG_USE_IWDG                  TRUE
 
-#endif /* _MCUCONF_H_ */
+#endif /* MCUCONF_H_ */

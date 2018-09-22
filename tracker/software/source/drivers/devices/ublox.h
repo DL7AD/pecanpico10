@@ -23,7 +23,6 @@
 
 
 /* Model limits. */
-//#define GPS_MODEL_UNSET         -1
 #define GPS_MODEL_MAX           GPS_MODEL_AIRBORNE4G
 
 /**
@@ -100,8 +99,8 @@ bool    gps_set_model(bool dynamic);
 uint8_t gps_set_stationary_model(void);
 uint8_t gps_set_portable_model(void);
 uint8_t gps_set_airborne_model(void);
-uint8_t gps_set_power_save(void);
-uint8_t gps_power_save(int on);
+uint8_t gps_set_power_options(void);
+uint8_t gps_switch_power_save_mode(bool on);
 //uint8_t gps_save_settings(void);
 bool gps_get_fix(gpsFix_t *fix);
 bool gps_get_sv_info(gps_svinfo_t *svinfo, size_t size);

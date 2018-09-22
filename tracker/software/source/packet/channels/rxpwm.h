@@ -43,11 +43,12 @@
 #define PWM_TERM_ICU_OVERFLOW   2
 #define PWM_TERM_QUEUE_ERR      3
 #define PWM_ACK_DECODE_END      4
-#define PWM_TERM_DECODE_STOP    5
+#define PWM_TERM_PWM_STOP       5
 #define PWM_TERM_NO_DATA        6
 #define PWM_TERM_ICU_ZERO       7
 #define PWM_INFO_QUEUE_SWAP     8
 #define PWM_ACK_DECODE_ERROR    9
+#define PWM_TERM_QUEUE_ERROR    10
 
 /* ICU will be stopped if no activity for this number of seconds. */
 #define ICU_INACTIVITY_TIMEOUT  60
@@ -177,6 +178,11 @@ typedef struct {
 } radio_pwm_fifo_t;
 
 /*===========================================================================*/
+/* Module macro definitions.                                                 */
+/*===========================================================================*/
+
+
+/*===========================================================================*/
 /* Module inline functions.                                                  */
 /*===========================================================================*/
 
@@ -234,39 +240,6 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
 #endif
 }
 
-/**
- * @brief   Write PWM data into input queue.
- * @note    This function deals with PWM data packed in sequential bytes.
- *
- * @param[in] queue     pointer to an input queue object.
- * @param[in] pack      PWM packed data object.
- *
- * @return              The operation status.
- * @retval MSG_OK       The PWM entry has been queued.
- * @retval MSG_RESET    One slot remains which is reserved for an in-band signal.
- * @retval MSG_TIMEOUT  The queue is full for normal PWM data writes.
- *
- *
- * @api
- */
-static inline msg_t pktWritePWMQueueI(input_queue_t *queue,
-                                     byte_packed_pwm_t pack) {
-
-  /* Check if there is only one slot left. */
-  if(iqGetEmptyI(queue) == sizeof(byte_packed_pwm_t)) {
-    array_min_pwm_counts_t data;
-    pktUnpackPWMData(pack, &data);
-    if(data.pwm.impulse != PWM_IN_BAND_PREFIX)
-      return MSG_RESET;
-  }
-
-  /* Data is normal PWM or an in-band. */
-  for(uint8_t b = 0; b < sizeof(pack.bytes); b++) {
-    if(MSG_TIMEOUT == iqPutI(queue, pack.bytes[b]))
-      return MSG_TIMEOUT;
-  }
-  return MSG_OK;
-}
 
 /*===========================================================================*/
 /* External declarations.                                                    */
@@ -276,8 +249,8 @@ static inline msg_t pktWritePWMQueueI(input_queue_t *queue,
 extern "C" {
 #endif
   ICUDriver *pktAttachRadio(const radio_unit_t radio_id);
-  void pktEnableRadioPWM(const radio_unit_t radio);
-  void pktDisableRadioPWM(const radio_unit_t radio);
+  void pktEnableRadioStream(const radio_unit_t radio);
+  void pktDisableRadioStream(const radio_unit_t radio);
   void pktDetachRadio(const radio_unit_t radio_id);
   void pktRadioICUWidth(ICUDriver *myICU);
   void pktRadioICUPeriod(ICUDriver *myICU);
@@ -290,6 +263,7 @@ extern "C" {
                            pwm_code_t reason);
   void pktICUInactivityTimeout(ICUDriver *myICU);
   void pktPWMInactivityTimeout(ICUDriver *myICU);
+  msg_t pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack);
 #ifdef __cplusplus
 }
 #endif

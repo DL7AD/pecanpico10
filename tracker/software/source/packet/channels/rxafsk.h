@@ -33,7 +33,7 @@
 #define AFSK_SPACE_FREQUENCY        2200U
 
 /* Thread working area size. */
-#define PKT_AFSK_DECODER_WA_SIZE    (1024 * 5)
+#define PKT_AFSK_DECODER_WA_SIZE    (1024 * 1)
 
 /* AFSK decoder type selection. */
 #define AFSK_NULL_DECODE            0
@@ -238,12 +238,12 @@ typedef struct AFSK_data {
   /**
    * @brief Current radio PWM fifo object.
    */
-  radio_pwm_fifo_t          *active_radio_object;
+  radio_pwm_fifo_t          *active_radio_stream;
 
   /**
    * @brief Current demod PWM fifo object.
    */
-  radio_pwm_fifo_t          *active_demod_object;
+  radio_pwm_fifo_t          *active_demod_stream;
 
   /**
    * @brief current symbol frequency.

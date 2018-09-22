@@ -14,7 +14,8 @@ static bool trace_enabled = false;
 
 void pktEnableEventTrace(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  chEvtRegister(pktGetEventSource(handler), &pkt_el, 1);
+  chEvtRegister(pktGetEventSource(handler), &pkt_el,
+                PKT_DIAGNOSTIC_EVENT_CODE);
   trace_enabled = true;
 }
 
@@ -32,7 +33,7 @@ void pktDisableEventTrace(radio_unit_t radio) {
 void pktTraceEvents() {
   if(!trace_enabled)
     return;
-eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(1));
+eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(PKT_DIAGNOSTIC_EVENT_CODE));
   if(evt) {
     eventflags_t flags = chEvtGetAndClearFlags(&pkt_el);
     if(flags & EVT_PWM_QUEUE_FULL) {
@@ -44,14 +45,11 @@ eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(1));
     if(flags & EVT_PKT_NO_BUFFER) {
       TRACE_WARN("PKT  > AX25 FIFO exhausted");
     }
-    if(flags & EVT_ICU_SLEEP_TIMEOUT) {
-      TRACE_INFO("PKT  > PWM ICU has entered sleep");
-    }
     if(flags & EVT_PKT_BUFFER_FULL) {
       TRACE_WARN("PKT  > AX25 receive buffer full");
     }
-    if(flags & EVT_PWM_QUEUE_OVERRUN) {
-      TRACE_ERROR("PKT  > PWM queue overrun");
+    if(flags & EVT_PWM_QUEUE_ERROR) {
+      TRACE_ERROR("PKT  > PWM queue handling error");
     }
     if(flags & EVT_PWM_INVALID_INBAND) {
       TRACE_ERROR("PKT  > Invalid PWM in-band message");

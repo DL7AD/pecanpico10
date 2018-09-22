@@ -16,7 +16,8 @@
 /*
  * Serial port definitions
  */
-#define SERIAL_DEBUG_DRIVER		&SD3
+#define SERIAL_DEBUG_DRIVER		    SD3
+#define SERIAL_CONSOLE_DRIVER       SDU1
 
 /*
  * SPI definitions
@@ -27,6 +28,27 @@
  * Radio SPI definitions.
  */
 #define PKT_RADIO1_SPI              SPI_BUS1_DRIVER
+
+/**
+ * I2C definitions
+ */
+#define I2C_BUS1_DRIVER             &I2CD1
+
+/**
+ * UBLOX I2C definition
+ */
+#define PKT_GPS_I2C                 I2C_BUS1_DRIVER
+
+/**
+ * OV5640 I2C definition
+ */
+#define PKT_CAM_I2C                 I2C_BUS1_DRIVER
+
+/**
+ * BME280 I2C definition
+ */
+#define PKT_BMEI_I2C                I2C_BUS1_DRIVER
+#define PKT_BMEE_I2C                NULL
 
 // Camera pins
 #define LINE_CAM_XCLK               PAL_LINE(GPIOC, 9U)
@@ -91,11 +113,11 @@
 /*
  * Radio GPIO definitions.
  */
-#define LINE_RADIO_CS               PAL_LINE(GPIOC, 12U)
-#define LINE_RADIO_SDN              PAL_LINE(GPIOC, 10U)
-#define LINE_RADIO_NIRQ             PAL_LINE(GPIOD, 2U)
-#define LINE_RADIO_GPIO0            PAL_LINE(GPIOB, 7U)
-#define LINE_RADIO_GPIO1            PAL_LINE(GPIOB, 6U)
+#define LINE_RADIO1_CS              PAL_LINE(GPIOC, 12U)
+#define LINE_RADIO1_SDN             PAL_LINE(GPIOC, 10U)
+#define LINE_RADIO1_NIRQ            PAL_LINE(GPIOD, 2U)
+#define LINE_RADIO1_GPIO0           PAL_LINE(GPIOB, 7U)
+#define LINE_RADIO1_GPIO1           PAL_LINE(GPIOB, 6U)
 
 // SPI
 #define LINE_SPI_SCK                PAL_LINE(GPIOB, 3U)
@@ -128,6 +150,7 @@
 #define LINE_SQUELCH_LED            PAL_NOLINE
 #define LINE_NO_FIFO_LED            PAL_NOLINE
 #define LINE_NO_BUFF_LED            PAL_NOLINE
+#define LINE_PWM_ERROR_LED          PAL_NOLINE
 
 /* Diagnostic PWM mirror port. */
 #define LINE_PWM_MIRROR             PAL_NOLINE
@@ -188,7 +211,7 @@
  * The retired buffer is reticulated to the pool ready for re-use.
  */
 #define USE_HEAP_PWM_BUFFER         TRUE
-#define USE_CCM_BASED_HEAP          TRUE
+#define USE_CCM_BASED_PWM_HEAP      TRUE
 #define TRACE_PWM_BUFFER_STATS      FALSE
 
 /* Definitions for ICU FIFO implemented using chfactory. */
@@ -206,7 +229,7 @@
 #endif /* USE_HEAP_PWM_BUFFER == TRUE */
 
 /* Number of frame receive buffers. */
-#define NUMBER_RX_PKT_BUFFERS       3U
+#define NUMBER_RX_PKT_BUFFERS       5U
 #define USE_CCM_HEAP_RX_BUFFERS     TRUE
 
 #define PKT_RX_RLS_USE_NO_FIFO      TRUE
@@ -251,8 +274,10 @@
 extern const radio_band_t band_2m;
 extern const radio_band_t band_70cm;
 extern const radio_config_t radio_list[];
-extern pkt_service_t RPKTD1;
+extern packet_svc_t RPKTD1;
 extern AFSKDemodDriver AFSKD1;
+extern SerialUSBDriver SDU1;
+extern SerialUSBDriver SDU2;
 
 #ifdef __cplusplus
 extern "C" {

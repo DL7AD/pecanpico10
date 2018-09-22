@@ -49,7 +49,7 @@ static void i2c_start_cond(void) {
 		// set SDA to 1
 		set_SDA();
 		set_SCL();
-		sysinterval_t t0 = chVTGetSystemTime();
+		systime_t t0 = chVTGetSystemTime();
 		while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
 		}
 	}
@@ -66,7 +66,7 @@ static void i2c_stop_cond(void) {
 	clear_SDA();
 	set_SCL();
 	// Clock stretching
-	sysinterval_t t0 = chVTGetSystemTime();
+	systime_t t0 = chVTGetSystemTime();
 	while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
 	}
 
@@ -89,7 +89,7 @@ static void i2c_write_bit(bool bit) {
 	set_SCL();
 
 	// Wait for SDA value to be read by slave, minimum of 4us for standard mode
-	sysinterval_t t0 = chVTGetSystemTime();
+	systime_t t0 = chVTGetSystemTime();
 	while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
 	}
 
@@ -111,7 +111,7 @@ static bool i2c_read_bit(void) {
 	// Set SCL high to indicate a new valid SDA value is available
 	set_SCL();
 
-	sysinterval_t t0 = chVTGetSystemTime();
+	systime_t t0 = chVTGetSystemTime();
 	while(read_SCL() == 0 && TIME_I2MS(chVTGetSystemTime()-t0) < 10) { // Clock stretching
 	}
 
@@ -157,40 +157,44 @@ static uint8_t i2c_read_byte(bool nack, bool send_stop) {
 	return byte;
 }
 
-bool eI2C_write8(uint8_t address, uint8_t reg, uint8_t value) {
-	i2c_write_byte(true, false, address << 1);
-	i2c_write_byte(false, false, reg);
-	i2c_write_byte(false, true, value);
-	return true;
+bool eI2C_write8(I2CDriver *bus, uint8_t address, uint8_t reg, uint8_t value) {
+  (void)bus;
+  i2c_write_byte(true, false, address << 1);
+  i2c_write_byte(false, false, reg);
+  i2c_write_byte(false, true, value);
+  return true;
 }
 
-bool eI2C_read8(uint8_t address, uint8_t reg, uint8_t *val) {
-	i2c_write_byte(true, false, address << 1);
-	i2c_write_byte(false, false, reg);
-	i2c_write_byte(true, false,(address << 1) | 0x1);
-	*val = i2c_read_byte(true, true);
-	return true;
+bool eI2C_read8(I2CDriver *bus, uint8_t address, uint8_t reg, uint8_t *val) {
+  (void)bus;
+  i2c_write_byte(true, false, address << 1);
+  i2c_write_byte(false, false, reg);
+  i2c_write_byte(true, false,(address << 1) | 0x1);
+  *val = i2c_read_byte(true, true);
+  return true;
 }
 
-bool eI2C_read16(uint8_t address, uint8_t reg, uint16_t *val) {
-	i2c_write_byte(true, false, address << 1);
-	i2c_write_byte(false, false, reg);
+bool eI2C_read16(I2CDriver *bus, uint8_t address, uint8_t reg, uint16_t *val) {
+  (void)bus;
+  i2c_write_byte(true, false, address << 1);
+  i2c_write_byte(false, false, reg);
 
-	i2c_write_byte(true, false,(address << 1) | 0x1);
-	uint8_t b1 = i2c_read_byte(false, false);
-	uint8_t b2 = i2c_read_byte(true, true);
-	*val = b2 |(b1 << 8);
-	return true;
+  i2c_write_byte(true, false,(address << 1) | 0x1);
+  uint8_t b1 = i2c_read_byte(false, false);
+  uint8_t b2 = i2c_read_byte(true, true);
+  *val = b2 |(b1 << 8);
+  return true;
 }
 
-bool eI2C_read16_LE(uint8_t address, uint8_t reg, uint16_t *val) {
-	i2c_write_byte(true, false, address << 1);
-	i2c_write_byte(false, false, reg);
+bool eI2C_read16_LE(I2CDriver *bus, uint8_t address, uint8_t reg, uint16_t *val) {
+  (void)bus;
+  i2c_write_byte(true, false, address << 1);
+  i2c_write_byte(false, false, reg);
 
-	i2c_write_byte(true, false,(address << 1) | 0x1);
-	uint8_t b1 = i2c_read_byte(false, false);
-	uint8_t b2 = i2c_read_byte(true, true);
-	*val = b1 |(b2 << 8);
-	return true;
+  i2c_write_byte(true, false,(address << 1) | 0x1);
+  uint8_t b1 = i2c_read_byte(false, false);
+  uint8_t b2 = i2c_read_byte(true, true);
+  *val = b1 |(b2 << 8);
+  return true;
 }
 

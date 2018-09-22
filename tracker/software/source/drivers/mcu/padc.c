@@ -16,11 +16,11 @@
 
 static adcsample_t samples[ADC_NUM_CHANNELS]; // ADC sample buffer
 
-void adccb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
+/*void adccb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	(void)adcp;
 	(void)buffer;
 	(void)n;
-}
+}*/
 
 /*
  * ADC conversion group.
@@ -33,8 +33,8 @@ void adccb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 static const ADCConversionGroup adcgrpcfg = {
 	FALSE,
 	ADC_NUM_CHANNELS,
-	adccb,
-	NULL,
+	NULL/*adccb*/, // Conversion and error call backs are not used
+	NULL, // Error CB.
 	/* HW dependent part.*/
 	0,
 	ADC_CR2_SWSTART,
@@ -62,11 +62,13 @@ void deinitADC(void)
 void doConversion(void)
 {
 	initADC();
-	adcStartConversion(&ADCD1, &adcgrpcfg, samples, 1);
-	chThdSleep(TIME_MS2I(50)); // Wait until conversion is finished
+	//adcStartConversion(&ADCD1, &adcgrpcfg, samples, 1);
+	(void)adcConvert(&ADCD1, &adcgrpcfg, samples, 1);
+	//chThdSleep(TIME_MS2I(50)); // Wait until conversion is finished
 	deinitADC();
 }
 
+/* TODO: Should return an error if measurement failed. */
 uint16_t stm32_get_vbat(void)
 {
 	doConversion();

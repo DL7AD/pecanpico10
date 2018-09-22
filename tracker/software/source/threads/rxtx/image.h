@@ -5,6 +5,8 @@
 #include "hal.h"
 #include "types.h"
 
+#define PKT_SHOW_TX_THROTTLE_DEBUG  FALSE
+
 typedef struct {
 	uint16_t packet_id;
 	uint8_t image_id;

@@ -698,27 +698,6 @@ static const struct regval_list OV5640_QSXGA2XGA[]  =
 
 static resolution_t last_res = RES_NONE;
 
-typedef enum {
-  PDCMI_NO_ERROR = 0,
-  PDCMI_DMA_ERROR,
-  PDCMI_DMA_UNKNOWN_IRQ,
-  PDCMI_DMA_END_BUFFER,
-  PDCMI_CAPTURE_TIMEOUT
-} pdcmi_err_code_t;
-
-typedef struct dmaControl {
-  const stm32_dma_stream_t  *dmastp;
-  TIM_TypeDef               *timer;
-  uint8_t                   *segment_address;
-  uint8_t                   *base_buffer;
-  uint16_t                  segment_count;
-  volatile bool             terminate;
-  uint32_t                  dma_flags;
-  volatile pdcmi_err_code_t pdcmi_status;
-  uint32_t                  dma_count;
-  ioline_t                  vsync_line;
-} dma_capture_t;
-
 /**
   * Captures an image from the camera.
   * @buffer Buffer in which the image can be sampled
@@ -731,7 +710,7 @@ typedef struct dmaControl {
   */
 uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
                              uint32_t size, resolution_t res) {
-	uint8_t cntr = 1; // Retry is implemented next level up so only do this once.
+	//uint8_t cntr = 1; // Retry is implemented next level up so only do this once.
 	uint32_t size_sampled;
 
 	// Set resolution (if not already done earlier)
@@ -746,15 +725,15 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
 	// Capture image until we get a good image or reach max retries.
     TRACE_INFO("CAM  > Capture image into buffer @ 0x%08x size 0x%08x",
                buffer, size);
-	do {
+/*	do {*/
 		size_sampled = OV5640_Capture(buffer, size);
 		if(size_sampled > 0) {
-		  TRACE_INFO("CAM  > Image size: %d bytes", size_sampled);
+		  TRACE_INFO("CAM  > Captured %d bytes", size_sampled);
 		  return size_sampled;
 		}
 		/* Allow time for other threads. */
-		chThdSleep(TIME_MS2I(10));
-	} while(--cntr);
+		//chThdSleep(TIME_MS2I(10));
+/*	} while(--cntr);*/
     TRACE_ERROR("CAM  > No image captured");
 	return 0;
 }
@@ -783,42 +762,42 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
 #endif /* !defined(dmaStreamGetCurrentTarget) */
 #endif /* PDCMI_USE_DMA_DBM == TRUE */
 
-inline void dma_start(const stm32_dma_stream_t *dmastp) {
+inline void dma_start(pdcmi_capture_t *ppdcmi) {
   /* Clear any pending interrupts. */
-  dmaStreamClearInterrupt(dmastp);
-  dmaStreamEnable(dmastp);
+  dmaStreamClearInterrupt(ppdcmi->dmastp);
+  dmaStreamEnable(ppdcmi->dmastp);
 }
 
 /*
- * Stop DMA release stream and return count processed in current segment.
+ * Stop DMA, release stream and return count processed in current segment.
  * Note that any DMA FIFO transfer in progress will complete.
  * The Chibios DMAV2 driver waits for EN to clear before proceeding.
  */
-inline uint16_t dma_stop(const stm32_dma_stream_t *dmastp) {
-	dmaStreamDisable(dmastp);
-	uint16_t transfer = dmaStreamGetTransactionSize(dmastp);
-	dmaStreamRelease(dmastp);
-	return (PDCMI_DMA_SEGMENT_SIZE - transfer);
+inline uint16_t dma_stop(pdcmi_capture_t *ppdcmi) {
+	dmaStreamDisable(ppdcmi->dmastp);
+	uint16_t remaining = dmaStreamGetTransactionSize(ppdcmi->dmastp);
+	dmaStreamRelease(ppdcmi->dmastp);
+	return (ppdcmi->page_size - remaining);
 }
 
 #if PDCMI_USE_DMA_DBM == TRUE
 
-/*
- *
+/**
+ * Double buffer mode.
  */
 static void dma_interrupt(void *p, uint32_t flags) {
 
-  dma_capture_t *dma_control = p;
-  const stm32_dma_stream_t *dmastp = dma_control->dmastp;
+  pdcmi_capture_t *dma_control = p;
+  //const stm32_dma_stream_t *dmastp = dma_control->dmastp;
   chSysLockFromISR();
 
   /*
    *  DMA has been terminated by initiating function.
-   *  DMA stop has already been executed.
-   *  We shouldn't be here...
+   *  DMA and timer stop has already been executed.
+   *  If there was a pending interrupt can we get here?
    */
   if(dma_control->terminate) {
-    dmaStreamClearInterrupt(dmastp);
+    dmaStreamClearInterrupt(dma_control->dmastp);
     chSysUnlockFromISR();
     return;
   }
@@ -835,10 +814,10 @@ static void dma_interrupt(void *p, uint32_t flags) {
      */
     dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
     dma_control->timer->CCER &= ~TIM_CCER_CC1E;
-    dma_control->dma_count += dma_stop(dmastp);
-    dma_control->pdcmi_status = PDCMI_DMA_ERROR;
+    dma_control->transfer_count += dma_stop(dma_control);
+    dma_control->pdcmi_state = PDCMI_DMA_ERROR;
     palDisableLineEventI(dma_control->vsync_line);
-    dmaStreamClearInterrupt(dmastp);
+    dmaStreamClearInterrupt(dma_control->dmastp);
     dma_control->terminate = true;
     chSysUnlockFromISR();
     return;
@@ -849,78 +828,98 @@ static void dma_interrupt(void *p, uint32_t flags) {
      * Half transfer complete.
      * Check if DMA is writing to the last buffer.
      */
-    if(--dma_control->segment_count == 0) {
+    if(--dma_control->page_count < 1) {
       /*
-       * This is the last buffer so we have to terminate DMA.
+       * This is the last page so we have to terminate DMA.
        * The DBM switch is done in h/w.
        * DMA could write beyond total buffer if not stopped now.
        *
-       * Since this is the last DMA buffer this may be treated as an error.
-       * The DMA should normally be terminated by VSYNC before last buffer.
+       * Since this is the last DMA page this may be treated as an error.
+       * The DMA should normally be terminated by VSYNC before the last page.
+       * In the case that the total buffer size was too small we can be here.
+       *
        * Disable timer, DMA and flag fault.
        */
       dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
       dma_control->timer->CCER &= ~TIM_CCER_CC1E;
-      dma_control->dma_count += dma_stop(dmastp);
-      dma_control->pdcmi_status = PDCMI_DMA_END_BUFFER;
+      dma_control->transfer_count += dma_stop(dma_control);
+      dma_control->pdcmi_state = PDCMI_DMA_END_BUFFER;
       dma_control->terminate = true;
       palDisableLineEventI(dma_control->vsync_line);
-      dmaStreamClearInterrupt(dmastp);
+      dmaStreamClearInterrupt(dma_control->dmastp);
       chSysUnlockFromISR();
       return;
     }
+
     /*
      * Else Safe to allow buffer to fill.
      * DMA DBM will switch buffers in h/w when this one is full.
-     * Update non-active memory address register now.
-     * This is done at HTIF so that CT is known to be valid.
-     * Checking state of CT at TCIF may be too late because of IRQ latency.
-     * i.e. the DMA controller may have already changed CT before IRQ is serviced.
-     */
-    dma_control->segment_address += PDCMI_DMA_SEGMENT_SIZE;
-    if (dmaStreamGetCurrentTarget(dmastp) == 0) {
-      dmaStreamSetMemory1(dmastp, dma_control->segment_address);
-    } else {
-      dmaStreamSetMemory0(dmastp, dma_control->segment_address);
-    }
-    dmaStreamClearInterrupt(dmastp);
+    */
+    dmaStreamClearInterrupt(dma_control->dmastp);
     chSysUnlockFromISR();
     return;
   }
   if(flags & STM32_DMA_ISR_TCIF) {
     /*
-     * Transfer complete for this segment.
+     * Transfer complete for this page.
+     * The memory address register has switched.
+     * The DMA count is reloaded and counting down.
+     * Update the memory address.
+     * Update the transfer count.
      */
-    dma_control->dma_count += PDCMI_DMA_SEGMENT_SIZE;
-    dmaStreamClearInterrupt(dmastp);
+    dma_control->transfer_count += dma_control->page_size;
+    dma_control->page_address += dma_control->page_size;
+    chDbgAssert((dma_control->page_address >= dma_control->buffer_base)
+                && (dma_control->page_address <= dma_control->buffer_limit),
+                "bad buffer address");
+    if (dmaStreamGetCurrentTarget(dma_control->dmastp) == 0) {
+      dmaStreamSetMemory1(dma_control->dmastp, dma_control->page_address);
+    } else {
+      dmaStreamSetMemory0(dma_control->dmastp, dma_control->page_address);
+    }
+    dmaStreamClearInterrupt(dma_control->dmastp);
     chSysUnlockFromISR();
     return;
   }
   /*
-   *  Unknown DMA IRQ.
+   * Unknown DMA IRQ.
    * Disable timer, DMA and flag fault.
    */
   dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
   dma_control->timer->CCER &= ~TIM_CCER_CC1E;
-  dma_control->pdcmi_status = PDCMI_DMA_UNKNOWN_IRQ;
+  dma_control->pdcmi_state = PDCMI_DMA_UNKNOWN_IRQ;
   dma_control->terminate = true;
-  dma_stop(dmastp);
-  dma_control->dma_count = 0;
+  dma_stop(dma_control);
+  dma_control->transfer_count = 0;
   palDisableLineEventI(dma_control->vsync_line);
-  dmaStreamClearInterrupt(dmastp);
+  dmaStreamClearInterrupt(dma_control->dmastp);
   chSysUnlockFromISR();
   return;
 }
 
 #else
 
+/**
+ * Single buffer mode.
+ */
 static void dma_interrupt(void *p, uint32_t flags) {
-  dma_capture_t *dma_control = p;
+  pdcmi_capture_t *dma_control = p;
 
-  const stm32_dma_stream_t *dmastp = dma_control->dmastp;
-  TIM_TypeDef *timer = dma_control->timer;
+  chSysLockFromISR();
+
+  /*
+   *  DMA has been terminated by initiating function.
+   *  DMA stop has already been executed.
+   *  If there was a pending interrupt can we get here?
+   */
+  if(dma_control->terminate) {
+    dmaStreamClearInterrupt(dma_control->dmastp);
+    chSysUnlockFromISR();
+    return;
+  }
 
   dma_control->dma_flags = flags;
+
   if(flags & (STM32_DMA_ISR_FEIF | STM32_DMA_ISR_TEIF | STM32_DMA_ISR_DMEIF)) {
     /*
      * DMA transfer error, FIFO error or Direct mode error.
@@ -928,27 +927,31 @@ static void dma_interrupt(void *p, uint32_t flags) {
      */
     dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
     dma_control->timer->CCER &= ~TIM_CCER_CC1E;
-    dma_control->dma_count += dma_stop(dmastp);
-    dma_control->pdcmi_status = PDCMI_DMA_ERROR;
+    dma_control->transfer_count = dma_stop(dma_control);
+    dma_control->pdcmi_state = PDCMI_DMA_ERROR;
     palDisableLineEventI(dma_control->vsync_line);
-    dmaStreamClearInterrupt(dmastp);
+    dmaStreamClearInterrupt(dma_control->dmastp);
+    chSysUnlockFromISR();
     return;
   }
 
   if((flags & STM32_DMA_ISR_TCIF) != 0) {
     /*
-     * If DMA has run to end within a frame then this is an error.
-     * In single buffer mode DMA should always be terminated by VSYNC.
+     * If DMA has run to end within a frame then:
+     * - this is a VSYNC error
+     * - or the buffer has been set too small for the image
      *
-     * Disable timer, DMA and VSYNC port.
+     * In single buffer mode DMA should normally be terminated by VSYNC.
+     * Disable timer, DMA and VSYNC port and terminate the capture.
      */
     dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
     dma_control->timer->CCER &= ~TIM_CCER_CC1E;
-    dma_control->dma_count += dma_stop(dmastp);
-    dma_stop(dma_control->dmastp);
-    dma_control->pdcmi_status = PDCMI_DMA_ERROR;
+    dma_control->transfer_count = dma_stop(dma_control);
+    dma_control->pdcmi_state = PDCMI_DMA_COUNT_END;
     palDisableLineEventI(dma_control->vsync_line);
-    dmaStreamClearInterrupt(dmastp);
+    dmaStreamClearInterrupt(dma_control->dmastp);
+    dma_control->terminate = true;
+    chSysUnlockFromISR();
     return;
   }
   /*
@@ -957,10 +960,11 @@ static void dma_interrupt(void *p, uint32_t flags) {
    */
   dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
   dma_control->timer->CCER &= ~TIM_CCER_CC1E;
-  dma_control->pdcmi_status = PDCMI_DMA_UNKNOWN_IRQ;
-  dma_control->dma_count += dma_stop(dmastp);
+  dma_control->pdcmi_state = PDCMI_DMA_UNKNOWN_IRQ;
+  dma_control->transfer_count += dma_stop(dma_control);
   palDisableLineEventI(dma_control->vsync_line);
-  dmaStreamClearInterrupt(dmastp);
+  dmaStreamClearInterrupt(dma_control->dmastp);
+  chSysUnlockFromISR();
   return;
 }
 
@@ -972,88 +976,58 @@ static void dma_interrupt(void *p, uint32_t flags) {
  *
  */
 void mode3_vsync_cb(void *arg) {
-  dma_capture_t *dma_control = arg;
-
-  const stm32_dma_stream_t *dmastp = dma_control->dmastp;
-  TIM_TypeDef *timer = dma_control->timer;
+  pdcmi_capture_t *dma_control = arg;
 
   chSysLockFromISR();
-  if(palReadLine(LINE_CAM_VSYNC)) {
+
+  if(palReadLine(dma_control->vsync_line) == PAL_HIGH) {
     /* VSYNC leading edge. */
-    if((timer->DIER & TIM_DIER_CC1DE) != 0) {
-      if(!dma_control->terminate) {
-        /* Capture running so terminate. */
-        dma_control->dma_count += dma_stop(dmastp);
-        dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
-        dma_control->timer->CCER &= ~TIM_CCER_CC1E;
-        palDisableLineEventI(dma_control->vsync_line);
-        dma_control->terminate = true;
-      } /* Else DMA has terminated capture. This must be a nested interrupt. */
+    if(dma_control->pdcmi_state == PDCMI_CAPTURE_ACTIVE) {
+      /*
+       * Capture is still active so DMA is still running.
+       * This should be the leading edge of the next VSYNC pulse.
+       */
+      dma_control->transfer_count += dma_stop(dma_control);
+      dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
+      dma_control->timer->CCER &= ~TIM_CCER_CC1E;
+      palDisableLineEventI(dma_control->vsync_line);
+      dma_control->pdcmi_state = PDCMI_VSYNC_END;
+      /* If a DMA interrupt is pending then this will stop any activity. */
+      dma_control->terminate = true;
     } /* Else wait to arm timer on trailing edge. */
     chSysUnlockFromISR();
     return;
+
   } /* VSYNC trailing edge. */
-  if((timer->DIER & TIM_DIER_CC1DE) == 0) {
+  if(dma_control->pdcmi_state == PDCMI_WAIT_VSYNC) {
     /*
-     * Timer not running.
-     * Start DMA channel if termination not set.
-     * Enable timer trigger of DMA.
+     * This is the trailing edge of a VSYNC pulse.
+     * Enable timer and DMA triggering.
      */
-    if(!dma_control->terminate) {
-      dma_start(dma_control->dmastp);
-      timer->DIER |= TIM_DIER_CC1DE;
-    }
+    dma_start(dma_control);
+    dma_control->timer->CCMR1 = TIM_CCMR1_CC1S_0;
+    dma_control->timer->CCER |= TIM_CCER_CC1E;
+    dma_control->timer->DIER |= TIM_DIER_CC1DE;
+    dma_control->pdcmi_state = PDCMI_CAPTURE_ACTIVE;
   } /* Else wait to stop timer on leading edge. */
   chSysUnlockFromISR();
 }
 
 /*
- * Other drivers using resources that can cause DMA competition are locked.
+ * TODO: Deprecate. No longer used.
+ * DMA and IRQ priorities configured enabling OV5640 PDCMI concurrent with other H/W.
  */
 msg_t OV5640_LockResourcesForCapture(void) {
-  /* TODO: have to make this a loop which would handle multiple receivers. */
-
-  /* Acquire radio after any active TX completes. */
-  TRACE_DEBUG("CAM  > Lock request on radio %d", PKT_RADIO_1);
-  msg_t msg = pktLLDlockRadioTransmit(PKT_RADIO_1, TIME_INFINITE);
-  if(msg != MSG_OK) {
-    TRACE_ERROR("CAM  > Lock failed on radio %d", PKT_RADIO_1);
-    return msg;
-  }
-  if(pktIsReceiveActive(PKT_RADIO_1)) {
-    TRACE_DEBUG("CAM  > Request pause receive on radio %d", PKT_RADIO_1);
-    pktLLDradioPauseDecoding(PKT_RADIO_1);
-    TRACE_DEBUG("CAM  > Executed pause receive on radio %d", PKT_RADIO_1);
-    decode_pause = true;
-  } else
-    decode_pause = false;
-  I2C_Lock();
-
-  //pktLLDradioPauseDecoding(PKT_RADIO_1);
-  //pktPauseDecoding(PKT_RADIO_1);
-  /* Hold TRACE output on USB. */
-/*  if(isUSBactive())
-    chMtxLock(&trace_mtx);*/
+  //I2C_Lock();
   return MSG_OK;
 }
 
 /*
- * Unlock competing drivers.
+ * TODO: Deprecate
  */
 void OV5640_UnlockResourcesForCapture(void) {
-  /* Re-enable TRACE output on USB. */
-/*  if(isUSBactive())
-    chMtxUnlock(&trace_mtx);*/
-  I2C_Unlock();
-  /* TODO: have to make this a loop which would handle multiple receivers. */
-  if(pktIsReceivePaused(PKT_RADIO_1) && decode_pause) {
-    TRACE_INFO("CAM  > Resume receive on radio %d", PKT_RADIO_1);
-    pktLLDradioResumeDecoding(PKT_RADIO_1);
-  }
-  //pktResumeDecoding(PKT_RADIO_1);
-  /* Enable TX tasks to run. */
-  TRACE_INFO("CAM  > Unlock radio %d", PKT_RADIO_1);
-  pktLLDunlockRadioTransmit(PKT_RADIO_1);
+  //I2C_Unlock();
+  return;
 }
 
 /**
@@ -1077,12 +1051,16 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
     /*
      * Calculate the number of whole buffers.
      */
-    if((size / PDCMI_DMA_SEGMENT_SIZE) < 2) {
-      TRACE_ERROR("CAM  > Capture buffer less than 2 DMA DBM segment segments");
+    if((size / PDCMI_DMA_DBM_PAGE_SIZE) < 2) {
+      TRACE_ERROR("CAM  > Capture buffer is less than 2 DMA DBM pages");
+      return 0;
+    }
+    if(PDCMI_DMA_DBM_PAGE_SIZE % 4 != 0) {
+      TRACE_ERROR("CAM  > DBM page size must be multiple of 4 bytes");
       return 0;
     }
 #else
-    if((size > 0xFFFF) {
+    if((size > 0xFFFF)) {
       TRACE_ERROR("CAM  > Capture buffer in non-DBM mode can not exceed 0xFFFF in size");
       return 0;
     }
@@ -1102,9 +1080,9 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	  return 0;
 	}
 
-	dma_capture_t dma_control = {0};
+	pdcmi_capture_t dma_control = {0};
 
-	/* Setup DMA for transfer on timer CC tigger.
+	/* Setup DMA for transfer on timer CC trigger.
 	 * For TIM8 this is DMA2 stream 2, channel 7.
 	 * Use PL 3 as camera PCLK rate is high and we need priority service.
 	 */
@@ -1136,54 +1114,70 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	dmaStreamSetPeripheral(dma_control.dmastp, &GPIOA->IDR);
 
 #if PDCMI_USE_DMA_DBM == TRUE
-	dma_control.segment_address = buffer;
-	dma_control.base_buffer = buffer;
-	dma_control.segment_count = (size / PDCMI_DMA_SEGMENT_SIZE);
+
+    dma_control.buffer_base = buffer;
+	dma_control.page_count = (size / PDCMI_DMA_DBM_PAGE_SIZE);
+    dma_control.buffer_limit = buffer + size;
+	dma_control.page_size = PDCMI_DMA_DBM_PAGE_SIZE;
+    /*
+     * The next page(s) will be calculated in the interrupt handler.
+     * For M0 that would be page 3, 5, 7, ...
+     * And for M1 page 4, 6, 8, ...
+     */
+    dma_control.page_address = buffer + dma_control.page_size;
     /*
      * Set the initial buffer addresses.
      * The updating of DMA:MxAR is done in the the DMA interrupt function.
+     * Page 1 & 2 addresses set in memory address registers to start.
      */
-    dmaStreamSetMemory0(dma_control.dmastp, dma_control.segment_address);
-    dmaStreamSetTransactionSize(dma_control.dmastp, PDCMI_DMA_SEGMENT_SIZE);
+    dmaStreamSetMemory0(dma_control.dmastp, buffer);
+    dmaStreamSetMemory1(dma_control.dmastp, dma_control.page_address);
+    dmaStreamSetTransactionSize(dma_control.dmastp, dma_control.page_size);
+
 #else
-    dmaStreamSetMemory0(dmastp, buffer);
+    dma_control.page_size = size;
+    dma_control.page_count = 1;
+    dmaStreamSetMemory0(dma_control.dmastp, buffer);
     dmaStreamSetTransactionSize(dma_control.dmastp, size);
 #endif
     dmaStreamSetMode(dma_control.dmastp, dmamode); // Setup DMA
     dmaStreamSetFIFO(dma_control.dmastp, STM32_DMA_FCR_DMDIS
                              | STM32_DMA_FCR_FTH_FULL
                              | STM32_DMA_FCR_FEIE);
+
+    /* Clear any pending interrupts. */
     dmaStreamClearInterrupt(dma_control.dmastp);
 
-    dma_control.pdcmi_status = PDCMI_NO_ERROR;
+    dma_control.pdcmi_state = PDCMI_WAIT_VSYNC;
     dma_control.dma_flags = 0;
-    dma_control.dma_count = 0;
+    dma_control.transfer_count = 0;
     dma_control.terminate = false;
-	/*
-	 * Setup timer for PCLK
-	 */
 
+	/*
+	 * Setup timer for DMA trigger using PCLK as CC input.
+	 */
     dma_control.timer = TIM8;
 	rccEnableTIM8(FALSE);
 	chThdSleep(TIME_MS2I(1));
     rccResetTIM8();
     chThdSleep(TIME_MS2I(1));
 
-    /* Setup VSNC event. */
-
+    /* Setup VSYNC event. */
 	dma_control.vsync_line = LINE_CAM_VSYNC;
-    palSetLineCallback(LINE_CAM_VSYNC, (palcallback_t)mode3_vsync_cb, &dma_control);
-    palEnableLineEvent(LINE_CAM_VSYNC, PAL_EVENT_MODE_BOTH_EDGES);
+
+    palSetLineCallback(dma_control.vsync_line, (palcallback_t)mode3_vsync_cb,
+                                                     &dma_control);
+    palEnableLineEvent(dma_control.vsync_line, PAL_EVENT_MODE_BOTH_EDGES);
 
     /*
      * Setup capture mode triggered from TI1.
      * The timer capture is irrelevant.
      * We just want the DMA trigger.
      */
-    dma_control.timer->CCMR1 = TIM_CCMR1_CC1S_0;
+    //dma_control.timer->CCMR1 = TIM_CCMR1_CC1S_0;
 
     /* Start the timer. */
-    dma_control.timer->CCER = TIM_CCER_CC1E;
+    //dma_control.timer->CCER = TIM_CCER_CC1E;
 
 	// Wait for capture to be finished
 	uint8_t timeout = 50; // 500ms max
@@ -1193,55 +1187,78 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 
 	if(!timeout) {
 	  palDisableLineEventI(dma_control.vsync_line);
-      dma_control.dma_count += dma_stop(dma_control.dmastp);
+      dma_control.transfer_count += dma_stop(&dma_control);
       dma_control.timer->DIER &= ~TIM_DIER_CC1DE;
       dma_control.timer->CCER &= ~TIM_CCER_CC1E;
-      dma_control.pdcmi_status = PDCMI_CAPTURE_TIMEOUT;
+      dma_control.pdcmi_state = PDCMI_CAPTURE_TIMEOUT;
 	}
+	pdcmi_state_t state = dma_control.pdcmi_state;
+	dma_control.pdcmi_state = PDCMI_NOT_ACTIVE;
 
     OV5640_UnlockResourcesForCapture();
 
-	if(dma_control.pdcmi_status == PDCMI_DMA_ERROR) {
-/*		if(dma_control.dma_flags & STM32_DMA_ISR_HTIF) {
-			TRACE_ERROR("CAM  > DMA abort - last buffer segment");
-			error = 0x2;
-			return (dma_control.segment_address - buffer);
-		}*/
-		if(dma_control.dma_flags & STM32_DMA_ISR_FEIF) {
-			TRACE_ERROR("CAM  > DMA FIFO error");
-			error = 0x3;
-			return 0;
-		}
-		if(dma_control.dma_flags & STM32_DMA_ISR_TEIF) {
-			TRACE_ERROR("CAM  > DMA stream transfer error");
-			error = 0x4;
-			return 0;
-		}
-		if(dma_control.dma_flags & STM32_DMA_ISR_DMEIF) {
-			TRACE_ERROR("CAM  > DMA direct mode error");
-			error = 0x5;
-			return 0;
-		}
-	}
-	if(dma_control.pdcmi_status == PDCMI_DMA_END_BUFFER) {
-      TRACE_ERROR("CAM  > DMA ran out of buffer space");
+    switch(state) {
+    case PDCMI_DMA_ERROR: {
+      if(dma_control.dma_flags & STM32_DMA_ISR_FEIF) {
+        TRACE_ERROR("CAM  > DMA FIFO error");
+        error = 0x3;
+        return 0;
+        }
+
+        if(dma_control.dma_flags & STM32_DMA_ISR_TEIF) {
+        TRACE_ERROR("CAM  > DMA stream transfer error");
+        error = 0x4;
+        return 0;
+        }
+
+        if(dma_control.dma_flags & STM32_DMA_ISR_DMEIF) {
+        TRACE_ERROR("CAM  > DMA direct mode error");
+        error = 0x5;
+        }
+        return 0;
+    }
+
+    case PDCMI_DMA_END_BUFFER: {
+      TRACE_ERROR("CAM  > DMA ran out of buffer space in DBM."
+                  " Image possibly useable");
       error = 0x6;
-      return 0;
-	}
-	if(dma_control.pdcmi_status == PDCMI_CAPTURE_TIMEOUT) {
-      TRACE_ERROR("CAM  > DMA image terminate timeout");
+      return (dma_control.transfer_count);
+    }
+
+    case PDCMI_CAPTURE_TIMEOUT: {
+      TRACE_ERROR("CAM  > DMA image capture timeout");
       error = 0x7;
       return 0;
-	}
-    if(dma_control.pdcmi_status == PDCMI_DMA_UNKNOWN_IRQ) {
-      TRACE_ERROR("CAM  > DMA unknown interrupt %x", dma_control.dma_flags);
+    }
+
+    case PDCMI_DMA_UNKNOWN_IRQ: {
+      TRACE_ERROR("CAM  > DMA unknown interrupt. DMA I flags: %x",
+                  dma_control.dma_flags);
       error = 0x8;
       return 0;
     }
-    TRACE_INFO("CAM  > Capture success");
-	error = 0x0;
-	return (dma_control.dma_count);
-}
+
+    case PDCMI_DMA_COUNT_END: {
+      TRACE_WARN("CAM  > DMA count ended w/o VSYNC in SBM. DMA I flags: %x."
+                        " Image possibly useable.",
+                 dma_control.dma_flags);
+      error = 0x9;
+      return (dma_control.transfer_count);
+    }
+
+    case PDCMI_VSYNC_END: {
+      TRACE_INFO("CAM  > Capture success");
+      error = 0x0;
+      return (dma_control.transfer_count);
+    }
+
+    default:
+      TRACE_INFO("CAM  > Invalid PDCMI state %d", state);
+      error = 0xA;
+      return 0;
+    } /* End switch on PDCMI state. */
+    return 0;
+} /* End OV5640_Capture(...) */
 
 /**
   * Initializes GPIO for OV5640 pseudo DCMI
@@ -1270,64 +1287,64 @@ void OV5640_InitGPIO(void)
 void OV5640_TransmitConfig(void)
 {
 	TRACE_INFO("CAM  > ... Software reset");
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3103, 0x11);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3008, 0x82);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3103, 0x11);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3008, 0x82);
 	chThdSleep(TIME_MS2I(100));
 
 	TRACE_INFO("CAM  > ... Initialization");
 	for(uint32_t i=0; (OV5640YUV_Sensor_Dvp_Init[i].reg != 0xffff) || (OV5640YUV_Sensor_Dvp_Init[i].val != 0xff); i++)
-		I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640YUV_Sensor_Dvp_Init[i].reg, OV5640YUV_Sensor_Dvp_Init[i].val);
+		I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640YUV_Sensor_Dvp_Init[i].reg, OV5640YUV_Sensor_Dvp_Init[i].val);
 
 	chThdSleep(TIME_MS2I(500));
 
 	/* TODO: Implement a basic JPEG configuration dataset versus using QSXGA. */
 	TRACE_INFO("CAM  > ... Configure JPEG");
 	for(uint32_t i=0; (OV5640_JPEG_QSXGA[i].reg != 0xffff) || (OV5640_JPEG_QSXGA[i].val != 0xff); i++)
-		I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_JPEG_QSXGA[i].reg, OV5640_JPEG_QSXGA[i].val);
+		I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_JPEG_QSXGA[i].reg, OV5640_JPEG_QSXGA[i].val);
 
 	TRACE_INFO("CAM  > ... Light Mode: Auto");
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3406, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3400, 0x04);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3401, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3402, 0x04);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3403, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3404, 0x04);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3405, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0xa3); // lanuch group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5183, 0x0 );
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3406, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3400, 0x04);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3401, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3402, 0x04);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3403, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3404, 0x04);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3405, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // lanuch group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5183, 0x0 );
 
 	TRACE_INFO("CAM  > ... Saturation: 0");
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5381, 0x1c);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5382, 0x5a);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5383, 0x06);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5384, 0x1a);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5385, 0x66);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5386, 0x80);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5387, 0x82);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5388, 0x80);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5389, 0x02);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x538b, 0x98);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x538a, 0x01);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5381, 0x1c);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5382, 0x5a);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5383, 0x06);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5384, 0x1a);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5385, 0x66);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5386, 0x80);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5387, 0x82);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5388, 0x80);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5389, 0x02);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x538b, 0x98);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x538a, 0x01);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
 
 	TRACE_INFO("CAM  > ... Brightness: 0");
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5587, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5588, 0x01);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5587, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5588, 0x01);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
 
 	TRACE_INFO("CAM  > ... Contrast: 0");
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5586, 0x20);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x5585, 0x00);
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5586, 0x20);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5585, 0x00);
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
 }
 
 void OV5640_SetResolution(resolution_t res)
@@ -1336,27 +1353,27 @@ void OV5640_SetResolution(resolution_t res)
 	switch(res) {
 		case RES_QQVGA:
 			for(uint32_t i=0; (OV5640_QSXGA2QQVGA[i].reg != 0xffff) || (OV5640_QSXGA2QQVGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2QQVGA[i].reg, OV5640_QSXGA2QQVGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QQVGA[i].reg, OV5640_QSXGA2QQVGA[i].val);
 			break;
 
 		case RES_QVGA:
 			for(uint32_t i=0; (OV5640_QSXGA2QVGA[i].reg != 0xffff) || (OV5640_QSXGA2QVGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
 			break;
 
 		case RES_VGA:
 			for(uint32_t i=0; (OV5640_QSXGA2VGA[i].reg != 0xffff) || (OV5640_QSXGA2VGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2VGA[i].reg, OV5640_QSXGA2VGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2VGA[i].reg, OV5640_QSXGA2VGA[i].val);
 			break;
 
 		case RES_XGA:
 			for(uint32_t i=0; (OV5640_QSXGA2XGA[i].reg != 0xffff) || (OV5640_QSXGA2XGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2XGA[i].reg, OV5640_QSXGA2XGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2XGA[i].reg, OV5640_QSXGA2XGA[i].val);
 			break;
 
 		case RES_UXGA:
 			for(uint32_t i=0; (OV5640_QSXGA2UXGA[i].reg != 0xffff) || (OV5640_QSXGA2UXGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2UXGA[i].reg, OV5640_QSXGA2UXGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2UXGA[i].reg, OV5640_QSXGA2UXGA[i].val);
 			break;
 
 		case RES_NONE: // No configuration is made
@@ -1364,7 +1381,7 @@ void OV5640_SetResolution(resolution_t res)
 
 		default: // Default QVGA
 			for(uint32_t i=0; (OV5640_QSXGA2QVGA[i].reg != 0xffff) || (OV5640_QSXGA2QVGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
+				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
 	}
 }
 
@@ -1424,8 +1441,8 @@ bool OV5640_isAvailable(void) {
 
   uint8_t val, val2;
   bool ret;
-  if(I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300A, &val)
-      && I2C_read8_16bitreg(OV5640_I2C_ADR, 0x300B, &val2)) {
+  if(I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x300A, &val)
+      && I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x300B, &val2)) {
       ret = val == 0x56 && val2 == 0x40;
   } else {
       error = 0x1;
@@ -1441,9 +1458,9 @@ bool OV5640_isAvailable(void) {
 void OV5640_setLightIntensity(void)
 {
 	uint8_t val1,val2,val3;
-	I2C_read8_16bitreg(OV5640_I2C_ADR, 0x3C1B, &val1);
-	I2C_read8_16bitreg(OV5640_I2C_ADR, 0x3C1C, &val2);
-	I2C_read8_16bitreg(OV5640_I2C_ADR, 0x3C1D, &val3);
+	I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1B, &val1);
+	I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1C, &val2);
+	I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1D, &val3);
 	lightIntensity = (val1 << 16) | (val2 << 8) | val3;
 }
 

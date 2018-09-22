@@ -7,8 +7,8 @@
 #include "ptime.h"
 #include "config.h"
 #include <string.h>
-#include "usbcfg.h"
-#include "usb.h"
+//#include "usbcfg.h"
+//#include "console.h"
 
 #define ERROR_LIST_LENGTH	64
 #define ERROR_LIST_SIZE		32
@@ -46,23 +46,30 @@ extern uint8_t current_trace_level;
 
 
 /*
-#if USE_CCM_FOR_PKT_POOL == TRUE
+ * Guarded memory pool integrity checking...
+ */
 
-static inline struct pool_header *pktSystemCheck(void) {
-  extern guarded_memory_pool_t *ccm_pool;
-  return ((struct pool_header *)(ccm_pool->pool.next))->next;
+static inline struct pool_header *pktSystemPoolIntegrityCheck(guarded_memory_pool_t *pool) {
+  return ((struct pool_header *)(pool->pool.next))->next;
 }
-#elif USE_CCM_HEAP_FOR_PKT ==  TRUE
-*/
-#if USE_CCM_HEAP_FOR_PKT ==  TRUE
+
 /*
  * Memory heap integrity checking...
  */
-static inline heap_header_t *pktSystemCheck(void) {
-  extern memory_heap_t *ccm_heap;
-  return (heap_header_t *)(ccm_heap->header.free).next;
+static inline heap_header_t *pktSystemHeapIntegrityCheck(memory_heap_t *heap) {
+  return (heap_header_t *)(heap->header.free).next;
 }
-#endif
+
+
+/*===========================================================================*/
+/* Macro definitions.                                                        */
+/*===========================================================================*/
+
+#define pktAssertCCMdynamicCheck(ptr)                                        \
+  extern uint8_t __ram4_free__[];                                            \
+  extern uint8_t __ram4_end__[];                                             \
+  chDbgAssert(!((void *)ptr > (void *)__ram4_free__                          \
+    && (void *)__ram4_end__ < (void *)ptr), "Object reference not in CCM")
 
 /*===========================================================================*/
 /* External declarations.                                                    */
@@ -70,7 +77,7 @@ static inline heap_header_t *pktSystemCheck(void) {
 
 extern mutex_t debug_mtx;
 
-void debug_init(void);
+void pktConfigureSerialIO(void);
 void debug_print(char *type, char* filename, uint32_t line, char* format, ...);
 
 #endif /* __TRACE_H__ */
