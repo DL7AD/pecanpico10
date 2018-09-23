@@ -34,7 +34,9 @@
 /*===========================================================================*/
 
 /**
- * @brief  Configuration for radio(s) on this board.
+ * @brief   Configuration for radio(s) on this board.
+ * @details The hardware assigned to a radio is defined.
+ * @details The mapping between the radio and MCU is defined.
  */
 const si446x_mcucfg_t radio1_cfg = {
   .gpio0 	= LINE_RADIO1_GPIO0,

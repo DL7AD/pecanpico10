@@ -821,7 +821,7 @@ static bool camInitialized = false;
  * Once obtained the image thread prepares and queues the TX packets.
  * The number of concurrent IMG threads queued for radios is set by the #define.
  */
-#define PKT_MAXIMUM_QUEUED_IMAGE_TX_THREADS 2
+#define PKT_MAXIMUM_QUEUED_IMAGE_TX_THREADS 1
 
 static SEMAPHORE_DECL(tx_complete, PKT_MAXIMUM_QUEUED_IMAGE_TX_THREADS);
 
@@ -829,6 +829,24 @@ ssdv_packet_t packetRepeats[16];
 bool reject_pri;
 bool reject_sec;
 
+/**
+ * Callback used to throttle image send.
+ * Next packet (or burst) is readied.
+ */
+static void image_packet_send_complete(radio_task_object_t *rt) {
+  chSemSignal(&tx_complete);
+#if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
+  TRACE_DEBUG("IMG  > Released transmit semaphore TX sequence %d",
+              rt->tx_seq_num);
+#else
+  (void)rt;
+#endif
+  return;
+}
+
+/**
+ *
+ */
 static bool transmit_image_packet(const uint8_t *image,
                                   uint32_t image_len,
                                   img_app_conf_t* conf,
@@ -872,20 +890,27 @@ static bool transmit_image_packet(const uint8_t *image,
 		if(i == packet_id) {
 			// Sync byte, CRC and FEC of SSDV not transmitted (because its not necessary inside an APRS packet)
 			base91_encode(&pkt[6], pkt_base91, 174);
+			/* Wait for packet buffer to be available. */
+            if(chSemWait(&tx_complete) == MSG_RESET)
+                      return false;
 			packet_t packet = aprs_encode_data_packet(conf->call, conf->path, 'I', pkt_base91);
             if(packet == NULL) {
               TRACE_WARN("IMG  > No free packet objects for transmission");
+              chSemSignal(&tx_complete);
               return false;
             }
-            if(!transmitOnRadio(packet,
+
+            if(!transmitOnRadioWithCallback(packet,
                                 conf->radio_conf.freq,
                                 0,
                                 0,
                                 conf->radio_conf.pwr,
                                 conf->radio_conf.mod,
-                                conf->radio_conf.cca)) {
+                                conf->radio_conf.cca,
+                                (radio_task_cb_t) image_packet_send_complete)) {
 
               TRACE_ERROR("IMG  > Unable to send image packet on radio");
+              chSemSignal(&tx_complete);
               return false;
             }
 		}
@@ -897,57 +922,16 @@ static bool transmit_image_packet(const uint8_t *image,
 }
 
 /**
- * Callback used to throttle image send.
- * Next packet (or burst) is readied.
- */
-static void image_packet_send_complete(radio_task_object_t *rt) {
-  chSemSignal(&tx_complete);
-#if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
-  TRACE_DEBUG("IMG  > Released transmit semaphore TX sequence %d",
-              rt->tx_seq_num);
-#else
-  (void)rt;
-#endif
-  return;
-}
-
-/**
- * Transmit image packets.
+ * Send image packets.
  * Return true if no encoding, TX or memory error.
  */
-static bool transmit_image_packets(const uint8_t *image,
+static bool send_image_packets(const uint8_t *image,
                                    const uint32_t image_len,
                                    img_app_conf_t *const conf,
                                    const uint8_t image_id) {
 
   uint8_t pkt[SSDV_PKT_SIZE];
   uint8_t pkt_base91[256] = {0};
-
-  /**
-   * @brief  Process redundant transmission from last cycle
-   * @note   If redundant send is used packet burst mode is disabled.
-   */
-  if(strlen((char*)pkt_base91)
-      && conf->redundantTx) {
-    packet_t packet = aprs_encode_data_packet(conf->call, conf->path,
-                                              'I', pkt_base91);
-    if(packet == NULL) {
-      TRACE_ERROR("IMG  > No available packet for redundant"
-          " image transmission");
-    } else {
-      if(!transmitOnRadio(packet,
-                          conf->radio_conf.freq,
-                          0,
-                          0,
-                          conf->radio_conf.pwr,
-                          conf->radio_conf.mod,
-                          conf->radio_conf.cca)) {
-        /* Packet has been released by transmit. */
-        TRACE_ERROR("IMG  > Unable to send redundant image on radio");
-      }
-    }
-    chThdSleep(TIME_MS2I(10)); // Leave other threads some time
-  }
 
   /* Prepare for new image encode and send. */
   ssdv_t ssdv;
@@ -970,7 +954,7 @@ static bool transmit_image_packets(const uint8_t *image,
                               / PKT_MAXIMUM_QUEUED_IMAGE_TX_THREADS)
                             - RESERVE_BUFFERS_FOR_INTERNAL),
                            MAX_BUFFERS_FOR_BURST_SEND);
-    uint8_t chain = (IS_2FSK(conf->radio_conf.mod) && !conf->no_burst
+    uint8_t chain = (IS_FAST_2FSK(conf->radio_conf.mod) && !conf->no_burst
         && !conf->redundantTx) ?
         buffers : 1;
     TRACE_INFO("IMG  > Encode %i APRS/SSDV packet%s", chain,
@@ -1062,8 +1046,43 @@ static bool transmit_image_packets(const uint8_t *image,
         // Packet spacing (delay)
         if(conf->svc_conf.send_spacing)
           chThdSleep(conf->svc_conf.send_spacing);
-      }
-    }
+        /**
+         * @brief  Process redundant transmission
+         * @note   Redundant send is only available for single packet (AFSK).
+         */
+
+        if(strlen((char*)pkt_base91)
+            && IS_AFSK(conf->radio_conf.mod)
+            && conf->redundantTx) {
+          /* Wait for packet to be available. */
+          if(chSemWait(&tx_complete) == MSG_RESET)
+                    return false;
+          packet_t packet = aprs_encode_data_packet(conf->call, conf->path,
+                                                    'I', pkt_base91);
+          if(packet == NULL) {
+            TRACE_ERROR("IMG  > No available packet for redundant"
+                " image transmission");
+            chSemSignal(&tx_complete);
+            return false;
+          } else {
+            if(!transmitOnRadioWithCallback(packet,
+                                conf->radio_conf.freq,
+                                0,
+                                0,
+                                conf->radio_conf.pwr,
+                                conf->radio_conf.mod,
+                                conf->radio_conf.cca,
+                                (radio_task_cb_t) image_packet_send_complete)) {
+              /* Packet has been released by transmit. */
+              TRACE_ERROR("IMG  > Unable to send redundant image on radio");
+              chSemSignal(&tx_complete);
+              return false;
+            }
+          }
+          chThdSleep(TIME_MS2I(10)); // Leave other threads some time
+        } /* End redundant TX. */
+      } /* Else transmit succeeded. */
+    } /* Else head == NULL. */
       chThdSleep(TIME_MS2I(10)); // Leave other threads some time
   } /* End while(c!= SSDV_EOI) */
 
@@ -1073,6 +1092,7 @@ static bool transmit_image_packets(const uint8_t *image,
       if(!transmit_image_packet(image, image_len, conf,
                                 image_id, packetRepeats[i].packet_id)) {
         TRACE_ERROR("IMG  > Failed re-send of image ID=%d", image_id);
+        return false;
       } else {
         packetRepeats[i].n_done = false; // Set done
       }
@@ -1262,7 +1282,7 @@ THD_FUNCTION(imgThread, arg) {
     if(size_sampled == 0) {
       TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d",
                  my_image_id);
-      if(!transmit_image_packets(noCameraFound, sizeof(noCameraFound),
+      if(!send_image_packets(noCameraFound, sizeof(noCameraFound),
                                  conf, (uint8_t)(my_image_id))) {
         TRACE_ERROR("IMG  > Error in encoding dummy image %d"
             " - discarded", my_image_id);
@@ -1298,13 +1318,13 @@ THD_FUNCTION(imgThread, arg) {
         } /* End initSD() */
 
         /* Transmit on radio. */
-        if(IS_2FSK(conf->radio_conf.mod) && conf->redundantTx) {
+        if(IS_FAST_2FSK(conf->radio_conf.mod) && conf->redundantTx) {
           TRACE_WARN("IMG  > Redundant TX disables 2FSK burst send mode");
         }
 
         /* Encode and transmit picture. */
         TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", my_image_id);
-        if(!transmit_image_packets(buffer, size_sampled, conf,
+        if(!send_image_packets(buffer, size_sampled, conf,
                                    (uint8_t)(my_image_id))) {
           TRACE_ERROR("IMG  > Error in encode/transmit of image"
               " ID=%d - discarded", my_image_id);
@@ -1331,7 +1351,7 @@ THD_FUNCTION(imgThread, arg) {
 void start_image_thread(img_app_conf_t *conf, const char *name)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
-	                                   THD_WORKING_AREA_SIZE(8 * 1024),
+	                                   THD_WORKING_AREA_SIZE(10 * 1024),
 	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
       // Print startup error, do not start watchdog for this thread

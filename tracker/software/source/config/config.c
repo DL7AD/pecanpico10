@@ -59,13 +59,13 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 60),
-            .init_delay = TIME_S2I(30),
+            .active = true,
+            .cycle = TIME_S2I(0),
+            .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(10)
         },
         .radio_conf = {
-            .pwr = 0x7F,
+            .pwr = 0x1F,
             .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x5F
@@ -79,16 +79,16 @@ const conf_t conf_flash_default = {
         .res = RES_QVGA,
         .quality = 4,
         .buf_size = 15 * 1024,
-        .redundantTx = false
+        .redundantTx = true
     },
 
     // Secondary image app
     .img_sec = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 5),
-            .init_delay = TIME_S2I(60),
-            .send_spacing = TIME_S2I(3)
+            .cycle = TIME_S2I(60 * 3),
+            .init_delay = TIME_S2I(120),
+            .send_spacing = TIME_S2I(0)
         },
         .radio_conf = {
             .pwr = 0x7F,

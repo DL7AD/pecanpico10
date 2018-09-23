@@ -10,6 +10,10 @@
                      || (m) == MOD_2FSK_19k2 || (m) == MOD_2FSK_38k4         \
                      || (m) == MOD_2FSK_57k6 || (m) == MOD_2FSK_76k8         \
                      || (m) == MOD_2FSK_96k  || (m) == MOD_2FSK_115k2)
+#define IS_FAST_2FSK(m) ((m) == MOD_2FSK_9k6                                 \
+                     || (m) == MOD_2FSK_19k2 || (m) == MOD_2FSK_38k4         \
+                     || (m) == MOD_2FSK_57k6 || (m) == MOD_2FSK_76k8         \
+                     || (m) == MOD_2FSK_96k  || (m) == MOD_2FSK_115k2)
 
 typedef enum {
 	FREQ_INVALID = 0,
