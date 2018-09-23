@@ -51,6 +51,7 @@ bool initSD(void)
 	TRACE_DEBUG("SD   > Connect");
 	if(mmcConnect(&MMCD1)) {
 		TRACE_ERROR("SD   > SD card connection error");
+        sdInitialized = false;
 	} else {
 		TRACE_INFO("SD   > SD card connection OK");
 		sdInitialized = true;

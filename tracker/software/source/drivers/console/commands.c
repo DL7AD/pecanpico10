@@ -127,11 +127,19 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 
-	// Take picture
-	uint32_t size_sampled = takePicture(usb_buffer, sizeof(usb_buffer), RES_QVGA, false);
+    /*
+     * Take picture.
+     * Status is returned in msg.
+     * MSG_OK = capture success.
+     * MSG_RESET = no cmaera found
+     * MSG_TIMEOUT = capture failed.
+     */
+	uint32_t size_sampled;
+	msg_t msg = takePicture(usb_buffer, sizeof(usb_buffer), RES_QVGA,
+	                        &size_sampled, false);
 
 	// Transmit image via USB
-	if(size_sampled)
+	if(size_sampled && msg == MSG_OK)
 	{
 		bool start_detected = false;
 		for(uint32_t i=0; i<size_sampled; i++)

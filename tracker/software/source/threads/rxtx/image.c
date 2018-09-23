@@ -1160,9 +1160,10 @@ static bool analyze_image(const uint8_t *image, uint32_t image_len) {
  *
  */
 uint32_t takePicture(uint8_t* buffer, uint32_t size,
-                     resolution_t res, bool enableJpegValidation) {
-	uint32_t size_sampled = 0;
-
+                     resolution_t res, uint32_t *size_sampled,
+                     bool enableJpegValidation) {
+	//*size_sampled = 0;
+	msg_t result;
 	// Initialize mutex
 	if(!camera_mtx_init)
 		chMtxObjectInit(&camera_mtx);
@@ -1176,15 +1177,8 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 	if(camInitialized || OV5640_isAvailable()) { // OV5640 available
 
 		TRACE_INFO("IMG  > OV5640 found");
-
-
-        // Init camera
-/*        if(!camInitialized) {
-            OV5640_init();
-            camInitialized = true;
-        }*/
         uint8_t cntr = 5;
-        bool jpegValid = false;
+        //bool jpegValid = false;
 		do {
 			// Switch on and init camera
 	        if(!camInitialized) {
@@ -1193,29 +1187,34 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 	        }
 
 			// Sample data from pseudo DCMI through DMA into RAM
-			size_sampled = OV5640_Snapshot2RAM(buffer, size, res);
-            if(size_sampled == 0) {
-              // Switch off camera
+			*size_sampled = OV5640_Snapshot2RAM(buffer, size, res);
+            if(*size_sampled == 0) {
+              /* Failed to capture. Switch off camera. */
               OV5640_deinit();
               camInitialized = false;
               chThdSleep(TIME_MS2I(10));
+              result = MSG_TIMEOUT;
               continue;
             }
 
 			// Validate JPEG image
-			if(enableJpegValidation)
-			{
+			if(enableJpegValidation) {
 				TRACE_INFO("CAM  > Validate integrity of JPEG");
-				jpegValid = analyze_image(buffer, size);
-				TRACE_INFO("CAM  > JPEG image %s", jpegValid ? "valid" : "invalid");
-			} else {
-				jpegValid = true;
+				bool jpegValid = analyze_image(buffer, size);
+				TRACE_INFO("CAM  > JPEG image %s", jpegValid ? "valid"
+				                                             : "invalid");
+				if(!jpegValid) {
+				  result = MSG_TIMEOUT;
+				  continue;
+				}
 			}
-		} while(!jpegValid && cntr--);
+            result = MSG_OK;
+            break;
+		} while(cntr--);
 
 	} else { // Camera not found
 
-		//camInitialized = false;
+	    result = MSG_RESET;
 		TRACE_ERROR("IMG  > No camera found");
 	}
     // Switch off camera
@@ -1227,7 +1226,7 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
 	TRACE_INFO("IMG  > Unlock camera");
 	chMtxUnlock(&camera_mtx);
 
-	return size_sampled;
+	return result;
 }
 
 /**
@@ -1275,24 +1274,39 @@ THD_FUNCTION(imgThread, arg) {
       continue;
     }
 
-    /* Take picture. */
-    uint32_t size_sampled = takePicture(buffer, conf->buf_size,
-                                        conf->res, true);
+    /*
+     * Take picture.
+     * Status is returned in msg.
+     * MSG_OK = capture success. Size captured is updated.
+     * MSG_RESET = no camera found
+     * MSG_TIMEOUT = capture failed.
+     */
+    uint32_t size_sampled;
+    msg_t msg = takePicture(buffer, conf->buf_size, conf->res,
+                            &size_sampled, true);
+
     /* Nothing captured? */
-    if(size_sampled == 0) {
-      TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d",
-                 my_image_id);
-      if(!send_image_packets(noCameraFound, sizeof(noCameraFound),
-                                 conf, (uint8_t)(my_image_id))) {
-        TRACE_ERROR("IMG  > Error in encoding dummy image %d"
-            " - discarded", my_image_id);
-      }
+    if(msg != MSG_OK) {
       /* Return the buffer to the heap. */
       chHeapFree(buffer);
-      /* Allow time for other threads. */
-      chThdSleep(TIME_MS2I(10));
-      /* Try again at next run time. */
-      time = waitForTrigger(time, conf->svc_conf.cycle);
+      if(msg == MSG_RESET) {
+        TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d",
+                   my_image_id);
+        if(!send_image_packets(noCameraFound, sizeof(noCameraFound),
+                                   conf, (uint8_t)(my_image_id))) {
+          TRACE_ERROR("IMG  > Error in encoding dummy image %d"
+              " - discarded", my_image_id);
+        }
+      }
+
+      /*
+       * Re-check again in 1 minute or at cycle time if > 1 minute.
+       * Don't make this short or the IO queue will be filled.
+       */
+      /* Try again at next run time (which may be immediately). */
+      time = waitForTrigger(time, conf->svc_conf.cycle > TIME_S2I(60)
+                            ? conf->svc_conf.cycle
+                            : TIME_S2I(60));
       continue;
     }
 
