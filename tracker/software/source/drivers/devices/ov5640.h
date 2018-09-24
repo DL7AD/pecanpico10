@@ -81,7 +81,7 @@ uint32_t    OV5640_getLastLightIntensity(void);
 uint8_t     OV5640_hasError(void);
 msg_t       OV5640_LockPDCMI(void);
 void        OV5640_UnlockPDCMI(void);
-void        OV5640_GetPDCMILockStateI(void);
+bool        OV5640_GetPDCMILockStateI(void);
 
 #ifdef __cplusplus
 }

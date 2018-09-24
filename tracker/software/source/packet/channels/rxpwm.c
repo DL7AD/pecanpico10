@@ -283,8 +283,34 @@ void pktDisableRadioStream(const radio_unit_t radio) {
     chSysUnlock();
     return;
   }
-
   } /* End switch. */
+}
+
+
+/**
+ * @brief   Timer callback when CCA trailing edge de-glitch period expires.
+ * @notes   If CCA is still asserted then PWM capture will continue.
+ * @notes   If CCA is not asserted then PWM capture will be closed.
+ *
+ * @param[in]   myICU   pointer to a @p ICUDriver structure
+ *
+ * @api
+ */
+void pktRadioJammingReset(ICUDriver *myICU) {
+  chSysLockFromISR();
+  AFSKDemodDriver *myDemod = myICU->link;
+  chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
+
+  if(myDemod->icustate == PKT_PWM_STOP) {
+    chSysUnlockFromISR();
+    return;
+  }
+
+  packet_svc_t *myHandler = myDemod->packet_handler;
+  /* Send event broadcast. */
+  pktAddEventFlagsI(myHandler, EVT_PWM_JAMMING_RESET);
+  chSysUnlockFromISR();
+  return;
 }
 
 /**
@@ -414,6 +440,14 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
      */
     pktAddEventFlagsI(myHandler, EVT_PWM_FIFO_EMPTY);
     icuDisableNotificationsI(myICU);
+
+    /*
+     * This looks like noise/jamming.
+     * Wait for a timeout before allowing new CAA detection.
+     * TODO: Keep data on jamming and adjust RSSI threshold?
+     */
+    chVTSetI(&myICU->jam_timer, TIME_S2I(PWM_JAMMING_TIMEOUT),
+             (vtfunc_t)pktRadioJammingReset, myICU);
 
     /* Turn on the FIFO out LED. */
     pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_FIFO, PAL_HIGH);
@@ -554,32 +588,6 @@ void pktPWMInactivityTimeout(ICUDriver *myICU) {
 }
 
 /**
- * @brief   Timer callback when CCA trailing edge de-glitch period expires.
- * @notes   If CCA is still asserted then PWM capture will continue.
- * @notes   If CCA is not asserted then PWM capture will be closed.
- *
- * @param[in]   myICU   pointer to a @p ICUDriver structure
- *
- * @api
- */
-void pktRadioJammingReset(ICUDriver *myICU) {
-  chSysLockFromISR();
-  AFSKDemodDriver *myDemod = myICU->link;
-  chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
-
-  if(myDemod->icustate == PKT_PWM_STOP) {
-    chSysUnlockFromISR();
-    return;
-  }
-
-  packet_svc_t *myHandler = myDemod->packet_handler;
-  /* Send event broadcast. */
-  pktAddEventFlagsI(myHandler, EVT_PWM_JAMMING_RESET);
-  chSysUnlockFromISR();
-  return;
-}
-
-/**
  * @brief   Timer callback when CCA leading edge de-glitch period expires.
  * @notes   If CCA is still asserted then PWM capture will be enabled.
  *
@@ -593,7 +601,7 @@ void pktRadioCCALeadTimer(ICUDriver *myICU) {
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
   packet_svc_t *myHandler = myDemod->packet_handler;
-  if(myDemod->icustate == PKT_PWM_STOP) {
+  if(myDemod->icustate == PKT_PWM_STOP || chVTIsArmedI(&myICU->jam_timer)) {
     chSysUnlockFromISR();
     return;
   }
@@ -632,7 +640,7 @@ void pktRadioCCATrailTimer(ICUDriver *myICU) {
   AFSKDemodDriver *myDemod = myICU->link;
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
-  if(myDemod->icustate == PKT_PWM_STOP) {
+  if(myDemod->icustate == PKT_PWM_STOP || chVTIsArmedI(&myICU->jam_timer)) {
     chSysUnlockFromISR();
     return;
   }

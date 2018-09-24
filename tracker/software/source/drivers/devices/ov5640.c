@@ -1034,9 +1034,8 @@ void OV5640_UnlockPDCMI(void) {
 /*
  *
  */
-void OV5640_GetPDCMILockStateI(void) {
-  bool state = chBSemGetStateI(&pdcmi_sem);
-  return state;
+bool OV5640_GetPDCMILockStateI(void) {
+  return chBSemGetStateI(&pdcmi_sem);
 }
 
 /**
