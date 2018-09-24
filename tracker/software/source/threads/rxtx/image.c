@@ -809,7 +809,7 @@ const uint8_t noCameraFound[] = {
 	0xBD, 0xC0, 0x20, 0x00, 0x01, 0xFF, 0xD9
 };*/
 
-uint32_t gimage_id; // Global image ID (for all image threads)
+uint16_t gimage_id; // Global image ID (for all image threads)
 mutex_t camera_mtx;
 bool camera_mtx_init = false;
 
@@ -928,10 +928,13 @@ static bool transmit_image_packet(const uint8_t *image,
 static bool send_image_packets(const uint8_t *image,
                                    const uint32_t image_len,
                                    img_app_conf_t *const conf,
-                                   const uint8_t image_id) {
+                                   const uint32_t image_stamp) {
 
   uint8_t pkt[SSDV_PKT_SIZE];
   uint8_t pkt_base91[256] = {0};
+
+  /* Interim hack to make server image ID termporarily unique. */
+  uint8_t image_id = (image_stamp & 0x7F) | ((image_stamp & 0x10000) >> 9);
 
   /* Prepare for new image encode and send. */
   ssdv_t ssdv;
@@ -1256,7 +1259,8 @@ THD_FUNCTION(imgThread, arg) {
       chThdSleep(TIME_S2I(60));
       continue;
     }
-    uint32_t my_image_id = gimage_id++;
+    dataPoint_t *ldp = getLastDataPoint();
+    uint32_t my_image_id = (ldp->reset << 16) + gimage_id++;
     /* Create image capture buffer. */
     uint8_t *buffer = chHeapAllocAligned(NULL, conf->buf_size,
                                          PDCMI_DMA_FIFO_BURST_ALIGN);
@@ -1293,7 +1297,7 @@ THD_FUNCTION(imgThread, arg) {
         TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d",
                    my_image_id);
         if(!send_image_packets(noCameraFound, sizeof(noCameraFound),
-                                   conf, (uint8_t)(my_image_id))) {
+                                   conf, my_image_id)) {
           TRACE_ERROR("IMG  > Error in encoding dummy image %d"
               " - discarded", my_image_id);
         }
@@ -1339,7 +1343,7 @@ THD_FUNCTION(imgThread, arg) {
         /* Encode and transmit picture. */
         TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", my_image_id);
         if(!send_image_packets(buffer, size_sampled, conf,
-                                   (uint8_t)(my_image_id))) {
+                                   my_image_id)) {
           TRACE_ERROR("IMG  > Error in encode/transmit of image"
               " ID=%d - discarded", my_image_id);
         }
