@@ -33,7 +33,7 @@
 //#define PKT_RADIO_MANAGER_TASK_KILL     TRUE
 
 /* Set TRUE to use mutex instead of bsem. */
-#define PKT_USE_RADIO_MUTEX             TRUE
+#define PKT_USE_RADIO_MUTEX             FALSE
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
@@ -197,9 +197,11 @@ extern "C" {
                           radio_task_cb_t cb);
   void      		pktScheduleThreadRelease(const radio_unit_t radio,
                                 thread_t *thread);
-  msg_t     		pktLockRadioTransmit(const radio_unit_t radio,
+  msg_t     		pktLockRadio(const radio_unit_t radio,
+            		                const radio_mode_t mode,
             		                const sysinterval_t timeout);
-  void      		pktUnlockRadioTransmit(const radio_unit_t radio);
+  void      		pktUnlockRadio(const radio_unit_t radio,
+                                   const radio_mode_t mode);
   const radio_config_t *pktGetRadioList(void);
   uint8_t           pktGetNumRadios(void);
   radio_band_t 		*pktCheckAllowedFrequency(const radio_unit_t radio,

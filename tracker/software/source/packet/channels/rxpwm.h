@@ -23,7 +23,6 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-
 /* Limit of ICU and PWM count for packed format. */
 
 #if USE_12_BIT_PWM == TRUE
@@ -50,8 +49,8 @@
 #define PWM_ACK_DECODE_ERROR    9
 #define PWM_TERM_QUEUE_ERROR    10
 
-/* ICU will be stopped if no activity for this number of seconds. */
-#define ICU_INACTIVITY_TIMEOUT  60
+/* If all PWM buffers are consumed assume jamming and wait this timeout. */
+#define PWM_JAMMING_TIMEOUT     10
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */

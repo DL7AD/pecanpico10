@@ -37,7 +37,10 @@ eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(PKT_DIAGNOSTIC_EVENT_CODE));
   if(evt) {
     eventflags_t flags = chEvtGetAndClearFlags(&pkt_el);
     if(flags & EVT_PWM_QUEUE_FULL) {
-      TRACE_WARN("PKT  > PWM queue full");
+      TRACE_WARN("PKT  > PWM queue full. Possible jamming or RSSI set too low");
+    }
+    if(flags & EVT_PWM_JAMMING_RESET) {
+      TRACE_INFO("PKT  > PWM jamming guard timeout released");
     }
     if(flags & EVT_PWM_FIFO_EMPTY) {
       TRACE_WARN("PKT  > PWM FIFO exhausted");

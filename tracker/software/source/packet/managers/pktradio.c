@@ -20,6 +20,7 @@
 #include "si446x.h"
 #include "debug.h"
 #include "geofence.h"
+#include "ov5640.h"
 
 /*===========================================================================*/
 /* Module local definitions.                                                 */
@@ -256,15 +257,15 @@ THD_FUNCTION(pktRadioManager, arg) {
       packet_t pp = task_object->packet_out;
       pktReleaseBufferChain(pp);
       if(pktIsReceiveEnabled(radio)) {
-        pktLockRadioTransmit(radio, TIME_INFINITE);
+        pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
         if(!pktLLDradioResumeReceive(radio)) {
           TRACE_ERROR("RAD  > Receive on radio %d failed to "
               "resume after transmit", radio);
-          pktUnlockRadioTransmit(radio);
+          pktUnlockRadio(radio, RADIO_TX);
           break;
         }
         pktEnableRadioStream(radio);
-        pktUnlockRadioTransmit(radio);
+        pktUnlockRadio(radio, RADIO_TX);
       }
       break;
     } /* End case PKT_RADIO_TX. */
@@ -276,9 +277,9 @@ THD_FUNCTION(pktRadioManager, arg) {
       switch(task_object->type) {
       case MOD_AFSK: {
         /* Stop receive. */
-        pktLockRadioTransmit(radio, TIME_INFINITE);
+        pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
         pktLLDradioStopReceive(radio);
-        pktUnlockRadioTransmit(radio);
+        pktUnlockRadio(radio, RADIO_TX);
         /* TODO: This should be a function back in pktservice or rxafsk. */
         esp = pktGetEventSource((AFSKDemodDriver *)handler->rx_link_control);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
@@ -492,11 +493,11 @@ void pktRadioManagerRelease(const radio_unit_t radio) {
  */
 bool pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  pktLockRadioTransmit(radio, TIME_INFINITE);
+  pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
   /* Configure receive. */
   if(!pktLLDradioStartReceive(radio, rto)) {
     TRACE_ERROR("RAD  > Receive on radio %d failed to start", radio);
-    pktUnlockRadioTransmit(radio);
+    pktUnlockRadio(radio, RADIO_TX);
     return false;
   }
 
@@ -508,7 +509,7 @@ bool pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
   //pktStartDecoder(radio);
   /* Unlock radio and allow transmit requests. */
   handler->rx_state = PACKET_RX_ENABLED;
-  pktUnlockRadioTransmit(radio);
+  pktUnlockRadio(radio, RADIO_TX);
   return true;
 }
 
@@ -528,11 +529,11 @@ bool pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
 bool pktStopRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
   (void)rto;
   packet_svc_t *handler = pktGetServiceObject(radio);
-  pktLockRadioTransmit(radio, TIME_INFINITE);
+  pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
   pktRadioStopDecoder(radio);
   //pktStopDecoder(radio);
   handler->rx_state = PACKET_RX_OPEN;
-  pktUnlockRadioTransmit(radio);
+  pktUnlockRadio(radio, RADIO_TX);
   return true;
 }
 
@@ -696,6 +697,7 @@ void pktSubmitRadioTask(const radio_unit_t radio,
  * @pre     Receive should be paused by calling routine if it is active.
  *
  * @param[in] radio     radio unit ID.
+ * @param[in] mode      radio locking mode.
  * @param[in] timeout   time to wait for acquisition.
  *
  * @return              A message specifying the result.
@@ -705,34 +707,68 @@ void pktSubmitRadioTask(const radio_unit_t radio,
  *
  * @api
  */
-msg_t pktLockRadioTransmit(const radio_unit_t radio,
-                      const sysinterval_t timeout) {
+msg_t pktLockRadio(const radio_unit_t radio, const radio_mode_t mode,
+                                             const sysinterval_t timeout) {
   packet_svc_t *handler = pktGetServiceObject(radio);
+  msg_t msg;
+  switch(mode) {
+  case RADIO_TX: {
 #if PKT_USE_RADIO_MUTEX == TRUE
   (void)timeout;
   chMtxLock(&handler->radio_mtx);
-  return MSG_OK;
+  return OV5640_LockPDCMI();
 #else
-  return chBSemWaitTimeout(&handler->radio_sem, timeout);
+  if((msg = chBSemWaitTimeout(&handler->radio_sem, timeout)) == MSG_OK) {
+    if((msg = OV5640_LockPDCMI()) != MSG_OK)
+      chBSemSignal(&handler->radio_sem);
+  }
 #endif
+  break;
+  }
+
+  case RADIO_RX: {
+    msg = OV5640_LockPDCMI();
+    break;
+  }
+
+  default:
+    msg = OV5640_LockPDCMI();
+    break;
+  }
+return msg;
 }
 
 /**
  * @brief   Unlock radio.
  * @notes   Returns when radio unit is unlocked.
- * @pre     Receive should be resumed by calling routine if it was active.
+ * @pre     Receive should be resumed by calling routine if it was active and mode is TX.
  *
  * @param[in] radio    radio unit ID.
- *
+ * @param[in] mode     radio locking mode.
  * @api
  */
-void pktUnlockRadioTransmit(const radio_unit_t radio) {
+void pktUnlockRadio(const radio_unit_t radio, const radio_mode_t mode) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-#if PKT_USE_RADIO_MUTEX == TRUE
-  chMtxUnlock(&handler->radio_mtx);
-#else
-  chBSemSignal(&handler->radio_sem);
-#endif
+  switch(mode) {
+  case RADIO_TX: {
+    OV5640_UnlockPDCMI();
+  #if PKT_USE_RADIO_MUTEX == TRUE
+    chMtxUnlock(&handler->radio_mtx);
+  #else
+    chBSemSignal(&handler->radio_sem);
+  #endif
+    break;
+  }
+
+  case RADIO_RX: {
+    OV5640_UnlockPDCMI();
+    break;
+  }
+
+  default:
+    OV5640_UnlockPDCMI();
+    break;
+  }
 }
 
 /**

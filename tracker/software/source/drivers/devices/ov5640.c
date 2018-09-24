@@ -20,7 +20,9 @@
 static uint32_t lightIntensity;
 static uint8_t error;
 
-bool    decode_pause;
+//bool    decode_pause;
+
+BSEMAPHORE_DECL(pdcmi_sem, false);
 
 struct regval_list {
 	uint16_t reg;
@@ -1014,20 +1016,27 @@ void mode3_vsync_cb(void *arg) {
 }
 
 /*
- * TODO: Deprecate. No longer used.
- * DMA and IRQ priorities configured enabling OV5640 PDCMI concurrent with other H/W.
+ *
+ * Other services can lock the PDCMI to prevent resource conflicts.
  */
-msg_t OV5640_LockResourcesForCapture(void) {
-  //I2C_Lock();
-  return MSG_OK;
+msg_t OV5640_LockPDCMI(void) {
+  return chBSemWait(&pdcmi_sem);
 }
 
 /*
- * TODO: Deprecate
+ *
  */
-void OV5640_UnlockResourcesForCapture(void) {
-  //I2C_Unlock();
+void OV5640_UnlockPDCMI(void) {
+  chBSemSignal(&pdcmi_sem);
   return;
+}
+
+/*
+ *
+ */
+void OV5640_GetPDCMILockStateI(void) {
+  bool state = chBSemGetStateI(&pdcmi_sem);
+  return state;
 }
 
 /**
@@ -1074,7 +1083,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	 */
 
     /* WARNING: Do not use TRACE when resources are locked. */
-	if(OV5640_LockResourcesForCapture() != MSG_OK) {
+	if(OV5640_LockPDCMI() != MSG_OK) {
       TRACE_ERROR("CAM  > Capture failed to lock competing resources");
 	  /* Unable to lock resources. */
 	  return 0;
@@ -1105,7 +1114,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	/* Set stream, IRQ priority, IRQ handler & parameter. */
 	if(dmaStreamAllocate(dma_control.dmastp, PDCMI_DMA_IRQ_PRIO,
 	                  (stm32_dmaisr_t)dma_interrupt, &dma_control)) {
-	    OV5640_UnlockResourcesForCapture();
+	    OV5640_UnlockPDCMI();
 	    error = 0x9;
         TRACE_ERROR("CAM  > DMA could not allocate stream");
 	    return 0;
@@ -1195,7 +1204,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	pdcmi_state_t state = dma_control.pdcmi_state;
 	dma_control.pdcmi_state = PDCMI_NOT_ACTIVE;
 
-    OV5640_UnlockResourcesForCapture();
+    OV5640_UnlockPDCMI();
 
     switch(state) {
     case PDCMI_DMA_ERROR: {

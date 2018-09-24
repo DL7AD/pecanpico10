@@ -63,6 +63,8 @@ typedef struct pdcmiControl {
   ioline_t                  vsync_line;
 } pdcmi_capture_t;
 
+extern binary_semaphore_t pdcmi_sem;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -77,6 +79,10 @@ bool        OV5640_isAvailable(void);
 void        OV5640_setLightIntensity(void);
 uint32_t    OV5640_getLastLightIntensity(void);
 uint8_t     OV5640_hasError(void);
+msg_t       OV5640_LockPDCMI(void);
+void        OV5640_UnlockPDCMI(void);
+void        OV5640_GetPDCMILockStateI(void);
+
 #ifdef __cplusplus
 }
 #endif

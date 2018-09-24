@@ -579,7 +579,7 @@ static bool Si446x_setBandParameters(const radio_unit_t radio,
                sizeof(set_frequency_property_command));
 
   /* Set TX deviation. */
-  uint32_t x = ((((uint32_t)1 << 19) * outdiv * (float32_t)dev/*1300.0*/)/(2*Si446x_CCLK))*2;
+  uint32_t x = ((((uint32_t)1 << 19) * outdiv * (float32_t)dev)/(2*Si446x_CCLK))*2;
   uint8_t x2 = (x >> 16) & 0xFF;
   uint8_t x1 = (x >>  8) & 0xFF;
   uint8_t x0 = (x >>  0) & 0xFF;
@@ -1483,8 +1483,10 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
-  if(pktLockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
-    TRACE_ERROR("SI   > AFSK TX reset from radio acquisition");
+  msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
+  if(msg == MSG_RESET || msg == MSG_TIMEOUT) {
+    TRACE_ERROR("SI   > AFSK TX reset or timeout from radio acquisition");
+
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
 
@@ -1558,7 +1560,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       pktRadioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
-      pktUnlockRadioTransmit(radio);
+      pktUnlockRadio(radio, RADIO_TX);
 
       /* Exit thread. */
       chThdExit(MSG_ERROR);
@@ -1693,7 +1695,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   pktRadioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
-  pktUnlockRadioTransmit(radio);
+  pktUnlockRadio(radio, RADIO_TX);
 
   /* Exit thread. */
   chThdExit(exit_msg);
@@ -1749,8 +1751,11 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
-  /* Check for MSG_RESET which means system has forced radio release. */
-  if(pktLockRadioTransmit(radio, TIME_INFINITE) == MSG_RESET) {
+  msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
+  if(msg == MSG_RESET || msg == MSG_TIMEOUT) {
+    TRACE_ERROR("SI   > AFSK TX reset or timeout from radio acquisition");
+
+    /* Free packet object memory. */
     TRACE_ERROR("SI   > 2FSK TX reset from radio acquisition");
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
@@ -1825,7 +1830,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       pktRadioSendComplete(rto, chThdGetSelfX());
 
       /* Unlock radio. */
-      pktUnlockRadioTransmit(radio);
+      pktUnlockRadio(radio, RADIO_TX);
 
       /* Exit thread. */
       chThdExit(MSG_ERROR);
@@ -1952,7 +1957,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   pktRadioSendComplete(rto, chThdGetSelfX());
 
   /* Unlock radio. */
-  pktUnlockRadioTransmit(radio);
+  pktUnlockRadio(radio, RADIO_TX);
 
   /* Exit thread. */
   chThdExit(exit_msg);

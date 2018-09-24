@@ -74,27 +74,23 @@ ICUDriver *pktAttachRadio(const radio_unit_t radio) {
 
   /* Initialise the ICU PWM timers. */
   chVTObjectInit(&myICU->cca_timer);
-  //chVTObjectInit(&myICU->icu_timer);
   chVTObjectInit(&myICU->pwm_timer);
+  chVTObjectInit(&myICU->jam_timer);
 
-  /* TODO: Implement LLD call to setup indicator LEDs specific to radio. */
   /* Setup the squelch LED. */
   pktLLDradioConfigIndicator(radio, PKT_INDICATOR_SQUELCH);
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_SQUELCH, PAL_LOW);
-  //pktSetGPIOlineMode(LINE_SQUELCH_LED, PAL_MODE_OUTPUT_PUSHPULL);
-  //pktWriteGPIOline(LINE_SQUELCH_LED, PAL_LOW);
+
 
   /* Setup the overflow LED. */
   pktLLDradioConfigIndicator(radio, PKT_INDICATOR_OVERFLOW);
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_OVERFLOW, PAL_LOW);
-  //pktSetGPIOlineMode(LINE_OVERFLOW_LED, PAL_MODE_OUTPUT_PUSHPULL);
-  //pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_LOW);
+
 
   /* Setup the no FIFO LED. */
   pktLLDradioConfigIndicator(radio, PKT_INDICATOR_FIFO);
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_FIFO, PAL_LOW);
-  //pktSetGPIOlineMode(LINE_NO_FIFO_LED, PAL_MODE_OUTPUT_PUSHPULL);
-  //pktWriteGPIOline(LINE_NO_FIFO_LED, PAL_LOW);
+
 
   /* Setup the no buffer LED. */
   pktLLDradioConfigIndicator(radio, PKT_INDICATOR_NO_BUFF);
@@ -103,6 +99,7 @@ ICUDriver *pktAttachRadio(const radio_unit_t radio) {
   /* Setup the PWM error LED. */
   pktLLDradioConfigIndicator(radio, PKT_INDICATOR_PWM_ERROR);
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_PWM_ERROR, PAL_LOW);
+
   /* If using PWM mirror to output to a diagnostic port. */
   //pktSetGPIOlineMode(LINE_PWM_MIRROR, PAL_MODE_OUTPUT_PUSHPULL);
 
@@ -137,18 +134,14 @@ void pktDetachRadio(const radio_unit_t radio) {
   pktLLDradioDetachStream(radio);
   myDemod->icudriver = NULL;
 
-  /* TODO: Implement LLD call to release indicator LEDs specific to radio. */
   /* Disable the squelch LED. */
   pktLLDradioDeconfigIndicator(radio, PKT_INDICATOR_SQUELCH);
-  //pktUnsetGPIOlineMode(LINE_SQUELCH_LED);
 
   /* Disable overflow LED. */
   pktLLDradioDeconfigIndicator(radio, PKT_INDICATOR_OVERFLOW);
-  //pktUnsetGPIOlineMode(LINE_OVERFLOW_LED);
 
   /* Disable no FIFO LED. */
   pktLLDradioDeconfigIndicator(radio, PKT_INDICATOR_FIFO);
-  //pktUnsetGPIOlineMode(LINE_NO_FIFO_LED);
 
   /* If using PWM mirror disable diagnostic port. */
   //pktUnsetGPIOlineMode(LINE_PWM_MIRROR);
@@ -168,10 +161,6 @@ void pktEnableRadioStream(const radio_unit_t radio) {
   packet_svc_t *myHandler = pktGetServiceObject(radio);
 
   /* Is the AFSK decoder active? */
-/*  if(!((myHandler->state == PACKET_DECODE || myHandler->state == PACKET_PAUSE)
-      && myHandler->rx_link_type == MOD_AFSK))
-    return;*/
-
   if(myHandler->rx_state != PACKET_RX_ENABLED)
     return;
 
@@ -229,10 +218,6 @@ void pktDisableRadioStream(const radio_unit_t radio) {
   packet_svc_t *myHandler = pktGetServiceObject(radio);
 
   /* Is the AFSK decoder active? */
-/*  if(!((myHandler->state == PACKET_DECODE || myHandler->state == PACKET_PAUSE)
-      && myHandler->rx_link_type == MOD_AFSK))
-    return;*/
-
   if(myHandler->rx_state != PACKET_RX_ENABLED)
     return;
   AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
@@ -327,10 +312,6 @@ void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
    * Turn off the squelch LED.
    */
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_SQUELCH, PAL_LOW);
-  //pktWriteGPIOline(LINE_SQUELCH_LED, PAL_LOW);
-
-  /* Stop the ICU notification (callback). */
-  //icuDisableNotificationsI(myICU);
 
   /* Stop capture (and stop notifications). */
   icuStopCaptureI(myICU);
@@ -365,11 +346,9 @@ void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) 
          */
         if(qs == MSG_ERROR)
           pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_PWM_ERROR, PAL_HIGH);
-          //pktWriteGPIOline(LINE_PWM_ERROR_LED, PAL_HIGH);
 
         if(qs == MSG_TIMEOUT)
           pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_OVERFLOW, PAL_HIGH);
-          //pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
 
         pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_ERROR);
         myDemod->active_radio_stream->status |= STA_PWM_QUEUE_ERROR;
@@ -416,7 +395,6 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
 
   /* Turn on the squelch LED. */
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_SQUELCH, PAL_HIGH);
-  //pktWriteGPIOline(LINE_SQUELCH_LED, PAL_HIGH);
 
   if(myDemod->active_radio_stream != NULL) {
     /* TODO: Work out correct handling. We should not have an open channel.
@@ -439,7 +417,6 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
 
     /* Turn on the FIFO out LED. */
     pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_FIFO, PAL_HIGH);
-    //pktWriteGPIOline(LINE_NO_FIFO_LED, PAL_HIGH);
     return;
   }
 
@@ -481,7 +458,6 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
     icuDisableNotificationsI(myICU);
     /* Turn on the PWM buffer out LED. */
     pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_OVERFLOW, PAL_HIGH);
-    //pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_HIGH);
     return;
   }
 
@@ -490,7 +466,6 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   pktAssertCCMdynamicCheck(pwm_object);
 #endif
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_NO_BUFF, PAL_HIGH);
-  //pktWriteGPIOline(LINE_NO_BUFF_LED, PAL_LOW);
 
   /* Save this object as the one currently receiving PWM. */
   myFIFO->radio_pwm_queue = pwm_object;
@@ -556,6 +531,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
 void pktStopAllICUtimersI(ICUDriver *myICU) {
   chVTResetI(&myICU->cca_timer);
   chVTResetI(&myICU->pwm_timer);
+  chVTResetI(&myICU->jam_timer);
 }
 
 /**
@@ -575,6 +551,32 @@ void pktPWMInactivityTimeout(ICUDriver *myICU) {
     pktClosePWMchannelI(myICU, EVT_PWM_NO_DATA, PWM_TERM_NO_DATA);
   }
   chSysUnlockFromISR();
+}
+
+/**
+ * @brief   Timer callback when CCA trailing edge de-glitch period expires.
+ * @notes   If CCA is still asserted then PWM capture will continue.
+ * @notes   If CCA is not asserted then PWM capture will be closed.
+ *
+ * @param[in]   myICU   pointer to a @p ICUDriver structure
+ *
+ * @api
+ */
+void pktRadioJammingReset(ICUDriver *myICU) {
+  chSysLockFromISR();
+  AFSKDemodDriver *myDemod = myICU->link;
+  chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
+
+  if(myDemod->icustate == PKT_PWM_STOP) {
+    chSysUnlockFromISR();
+    return;
+  }
+
+  packet_svc_t *myHandler = myDemod->packet_handler;
+  /* Send event broadcast. */
+  pktAddEventFlagsI(myHandler, EVT_PWM_JAMMING_RESET);
+  chSysUnlockFromISR();
+  return;
 }
 
 /**
@@ -676,7 +678,7 @@ void pktRadioCCAInput(ICUDriver *myICU) {
   AFSKDemodDriver *myDemod = myICU->link;
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
-  if(myDemod->icustate == PKT_PWM_STOP) {
+  if(myDemod->icustate == PKT_PWM_STOP || chVTIsArmedI(&myICU->jam_timer)) {
     chSysUnlockFromISR();
     return;
   }
@@ -874,8 +876,14 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
     radio_unit_t radio = myDemod->packet_handler->radio;
 
     pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_OVERFLOW, PAL_HIGH);
-    //pktWriteGPIOline(LINE_OVERFLOW_LED, PAL_HIGH);
     pktClosePWMchannelI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);
+    /*
+     * This looks like noise/jamming.
+     * Wait for a timeout before allowing new CAA detection.
+     * TODO: Keep data on jamming and adjust RSSI threshold?
+     */
+    chVTSetI(&myICU->jam_timer, TIME_S2I(PWM_JAMMING_TIMEOUT),
+             (vtfunc_t)pktRadioJammingReset, myICU);
     chSysUnlockFromISR();
     return;
   } /* End case. */
