@@ -4,7 +4,10 @@ require_once "Tracker.class.php";
 class Database extends mysqli {
 	private static $instance = null;
 
-	private function __construct() {
+	public function __construct() {
+		if(self::$instance != NULL) {
+			die("Fick dich!");
+		}
 		$this->con = parent::__construct("localhost", "decoder", "decoder", "decoder");
 		if(mysqli_connect_errno())
 			die(mysql_error());
@@ -31,12 +34,19 @@ class Database extends mysqli {
 		$tracker = array();
 
 		$query = $this->query("
-			SELECT `call`,MAX(`rxtime`)
-			FROM (
-				SELECT `call`,`rxtime` FROM `position`
-				UNION ALL
-				SELECT `call`,`rxtime` FROM `image`
-			) AS d
+			SELECT `call`,MAX(`rxtime`) FROM (
+				(
+					SELECT `call`,MAX(`rxtime`) AS `rxtime`
+					FROM `position`
+					GROUP BY `call`
+				)
+				UNION
+				(
+					SELECT `call`,MAX(`rxtime`) AS `rxtime`
+					FROM `image`
+					GROUP BY `call`
+				)
+			) tu
 			GROUP BY `call`
 		");
 		while($row = $query->fetch_assoc())
