@@ -238,12 +238,12 @@ typedef struct AFSK_data {
   /**
    * @brief Current radio PWM fifo object.
    */
-  radio_pwm_fifo_t          *active_radio_object;
+  radio_pwm_fifo_t          *active_radio_stream;
 
   /**
    * @brief Current demod PWM fifo object.
    */
-  radio_pwm_fifo_t          *active_demod_object;
+  radio_pwm_fifo_t          *active_demod_stream;
 
   /**
    * @brief current symbol frequency.

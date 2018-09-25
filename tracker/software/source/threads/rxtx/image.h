@@ -5,6 +5,8 @@
 #include "hal.h"
 #include "types.h"
 
+#define PKT_SHOW_TX_THROTTLE_DEBUG  FALSE
+
 typedef struct {
 	uint16_t packet_id;
 	uint8_t image_id;
@@ -16,9 +18,10 @@ extern bool reject_pri;
 extern bool reject_sec;
 
 void start_image_thread(img_app_conf_t *conf, const char *name);
-uint32_t takePicture(uint8_t* buffer, uint32_t size, resolution_t resolution, bool enableJpegValidation);
+uint32_t takePicture(uint8_t* buffer, uint32_t size, resolution_t resolution,
+                     uint32_t *size_sampled, bool enableJpegValidation);
 extern mutex_t camera_mtx;
-extern uint32_t gimage_id;
+extern uint16_t gimage_id;
 
 #endif
 

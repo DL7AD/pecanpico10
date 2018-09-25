@@ -14,7 +14,7 @@
 #include "ax25_pad.h"
 #include "flash.h"
 
-sysinterval_t watchdog_tracking;
+systime_t watchdog_tracking;
 
 void start_essential_threads(void)
 {
@@ -48,12 +48,8 @@ void start_user_threads(void) {
     }
 
 	if(conf_sram.aprs.rx.svc_conf.active) {
-	  chThdSleep(conf_sram.aprs.rx.svc_conf.init_delay);
-	  start_aprs_threads(PKT_RADIO_1,
-	                  conf_sram.aprs.rx.radio_conf.freq,
-	                  0,
-	                  0,
-	                  conf_sram.aprs.rx.radio_conf.rssi);
+	  //chThdSleep(conf_sram.aprs.rx.svc_conf.init_delay);
+	  start_aprs_threads(&conf_sram.aprs, "APRS");
 	}
 }
 

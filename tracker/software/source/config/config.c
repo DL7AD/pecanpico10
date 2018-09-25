@@ -14,13 +14,16 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(0),
-            .fixed = false // Add lat, lon, alt fields when enabling fixed
+            .fixed = true, // Add lat, lon alt fields when enabling fixed
+            .lat = -337331175, // Degrees (expressed in 1e-7 form)
+            .lon = 1511143478, // Degrees (expressed in 1e-7 form)
+            .alt = 144 // Altitude in metres
         },
         .radio_conf = {
-            .pwr = 0x1F,
+            .pwr = 0x7F,
             .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x5F,
@@ -35,24 +38,21 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 30), // Beacon interval
-            .init_delay = TIME_S2I(0),
-            .fixed = true, // Add lat, lon alt fields when enabling fixed
-            .lat = -337331175, // Degrees (expressed in 1e-7 form)
-            .lon = 1511143478, // Degrees (expressed in 1e-7 form)
-            .alt = 144 // Altitude in metres
+            .active = true,
+            .cycle = TIME_S2I(60 * 5), // Beacon interval
+            .init_delay = TIME_S2I(10),
+            .fixed = false
         },
         .radio_conf = {
             .pwr = 0x1F,
-            .freq = FREQ_GEOFENCE,
-            .mod = MOD_AFSK,
+            .freq = 144800000,
+            .mod = MOD_2FSK_9k6,
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-5",
+        .call = "VK2GJ-11",
         .path = "WIDE2-1",
-        .symbol = SYM_DIGIPEATER,
+        .symbol = SYM_ANTENNA,
         .aprs_msg = false, // Enable APRS message reception on this app
     },
 
@@ -60,9 +60,9 @@ const conf_t conf_flash_default = {
     .img_pri = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 5),
-            .init_delay = TIME_S2I(30),
-            .send_spacing = TIME_S2I(5)
+            .cycle = TIME_S2I(0),
+            .init_delay = TIME_S2I(60),
+            .send_spacing = TIME_S2I(10)
         },
         .radio_conf = {
             .pwr = 0x1F,
@@ -72,39 +72,40 @@ const conf_t conf_flash_default = {
 
         },
         // App identity
-        .call = "VK2GJ-15",
+        .call = "VK2GJ-5",
         .path = "",
 
         // Image settings
         .res = RES_QVGA,
         .quality = 4,
-        .buf_size = 30 * 1024,
-        .redundantTx = false
+        .buf_size = 15 * 1024,
+        .redundantTx = true
     },
 
     // Secondary image app
     .img_sec = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 1),
-            .init_delay = TIME_S2I(60),
+            .cycle = TIME_S2I(60 * 3),
+            .init_delay = TIME_S2I(120),
             .send_spacing = TIME_S2I(0)
         },
         .radio_conf = {
-            .pwr = 0x1F,
+            .pwr = 0x7F,
             .freq = 144800000,
             .mod = MOD_2FSK_9k6,
             .cca = 0x5F
         },
         // App identity
-        .call = "VK2GJ-12",
+        .call = "VK2GJ-11",
         .path = "",
 
         // Image settings
         .res = RES_VGA,
         .quality = 4,
-        .buf_size = 100 * 1024,
-        .redundantTx = false
+        .buf_size = 60 * 1024,
+        .redundantTx = false,
+        .no_burst = false
     },
 
     // Log app

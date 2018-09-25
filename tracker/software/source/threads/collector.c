@@ -71,6 +71,7 @@ dataPoint_t* getLastDataPoint(void) {
 
 /**
  * @brief   Determine best fallback data when GPS not operable.
+ * @notes   If the last point is valid that prior data is carried forward.
  * @post    The provided data point (record) is updated.
  *
  * @param[in]   tp      pointer to current @p datapoint structure
@@ -87,11 +88,17 @@ static void getPositionFallback(dataPoint_t* tp,
   tp->gps_lat = 0;
   tp->gps_lon = 0;
   tp->gps_alt = 0;
+  tp->gps_sats = 0;
+  tp->gps_ttff = 0;
+  tp->gps_pdop = 0;
   if(isPositionFromSV(ltp)) {
     tp->gps_lat = ltp->gps_lat;
     tp->gps_lon = ltp->gps_lon;
     tp->gps_alt = ltp->gps_alt;
     tp->gps_time = ltp->gps_time;
+    tp->gps_sats = ltp->gps_sats;
+    tp->gps_ttff = ltp->gps_ttff;
+    tp->gps_pdop = ltp->gps_pdop;
   }
   ptime_t time;
   getTime(&time);
@@ -121,7 +128,7 @@ static void getPositionFallback(dataPoint_t* tp,
  */
 static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
                            sysinterval_t timeout) {
-  sysinterval_t start = chVTGetSystemTime();
+  systime_t start = chVTGetSystemTime();
 
   gpsFix_t gpsFix = {0};
 
@@ -131,9 +138,6 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   uint16_t batt = stm32_get_vbat();
   if(batt < conf_sram.gps_on_vbat) {
     getPositionFallback(tp, ltp, GPS_LOWBATT1);
-    tp->gps_sats = 0;
-    tp->gps_ttff = 0;
-    tp->gps_pdop = 0;
     /* In case GPS was already on power it off. */
     GPS_Deinit();
     return false;
@@ -166,7 +170,7 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
     gps_get_fix(&gpsFix);
   } while(!isGPSLocked(&gpsFix)
       && batt >= conf_sram.gps_off_vbat
-      && chVTIsSystemTimeWithin(start, start + timeout));
+      && chVTIsSystemTimeWithin(start, chTimeAddX(start, timeout)));
 
   if(batt < conf_sram.gps_off_vbat) {
     /*
@@ -176,9 +180,6 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
 
     TRACE_WARN("COLL > GPS acquisition stopped due low battery");
     getPositionFallback(tp, ltp, GPS_LOWBATT2);
-    tp->gps_sats = 0;
-    tp->gps_ttff = 0;
-    tp->gps_pdop = 0;
     GPS_Deinit();
     return false;
 
@@ -200,6 +201,8 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
    */
   TRACE_INFO("GPS  > Lock acquired. Model in use is %s",
              gps_get_model_name(gpsFix.model));
+  /* Enable power saving mode. */
+  gps_switch_power_save_mode(true);
   gps_svinfo_t svinfo;
   if(gps_get_sv_info(&svinfo, sizeof(svinfo))) {
     TRACE_INFO("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d",
@@ -316,7 +319,7 @@ void getSensors(dataPoint_t* tp) {
 		tp->sen_e1_hum = BME280_getHumidity(&handle);
 		tp->sen_e1_temp = BME280_getTemperature(&handle);
 	} else { // No external BME280 found
-		TRACE_WARN("COLL > External BME280 E1 not operational");
+		TRACE_ERROR("COLL > External BME280 E1 not operational");
 		tp->sen_e1_press = 0;
 		tp->sen_e1_hum = 0;
 		tp->sen_e1_temp = 0;
@@ -334,7 +337,7 @@ void getSensors(dataPoint_t* tp) {
 		tp->sen_e2_hum = BME280_getHumidity(&handle);
 		tp->sen_e2_temp = BME280_getTemperature(&handle);
 	} else { // No external BME280 found
-		TRACE_WARN("COLL > External BME280 E2 not operational");
+		TRACE_ERROR("COLL > External BME280 E2 not operational");
 		tp->sen_e2_press = 0;
 		tp->sen_e2_hum = 0;
 		tp->sen_e2_temp = 0;
@@ -647,7 +650,7 @@ void init_data_collector() {
     threadStarted = true;
     TRACE_INFO("COLL > Startup data collector thread");
     thread_t *th = chThdCreateFromHeap(NULL,
-                                       THD_WORKING_AREA_SIZE(5*1024),
+                                       THD_WORKING_AREA_SIZE(2 * 1024),
                                        "COL", LOWPRIO,
                                        collectorThread, chThdGetSelfX());
     collector_thd = th;

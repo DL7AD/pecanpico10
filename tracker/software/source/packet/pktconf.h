@@ -49,9 +49,11 @@
 #define MSG_ERROR           (msg_t)-3   /**< @brief Error condition.  */
 
 /* General event definitions. */
-#define EVT_NONE                0
-#define EVT_PRIORITY_BASE       0
+#define EVT_NONE                    0
+#define EVT_PRIORITY_BASE           0
 
+/* Event diagnostics events. */
+#define PKT_DIAGNOSTIC_EVENT_CODE    0
 /*
  * Decoder global system event masks.
  * The packet channel object holds the global events.
@@ -73,14 +75,14 @@
 #define EVT_PWM_FIFO_EMPTY      EVENT_MASK(EVT_PRIORITY_BASE + 10)
 #define EVT_PWM_QUEUE_FULL      EVENT_MASK(EVT_PRIORITY_BASE + 11)
 
-//#define STA_PWM_STREAM_CLOSED   EVENT_MASK(EVT_PRIORITY_BASE + 12)
+#define EVT_PWM_JAMMING_RESET   EVENT_MASK(EVT_PRIORITY_BASE + 12)
 #define EVT_PWM_STREAM_TIMEOUT  EVENT_MASK(EVT_PRIORITY_BASE + 13)
-#define EVT_PWM_QUEUE_OVERRUN   EVENT_MASK(EVT_PRIORITY_BASE + 14)
+#define EVT_PWM_QUEUE_ERROR     EVENT_MASK(EVT_PRIORITY_BASE + 14)
 #define EVT_PWM_BUFFER_FAIL     EVENT_MASK(EVT_PRIORITY_BASE + 15)
 
-#define EVT_PWM_STREAM_OPEN     EVENT_MASK(EVT_PRIORITY_BASE + 16)
+#define EVT_RAD_STREAM_OPEN     EVENT_MASK(EVT_PRIORITY_BASE + 16)
 #define EVT_PWM_FIFO_REMNANT    EVENT_MASK(EVT_PRIORITY_BASE + 17)
-//#define EVT_PWM_STREAM_CLOSE    EVENT_MASK(EVT_PRIORITY_BASE + 18)
+#define EVT_RAD_STREAM_CLOSE    EVENT_MASK(EVT_PRIORITY_BASE + 18)
 //#define STA_PKT_INVALID_FRAME   EVENT_MASK(EVT_PRIORITY_BASE + 19)
 
 #define EVT_PKT_FAILED_CB_THD   EVENT_MASK(EVT_PRIORITY_BASE + 20)
@@ -94,9 +96,8 @@
 #define EVT_RADIO_CCA_GLITCH    EVENT_MASK(EVT_PRIORITY_BASE + 27)
 
 #define EVT_RADIO_CCA_SPIKE     EVENT_MASK(EVT_PRIORITY_BASE + 28)
-#define EVT_ICU_SLEEP_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 29)
-//#define EVT_ICU_OVERFLOW        EVENT_MASK(EVT_PRIORITY_BASE + 30)
-#define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 31)
+//#define EVT_ICU_SLEEP_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 29)
+#define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 30)
 
 
 /* Decoder thread event masks (sent from initiator to decoder). */
@@ -105,15 +106,19 @@
 #define DEC_COMMAND_CLOSE       EVENT_MASK(EVT_PRIORITY_BASE + 2)
 #define DEC_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 3)
 
-/* Console thread event masks. */
-#define CONSOLE_CHANNEL_EVT     EVENT_MASK(EVT_PRIORITY_BASE + 0)
-
-/* Response thread event masks (from decoder to initiator). */
+/* Decoder response thread event masks (from decoder to initiator). */
 #define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 15)
 #define DEC_START_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 16)
 #define DEC_STOP_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 17)
 #define DEC_CLOSE_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 18)
 #define USR_COMMAND_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 19)
+
+/* Console thread event masks. */
+#define CONSOLE_CHANNEL_EVT     EVENT_MASK(EVT_PRIORITY_BASE + 0)
+#define CONSOLE_SHELL_EVT       EVENT_MASK(EVT_PRIORITY_BASE + 1)
+
+/* Global thread event masks (guaranteed to be unique). */
+#define GTE_RECEIVE_INACTIVE    EVENT_MASK(EVT_PRIORITY_BASE + 25)
 
 #define EVT_STATUS_CLEAR        EVT_NONE
 
@@ -140,6 +145,7 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #define STA_AFSK_INVALID_SWAP       STATUS_MASK(9)
 #define STA_PWM_STREAM_TIMEOUT      STATUS_MASK(10)
 #define STA_PKT_NO_BUFFER           STATUS_MASK(11)
+#define STA_PWM_QUEUE_ERROR         STATUS_MASK(12)
 
 /**
  * Use this attribute to put variables in CCM.
@@ -279,6 +285,9 @@ static inline msg_t pktSendRadioCommand(radio_unit_t radio,
  */
 static inline void pktReleaseBufferObject(packet_t pp) {
   chDbgAssert(pp != NULL, "no packet pointer");
+#if USE_CCM_HEAP_FOR_PKT == TRUE
+  pktAssertCCMdynamicCheck(pp);
+#endif
   pktReleasePacketBuffer(pp);
 }
 
@@ -296,7 +305,7 @@ static inline void pktReleaseBufferChain(packet_t pp) {
   /* Release all packets in linked list. */
   do {
     packet_t np = pp->nextp;
-    pktReleasePacketBuffer(pp);
+    pktReleaseBufferObject(pp);
     pp = np;
   } while(pp != NULL);
 }

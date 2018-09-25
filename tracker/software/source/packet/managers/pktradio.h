@@ -22,30 +22,59 @@
 /*===========================================================================*/
 
 /* Thread working area size. */
-#define PKT_RADIO_MANAGER_WA_SIZE       4096
+#define PKT_RADIO_MANAGER_WA_SIZE       (1 * 1024)
 
 #define PKT_RADIO_TASK_QUEUE_PREFIX     "radm_"
 
-/* The number of radio task object the FIFO has. */
+/* The number of radio task objects the FIFO has. */
 #define RADIO_TASK_QUEUE_MAX            10
 
-#define PKT_RADIO_MANAGER_TASK_KILL     TRUE
+/* Use the idle thread sweeper to recover terminated threads. */
+//#define PKT_RADIO_MANAGER_TASK_KILL     TRUE
 
 /* Set TRUE to use mutex instead of bsem. */
-#define PKT_USE_RADIO_MUTEX             TRUE
+#define PKT_USE_RADIO_MUTEX             FALSE
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
-typedef enum radioIndicators {
+typedef enum indicator {
+  PKT_INDICATOR_NONE = 0,
   PKT_INDICATOR_DECODE,
   PKT_INDICATOR_SQUELCH,
   PKT_INDICATOR_FIFO,
-  PKT_INDICATOR_OVERFLOW
-} radio_indicator_t;
+  PKT_INDICATOR_NO_BUFF,
+  PKT_INDICATOR_OVERFLOW,
+  PKT_INDICATOR_ERROR,
+  PKT_INDICATOR_PWM_ERROR
+} indicator_t;
 
-#include "pkttypes.h"
+typedef enum indicatorType {
+  PKT_IND_GPIO_LINE,
+  PKT_IND_EXT_I2C,
+  PKT_IND_EXT_SPI
+} indicator_type_t;
+
+typedef uint32_t indicator_msg_t;
+typedef uint8_t indicator_pos_t;
+
+typedef struct indicatorIO {
+  indicator_t       ind;
+  indicator_type_t  type;
+  indicator_pos_t   pos;    /*<< Position of indicator in output device. */
+  union addr {
+    ioline_t    line;       /*<< GPIO for direct output or SPI select. */
+    i2caddr_t   addr;
+  } address;
+  union driver {
+    I2CDriver   i2c;
+    SPIDriver   spi;
+    iomode_t    mode;
+  } driver;
+} indicator_io_t;
+
+//#include "pkttypes.h"
 
 /**
  * @brief   Radio manager control commands.
@@ -57,7 +86,7 @@ typedef enum radioCommand {
   PKT_RADIO_RX_STOP,
   PKT_RADIO_TX_SEND,
   PKT_RADIO_RX_CLOSE,
-  PKT_RADIO_TX_THREAD,
+  PKT_RADIO_TX_DONE,
   PKT_RADIO_MGR_CLOSE,
   PKT_RADIO_RX_RSSI
 } radio_command_t;
@@ -68,8 +97,6 @@ typedef enum radioCommand {
 typedef struct radioTask radio_task_object_t;
 typedef struct packetHandlerData packet_svc_t;
 typedef struct radioConfig radio_config_t;
-//typedef struct radioSettings radio_settings_t;
-//typedef struct radioAction radio_action_t;
 
 /**
  * @brief   Radio task notification callback type.
@@ -81,7 +108,7 @@ typedef void (*radio_task_cb_t)(radio_task_object_t *task_object);
 #include "ax25_pad.h"
 
 typedef struct radioSettings {
-  radio_mod_t                     type;
+  radio_mod_t               type;
   radio_freq_t              base_frequency;
   channel_hz_t              step_hz;
   radio_ch_t                channel;
@@ -157,6 +184,10 @@ extern "C" {
 #endif
   thread_t  		*pktRadioManagerCreate(const radio_unit_t radio);
   void      		pktRadioManagerRelease(const radio_unit_t radio);
+  bool pktStartRadioReceive(const radio_unit_t radio,
+                            radio_task_object_t *rto);
+  bool pktStopRadioReceive(const radio_unit_t radio,
+                           radio_task_object_t *rto);
   void      		pktRadioManager(void *arg);
   msg_t     		pktGetRadioTaskObject(const radio_unit_t radio,
                               const sysinterval_t timeout,
@@ -166,9 +197,11 @@ extern "C" {
                           radio_task_cb_t cb);
   void      		pktScheduleThreadRelease(const radio_unit_t radio,
                                 thread_t *thread);
-  msg_t     		pktLockRadioTransmit(const radio_unit_t radio,
+  msg_t     		pktLockRadio(const radio_unit_t radio,
+            		                const radio_mode_t mode,
             		                const sysinterval_t timeout);
-  void      		pktUnlockRadioTransmit(const radio_unit_t radio);
+  void      		pktUnlockRadio(const radio_unit_t radio,
+                                   const radio_mode_t mode);
   const radio_config_t *pktGetRadioList(void);
   uint8_t           pktGetNumRadios(void);
   radio_band_t 		*pktCheckAllowedFrequency(const radio_unit_t radio,
@@ -182,9 +215,11 @@ extern "C" {
                                           const channel_hz_t step,
                                           const radio_ch_t chan,
                                           const radio_mode_t mode);
-  bool      		pktLLDradioEnableReceive(const radio_unit_t radio,
+  bool      		pktLLDradioStartReceive(const radio_unit_t radio,
                                 radio_task_object_t *rto);
-  void      		pktLLDradioDisableReceive(const radio_unit_t radio);
+  msg_t             pktSetReceiveInactive(const radio_unit_t radio,
+                                          sysinterval_t timeout);
+  void      		pktLLDradioStopReceive(const radio_unit_t radio);
   bool      		pktLLDradioResumeReceive(const radio_unit_t radio);
   bool      		pktLLDradioSendPacket(radio_task_object_t *rto);
   void      		pktLLDradioCaptureRSSI(const radio_unit_t radio);
@@ -193,25 +228,29 @@ extern "C" {
   void      		pktLLDradioShutdown(const radio_unit_t radio);
   void      		pktLLDradioPauseDecoding(const radio_unit_t radio);
   void      		pktLLDradioResumeDecoding(const radio_unit_t radio);
-  void      		pktLLDradioStartDecoder(const radio_unit_t radio);
-  void      		pktLLDradioStopDecoder(const radio_unit_t radio);
-  void      		pktLLDradioSendComplete(radio_task_object_t *rto,
+  void      		pktRadioStartDecoder(const radio_unit_t radio);
+  void      		pktRadioStopDecoder(const radio_unit_t radio);
+  void      		pktRadioSendComplete(radio_task_object_t *rto,
                                 thread_t *thread);
-  ICUDriver         *pktLLDradioAttachPWM(const radio_unit_t radio);
-  void              pktLLDradioDetachPWM(const radio_unit_t radio);
-  const ICUConfig   *pktLLDradioStartPWM(const radio_unit_t radio,
+  ICUDriver         *pktLLDradioAttachStream(const radio_unit_t radio);
+  void              pktLLDradioDetachStream(const radio_unit_t radio);
+  const ICUConfig   *pktLLDradioStreamEnable(const radio_unit_t radio,
                                          palcallback_t cb);
-  void              pktLLDradioStopPWM(const radio_unit_t radio);
+  void              pktLLDradioStreamDisableI(const radio_unit_t radio);
+  bool              pktRadioGetInProgress(const radio_unit_t radio);
   void      		pktStartDecoder(const radio_unit_t radio);
   void      		pktStopDecoder(const radio_unit_t radio);
   int       	 	pktDisplayFrequencyCode(radio_freq_t code, char *buf,
             	 	                        size_t size);
   const radio_config_t	*pktGetRadioData(radio_unit_t radio);
-  uint8_t           pktLLDradioReadCCA(const radio_unit_t radio);
-  void              pktLLDradioConfigIndicators(const radio_unit_t radio);
-  void              pktLLDradioDeconfigIndicators(const radio_unit_t radio);
+  uint8_t           pktLLDradioReadCCAline(const radio_unit_t radio);
+  void              pktLLDradioConfigIndicator(const radio_unit_t radio,
+                                               const indicator_t ind);
+  void              pktLLDradioDeconfigIndicator(const radio_unit_t radio,
+                                                 const indicator_t ind);
   void              pktLLDradioUpdateIndicator(const radio_unit_t radio,
-                               radio_indicator_t ind);
+                                               const indicator_t ind,
+                                               const indicator_msg_t val);
 #ifdef __cplusplus
 }
 #endif
