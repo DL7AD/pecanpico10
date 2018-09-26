@@ -240,12 +240,13 @@
  */
 #define NUMBER_COMMON_PKT_BUFFERS       30U
 #define RESERVE_BUFFERS_FOR_INTERNAL    10U
+#if (NUMBER_COMMON_PKT_BUFFERS - RESERVE_BUFFERS_FOR_INTERNAL) < 2
+#error "Insufficient buffers available for send."
+#endif
 #define MAX_BUFFERS_FOR_BURST_SEND      5U
 #if (MAX_BUFFERS_FOR_BURST_SEND >                                            \
     (NUMBER_COMMON_PKT_BUFFERS - RESERVE_BUFFERS_FOR_INTERNAL))
-#warning "Can not allocate requested buffers for burst send - set to 50%"
-#undef MAX_BUFFERS_FOR_BURST_SEND
-#define MAX_BUFFERS_FOR_BURST_SEND   (NUMBER_COMMON_PKT_BUFFERS / 2)
+#error "Can not allocate requested buffers for burst send"
 #endif
 
 /*===========================================================================*/

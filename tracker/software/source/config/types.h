@@ -113,7 +113,7 @@ typedef struct {
   sysinterval_t     send_spacing;
   sleep_conf_t      sleep_conf;
   sysinterval_t     cycle;				// Cycle time (0: continuously)
-  sysinterval_t     duration;
+  sysinterval_t     interval;
 } thread_conf_t; // Thread
 
 typedef struct {
@@ -147,6 +147,7 @@ typedef struct {
   thread_conf_t     svc_conf;
   radio_tx_conf_t   radio_conf;
   bool              redundantTx;
+  //sysinterval_t     send_spacing;
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
   char              path[16];

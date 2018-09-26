@@ -7,6 +7,8 @@
 #include "aprs.h"
 #include "pktconf.h"
 #include "radio.h"
+#include "sleep.h"
+#include "threads.h"
 
 static void processPacket(uint8_t *buf, uint32_t len) {
 
@@ -197,8 +199,8 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
 THD_FUNCTION(aprsThread, arg) {
   thd_aprs_conf_t* conf = (thd_aprs_conf_t*)arg;
 
-  chThdSleep(conf->rx.svc_conf.init_delay);
-
+  if(conf->rx.svc_conf.init_delay) chThdSleep(conf->rx.svc_conf.init_delay);
+  systime_t time = chVTGetSystemTime();
   do {
     if(conf->rx.radio_conf.freq == FREQ_RX_APRS) {
       TRACE_ERROR("RX   > Cannot specify FREQ_RX_APRS for receive");
@@ -208,6 +210,7 @@ THD_FUNCTION(aprsThread, arg) {
     /* Open packet radio service.
      * TODO: The parameter should be channel not step.
      */
+    TRACE_INFO("RX   > Opening receive on radio %d", PKT_RADIO_1);
     msg_t omsg = pktOpenRadioReceive(PKT_RADIO_1,
                          MOD_AFSK,
                          conf->rx.radio_conf.freq,
@@ -229,8 +232,34 @@ THD_FUNCTION(aprsThread, arg) {
       break;
     }
     TRACE_INFO("RX   > Radio %d now active", PKT_RADIO_1);
-  } while(0);
-  extern void pktThdTerminateSelf(void);
+    /*
+     * Check if there is a "listening" duration.
+     * In that case turn the receive off after that timeout.
+     */
+    if(conf->rx.svc_conf.interval != TIME_IMMEDIATE) {
+      chThdSleep(conf->rx.svc_conf.interval);
+      TRACE_INFO("RX   > Closing receive on radio %d", PKT_RADIO_1);
+      smsg = pktDisableDataReception(PKT_RADIO_1);
+      if(smsg != MSG_OK) {
+        pktCloseRadioReceive(PKT_RADIO_1);
+        TRACE_ERROR("RX   > Stop of radio packet reception failed");
+      }
+      smsg = pktCloseRadioReceive(PKT_RADIO_1);
+      if(smsg != MSG_OK) {
+        pktCloseRadioReceive(PKT_RADIO_1);
+        TRACE_ERROR("RX   > Close of radio packet reception failed");
+      }
+      /* Start reception at next run time (which may be immediately). */
+      time = waitForTrigger(time, conf->rx.svc_conf.cycle);
+    }
+  } while(conf->rx.svc_conf.cycle != CYCLE_CONTINUOUSLY
+      && conf->rx.svc_conf.interval != TIME_IMMEDIATE);
+  /*
+   * If there is no cycle time or duration then run continuously.
+   * The tread terminates and leaves the radio active.
+   * If there is a duration only then this is a run once setup.
+   * If duration is INFINITE then the thread and radio stays active.
+   */
   pktThdTerminateSelf();
 }
 

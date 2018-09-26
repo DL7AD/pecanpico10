@@ -1165,8 +1165,7 @@ static bool analyze_image(const uint8_t *image, uint32_t image_len) {
 uint32_t takePicture(uint8_t* buffer, uint32_t size,
                      resolution_t res, uint32_t *size_sampled,
                      bool enableJpegValidation) {
-	//*size_sampled = 0;
-	msg_t result;
+
 	// Initialize mutex
 	if(!camera_mtx_init)
 		chMtxObjectInit(&camera_mtx);
@@ -1176,13 +1175,15 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
     TRACE_INFO("IMG  > Waiting to lock camera");
 	chMtxLock(&camera_mtx);
     TRACE_INFO("IMG  > Locked camera");
-	// Detect camera (is powered up if not already initialised).
-	if(camInitialized || OV5640_isAvailable()) { // OV5640 available
+    msg_t result = MSG_RESET;
+	/* Check camera is available. */
+	if(OV5640_isAvailable()) { // OV5640 available
 
 		TRACE_INFO("IMG  > OV5640 found");
         uint8_t cntr = 5;
-        //bool jpegValid = false;
+
 		do {
+	        result = MSG_TIMEOUT;
 			// Switch on and init camera
 	        if(!camInitialized) {
               OV5640_init();
@@ -1195,29 +1196,21 @@ uint32_t takePicture(uint8_t* buffer, uint32_t size,
               /* Failed to capture. Switch off camera. */
               OV5640_deinit();
               camInitialized = false;
-              chThdSleep(TIME_MS2I(10));
-              result = MSG_TIMEOUT;
+              chThdSleep(TIME_MS2I(500));
               continue;
             }
-
+            result = MSG_OK;
 			// Validate JPEG image
 			if(enableJpegValidation) {
 				TRACE_INFO("CAM  > Validate integrity of JPEG");
 				bool jpegValid = analyze_image(buffer, size);
 				TRACE_INFO("CAM  > JPEG image %s", jpegValid ? "valid"
 				                                             : "invalid");
-				if(!jpegValid) {
-				  result = MSG_TIMEOUT;
-				  continue;
-				}
+				if(jpegValid) break;
 			}
-            result = MSG_OK;
-            break;
 		} while(cntr--);
 
 	} else { // Camera not found
-
-	    result = MSG_RESET;
 		TRACE_ERROR("IMG  > No camera found");
 	}
     // Switch off camera
@@ -1305,7 +1298,7 @@ THD_FUNCTION(imgThread, arg) {
 
       /*
        * Re-check again in 1 minute or at cycle time if > 1 minute.
-       * Don't make this short or the IO queue will be filled.
+       * Don't make this short or the IO queue will overflow.
        */
       /* Try again at next run time (which may be immediately). */
       time = waitForTrigger(time, conf->svc_conf.cycle > TIME_S2I(60)
@@ -1369,7 +1362,7 @@ THD_FUNCTION(imgThread, arg) {
 void start_image_thread(img_app_conf_t *conf, const char *name)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
-	                                   THD_WORKING_AREA_SIZE(10 * 1024),
+	                                   THD_WORKING_AREA_SIZE(8 * 1024),
 	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
       // Print startup error, do not start watchdog for this thread

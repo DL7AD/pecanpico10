@@ -48,7 +48,6 @@ void start_user_threads(void) {
     }
 
 	if(conf_sram.aprs.rx.svc_conf.active) {
-	  //chThdSleep(conf_sram.aprs.rx.svc_conf.init_delay);
 	  start_aprs_threads(&conf_sram.aprs, "APRS");
 	}
 }

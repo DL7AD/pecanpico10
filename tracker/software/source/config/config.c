@@ -14,7 +14,7 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(0),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
@@ -38,7 +38,7 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
@@ -59,7 +59,7 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(0),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(10)
@@ -85,9 +85,9 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = true,
-            .cycle = TIME_S2I(60 * 3),
-            .init_delay = TIME_S2I(120),
+            .active = false,
+            .cycle = TIME_S2I(30),
+            .init_delay = TIME_S2I(10),
             .send_spacing = TIME_S2I(0)
         },
         .radio_conf = {
@@ -134,8 +134,11 @@ const conf_t conf_flash_default = {
              .svc_conf = {
                  // The packet receive service is enabled if true
                  // Receive is paused and resumed by transmission
+                 // Receive can have a schedule set by cycle and on (interval) time
                  .active = true,
-                 .init_delay = TIME_S2I(20)
+                 .init_delay = TIME_S2I(20),
+                 .cycle = CYCLE_CONTINUOUSLY,
+                 .interval = 0
              },
             // Receive radio configuration
             .radio_conf = {
