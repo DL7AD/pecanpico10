@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import serial,re,io,os
+import re,io,os
 import sys
 import argparse
 import telnetlib
@@ -183,10 +183,13 @@ elif args.device is '-': # Source stdin
 else: # Source Serial connection
 
 	try:
+		import serial
 		serr = serial.Serial(
 			port=args.device,
 			baudrate=args.baudrate,
 		)
+	except ImportError:
+		sys.stderr.write('Error: Module \'serial\' not installed\n')
 	except:
 		sys.stderr.write('Error: Could not open serial port\n')
 		sys.exit(1)
