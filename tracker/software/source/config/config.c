@@ -14,7 +14,7 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(0),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
@@ -38,7 +38,7 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 5), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
@@ -59,7 +59,7 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(0),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(10)
@@ -85,10 +85,10 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(30),
+            .active = true,
+            .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(10),
-            .send_spacing = TIME_S2I(0)
+            .send_spacing = TIME_S2I(2)
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -103,7 +103,7 @@ const conf_t conf_flash_default = {
         // Image settings
         .res = RES_VGA,
         .quality = 4,
-        .buf_size = 60 * 1024,
+        .buf_size = 90 * 1024,
         .redundantTx = false,
         .no_burst = false
     },
@@ -135,6 +135,10 @@ const conf_t conf_flash_default = {
                  // The packet receive service is enabled if true
                  // Receive is paused and resumed by transmission
                  // Receive can have a schedule set by cycle and on (interval) time
+                 // If there is no cycle time or interval then run continuously.
+                 // The APRS tread terminates and leaves the radio active.
+                 // If there is a duration only then this is a run once setup.
+                 // If duration is TIME_INFINITE then the thread and radio stays active.
                  .active = true,
                  .init_delay = TIME_S2I(20),
                  .cycle = CYCLE_CONTINUOUSLY,

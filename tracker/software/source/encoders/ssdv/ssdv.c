@@ -421,7 +421,8 @@ static char ssdv_out_jpeg_int(ssdv_t *s, uint8_t rle, int value)
 
 static char ssdv_process(ssdv_t *s)
 {
-	if(s->state == S_HUFF)
+  switch(s->state) {
+  case S_HUFF:
 	{
 		uint8_t symbol, width;
 		int r;
@@ -494,8 +495,10 @@ static char ssdv_process(ssdv_t *s)
 		/* Clear processed bits */
 		s->worklen -= width;
 		s->workbits &= (1 << s->worklen) - 1;
+		break;
 	}
-	else if(s->state == S_INT)
+
+  case S_INT:
 	{
 		int i;
 		
@@ -576,8 +579,11 @@ static char ssdv_process(ssdv_t *s)
 		/* Clear processed bits */
 		s->worklen -= s->needbits;
 		s->workbits &= (1 << s->worklen) - 1;
+		break;
 	}
-	
+  default:
+    break;
+  } /* End switch on state. */
 	if(s->acpart >= 64)
 	{
 		s->mcupart++;
@@ -1100,7 +1106,7 @@ char ssdv_enc_get_packet(ssdv_t *s)
 				/* Have we reached the end of the image data? */
 				if(r == SSDV_EOI) s->state = S_EOI;
 				
-				return(SSDV_OK);
+				return(r);
 			}
 			else if(r != SSDV_FEED_ME)
 			{

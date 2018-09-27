@@ -131,10 +131,10 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
      * Take picture.
      * Status is returned in msg.
      * MSG_OK = capture success.
-     * MSG_RESET = no cmaera found
+     * MSG_RESET = no camera found
      * MSG_TIMEOUT = capture failed.
      */
-	uint32_t size_sampled;
+	size_t size_sampled;
 	msg_t msg = takePicture(usb_buffer, sizeof(usb_buffer), RES_QVGA,
 	                        &size_sampled, false);
 
@@ -158,14 +158,17 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 		{
 			TRACE_INFO("DATA > image/jpeg,0");
 			TRACE_INFO("DATA > text/trace,no SOI flag found");
+			return;
 		}
 
-	} else { // Camera error
-
+	} else if(msg == MSG_RESET) { // Camera error
 		TRACE_INFO("DATA > image,jpeg,0");
 		TRACE_INFO("DATA > error,no camera found");
-
-	}
+		return;
+	} /* MSG_TIMEOUT. */
+    TRACE_INFO("DATA > image,jpeg,0");
+    TRACE_INFO("DATA > error,capture failed");
+    return;
 }
 
 void usb_cmd_printLog(BaseSequentialStream *chp, int argc, char *argv[])

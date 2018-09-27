@@ -18,7 +18,7 @@
 #include "pktservice.h"
 
 static uint32_t lightIntensity;
-static uint8_t error;
+static pdcmi_error_t error;
 
 //bool    decode_pause;
 
@@ -712,8 +712,7 @@ static resolution_t last_res = RES_NONE;
   */
 uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
                              uint32_t size, resolution_t res) {
-	//uint8_t cntr = 1; // Retry is implemented next level up so only do this once.
-	uint32_t size_sampled;
+	size_t size_sampled;
 
 	// Set resolution (if not already done earlier)
 	if(res != last_res) {
@@ -727,16 +726,12 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
 	// Capture image until we get a good image or reach max retries.
     TRACE_INFO("CAM  > Capture image into buffer @ 0x%08x size 0x%08x",
                buffer, size);
-/*	do {*/
-		size_sampled = OV5640_Capture(buffer, size);
-		if(size_sampled > 0) {
-		  TRACE_INFO("CAM  > Captured %d bytes", size_sampled);
-		  return size_sampled;
-		}
-		/* Allow time for other threads. */
-		//chThdSleep(TIME_MS2I(10));
-/*	} while(--cntr);*/
-    TRACE_ERROR("CAM  > No image captured");
+    error = OV5640_Capture(buffer, size, &size_sampled);
+    if(error == PDCMI_NO_ERR) {
+      TRACE_INFO("CAM  > Captured %d bytes", size_sampled);
+      return size_sampled;
+    }
+    TRACE_ERROR("CAM  > Error %d in capture", error);
 	return 0;
 }
 
@@ -1041,7 +1036,8 @@ bool OV5640_GetPDCMILockStateI(void) {
 /**
  *
  */
-uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
+pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
+                             size_t *size_sampled) {
   /*
    * Buffer address must be word aligned.
    * Also note requirement for burst transfers from FIFO.
@@ -1050,9 +1046,10 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
    *
    */
 
+  *size_sampled = 0;
   if (((uint32_t)buffer % PDCMI_DMA_FIFO_BURST_ALIGN) != 0) {
     TRACE_ERROR("CAM  > Buffer not allocated on DMA burst boundary");
-    return 0;
+    return PDCMI_BURST_ALIGN_ERR;
   }
 
 #if PDCMI_USE_DMA_DBM == TRUE
@@ -1061,16 +1058,16 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
      */
     if((size / PDCMI_DMA_DBM_PAGE_SIZE) < 2) {
       TRACE_ERROR("CAM  > Capture buffer is less than 2 DMA DBM pages");
-      return 0;
+      return PDCMI_DMA_DBM_PAGE_ERR;
     }
     if(PDCMI_DMA_DBM_PAGE_SIZE % 4 != 0) {
       TRACE_ERROR("CAM  > DBM page size must be multiple of 4 bytes");
-      return 0;
+      return PDCMI_DMA_DBM_ALIGN_ERR;
     }
 #else
     if((size > 0xFFFF)) {
       TRACE_ERROR("CAM  > Capture buffer in non-DBM mode can not exceed 0xFFFF in size");
-      return 0;
+      return PDCMI_DMA_SBM_SIZE_ERR;
     }
 #endif
 
@@ -1085,7 +1082,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	if(OV5640_LockPDCMI() != MSG_OK) {
       TRACE_ERROR("CAM  > Capture failed to lock competing resources");
 	  /* Unable to lock resources. */
-	  return 0;
+	  return PDCMI_LOCK_ERR;
 	}
 
 	pdcmi_capture_t dma_control = {0};
@@ -1114,9 +1111,8 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	if(dmaStreamAllocate(dma_control.dmastp, PDCMI_DMA_IRQ_PRIO,
 	                  (stm32_dmaisr_t)dma_interrupt, &dma_control)) {
 	    OV5640_UnlockPDCMI();
-	    error = 0x9;
         TRACE_ERROR("CAM  > DMA could not allocate stream");
-	    return 0;
+        return PDCMI_DMA_STREAM_ERR;
 	}
 	/* Read data from GPIO port. */
 	dmaStreamSetPeripheral(dma_control.dmastp, &GPIOA->IDR);
@@ -1177,17 +1173,7 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
                                                      &dma_control);
     palEnableLineEvent(dma_control.vsync_line, PAL_EVENT_MODE_BOTH_EDGES);
 
-    /*
-     * Setup capture mode triggered from TI1.
-     * The timer capture is irrelevant.
-     * We just want the DMA trigger.
-     */
-    //dma_control.timer->CCMR1 = TIM_CCMR1_CC1S_0;
-
-    /* Start the timer. */
-    //dma_control.timer->CCER = TIM_CCER_CC1E;
-
-	// Wait for capture to be finished
+	/* Wait for capture to be finished. */
 	uint8_t timeout = 50; // 500ms max
 	do {
 		chThdSleep(TIME_MS2I(10));
@@ -1209,63 +1195,64 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
     case PDCMI_DMA_ERROR: {
       if(dma_control.dma_flags & STM32_DMA_ISR_FEIF) {
         TRACE_ERROR("CAM  > DMA FIFO error");
-        error = 0x3;
-        return 0;
+        return PDCMI_DMA_FIFO_ERR;
         }
 
         if(dma_control.dma_flags & STM32_DMA_ISR_TEIF) {
         TRACE_ERROR("CAM  > DMA stream transfer error");
-        error = 0x4;
-        return 0;
+        return PDCMI_DMA_STREAM_ERR;
         }
 
         if(dma_control.dma_flags & STM32_DMA_ISR_DMEIF) {
         TRACE_ERROR("CAM  > DMA direct mode error");
-        error = 0x5;
+        return PDCMI_DMA_DIRECT_MODE_ERR;
         }
-        return 0;
-    }
+      return PDCMI_DMA_INTERRUPT_ERR;
+      }
 
     case PDCMI_DMA_END_BUFFER: {
-      TRACE_ERROR("CAM  > DMA ran out of buffer space in DBM."
-                  " Image possibly useable");
-      error = 0x6;
-      return (dma_control.transfer_count);
-    }
+      TRACE_ERROR("CAM  > DMA ran out of buffer space in DBM"
+                  " (image possibly useable).");
+      *size_sampled = dma_control.transfer_count;
+      return PDCMI_DMA_DBM_OVERFLOW_ERR;
+
+      }
 
     case PDCMI_CAPTURE_TIMEOUT: {
       TRACE_ERROR("CAM  > DMA image capture timeout");
-      error = 0x7;
-      return 0;
-    }
+      return PDCMI_DMA_TIMEOUT_ERR;
+      }
 
     case PDCMI_DMA_UNKNOWN_IRQ: {
       TRACE_ERROR("CAM  > DMA unknown interrupt. DMA I flags: %x",
                   dma_control.dma_flags);
-      error = 0x8;
-      return 0;
-    }
+      return PDCMI_DMA_INTERRUPT_ERR;
+      }
 
     case PDCMI_DMA_COUNT_END: {
       TRACE_WARN("CAM  > DMA count ended w/o VSYNC in SBM. DMA I flags: %x."
                         " Image possibly useable.",
                  dma_control.dma_flags);
-      error = 0x9;
-      return (dma_control.transfer_count);
-    }
+      *size_sampled = dma_control.transfer_count;
+      return PDCMI_DMA_SBM_OVERFLOW;
+
+      }
 
     case PDCMI_VSYNC_END: {
       TRACE_INFO("CAM  > Capture success");
-      error = 0x0;
-      return (dma_control.transfer_count);
-    }
+      *size_sampled = dma_control.transfer_count;
+      return PDCMI_NO_ERR;
+      }
 
-    default:
+    case PDCMI_WAIT_VSYNC:
+    case PDCMI_CAPTURE_ACTIVE:
+    case PDCMI_NOT_ACTIVE: {
       TRACE_INFO("CAM  > Invalid PDCMI state %d", state);
-      error = 0xA;
-      return 0;
+      return PDCMI_INVALID_STATE_ERR;
+      }
     } /* End switch on PDCMI state. */
-    return 0;
+    TRACE_INFO("CAM  > Invalid PDCMI state %d", state);
+    return PDCMI_UNKNOWN_STATE_ERR;
 } /* End OV5640_Capture(...) */
 
 /**
@@ -1416,7 +1403,7 @@ void OV5640_init(void)
 	TRACE_INFO("CAM  > Transmit config to camera");
 	OV5640_TransmitConfig();
 
-	chThdSleep(TIME_MS2I(200));
+	chThdSleep(TIME_MS2I(500));
 }
 
 void OV5640_deinit(void)
@@ -1453,7 +1440,7 @@ bool OV5640_isAvailable(void) {
       && I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x300B, &val2)) {
       ret = val == 0x56 && val2 == 0x40;
   } else {
-      error = 0x1;
+      error = PDCMI_NO_CAM_ERR;
       ret = false;
   }
 

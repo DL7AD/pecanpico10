@@ -18,8 +18,8 @@ extern bool reject_pri;
 extern bool reject_sec;
 
 void start_image_thread(img_app_conf_t *conf, const char *name);
-uint32_t takePicture(uint8_t* buffer, uint32_t size, resolution_t resolution,
-                     uint32_t *size_sampled, bool enableJpegValidation);
+uint32_t takePicture(uint8_t* buffer, size_t size, resolution_t resolution,
+                     size_t *size_sampled, bool enableJpegValidation);
 extern mutex_t camera_mtx;
 extern uint16_t gimage_id;
 

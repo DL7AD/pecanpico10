@@ -255,10 +255,12 @@ THD_FUNCTION(aprsThread, arg) {
   } while(conf->rx.svc_conf.cycle != CYCLE_CONTINUOUSLY
       && conf->rx.svc_conf.interval != TIME_IMMEDIATE);
   /*
-   * If there is no cycle time or duration then run continuously.
-   * The tread terminates and leaves the radio active.
+   * If there is no cycle time or interval then run continuously.
    * If there is a duration only then this is a run once setup.
-   * If duration is INFINITE then the thread and radio stays active.
+   * In both cases the APRS thread terminates and leaves the radio active.
+   * Otherwise the thread stays active and manages the schedule.
+   * If duration is TIME_INFINITE then the thread is active but sleeps forever.
+   * Hence the radio stay active.
    */
   pktThdTerminateSelf();
 }

@@ -36,6 +36,28 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
+/* Error codes for PDCMI. */
+typedef enum {
+  PDCMI_NO_ERR = 0,
+  PDCMI_NO_CAM_ERR,
+  PDCMI_UNUSED1_ERR,
+  PDCMI_DMA_FIFO_ERR,
+  PDCMI_DMA_STREAM_ERR,
+  PDCMI_DMA_DIRECT_MODE_ERR,
+  PDCMI_DMA_DBM_OVERFLOW_ERR,
+  PDCMI_DMA_TIMEOUT_ERR,
+  PDCMI_DMA_INTERRUPT_ERR,
+  PDCMI_DMA_SBM_OVERFLOW,
+  PDCMI_UNKNOWN_STATE_ERR,
+  PDCMI_INVALID_STATE_ERR,
+  PDCMI_BURST_ALIGN_ERR,
+  PDCMI_DMA_DBM_PAGE_ERR,
+  PDCMI_DMA_DBM_ALIGN_ERR,
+  PDCMI_DMA_SBM_SIZE_ERR,
+  PDCMI_LOCK_ERR
+} pdcmi_error_t;
+
+/* State machine for PDCMI. */
 typedef enum {
   PDCMI_NOT_ACTIVE = 0,
   PDCMI_WAIT_VSYNC,
@@ -68,20 +90,22 @@ extern binary_semaphore_t pdcmi_sem;
 #ifdef __cplusplus
 extern "C" {
 #endif
-uint32_t    OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size, resolution_t resolution);
-uint32_t    OV5640_Capture(uint8_t* buffer, uint32_t size);
-void        OV5640_InitGPIO(void);
-void        OV5640_TransmitConfig(void);
-void        OV5640_SetResolution(resolution_t res);
-void        OV5640_init(void);
-void        OV5640_deinit(void);
-bool        OV5640_isAvailable(void);
-void        OV5640_setLightIntensity(void);
-uint32_t    OV5640_getLastLightIntensity(void);
-uint8_t     OV5640_hasError(void);
-msg_t       OV5640_LockPDCMI(void);
-void        OV5640_UnlockPDCMI(void);
-bool        OV5640_GetPDCMILockStateI(void);
+uint32_t        OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size,
+                                resolution_t resolution);
+pdcmi_error_t   OV5640_Capture(uint8_t* buffer, uint32_t size,
+                           size_t *size_sampled);
+void            OV5640_InitGPIO(void);
+void            OV5640_TransmitConfig(void);
+void            OV5640_SetResolution(resolution_t res);
+void            OV5640_init(void);
+void            OV5640_deinit(void);
+bool            OV5640_isAvailable(void);
+void            OV5640_setLightIntensity(void);
+uint32_t        OV5640_getLastLightIntensity(void);
+uint8_t         OV5640_hasError(void);
+msg_t           OV5640_LockPDCMI(void);
+void            OV5640_UnlockPDCMI(void);
+bool            OV5640_GetPDCMILockStateI(void);
 
 #ifdef __cplusplus
 }
