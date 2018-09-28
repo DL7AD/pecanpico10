@@ -1211,7 +1211,8 @@ uint32_t takePicture(uint8_t* buffer, size_t size,
 	if(OV5640_isAvailable()) {
 	    /* Camera responded and ID was correct. */
 		TRACE_INFO("IMG  > OV5640 found");
-        uint8_t cntr = 5;
+#define PKT_IMAGE_CAPTURE_RETRIES 5
+        uint8_t cntr = PKT_IMAGE_CAPTURE_RETRIES;
 
 		do {
 			/* Switch on and init camera. */
@@ -1234,8 +1235,10 @@ uint32_t takePicture(uint8_t* buffer, size_t size,
 			if(enableJpegValidation) {
 				TRACE_INFO("CAM  > Validate integrity of JPEG");
 				result = analyze_image(buffer, *size_sampled);
-				TRACE_INFO("CAM  > JPEG image %s",
-				           (result == MSG_OK) ? "valid" : "invalid");
+				TRACE_INFO("CAM  > JPEG image %s at %d retries, size %d",
+				           (result == MSG_OK) ? "valid" : "invalid",
+				               (PKT_IMAGE_CAPTURE_RETRIES - cntr),
+				               *size_sampled);
 				if(result == MSG_OK) break;
 			}
 		} while(cntr--);

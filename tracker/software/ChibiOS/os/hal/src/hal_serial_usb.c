@@ -351,8 +351,7 @@ void sduConfigureHookI(SerialUSBDriver *sdup) {
   obqResetI(&sdup->obqueue);
   bqResumeX(&sdup->obqueue);
   chnAddFlagsI(sdup, CHN_CONNECTED);
-  bool r = sdu_start_receive(sdup);
-  osalDbgAssert(!r, "failed start receive");
+  (void)sdu_start_receive(sdup);
 }
 
 /**
@@ -420,8 +419,6 @@ void sduSOFHookI(SerialUSBDriver *sdup) {
   if (obqTryFlushI(&sdup->obqueue)) {
     size_t n;
     uint8_t *buf = obqGetFullBufferI(&sdup->obqueue, &n);
-
-    osalDbgAssert(buf != NULL, "queue is empty");
 
     usbStartTransmitI(sdup->config->usbp, sdup->config->bulk_in, buf, n);
   }
@@ -511,9 +508,7 @@ void sduDataReceived(USBDriver *usbp, usbep_t ep) {
   /* The endpoint cannot be busy, we are in the context of the callback,
      so a packet is in the buffer for sure. Trying to get a free buffer
      for the next transaction.*/
-  bool r = sdu_start_receive(sdup);
-  osalDbgAssert(!r, "failed setup for next receive");
-
+  (void)sdu_start_receive(sdup);
   osalSysUnlockFromISR();
 }
 
