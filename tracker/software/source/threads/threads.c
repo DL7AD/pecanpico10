@@ -13,6 +13,7 @@
 #include "radio.h"
 #include "ax25_pad.h"
 #include "flash.h"
+#include "threads.h"
 
 systime_t watchdog_tracking;
 
@@ -29,14 +30,14 @@ void start_user_threads(void) {
 
 	/* TODO: Implement scheduler that will run threads based on schedule. */
 	if(conf_sram.pos_pri.beacon.active)
-	  start_beacon_thread(&conf_sram.pos_pri, "POS1");
-	if(conf_sram.pos_sec.beacon.active)
-	  start_beacon_thread(&conf_sram.pos_sec, "POS2");
-
+	  start_beacon_thread(&conf_sram.pos_pri, PKT_POS_PRI_THD_NAME);
+	if(conf_sram.pos_sec.beacon.active) {
+	  start_beacon_thread(&conf_sram.pos_sec, PKT_POS_SEC_THD_NAME);
+	}
 	if(conf_sram.img_pri.svc_conf.active)
-	  start_image_thread(&conf_sram.img_pri, "IMG1");
+	  start_image_thread(&conf_sram.img_pri, PKT_IMG_PRI_THD_NAME);
 	if(conf_sram.img_sec.svc_conf.active)
-	  start_image_thread(&conf_sram.img_sec, "IMG2");
+	  start_image_thread(&conf_sram.img_sec, PKT_IMG_SEC_THD_NAME);
 
 	if(conf_sram.log.svc_conf.active)
 	  start_logging_thread(&conf_sram.log);
@@ -44,11 +45,11 @@ void start_user_threads(void) {
     if(conf_sram.aprs.rx.svc_conf.active
         && conf_sram.aprs.digi
         && conf_sram.aprs.tx.beacon.active) {
-      start_beacon_thread(&conf_sram.aprs.tx, "BCN");
+      start_beacon_thread(&conf_sram.aprs.tx, PKT_DIG_BCN_THD_NAME);
     }
 
 	if(conf_sram.aprs.rx.svc_conf.active) {
-	  start_aprs_threads(&conf_sram.aprs, "APRS");
+	  start_aprs_threads(&conf_sram.aprs, PKT_RCV_PRI_THD_NAME);
 	}
 }
 

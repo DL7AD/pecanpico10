@@ -39,10 +39,10 @@ bool initSD(void)
 	};
 
 	// MMC/SD over SPI driver configuration
-	static MMCConfig mmccfg = {SPI_BUS1_DRIVER, &ls_spicfg, &hs_spicfg};
+	static MMCConfig mmccfg = {&SPI_BUS1_DRIVER, &ls_spicfg, &hs_spicfg};
 
 	// Check SD card presence
-	spiAcquireBus(SPI_BUS1_DRIVER);
+	spiAcquireBus(&SPI_BUS1_DRIVER);
 
 	// Init MMC
 	mmcObjectInit(&MMCD1);
@@ -56,7 +56,7 @@ bool initSD(void)
 		TRACE_INFO("SD   > SD card connection OK");
 		sdInitialized = true;
 	}
-	spiReleaseBus(SPI_BUS1_DRIVER);
+	spiReleaseBus(&SPI_BUS1_DRIVER);
 
 	return sdInitialized;
 }
@@ -66,7 +66,7 @@ bool writeBufferToFile(const char *filename, const uint8_t *buffer, uint32_t len
 	if(!sdInitialized)
 		return false;
 
-	spiAcquireBus(SPI_BUS1_DRIVER);
+	spiAcquireBus(&SPI_BUS1_DRIVER);
 
 	static FATFS fs;
 	static FIL fdst;
@@ -126,7 +126,7 @@ bool writeBufferToFile(const char *filename, const uint8_t *buffer, uint32_t len
 		}
 	}
 
-	spiReleaseBus(SPI_BUS1_DRIVER);
+	spiReleaseBus(&SPI_BUS1_DRIVER);
 
 	return gres;
 }

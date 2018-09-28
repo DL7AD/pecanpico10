@@ -869,7 +869,7 @@ msg_t aprs_transmit_telemetry_response(aprs_identity_t *id,
   /* Wait 30 seconds max for GPS fix. */
   aprsd->gps_wait = TIME_S2I(30);
   aprsd->beacon.init_delay = 0;
-  thread_t *th = start_beacon_thread(aprsd, "APRSP");
+  thread_t *th = start_beacon_thread(aprsd, PKT_COM_BCN_THD_NAME);
   if(th == NULL) {
     chHeapFree(aprsd);
     return MSG_ERROR;
@@ -1010,17 +1010,24 @@ msg_t aprs_execute_img_command(aprs_identity_t *id,
     return MSG_ERROR;
 
   if(!strcmp(argv[0], "reject") && argc == 2) {
-    if(!strcmp(argv[1], "pri")) {
-      reject_pri = true;
-      TRACE_INFO("PKT  > Message: Image reject pri");
-      return MSG_OK;
+    uint8_t img = atoi(argv[1]);
+    const char *threads[] = {PKT_IMG_PRI_THD_NAME, PKT_IMG_SEC_THD_NAME};
+    msg_t msg;
+    for(uint8_t i = 0; i < (sizeof(threads) / sizeof(threads[0])); i++) {
+      thread_t *thd = chRegFindThreadByName(threads[i]);
+      if(thd != NULL) {
+        /* Thread is running. Ref count is increased. */
+        msg = chMsgSend(thd, img);
+        /* Decrease ref count. */
+        chThdRelease(thd);
+        if(msg == MSG_OK) {
+          TRACE_INFO("PKT  > Message: Image %d rejected on %s", img, threads[i]);
+          return MSG_OK;
+        }
+      }
     }
-    if(!strcmp(argv[1], "sec")) {
-      reject_sec = true;
-      TRACE_INFO("PKT  > Message: Image reject sec");
-      return MSG_OK;
-    }
-    return MSG_ERROR;
+    TRACE_INFO("PKT  > Message: Image %d not active", img);
+    return MSG_OK;
   }
 
   if(!strcmp(argv[0], "repeat")) {

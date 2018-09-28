@@ -1635,6 +1635,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
          * Wait for a timeout event during up-sampled NRZI send.
          * Time delay allows ~SAMPLES_PER_BAUD bytes to be consumed from FIFO.
          * If no timeout event go back and load more data to FIFO.
+         * TODO: Use interrupt to trigger FIFO fill.
          */
         eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
                                               chTimeUS2I(833 * 8));
@@ -1669,7 +1670,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
        *  Warn when free level is more than 50% of FIFO size.
        *  This means the FIFO is not being filled fast enough.
        */
-      TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
+      TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i of %i",
+                 lower, free);
     }
     /* Get the next linked packet to send. */
     packet_t np = pp->nextp;
@@ -1899,6 +1901,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
          * Wait for a timeout event during up-sampled NRZI send.
          * Time delay allows ~10 bytes to be consumed from FIFO.
          * If no timeout event go back and load more data to FIFO.
+         * TODO: Use interrupt to trigger FIFO fill.
          */
         eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
                                               chTimeUS2I(104 * 8 * 10));
@@ -1930,7 +1933,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
     if(lower > (free / 2)) {
       /* Warn when free level is > 50% of FIFO size. */
-      TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
+      TRACE_WARN("SI   > 2FSK TX FIFO dropped below safe threshold %i of %i",
+                 lower, free);
     }
     /* Get the next linked packet to send. */
     packet_t np = pp->nextp;
@@ -1992,8 +1996,7 @@ bool Si446x_blocSend2FSK(radio_task_object_t *rt) {
 }
 
 /**
- * Used by collector. At the moment it collects for PKT_RADIO_1 only.
- * There should be an LLD API selecting the radio type via VMT etc.
+ * Used by collector to get radio temp data.
  */
 si446x_temp_t Si446x_getLastTemperature(const radio_unit_t radio) {
   return Si446x_getData(radio)->lastTemp;
@@ -2019,7 +2022,7 @@ ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
   /*
    * Return the ICU this radio is assigned to.
    * TODO: Check that the ICU is not already taken?
-   * This would only be made possible by a config error.
+   * This would only be made possible by a radio data config error.
    * Packet channel control enforces single use of decoder PWM for AFSK.
    */
   return Si446x_getConfig(radio)->rafsk.icu;

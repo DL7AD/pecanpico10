@@ -46,7 +46,7 @@ void gps_transmit_string(uint8_t *cmd, uint8_t length) {
 #if UBLOX_USE_I2C == TRUE
   I2C_writeN(PKT_GPS_I2C, UBLOX_MAX_ADDRESS, cmd, length);
 #elif defined(UBLOX_UART_CONNECTED)
-  sdWrite(&SD5, cmd, length);
+  sdWrite(&PKT_GPS_UART, cmd, length);
 #endif
 }
 
@@ -63,7 +63,7 @@ bool gps_receive_byte(uint8_t *data) {
 		return true;
 	}
 #elif defined(UBLOX_UART_CONNECTED)
-	return sdReadTimeout(&SD5, data, 1, TIME_IMMEDIATE);
+	return sdReadTimeout(&PKT_GPS_UART, data, 1, TIME_IMMEDIATE);
 #else
     (void) data;
 #endif
@@ -601,7 +601,7 @@ bool GPS_Init() {
     /* TODO: Put UBLOX UART definition in portab. */
     palSetLineMode(LINE_GPS_RXD, PAL_MODE_ALTERNATE(11));       // UART RXD
     palSetLineMode(LINE_GPS_TXD, PAL_MODE_ALTERNATE(11));       // UART TXD
-	sdStart(&SD5, &gps_config);
+	sdStart(&PKT_GPS_UART, &gps_config);
 #endif
 
 	// Switch MOSFET
@@ -649,7 +649,7 @@ void GPS_Deinit(void)
 #if defined(UBLOX_UART_CONNECTED) && UBLOX_USE_I2C == FALSE
     // Stop and deinit UART
     TRACE_INFO("GPS  > Stop GPS UART");
-    sdStop(&SD5);
+    sdStop(&PKT_GPS_UART);
     palSetLineMode(LINE_GPS_RXD, PAL_MODE_INPUT);       // UART RXD
     palSetLineMode(LINE_GPS_TXD, PAL_MODE_INPUT);       // UART TXD
 #endif

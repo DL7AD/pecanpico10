@@ -25,7 +25,7 @@ bool BME280_isAvailable(uint8_t id)
 	uint8_t val;
 	switch(id) {
 	case BME280_I1:
-	  I2C_read8(PKT_BMEI_I2C, 0x77, BME280_REGISTER_CHIPID, &val);
+	  I2C_read8(&PKT_BMEI_I2C, 0x77, BME280_REGISTER_CHIPID, &val);
 	  break;
 	case BME280_E1:
       eI2C_read8(PKT_BMEE_I2C, 0x77, BME280_REGISTER_CHIPID, &val);
@@ -71,36 +71,36 @@ void BME280_Init(bme280_t *handle, uint8_t id)
 			break;
 	}
 
-	(*handle->i2c_read16_LE)((PKT_BMEI_I2C), handle->i2c_address, BME280_REGISTER_DIG_T1, (uint16_t*)&handle->calib.dig_T1);
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_T2, (uint16_t*)&handle->calib.dig_T2);
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_T3, (uint16_t*)&handle->calib.dig_T3);
+	(*handle->i2c_read16_LE)((&PKT_BMEI_I2C), handle->i2c_address, BME280_REGISTER_DIG_T1, (uint16_t*)&handle->calib.dig_T1);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_T2, (uint16_t*)&handle->calib.dig_T2);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_T3, (uint16_t*)&handle->calib.dig_T3);
 
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P1, (uint16_t*)&handle->calib.dig_P1);
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P2, (uint16_t*)&handle->calib.dig_P2);
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P3, (uint16_t*)&handle->calib.dig_P3);
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P4, (uint16_t*)&handle->calib.dig_P4);
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P5, (uint16_t*)&handle->calib.dig_P5);
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P6, (uint16_t*)&handle->calib.dig_P6);
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P7, (uint16_t*)&handle->calib.dig_P7);
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P8, (uint16_t*)&handle->calib.dig_P8);
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P9, (uint16_t*)&handle->calib.dig_P9);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P1, (uint16_t*)&handle->calib.dig_P1);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P2, (uint16_t*)&handle->calib.dig_P2);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P3, (uint16_t*)&handle->calib.dig_P3);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P4, (uint16_t*)&handle->calib.dig_P4);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P5, (uint16_t*)&handle->calib.dig_P5);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P6, (uint16_t*)&handle->calib.dig_P6);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P7, (uint16_t*)&handle->calib.dig_P7);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P8, (uint16_t*)&handle->calib.dig_P8);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_P9, (uint16_t*)&handle->calib.dig_P9);
 
-	(*handle->i2c_read8)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H1, &handle->calib.dig_H1);
-	(*handle->i2c_read16_LE)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H2, (uint16_t*)&handle->calib.dig_H2);
-	(*handle->i2c_read8)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H3, &handle->calib.dig_H3);
+	(*handle->i2c_read8)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H1, &handle->calib.dig_H1);
+	(*handle->i2c_read16_LE)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H2, (uint16_t*)&handle->calib.dig_H2);
+	(*handle->i2c_read8)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H3, &handle->calib.dig_H3);
 
-	(*handle->i2c_read8)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H4, &tmp1);
-	(*handle->i2c_read8)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H5, &tmp2);
+	(*handle->i2c_read8)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H4, &tmp1);
+	(*handle->i2c_read8)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H5, &tmp2);
 	handle->calib.dig_H4 = (((int8_t)tmp1) << 4) | (tmp2 & 0x0F);
 
-	(*handle->i2c_read8)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H6, &tmp1);
-	(*handle->i2c_read8)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H5, &tmp2);
+	(*handle->i2c_read8)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H6, &tmp1);
+	(*handle->i2c_read8)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H5, &tmp2);
 	handle->calib.dig_H5 = (((int8_t)tmp1) << 4) | (tmp2 >> 4 & 0x0F);
 
-	(*handle->i2c_read8)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H6, (uint8_t*)&handle->calib.dig_H6);
+	(*handle->i2c_read8)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_DIG_H6, (uint8_t*)&handle->calib.dig_H6);
 
-	(*handle->i2c_write8)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_CONTROLHUMID, 0x03); // Set before CONTROL (DS 5.4.3)
-	(*handle->i2c_write8)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_CONTROL, 0x3F);
+	(*handle->i2c_write8)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_CONTROLHUMID, 0x03); // Set before CONTROL (DS 5.4.3)
+	(*handle->i2c_write8)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_CONTROL, 0x3F);
 	chThdSleep(TIME_MS2I(50)); // Wait for BME280
 
 	BME280_getTemperature(handle); // Set t_fine
@@ -115,9 +115,9 @@ int16_t BME280_getTemperature(bme280_t *handle)
 	int32_t var1, var2, adc_T;
 	uint16_t tmp;
 
-	(*handle->i2c_read16)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_TEMPDATA, &tmp);
+	(*handle->i2c_read16)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_TEMPDATA, &tmp);
 	adc_T = tmp;
-	(*handle->i2c_read8)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_TEMPDATA+2, (uint8_t*)&tmp);
+	(*handle->i2c_read8)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_TEMPDATA+2, (uint8_t*)&tmp);
 	adc_T <<= 8;
 	adc_T |= tmp & 0xFF;
 	adc_T >>= 4;
@@ -142,9 +142,9 @@ uint32_t BME280_getPressure(bme280_t *handle, uint16_t means) {
 	uint64_t sum = 0;
 	for(uint16_t i=0; i<means; i++) {
 		int32_t adc_P;
-		(*handle->i2c_read16)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_PRESSUREDATA, &tmp);
+		(*handle->i2c_read16)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_PRESSUREDATA, &tmp);
 		adc_P = tmp;
-		(*handle->i2c_read8)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_PRESSUREDATA+2, (uint8_t*)&tmp);
+		(*handle->i2c_read8)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_PRESSUREDATA+2, (uint8_t*)&tmp);
 		adc_P <<= 8;
 		adc_P |= tmp & 0xFF;
 		adc_P >>= 4;
@@ -177,7 +177,7 @@ uint32_t BME280_getPressure(bme280_t *handle, uint16_t means) {
 uint8_t BME280_getHumidity(bme280_t *handle) {
 	int32_t adc_H;
 	uint16_t tmp;
-	(*handle->i2c_read16)(PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_HUMIDDATA, &tmp);
+	(*handle->i2c_read16)(&PKT_BMEI_I2C, handle->i2c_address, BME280_REGISTER_HUMIDDATA, &tmp);
 	adc_H = tmp;
 
 	int32_t v_x1_u32r;
