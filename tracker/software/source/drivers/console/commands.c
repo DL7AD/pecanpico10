@@ -139,7 +139,7 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 	                        &size_sampled, false);
 
 	// Transmit image via USB
-	if(size_sampled && msg == MSG_OK)
+	if(size_sampled)
 	{
 		bool start_detected = false;
 		for(uint32_t i=0; i<size_sampled; i++)
@@ -147,7 +147,7 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 			// Look for APP0 instead of SOI because SOI is lost sometimes, but we can add SOI easily later on
 			if(!start_detected && usb_buffer[i] == 0xFF && usb_buffer[i+1] == 0xE0) {
 				start_detected = true;
-				TRACE_INFO("DATA > image/jpeg,%d", size_sampled-i+2); // Flag the data on serial output
+				chprintf(chp, "DATA > image/jpeg,%d\r\n", size_sampled-i+2); // Flag the data on serial output
 				streamPut(chp, 0xFF);
 				streamPut(chp, 0xD8);
 			}
@@ -156,18 +156,18 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 		}
 		if(!start_detected)
 		{
-			TRACE_INFO("DATA > image/jpeg,0");
-			TRACE_INFO("DATA > text/trace,no SOI flag found");
+			chprintf(chp, "DATA > image/jpeg,0\r\n");
+			chprintf(chp, "DATA > text/trace,no SOI flag found\r\n");
 			return;
 		}
 
 	} else if(msg == MSG_RESET) { // Camera error
-		TRACE_INFO("DATA > image,jpeg,0");
-		TRACE_INFO("DATA > error,no camera found");
+		chprintf(chp, "DATA > image,jpeg,0\r\n");
+		chprintf(chp, "DATA > error,no camera found\r\n");
 		return;
 	} /* MSG_TIMEOUT. */
-    TRACE_INFO("DATA > image,jpeg,0");
-    TRACE_INFO("DATA > error,capture failed");
+    chprintf(chp, "DATA > image,jpeg,0\r\n");
+    chprintf(chp, "DATA > error,capture failed\r\n");
     return;
 }
 
