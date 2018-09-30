@@ -386,7 +386,7 @@ static char ssdv_outbits(ssdv_t *s, uint16_t bits, uint8_t length)
 		/* Insert stuffing byte if needed */
 		if(s->out_stuff && b == 0xFF)
 		{
-			s->outbits &= (1 << s->outlen) - 1;
+	        s->outbits <<= 8;
 			s->outlen += 8;
 		}
 	}
@@ -413,13 +413,14 @@ static char ssdv_out_jpeg_int(ssdv_t *s, uint8_t rle, int value)
 	
 	if(r != SSDV_OK) {
 	  TRACE_ERROR("SSDV > jpeg_dht_lookup_symbol: %i (%i:%i)", r, value, rle);
-	  return SSDV_ERROR;
+	  return(SSDV_ERROR);
 	}
 	
-	ssdv_outbits(s, huffbits, hufflen);
-	if(intlen) ssdv_outbits(s, intbits, intlen);
-	
-	return(SSDV_OK);
+	r = ssdv_outbits(s, huffbits, hufflen);
+	if(intlen && r == SSDV_OK) {
+	  r = ssdv_outbits(s, intbits, intlen);
+	}
+	return(r);
 }
 
 static char ssdv_process(ssdv_t *s)
@@ -461,7 +462,6 @@ static char ssdv_process(ssdv_t *s)
 				else r = ssdv_out_jpeg_int(s, 0, 0);
 				/* skip to the next AC part immediately */
 				s->acpart++;
-                if(r != SSDV_OK) return(r);
 			}
 			else
 			{
@@ -494,10 +494,10 @@ static char ssdv_process(ssdv_t *s)
 				s->needbits = symbol & 0x0F;
 			}
 		}
+		
 		/* Clear processed bits */
 		s->worklen -= width;
 		s->workbits &= (1 << s->worklen) - 1;
-        if(r != SSDV_OK) return(r);
 		break;
 	}
 
@@ -528,7 +528,6 @@ static char ssdv_process(ssdv_t *s)
 					r = ssdv_out_jpeg_int(s, 0, i - s->dc[s->component]);
 					s->dc[s->component] = i;
 				}
-				if(r != SSDV_OK) return(r);
 			}
 			else
 			{
@@ -547,7 +546,6 @@ static char ssdv_process(ssdv_t *s)
 					r = ssdv_out_jpeg_int(s, 0, i - s->adc[s->component]);
 					s->adc[s->component] = i;
 				}
-				if(r != SSDV_OK) return(r);
 			}
 		}
 		else /* AC */
@@ -559,11 +557,9 @@ static char ssdv_process(ssdv_t *s)
 				{
 					r = ssdv_out_jpeg_int(s, 15, 0);
 					s->accrle -= 16;
-					if(r != SSDV_OK) return(r);
 				}
 				r = ssdv_out_jpeg_int(s, s->accrle, i);
 				s->accrle = 0;
-				if(r != SSDV_OK) return(r);
 			}
 			else
 			{
@@ -572,7 +568,6 @@ static char ssdv_process(ssdv_t *s)
 				{
 					r = ssdv_out_jpeg_int(s, 0, 0);
 					s->accrle = 0;
-					if(r != SSDV_OK) return(r);
 				}
 				else s->accrle += s->acrle + 1;
 			}
@@ -589,8 +584,10 @@ static char ssdv_process(ssdv_t *s)
 		s->workbits &= (1 << s->worklen) - 1;
 		break;
 	}
+
   default:
     break;
+
   } /* End switch on state. */
 	if(s->acpart >= 64)
 	{
@@ -603,9 +600,8 @@ static char ssdv_process(ssdv_t *s)
 			{
 				s->component = s->mcupart - s->ycparts + 1;
 				s->acpart = 0; r = ssdv_out_jpeg_int(s, 0, 0); /* DC */
-				if(r != SSDV_OK) return(SSDV_ERROR);
+				/* Should handle buffer full but doesn't. */
 				s->acpart = 1; r = ssdv_out_jpeg_int(s, 0, 0); /* AC */
-				if(r != SSDV_OK) return(SSDV_ERROR);
 			}
 		}
 		
@@ -999,7 +995,7 @@ char ssdv_enc_get_packet(ssdv_t *s)
 		
 		/* Skip bytes if necessary */
 		if(s->in_skip) { s->in_skip--; continue; }
-		
+		r = SSDV_OK;
 		switch(s->state)
 		{
 		case S_MARKER:
@@ -1116,6 +1112,7 @@ char ssdv_enc_get_packet(ssdv_t *s)
 				/* Have we reached the end of the image data? */
 				if(r == SSDV_EOI) s->state = S_EOI;
 				
+				/* Return SSDV_EOI or SSDV_BUFFER_FULL */
 				return(r);
 			}
 			else if(r != SSDV_FEED_ME)
@@ -1129,8 +1126,9 @@ char ssdv_enc_get_packet(ssdv_t *s)
 		case S_EOI:
 			/* Shouldn't reach this point */
 			break;
-		}
-	}
+		} /* End switch on state */
+		if(r == SSDV_BUFFER_FULL) return(r);
+	} /* End while in_len */
 	
 	/* Need more data */
 	return(SSDV_FEED_ME);
@@ -1145,14 +1143,19 @@ char ssdv_enc_feed(ssdv_t *s, const uint8_t *buffer, size_t length)
 
 /*****************************************************************************/
 
-static void ssdv_write_marker(ssdv_t *s, uint16_t id, uint16_t length, const uint8_t *data)
+static char ssdv_write_marker(ssdv_t *s, uint16_t id, uint16_t length, const uint8_t *data)
 {
-	ssdv_outbits(s, id, 16);
-	if(length > 0)
+	int r;
+	r = ssdv_outbits(s, id, 16);
+	if(length > 0 && r == SSDV_OK)
 	{
-		ssdv_outbits(s, length + 2, 16);
-		while(length--) ssdv_outbits(s, *(data++), 8);
+		if(ssdv_outbits(s, length + 2, 16) != SSDV_OK)
+		  return(SSDV_ERROR);
+		do {
+	        r = ssdv_outbits(s, *(data++), 8);
+		} while(--length && r == SSDV_OK);
 	}
+	return(length == 0 ? r : SSDV_ERROR);
 }
 
 static void ssdv_out_headers(ssdv_t *s)
@@ -1350,6 +1353,7 @@ char ssdv_dec_feed(ssdv_t *s, uint8_t *packet)
 		
 		/* Fill the gap left by the missing packet */
 		ssdv_fill_gap(s, s->packet_mcu_id);
+
 		
 		/* Skip the bytes of the lost MCU */
 		i = s->packet_mcu_offset;

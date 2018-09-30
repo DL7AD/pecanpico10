@@ -1000,7 +1000,6 @@ static bool send_image_packets(const uint8_t *image,
 
       case SSDV_EOI:
       case SSDV_BUFFER_FULL: {
-        //bi += sizeof(pkt);
         /*
          * Have a full SSDV buffer to encode and send or an EOI.
          * Sync byte, CRC and FEC of SSDV not transmitted.
@@ -1036,6 +1035,7 @@ static bool send_image_packets(const uint8_t *image,
         }
 
       default: {
+        /* TODO: Check c and handle case of SSDV_ERROR versus other states. */
         TRACE_ERROR("CAM  > Error in image (ssdv_enc_get_packet failed:"
                     " %d at %d of %d)",
                     c, (image_len - ssdv.in_len), image_len);
@@ -1096,7 +1096,7 @@ static bool send_image_packets(const uint8_t *image,
         && conf->redundantTx) {
       /* Wait for packet to be available. */
       if(chSemWait(&tx_complete) == MSG_RESET)
-                return false;
+        return false;
       packet_t packet = aprs_encode_data_packet(conf->call, conf->path,
                                                 'I', pkt_base91);
       if(packet == NULL) {
@@ -1402,7 +1402,7 @@ THD_FUNCTION(imgThread, arg) {
 void start_image_thread(img_app_conf_t *conf, const char *name)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
-	                                   THD_WORKING_AREA_SIZE(8 * 1024),
+	                                   THD_WORKING_AREA_SIZE(9 * 1024),
 	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
       // Print startup error, do not start watchdog for this thread

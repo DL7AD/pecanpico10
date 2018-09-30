@@ -50,7 +50,7 @@ const conf_t conf_flash_default = {
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-11",
+        .call = "VK2GJ-2",
         .path = "WIDE2-1",
         .symbol = SYM_ANTENNA,
         .aprs_msg = false, // Enable APRS message reception on this app
@@ -86,9 +86,9 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = true,
-            .cycle = TIME_S2I(60 * 15),
+            .cycle = TIME_S2I(60 * 2),
             .init_delay = TIME_S2I(10),
-            .send_spacing = TIME_S2I(2)
+            .send_spacing = TIME_S2I(5)
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -97,7 +97,7 @@ const conf_t conf_flash_default = {
             .cca = 0x5F
         },
         // App identity
-        .call = "VK2GJ-11",
+        .call = "VK2GJ-2",
         .path = "",
 
         // Image settings
@@ -138,7 +138,7 @@ const conf_t conf_flash_default = {
                  // If there is no cycle time or interval then run continuously.
                  // If there is a duration only then it is a run once setup.
                  // The APRS schedule thread terminates and leaves the radio active.
-                 // If duration is TIME_INFINITE then the radio stay active while the thread waits forever.
+                 // If duration is TIME_INFINITE then the radio stays active while the thread waits forever.
                  .active = true,
                  .init_delay = TIME_S2I(20),
                  .cycle = TIME_S2I(60 * 10),
