@@ -142,7 +142,7 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
     if(size_sampled)
     {
         bool start_detected = false;
-        for(uint32_t i=0; i<size_sampled; i++)
+        for(size_t i = 0; i < size_sampled; i++)
         {
             // Look for APP0 instead of SOI because SOI is lost sometimes, but we can add SOI easily later on
             if(!start_detected && usb_buffer[i] == 0xFF && usb_buffer[i+1] == 0xE0) {
@@ -160,14 +160,19 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
             chprintf(chp, "DATA > text/trace,no SOI flag found\r\n");
             return;
         }
+        chprintf(chp, "DATA > image,jpeg,0\r\n");
+        chprintf(chp, "DATA > end,image end\r\n");
+        return;
 
     } else if(msg == MSG_RESET) { // Camera error
         chprintf(chp, "DATA > image,jpeg,0\r\n");
         chprintf(chp, "DATA > error,no camera found\r\n");
         return;
-    } /* MSG_TIMEOUT. */
-    chprintf(chp, "DATA > image,jpeg,0\r\n");
-    chprintf(chp, "DATA > error,capture failed\r\n");
+    } else if(msg == MSG_TIMEOUT) {
+      /* MSG_TIMEOUT. */
+      chprintf(chp, "DATA > image,jpeg,0\r\n");
+      chprintf(chp, "DATA > error,capture failed\r\n");
+    }
     return;
 }
 

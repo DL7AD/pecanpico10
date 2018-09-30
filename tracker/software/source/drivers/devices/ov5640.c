@@ -710,7 +710,7 @@ static resolution_t last_res = RES_NONE;
   * that could lead to different resolutions on different method calls.
   * The method returns the size of the image.
   */
-uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
+size_t OV5640_Snapshot2RAM(uint8_t* buffer,
                              uint32_t size, resolution_t res) {
 	size_t size_sampled;
 
@@ -1494,7 +1494,7 @@ uint32_t OV5640_getLastLightIntensity(void)
 /**
  *
  */
-uint8_t OV5640_hasError(void)
+pdcmi_error_t OV5640_hasError(void)
 {
 	return error;
 }

@@ -1212,7 +1212,7 @@ uint32_t takePicture(uint8_t* buffer, size_t size,
 	    /* Camera responded and ID was correct. */
 		TRACE_INFO("IMG  > OV5640 found");
 #define PKT_IMAGE_CAPTURE_RETRIES 5
-        uint8_t cntr = PKT_IMAGE_CAPTURE_RETRIES;
+        int8_t cntr = PKT_IMAGE_CAPTURE_RETRIES;
 
 		do {
 			/* Switch on and init camera. */
@@ -1220,7 +1220,7 @@ uint32_t takePicture(uint8_t* buffer, size_t size,
               OV5640_init();
               camInitialized = true;
 	        }
-
+	        result = MSG_TIMEOUT;
 			/* Sample data from pseudo DCMI through DMA into RAM. */
 			*size_sampled = OV5640_Snapshot2RAM(buffer, size, res);
             if(*size_sampled == 0) {
@@ -1230,18 +1230,18 @@ uint32_t takePicture(uint8_t* buffer, size_t size,
               chThdSleep(TIME_MS2I(500));
               continue;
             }
-
+            result = MSG_OK;
 			/* Validate JPEG image. */
-			if(enableJpegValidation) {
-				TRACE_INFO("CAM  > Validate integrity of JPEG");
-				result = analyze_image(buffer, *size_sampled);
-				TRACE_INFO("CAM  > JPEG image %s at %d retries, size %d",
-				           (result == MSG_OK) ? "valid" : "invalid",
-				               (PKT_IMAGE_CAPTURE_RETRIES - cntr),
-				               *size_sampled);
-				if(result == MSG_OK) break;
-			}
-		} while(cntr--);
+			if(!enableJpegValidation)
+			  break;
+            TRACE_INFO("CAM  > Validate integrity of JPEG");
+            result = analyze_image(buffer, *size_sampled);
+            TRACE_INFO("CAM  > JPEG image %s at retry %d, size %d",
+                       (result == MSG_OK) ? "valid" : "invalid",
+                           (PKT_IMAGE_CAPTURE_RETRIES - cntr),
+                           *size_sampled);
+            if(result == MSG_OK) break;
+		} while(cntr-- > 0);
 
 	} else { // Camera not found
 		TRACE_ERROR("IMG  > No camera found");

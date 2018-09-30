@@ -128,6 +128,9 @@ typedef struct
 	uint8_t dtbls[TBL_LEN];
 	uint8_t *ddht[2][2], *ddqt[2];
 	uint16_t dtbl_len;
+
+	/* Preserved values between state machine iterations */
+	int badj_int;
 } ssdv_t;
 
 typedef struct {

@@ -552,13 +552,18 @@ static char ssdv_process(ssdv_t *s)
 		{
 			if((i = BADJ(i)))
 			{
+			    s->badj_int = i;
 				s->accrle += s->acrle;
 				while(s->accrle >= 16)
 				{
 					r = ssdv_out_jpeg_int(s, 15, 0);
+					/*
+					 * Can't handle buffer full in loop
+					 * Need to handle this in state machine iteration
+					 */
 					s->accrle -= 16;
 				}
-				r = ssdv_out_jpeg_int(s, s->accrle, i);
+				r = ssdv_out_jpeg_int(s, s->accrle, s->badj_int);
 				s->accrle = 0;
 			}
 			else
@@ -578,7 +583,7 @@ static char ssdv_process(ssdv_t *s)
 		
 		/* Next bits are a huffman code */
 		s->state = S_HUFF;
-		
+
 		/* Clear processed bits */
 		s->worklen -= s->needbits;
 		s->workbits &= (1 << s->worklen) - 1;
@@ -589,12 +594,18 @@ static char ssdv_process(ssdv_t *s)
     break;
 
   } /* End switch on state. */
-	if(s->acpart >= 64)
+	if(s->acpart < 64)
+	  return(s->out_len ? SSDV_OK : SSDV_BUFFER_FULL);
 	{
 		s->mcupart++;
 		
 		if(s->greyscale && s->mcupart == s->ycparts)
 		{
+		  /*
+		   *  Change state to S_HUFFGS or S_INTGS
+		   *  Process each MCU DC and AC part in state machine iterations
+		   *  When done change state to S_HUFF or S_INT respectively
+		   */
 			/* For greyscale input images, pad the 2x1 MCUs with empty colour blocks */
 			for(; s->mcupart < s->ycparts + 2; s->mcupart++)
 			{
