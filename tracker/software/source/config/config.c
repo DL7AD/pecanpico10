@@ -59,7 +59,7 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(10)
@@ -85,7 +85,7 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 2),
             .init_delay = TIME_S2I(10),
             .send_spacing = TIME_S2I(5)
@@ -105,7 +105,7 @@ const conf_t conf_flash_default = {
         .quality = 4,
         .buf_size = 90 * 1024,
         .redundantTx = false,
-        .no_burst = true
+        .no_burst = false
     },
 
     // Log app
@@ -139,7 +139,7 @@ const conf_t conf_flash_default = {
                  // If there is a duration only then it is a run once setup.
                  // The APRS schedule thread terminates and leaves the radio active.
                  // If duration is TIME_INFINITE then the radio stays active while the thread waits forever.
-                 .active = false,
+                 .active = true,
                  .init_delay = TIME_S2I(20),
                  .cycle = TIME_S2I(60 * 10),
                  .interval = TIME_S2I(60 * 9)

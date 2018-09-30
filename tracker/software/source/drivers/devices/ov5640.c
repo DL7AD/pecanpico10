@@ -1078,7 +1078,7 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
 	 *   UDEFS = -DSTM32_DMA_REQUIRED
 	 */
 
-    /* WARNING: Do not use TRACE when resources are locked. */
+    /* Stop other processes gaining DCMI. */
 	if(OV5640_LockPDCMI() != MSG_OK) {
       TRACE_ERROR("CAM  > Capture failed to lock competing resources");
 	  /* Unable to lock resources. */
@@ -1171,6 +1171,11 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
 
     palSetLineCallback(dma_control.vsync_line, (palcallback_t)mode3_vsync_cb,
                                                      &dma_control);
+
+    /* Lock out I2C which will compete with our DMA. */
+    i2cAcquireBus(&PKT_CAM_I2C);
+
+    /* Start capture process. */
     palEnableLineEvent(dma_control.vsync_line, PAL_EVENT_MODE_BOTH_EDGES);
 
 	/* Wait for capture to be finished. */
@@ -1189,6 +1194,10 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
 	pdcmi_state_t state = dma_control.pdcmi_state;
 	dma_control.pdcmi_state = PDCMI_NOT_ACTIVE;
 
+    /* Release I2C. */
+    i2cReleaseBus(&PKT_CAM_I2C);
+
+    /* Let other processes gain DCMI. */
     OV5640_UnlockPDCMI();
 
     switch(state) {
