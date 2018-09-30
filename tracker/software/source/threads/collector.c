@@ -127,6 +127,7 @@ static void getPositionFallback(dataPoint_t* tp,
  * @notapi
  */
 static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
+                           bcn_app_conf_t *config,
                            sysinterval_t timeout) {
   systime_t start = chVTGetSystemTime();
 
@@ -225,7 +226,8 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
     TRACE_INFO("COLL > Keep GPS switched on because cycle < 60sec");
     tp->gps_state = GPS_LOCKED2;
   } else if(conf_sram.gps_onper_vbat != 0
-      && batt >= conf_sram.gps_onper_vbat) {
+      && batt >= conf_sram.gps_onper_vbat
+      && !(config->beacon.fixed || config->run_once)) {
     TRACE_INFO("COLL > Keep GPS switched on because VBAT >= %dmV",
                conf_sram.gps_onper_vbat);
     tp->gps_state = GPS_LOCKED2;
@@ -546,7 +548,7 @@ THD_FUNCTION(collectorThread, arg) {
                  chTimeI2MS(gps_wait_time) / 1000,
                  chTimeI2MS(gps_wait_time) % 1000);
 
-      if(aquirePosition(tp, ltp, gps_wait_time)) {
+      if(aquirePosition(tp, ltp, config, gps_wait_time)) {
         /* Acquisition succeeded. */
         if(ltp->gps_state == GPS_TIME) {
           /* Write the time stamp where RTC was calibrated. */
@@ -590,7 +592,7 @@ THD_FUNCTION(collectorThread, arg) {
       TRACE_INFO("COLL > Acquire position using GPS for up to %d.%d seconds",
                                    chTimeI2MS(gps_wait_fix) / 1000,
                                    chTimeI2MS(gps_wait_fix) % 1000);
-      if(aquirePosition(tp, ltp, gps_wait_fix)) {
+      if(aquirePosition(tp, ltp, config, gps_wait_fix)) {
         if(ltp->gps_state == GPS_TIME) {
           /* Write the time stamp where RTC was calibrated. */
           ltp->gps_sats = 0;

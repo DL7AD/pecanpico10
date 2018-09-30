@@ -15,7 +15,7 @@ const conf_t conf_flash_default = {
     .pos_pri = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 30),
+            .cycle = TIME_S2I(60 * 2),
             .init_delay = TIME_S2I(0),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
             .lat = -337331175, // Degrees (expressed in 1e-7 form)
@@ -38,7 +38,7 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
@@ -59,8 +59,8 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = true,
-            .cycle = TIME_S2I(60 * 30),
+            .active = false,
+            .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(10)
         },
@@ -139,7 +139,7 @@ const conf_t conf_flash_default = {
                  // If there is a duration only then it is a run once setup.
                  // The APRS schedule thread terminates and leaves the radio active.
                  // If duration is TIME_INFINITE then the radio stays active while the thread waits forever.
-                 .active = true,
+                 .active = false,
                  .init_delay = TIME_S2I(20),
                  .cycle = TIME_S2I(60 * 10),
                  .interval = TIME_S2I(60 * 9)
