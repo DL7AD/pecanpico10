@@ -12,8 +12,9 @@
 #include "ublox.h"
 #include <string.h>
 #include <time.h>
+#include "ov5640.h"
 
-static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
+//static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
 
 const ShellCommand commands[] = {
     {"trace", usb_cmd_set_trace_level},
@@ -126,7 +127,15 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 {
     (void)argc;
     (void)argv;
+#define PKT_PICTURE_CMD_BUFFER_SIZE (16 * 1024)
 
+    uint8_t *buffer = chHeapAllocAligned(NULL, PKT_PICTURE_CMD_BUFFER_SIZE,
+                                         PDCMI_DMA_FIFO_BURST_ALIGN);
+    if(buffer == NULL) {
+      chprintf(chp, "DATA > image,jpeg,0\r\n");
+      chprintf(chp, "DATA > error,no capture memory\r\n");
+      return;
+    }
     /*
      * Take picture.
      * Status is returned in msg.
@@ -135,43 +144,47 @@ void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
      * MSG_TIMEOUT = capture failed.
      */
     size_t size_sampled;
-    msg_t msg = takePicture(usb_buffer, sizeof(usb_buffer), RES_QVGA,
+    msg_t msg = takePicture(buffer, PKT_PICTURE_CMD_BUFFER_SIZE, RES_QVGA,
                             &size_sampled, false);
 
     // Transmit image via USB
-    if(size_sampled)
+    if(msg == MSG_OK)
     {
         bool start_detected = false;
         for(size_t i = 0; i < size_sampled; i++)
         {
             // Look for APP0 instead of SOI because SOI is lost sometimes, but we can add SOI easily later on
-            if(!start_detected && usb_buffer[i] == 0xFF && usb_buffer[i+1] == 0xE0) {
+            if(!start_detected && buffer[i] == 0xFF && buffer[i+1] == 0xE0) {
                 start_detected = true;
                 chprintf(chp, "DATA > image/jpeg,%d\r\n", size_sampled-i+2); // Flag the data on serial output
                 streamPut(chp, 0xFF);
                 streamPut(chp, 0xD8);
             }
             if(start_detected)
-                streamPut(chp, usb_buffer[i]);
+                streamPut(chp, buffer[i]);
         }
         if(!start_detected)
         {
             chprintf(chp, "DATA > image/jpeg,0\r\n");
             chprintf(chp, "DATA > text/trace,no SOI flag found\r\n");
+            chHeapFree(buffer);
             return;
         }
         chprintf(chp, "DATA > image,jpeg,0\r\n");
         chprintf(chp, "DATA > end,image end\r\n");
+        chHeapFree(buffer);
         return;
 
     } else if(msg == MSG_RESET) { // Camera error
         chprintf(chp, "DATA > image,jpeg,0\r\n");
         chprintf(chp, "DATA > error,no camera found\r\n");
+        chHeapFree(buffer);
         return;
     } else if(msg == MSG_TIMEOUT) {
       /* MSG_TIMEOUT. */
       chprintf(chp, "DATA > image,jpeg,0\r\n");
       chprintf(chp, "DATA > error,capture failed\r\n");
+      chHeapFree(buffer);
     }
     return;
 }
