@@ -416,20 +416,18 @@ static char ssdv_out_jpeg_int(ssdv_t *s, uint8_t rle, int value)
 	  return(SSDV_ERROR);
 	}
 	
-	r = ssdv_outbits(s, huffbits, hufflen);
-	if(intlen && r == SSDV_OK) {
-	  r = ssdv_outbits(s, intbits, intlen);
-	}
-	return(r);
+	ssdv_outbits(s, huffbits, hufflen);
+	if(intlen) ssdv_outbits(s, intbits, intlen);
+	
+	return(SSDV_OK);
 }
 
 static char ssdv_process(ssdv_t *s)
 {
-  int r;
-  switch(s->state) {
-  case S_HUFF:
+	if(s->state == S_HUFF)
 	{
 		uint8_t symbol, width;
+		int r;
 		
 		if(s->mcupart == 0 && s->acpart == 0 && s->next_reset_mcu > s->reset_mcu)
 		{
@@ -451,15 +449,16 @@ static char ssdv_process(ssdv_t *s)
 				{
 					if(s->mode == S_ENCODING)
 					{
-						r = ssdv_out_jpeg_int(s, 0, s->adc[s->component]);
+						ssdv_out_jpeg_int(s, 0, s->adc[s->component]);
 					}
 					else
 					{
-						r = ssdv_out_jpeg_int(s, 0, 0 - s->dc[s->component]);
+						ssdv_out_jpeg_int(s, 0, 0 - s->dc[s->component]);
 						s->dc[s->component] = 0;
 					}
 				}
-				else r = ssdv_out_jpeg_int(s, 0, 0);
+				else ssdv_out_jpeg_int(s, 0, 0);
+				
 				/* skip to the next AC part immediately */
 				s->acpart++;
 			}
@@ -476,13 +475,13 @@ static char ssdv_process(ssdv_t *s)
 			if(symbol == 0x00)
 			{
 				/* EOB -- all remaining AC parts are zero */
-				r = ssdv_out_jpeg_int(s, 0, 0);
+				ssdv_out_jpeg_int(s, 0, 0);
 				s->acpart = 64;
 			}
 			else if(symbol == 0xF0)
 			{
 				/* The next 16 AC parts are zero */
-				r = ssdv_out_jpeg_int(s, 15, 0);
+				ssdv_out_jpeg_int(s, 15, 0);
 				s->acpart += 16;
 			}
 			else
@@ -498,10 +497,8 @@ static char ssdv_process(ssdv_t *s)
 		/* Clear processed bits */
 		s->worklen -= width;
 		s->workbits &= (1 << s->worklen) - 1;
-		break;
 	}
-
-  case S_INT:
+	else if(s->state == S_INT)
 	{
 		int i;
 		
@@ -520,12 +517,12 @@ static char ssdv_process(ssdv_t *s)
 					/* Output absolute DC value */
 					s->dc[s->component] += UADJ(i);
 					s->adc[s->component] = AADJ(s->dc[s->component]);
-					r = ssdv_out_jpeg_int(s, 0, s->adc[s->component]);
+					ssdv_out_jpeg_int(s, 0, s->adc[s->component]);
 				}
 				else
 				{
 					/* Output relative DC value */
-					r = ssdv_out_jpeg_int(s, 0, i - s->dc[s->component]);
+					ssdv_out_jpeg_int(s, 0, i - s->dc[s->component]);
 					s->dc[s->component] = i;
 				}
 			}
@@ -534,7 +531,7 @@ static char ssdv_process(ssdv_t *s)
 				if(s->mode == S_DECODING)
 				{
 					s->dc[s->component] += UADJ(i);
-					r = ssdv_out_jpeg_int(s, 0, i);
+					ssdv_out_jpeg_int(s, 0, i);
 				}
 				else
 				{
@@ -543,7 +540,7 @@ static char ssdv_process(ssdv_t *s)
 					
 					/* Calculate closest adjusted DC value */
 					i = AADJ(s->dc[s->component]);
-					r = ssdv_out_jpeg_int(s, 0, i - s->adc[s->component]);
+					ssdv_out_jpeg_int(s, 0, i - s->adc[s->component]);
 					s->adc[s->component] = i;
 				}
 			}
@@ -552,18 +549,13 @@ static char ssdv_process(ssdv_t *s)
 		{
 			if((i = BADJ(i)))
 			{
-			    s->badj_int = i;
 				s->accrle += s->acrle;
 				while(s->accrle >= 16)
 				{
-					r = ssdv_out_jpeg_int(s, 15, 0);
-					/*
-					 * Can't handle buffer full in loop
-					 * Need to handle this in state machine iteration
-					 */
+					ssdv_out_jpeg_int(s, 15, 0);
 					s->accrle -= 16;
 				}
-				r = ssdv_out_jpeg_int(s, s->accrle, s->badj_int);
+				ssdv_out_jpeg_int(s, s->accrle, i);
 				s->accrle = 0;
 			}
 			else
@@ -571,7 +563,7 @@ static char ssdv_process(ssdv_t *s)
 				/* AC value got reduced to 0 in the DQT conversion */
 				if(s->acpart >= 63)
 				{
-					r = ssdv_out_jpeg_int(s, 0, 0);
+					ssdv_out_jpeg_int(s, 0, 0);
 					s->accrle = 0;
 				}
 				else s->accrle += s->acrle + 1;
@@ -583,36 +575,24 @@ static char ssdv_process(ssdv_t *s)
 		
 		/* Next bits are a huffman code */
 		s->state = S_HUFF;
-
+		
 		/* Clear processed bits */
 		s->worklen -= s->needbits;
 		s->workbits &= (1 << s->worklen) - 1;
-		break;
 	}
-
-  default:
-    break;
-
-  } /* End switch on state. */
-	if(s->acpart < 64)
-	  return(s->out_len ? SSDV_OK : SSDV_BUFFER_FULL);
+	
+	if(s->acpart >= 64)
 	{
 		s->mcupart++;
 		
 		if(s->greyscale && s->mcupart == s->ycparts)
 		{
-		  /*
-		   *  Change state to S_HUFFGS or S_INTGS
-		   *  Process each MCU DC and AC part in state machine iterations
-		   *  When done change state to S_HUFF or S_INT respectively
-		   */
 			/* For greyscale input images, pad the 2x1 MCUs with empty colour blocks */
 			for(; s->mcupart < s->ycparts + 2; s->mcupart++)
 			{
 				s->component = s->mcupart - s->ycparts + 1;
-				s->acpart = 0; r = ssdv_out_jpeg_int(s, 0, 0); /* DC */
-				/* Should handle buffer full but doesn't. */
-				s->acpart = 1; r = ssdv_out_jpeg_int(s, 0, 0); /* AC */
+				s->acpart = 0; ssdv_out_jpeg_int(s, 0, 0); /* DC */
+				s->acpart = 1; ssdv_out_jpeg_int(s, 0, 0); /* AC */
 			}
 		}
 		
@@ -1006,7 +986,7 @@ char ssdv_enc_get_packet(ssdv_t *s)
 		
 		/* Skip bytes if necessary */
 		if(s->in_skip) { s->in_skip--; continue; }
-		r = SSDV_OK;
+		
 		switch(s->state)
 		{
 		case S_MARKER:
@@ -1136,9 +1116,8 @@ char ssdv_enc_get_packet(ssdv_t *s)
 		
 		case S_EOI:
 			/* Shouldn't reach this point */
-			break;
+			return(SSDV_ERROR);
 		} /* End switch on state */
-		if(r == SSDV_BUFFER_FULL) return(r);
 	} /* End while in_len */
 	
 	/* Need more data */

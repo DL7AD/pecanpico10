@@ -85,7 +85,7 @@ typedef struct
 	char out_stuff;    /* Flag to add stuffing bytes to output          */
 	
 	/* Output bits */
-	uint32_t outbits;  /* Output bit buffer                             */
+	uint64_t outbits;  /* Output bit buffer                             */
 	uint8_t outlen;    /* Number of bits in the output bit buffer       */
 	
 	/* JPEG decoder state */
