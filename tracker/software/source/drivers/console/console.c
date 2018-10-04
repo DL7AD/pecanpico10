@@ -290,13 +290,12 @@ THD_FUNCTION(pktConsole, arg) {
       switch(console_state) {
       /* The next two cases are entered by a channel connect happening. */
       case CON_CHN_WAIT:
-        /* Falls into. */
       case CON_CHN_CONNECT:
         /* Wait for any garbage input to subside. */
         chThdSleep(TIME_MS2I(1200));
        (void)chEvtGetAndClearEvents(CONSOLE_CHANNEL_EVT);
        (void)chEvtGetAndClearFlags(&con_el);
-       /* Falls into. */
+       /* FALLTHRU  */
       case CON_CHN_FLUSH: {
         /* Flush the input queue. */
         flushConsoleInputQueue(chp);

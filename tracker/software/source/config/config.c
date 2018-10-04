@@ -38,7 +38,7 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(10), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
@@ -59,7 +59,7 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(10)
@@ -165,7 +165,7 @@ const conf_t conf_flash_default = {
                .cca = 0x5F
            },
            // Digipeat transmission identity
-           .call = "VK2GJ-11",
+           .call = "VK2GJ-15",
            .path = "WIDE2-1",
            .symbol = SYM_DIGIPEATER,
            // A digipeater beacon can be added using one of the POS apps
