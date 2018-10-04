@@ -315,7 +315,7 @@ THD_FUNCTION(pktConsole, arg) {
         shellInit();
         shelltp = chThdCreateFromHeap(NULL,
                                       THD_WORKING_AREA_SIZE(3 * 1024),
-                                      "shell", NORMALPRIO + 1,
+                                      "shell", LOWPRIO,
                                       shellThread,
                                       (void *)&shell_cfg);
         if(shelltp == NULL) {
@@ -392,7 +392,7 @@ msg_t pktStartConsole(BaseAsynchronousChannel *ser) {
   thread_t *con_thd = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(1 * 1024),
               "CON",
-              LOWPRIO + 10,
+              LOWPRIO,
               pktConsole,
               ser);
   if(con_thd == NULL)

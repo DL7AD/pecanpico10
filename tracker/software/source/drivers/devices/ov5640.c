@@ -1220,11 +1220,10 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
       }
 
     case PDCMI_DMA_END_BUFFER: {
-      TRACE_ERROR("CAM  > DMA ran out of buffer space in DBM"
-                  " (image possibly useable).");
-      *size_sampled = dma_control.transfer_count;
+      TRACE_ERROR("CAM  > DMA ran out of buffer space in DBM at 0x%x of 0x%x",
+                  dma_control.transfer_count, size);
+      *size_sampled = 0;
       return PDCMI_DMA_DBM_OVERFLOW_ERR;
-
       }
 
     case PDCMI_CAPTURE_TIMEOUT: {

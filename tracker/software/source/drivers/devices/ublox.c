@@ -132,15 +132,16 @@ uint8_t gps_receive_ack(uint8_t class_id, uint8_t msg_id, uint16_t timeout) {
   */
 uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
                              unsigned char *payload, size_t size,
-                             uint16_t timeout) {
+                             sysinterval_t timeout) {
 	uint8_t rx_byte;
 	enum {UBX_A, UBX_B, CLASSID, MSGID, LEN_A, LEN_B, PAYLOAD} state = UBX_A;
 	uint16_t payload_cnt = 0;
 	uint16_t payload_len = 0;
 
 	systime_t sNow = chVTGetSystemTime();
+	systime_t sEnd = chTimeAddX(sNow, timeout);
 
-	while(chVTIsSystemTimeWithin(sNow, chTimeAddX(sNow, TIME_MS2I(timeout)))) {
+	while(chVTIsSystemTimeWithin(sNow, sEnd)) {
 
 		// Receive one byte
       if(!gps_receive_byte(&rx_byte)) {
@@ -152,7 +153,6 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
 		switch (state) {
 			case UBX_A:
 				if(rx_byte == 0xB5)	   state = UBX_B;
-				//else 			state = UBX_A;
 				break;
 			case UBX_B:
 				if(rx_byte == 0x62)	    state = CLASSID;
@@ -176,7 +176,6 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
 				break;
 			case PAYLOAD:
 				payload[payload_cnt++] = rx_byte;
-				//payload_cnt++;
                 if(payload_cnt == payload_len)
                   return payload_len;
 				if(payload_cnt > size)
@@ -202,7 +201,8 @@ bool gps_get_sv_info(gps_svinfo_t *svinfo, size_t size) {
   uint8_t navsvinfo_req[] = {0xB5, 0x62, 0x01, 0x30, 0x00, 0x00, 0x00, 0x00};
   gps_transmit_string(navsvinfo_req, sizeof(navsvinfo_req));
 
-  if(!gps_receive_payload(0x01, 0x30, (unsigned char*)svinfo, size, 3000)) { // Receive request
+  if(!gps_receive_payload(0x01, 0x30, (unsigned char*)svinfo, size,
+                          TIME_MS2I(3000))) { // Receive request
     TRACE_ERROR("GPS  > NAV-SVINFO Polling FAILED");
     return false;
   }
@@ -225,7 +225,8 @@ bool gps_get_fix(gpsFix_t *fix) {
 	uint8_t navpvt_req[] = {0xB5, 0x62, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00};
 	gps_transmit_string(navpvt_req, sizeof(navpvt_req));
 
-	if(!gps_receive_payload(0x01, 0x07, navpvt, sizeof(navpvt), 3000)) { // Receive request
+	if(!gps_receive_payload(0x01, 0x07, navpvt, sizeof(navpvt),
+	                        TIME_MS2I(3000))) { // Receive request
 		TRACE_ERROR("GPS  > NAV-PVT Polling FAILED");
 		return false;
 	}
@@ -233,7 +234,8 @@ bool gps_get_fix(gpsFix_t *fix) {
 	uint8_t navstatus_req[] = {0xB5, 0x62, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00};
 	gps_transmit_string(navstatus_req, sizeof(navstatus_req));
 
-	if(!gps_receive_payload(0x01, 0x03, navstatus, sizeof(navstatus), 3000)) { // Receive request
+	if(!gps_receive_payload(0x01, 0x03, navstatus, sizeof(navstatus),
+	                        TIME_MS2I(3000))) { // Receive request
 		TRACE_ERROR("GPS  > NAV-STATUS Polling FAILED");
 		return false;
 	}

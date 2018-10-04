@@ -912,6 +912,7 @@ static bool resend_image_packet(const uint8_t *image,
         chSemSignal(&tx_complete);
         return false;
       }
+      /* Transmit complete releases the semaphore. */
       return true;
     } /* End case SSDV_BUFFER_FULL/SSDV_EOI. */
 
@@ -1152,12 +1153,14 @@ static msg_t analyze_image(const uint8_t *image, size_t image_len) {
 
   ssdv_t ssdv;
   uint8_t pkt[SSDV_PKT_SIZE];
-  //size_t b = 1;
   uint8_t c;
 
   ssdv_enc_init(&ssdv, SSDV_TYPE_NOFEC, "", 0, 7);
   ssdv_enc_set_buffer(&ssdv, pkt);
   ssdv_enc_feed(&ssdv, image, image_len);
+
+  systime_t sNow = chVTGetSystemTime();
+  systime_t sEnd = chTimeAddX(sNow, TIME_MS2I(4000));
 
   do {
 
@@ -1166,28 +1169,32 @@ static msg_t analyze_image(const uint8_t *image, size_t image_len) {
       TRACE_ERROR("CAM  > Error in image (premature end of file at %d)",
                   image_len);
       return MSG_TIMEOUT;
-      }
+    } /* End case. */
 
     case SSDV_BUFFER_FULL: {
-      chThdSleep(TIME_MS2I(5));
+      //chThdSleep(TIME_MS2I(5));
+      chThdYield();
       break;
-    }
+    } /* End case. */
 
     case SSDV_EOI: {
       return MSG_OK;
-      }
+    } /* End case. */
 
     case SSDV_OK: {
       continue;
-      }
+    } /* End case. */
 
     default: {
+      /* This catches SSDV_ERROR. */
       TRACE_ERROR("CAM  > Error in image (ssdv_enc_get_packet failed:"
                   " %d at %d of %d)", c, (image_len - ssdv.in_len), image_len);
       return MSG_TIMEOUT;
-      }
+      } /* End case. */
     } /* End switch. */
-  } while(true);/* End while. */
+  } while(chVTIsSystemTimeWithin(sNow, sEnd));/* End while. */
+  TRACE_ERROR("CAM  > Timeout analyzing image");
+  return MSG_TIMEOUT;
 }
 
 /**

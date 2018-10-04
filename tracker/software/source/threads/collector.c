@@ -139,12 +139,12 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   uint16_t batt = stm32_get_vbat();
   if(batt < conf_sram.gps_on_vbat) {
     getPositionFallback(tp, ltp, GPS_LOWBATT1);
-    /* In case GPS was already on power it off. */
+    /* In case GPS was already on then power it off. */
     GPS_Deinit();
     return false;
   }
 
-  /* Try to switch on GPS. */
+  /* Try to switch on GPS. If there is an error switch off. */
   if(!GPS_Init()) {
     getPositionFallback(tp, ltp, GPS_ERROR);
     GPS_Deinit();
@@ -185,13 +185,29 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
     return false;
 
   }
+
   if(!isGPSLocked(&gpsFix)) {
+    ptime_t time;
+    getTime(&time);
     /*
      * GPS was switched on but it failed to get a lock within timeout period.
-     * Keep GPS switched on.
+     * Keep GPS switched on if...
+     * - battery threshold met and not a run once request.
+     * - battery threshold is met and location is fixed but RTC not set.
+     * - and there are no other users wanting to keep power on.
      */
     TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
     getPositionFallback(tp, ltp, GPS_LOSS);
+    if(conf_sram.gps_onper_vbat != 0
+          && batt >= conf_sram.gps_onper_vbat
+          && !config->run_once
+          && !(config->beacon.fixed && time.year != RTC_BASE_YEAR)) {
+        TRACE_INFO("COLL > Keep GPS switched on because VBAT >= %dmV",
+                   conf_sram.gps_onper_vbat);
+      } else {
+        GPS_Deinit();
+        TRACE_INFO("COLL > Switching off GPS");
+      }
     return false;
   }
 
@@ -204,6 +220,7 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
              gps_get_model_name(gpsFix.model));
   /* Enable power saving mode. */
   gps_switch_power_save_mode(true);
+
   gps_svinfo_t svinfo;
   if(gps_get_sv_info(&svinfo, sizeof(svinfo))) {
     TRACE_INFO("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d",

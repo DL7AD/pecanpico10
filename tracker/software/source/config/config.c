@@ -15,8 +15,8 @@ const conf_t conf_flash_default = {
     .pos_pri = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 2),
-            .init_delay = TIME_S2I(0),
+            .cycle = TIME_S2I(60 * 10),
+            .init_delay = TIME_S2I(5),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
             .lat = -337331175, // Degrees (expressed in 1e-7 form)
             .lon = 1511143478, // Degrees (expressed in 1e-7 form)
@@ -39,18 +39,18 @@ const conf_t conf_flash_default = {
     .pos_sec = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 5), // Beacon interval
+            .cycle = TIME_S2I(10), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
         },
         .radio_conf = {
             .pwr = 0x1F,
-            .freq = 144800000,
-            .mod = MOD_2FSK_9k6,
+            .freq = 144850000,
+            .mod = MOD_AFSK,
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-2",
+        .call = "VK2GJ-11",
         .path = "WIDE2-1",
         .symbol = SYM_ANTENNA,
         .aprs_msg = false, // Enable APRS message reception on this app
@@ -79,13 +79,13 @@ const conf_t conf_flash_default = {
         .res = RES_QVGA,
         .quality = 4,
         .buf_size = 15 * 1024,
-        .redundantTx = false
+        .redundantTx = true
     },
 
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 2),
             .init_delay = TIME_S2I(10),
             .send_spacing = TIME_S2I(5)
@@ -159,13 +159,13 @@ const conf_t conf_flash_default = {
         .tx = {
            // Transmit radio configuration
            .radio_conf = {
-               .freq = FREQ_RX_APRS,
+               .freq = 144850000,
                .pwr = 0x7F,
                .mod = MOD_AFSK,
                .cca = 0x5F
            },
            // Digipeat transmission identity
-           .call = "VK2GJ-5",
+           .call = "VK2GJ-11",
            .path = "WIDE2-1",
            .symbol = SYM_DIGIPEATER,
            // A digipeater beacon can be added using one of the POS apps
@@ -189,7 +189,7 @@ const conf_t conf_flash_default = {
 
     // APRS
     // How often to send telemetry config (global for beacons)
-    .tel_enc_cycle = TIME_S2I(3600),
+    .tel_enc_cycle = TIME_S2I(60 * 60),
 
     // The default APRS frequency when geofence is not resolved
     .freq = FREQ_APRS_AUSTRALIA,
