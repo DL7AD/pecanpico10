@@ -14,7 +14,7 @@
   msg_t c;                                                                  \
   do {                                                                      \
     c = chnGetTimeout((BaseAsynchronousChannel *)chp, TIME_MS2I(100));      \
-  } while(c != STM_TIMEOUT && c != STM_RESET);
+  } while(c == STM_OK);
 
 /*===========================================================================*/
 /* Module data structures and arrays.                                        */

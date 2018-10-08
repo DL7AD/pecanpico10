@@ -17,13 +17,20 @@ uint8_t error_counter;
 	0
 };*/
 
+/* Default initial condition for serial channels. */
+BaseSequentialStream *trace = (BaseSequentialStream *)&SERIAL_CONSOLE_DRIVER;
+BaseSequentialStream *serial = (BaseSequentialStream *)&SERIAL_DEBUG_DRIVER;
+BaseSequentialStream *stream = (BaseSequentialStream *)&SERIAL_STREAM_DRIVER;
+
 #ifdef SET_TRACE_LEVEL
 uint8_t current_trace_level = SET_TRACE_LEVEL; // Set in makefile UDEFS
 #else
 uint8_t current_trace_level = 5; // Level: All
 #endif
 
-
+/**
+ *
+ */
 void pktConfigureSerialIO(void) {
 	chMtxObjectInit(&debug_mtx);
     pktSerialStart();
@@ -66,24 +73,25 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
 	chsnprintf((char*)str, sizeof(str), format, args);
 	va_end(args);*/
 
+	/* TODO: Implement dynamic assignment of console driver output. */
 
 	if(isConsoleOutputAvailable()) {
       if(TRACE_TIME) {
-          chprintf((BaseSequentialStream*)&SERIAL_CONSOLE_DRIVER, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000);
+          chprintf((BaseSequentialStream*)trace, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000);
       }
-      chprintf((BaseSequentialStream*)&SERIAL_CONSOLE_DRIVER, "[%s]", type);
+      chprintf((BaseSequentialStream*)trace, "[%s]", type);
       if(TRACE_FILE) {
-          chprintf((BaseSequentialStream*)&SERIAL_CONSOLE_DRIVER, "[%12s %04d]", filename, line);
+          chprintf((BaseSequentialStream*)trace, "[%12s %04d]", filename, line);
       }
       if(TRACE_THREAD && TRACE_TIME && TRACE_FILE) {
-          chprintf((BaseSequentialStream*)&SERIAL_CONSOLE_DRIVER, "[0x%08x]", chThdGetSelfX());
+          chprintf((BaseSequentialStream*)trace, "[0x%08x]", chThdGetSelfX());
       }
-      chprintf((BaseSequentialStream*)&SERIAL_CONSOLE_DRIVER, " ");
+      chprintf((BaseSequentialStream*)trace, " ");
       va_list args;
       va_start(args, format);
-      chvprintf((BaseSequentialStream*)&SERIAL_CONSOLE_DRIVER, format, args);
+      chvprintf((BaseSequentialStream*)trace, format, args);
       va_end(args);
-      chprintf((BaseSequentialStream*)&SERIAL_CONSOLE_DRIVER, "\r\n");
+      chprintf((BaseSequentialStream*)trace, "\r\n");
 	}
 
 #if ENABLE_SERIAL_DEBUG == TRUE

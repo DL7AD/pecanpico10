@@ -38,6 +38,9 @@ static uint8_t bme280_error;
  */
 static const char *state[] = {GPS_STATE_NAMES};
 
+/* Remembers power state. */
+static bool stay_on = false;
+
 /*===========================================================================*/
 /* Module external variables.                                                */
 /*===========================================================================*/
@@ -140,6 +143,7 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   if(batt < conf_sram.gps_on_vbat) {
     getPositionFallback(tp, ltp, GPS_LOWBATT1);
     /* In case GPS was already on then power it off. */
+    stay_on = false;
     GPS_Deinit();
     return false;
   }
@@ -147,6 +151,7 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   /* Try to switch on GPS. If there is an error switch off. */
   if(!GPS_Init()) {
     getPositionFallback(tp, ltp, GPS_ERROR);
+    stay_on = false;
     GPS_Deinit();
     return false;
   }
@@ -181,28 +186,33 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
 
     TRACE_WARN("COLL > GPS acquisition stopped due low battery");
     getPositionFallback(tp, ltp, GPS_LOWBATT2);
+    stay_on = false;
     GPS_Deinit();
     return false;
-
   }
 
+  /*
+   * Remember conditions to keep power on.
+   * Keep GPS switched on if...
+   * - battery threshold met and not a run once request.
+   * - not a fixed beacon (just wants RTC to be set).
+   * This is an OR of the multiple users of the GPS.
+   */
+  stay_on |= !config->run_once
+      && (conf_sram.gps_onper_vbat != 0
+          && batt >= conf_sram.gps_onper_vbat)
+          && !config->beacon.fixed;
+
   if(!isGPSLocked(&gpsFix)) {
-    ptime_t time;
-    getTime(&time);
     /*
      * GPS was switched on but it failed to get a lock within timeout period.
-     * Keep GPS switched on if...
-     * - battery threshold met and not a run once request.
-     * - battery threshold is met and location is fixed but RTC not set.
-     * - and there are no other users wanting to keep power on.
+
      */
     TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
     getPositionFallback(tp, ltp, GPS_LOSS);
-    if(conf_sram.gps_onper_vbat != 0
-          && batt >= conf_sram.gps_onper_vbat
-          && !config->run_once
-          && !(config->beacon.fixed && time.year != RTC_BASE_YEAR)) {
-        TRACE_INFO("COLL > Keep GPS switched on because VBAT >= %dmV",
+
+    if(stay_on) {
+        TRACE_INFO("COLL > Keep GPS switched on. VBAT >= %dmV",
                    conf_sram.gps_onper_vbat);
       } else {
         GPS_Deinit();
@@ -218,8 +228,6 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
    */
   TRACE_INFO("GPS  > Lock acquired. Model in use is %s",
              gps_get_model_name(gpsFix.model));
-  /* Enable power saving mode. */
-  gps_switch_power_save_mode(true);
 
   gps_svinfo_t svinfo;
   if(gps_get_sv_info(&svinfo, sizeof(svinfo))) {
@@ -238,14 +246,16 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
     TRACE_ERROR("GPS  > Error getting Space Vehicle info");
   }
 
+  /* Enable power saving mode. */
+  gps_switch_power_save_mode(true);
+
   /* Leave GPS on if cycle time is less than 60 seconds. */
   if(timeout < TIME_S2I(60)) {
-    TRACE_INFO("COLL > Keep GPS switched on because cycle < 60sec");
+    TRACE_INFO("COLL > Keep GPS switched on. Cycle < 60sec");
     tp->gps_state = GPS_LOCKED2;
-  } else if(conf_sram.gps_onper_vbat != 0
-      && batt >= conf_sram.gps_onper_vbat
-      && !(config->beacon.fixed || config->run_once)) {
-    TRACE_INFO("COLL > Keep GPS switched on because VBAT >= %dmV",
+    /* Leave GPS on if power conditions good. */
+  } else if(stay_on) {
+    TRACE_INFO("COLL > Keep GPS switched on. VBAT >= %dmV",
                conf_sram.gps_onper_vbat);
     tp->gps_state = GPS_LOCKED2;
   } else {
@@ -257,7 +267,7 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   // Debug
   TRACE_INFO("COLL > GPS sampling finished GPS LOCK");
 
-  // Read time from RTC
+  /* Set RTC if not already. */
   ptime_t time;
   getTime(&time);
   if(time.year == RTC_BASE_YEAR) {
@@ -572,7 +582,11 @@ THD_FUNCTION(collectorThread, arg) {
           ltp->gps_sats = 0;
           ltp->gps_ttff = 0;
           ltp->gps_pdop = 0;
+          /* Use the new ID for the GPS_TIME entry. */
+          ltp->id = tp->id;
           flash_writeLogDataPoint(ltp);
+          /* Increment to next ID for new datapoint. */
+          tp->id++;
         }
         TRACE_INFO("COLL > RTC update acquired from GPS");
       } else {
