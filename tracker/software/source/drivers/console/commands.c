@@ -20,6 +20,7 @@ const ShellCommand commands[] = {
     {"trace", usb_cmd_set_trace_level},
 	{"picture", usb_cmd_printPicture},
 	{"print_log", usb_cmd_printLog},
+    {"log", usb_cmd_printLog},
 	{"config", usb_cmd_printConfig},
 	{"msg", usb_cmd_send_aprs_message},
 
@@ -30,6 +31,7 @@ const ShellCommand commands[] = {
 #endif
     {"sats", usb_cmd_get_gps_sat_info},
     {"error_list", usb_cmd_get_error_list},
+    {"errors", usb_cmd_get_error_list},
     {"time", usb_cmd_time},
     {"radio", usb_cmd_radio},
 	{NULL, NULL}
@@ -199,7 +201,7 @@ void usb_cmd_printLog(BaseSequentialStream *chp, int argc, char *argv[])
 		"lat,lon,"
 		"alt,sats,ttff,"
 		"adc_vbat,adc_vsol,"
-		"pac_vbat,pac_vsol,pac_pbat,pac_psol"
+		"pac_vbat,pac_vsol,pac_pbat,pac_psol,"
 		"press_i1,temp_i1,hum_i1,"
 		"press_e1,temp_e1,hum_e1,"
 		"press_e2,temp_e2,hum_e2,"
@@ -226,10 +228,10 @@ void usb_cmd_printLog(BaseSequentialStream *chp, int argc, char *argv[])
 						dp->gps_alt, dp->gps_sats, dp->gps_ttff,
 						dp->adc_vbat/1000, (dp->adc_vbat%1000), dp->adc_vsol/1000, (dp->adc_vsol%1000),
 						dp->adc_vbat/1000, (dp->adc_vbat%1000), dp->adc_vsol/1000, (dp->adc_vsol%1000), dp->pac_pbat, dp->pac_psol,
-						dp->sen_i1_press/10, dp->sen_i1_press%10, dp->sen_i1_temp/100, dp->sen_i1_temp%100, dp->sen_i1_hum/10, dp->sen_i1_hum%10,
-						dp->sen_e1_press/10, dp->sen_e1_press%10, dp->sen_e1_temp/100, dp->sen_e1_temp%100, dp->sen_e1_hum/10, dp->sen_e1_hum%10,
-						dp->sen_e2_press/10, dp->sen_e2_press%10, dp->sen_e2_temp/100, dp->sen_e2_temp%100, dp->sen_e2_hum/10, dp->sen_e2_hum%10,
-						dp->stm32_temp/100, dp->stm32_temp%100, dp->si446x_temp/100, dp->si446x_temp%100,
+						dp->sen_i1_press/10, dp->sen_i1_press%10, dp->sen_i1_temp/100, abs(dp->sen_i1_temp%100), dp->sen_i1_hum/10, dp->sen_i1_hum%10,
+						dp->sen_e1_press/10, dp->sen_e1_press%10, dp->sen_e1_temp/100, abs(dp->sen_e1_temp%100), dp->sen_e1_hum/10, dp->sen_e1_hum%10,
+						dp->sen_e2_press/10, dp->sen_e2_press%10, dp->sen_e2_temp/100, abs(dp->sen_e2_temp%100), dp->sen_e2_hum/10, dp->sen_e2_hum%10,
+						dp->stm32_temp/100, dp->stm32_temp%100, dp->si446x_temp/100, abs(dp->si446x_temp%100),
 						dp->light_intensity, dp->sys_error
 			);
 		}

@@ -159,13 +159,13 @@ const conf_t conf_flash_default = {
         .tx = {
            // Transmit radio configuration
            .radio_conf = {
-               .freq = 144850000,
+               .freq = FREQ_RX_APRS,
                .pwr = 0x7F,
                .mod = MOD_AFSK,
                .cca = 0x5F
            },
            // Digipeat transmission identity
-           .call = "VK2GJ-15",
+           .call = "VK2GJ-5",
            .path = "WIDE2-1",
            .symbol = SYM_DIGIPEATER,
            // A digipeater beacon can be added using one of the POS apps

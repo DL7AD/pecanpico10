@@ -20,8 +20,8 @@
 /* Module data structures and arrays.                                        */
 /*===========================================================================*/
 
-static const ShellConfig shell_cfg = {
-	(BaseSequentialStream*)&SDU1,
+static ShellConfig shell_cfg = {
+	NULL,
 	commands
 };
 
@@ -311,6 +311,9 @@ THD_FUNCTION(pktConsole, arg) {
         chprintf(chp, "\r\n*** Trace suspended - type ^D or use the "
                       "'exit' command to resume trace ***\r\n");
         chDbgAssert(shelltp == NULL, "shell thread still assigned");
+
+        /* Set the channel for the shell to use. */
+        shell_cfg.sc_channel = chp;
         shellInit();
         shelltp = chThdCreateFromHeap(NULL,
                                       THD_WORKING_AREA_SIZE(3 * 1024),
