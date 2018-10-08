@@ -6,10 +6,11 @@ include "header.inc.php";
 lastrxtime = <?=time()-$range?>;
 range = <?=$range?>;
 call = '<?=$_GET['call']?>';
+filter = '<?=$_GET['filter']?>';
 
 function loadImages() {
-	updateData();
-	setInterval(updateData, 5000);
+	updateData(true);
+	setInterval(function(){updateData(true);}, 1000);
 }
 </script>
 <script type="text/javascript" src="script.js"></script>
@@ -21,7 +22,7 @@ include "sidebar.inc.php";
 include "topbar.inc.php";
 ?>
 
-<div id="images"></div>
+<div style="width:1330px;float:left;" id="raw"></div>
 
 </body>
 </html>

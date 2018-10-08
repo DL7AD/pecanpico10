@@ -12,6 +12,7 @@ var scroll = {axis: 'horizontal', keepInBounds: true, maxZoomIn: 20.0};
 var lastChartUpdate = 0;
 var last = null;
 var init = false;
+var lastraw = null;
 
 // Chart 1
 var batteryChart;
@@ -283,14 +284,23 @@ function time_ago(time) {
 		return Math.floor(time/3600) + "h" + Math.floor((time/60)%60) + "m ago";
 }
 
-function time_format(time) {
+function time_format(time, date) {
 	if(time == undefined)
-		return "never";
+		return "undefined";
 
-	if(time < 3600)
-		return Math.floor(time/60) + "m" + (time%60) + "s ago";
-	else
-		return Math.floor(time/3600) + "h" + Math.floor((time/60)%60) + "m ago";
+	var t = new Date(time);
+	var h = ('0' + t.getUTCHours()).slice(-2);
+	var m = ('0' + t.getUTCMinutes()).slice(-2);
+	var i = ('0' + t.getUTCSeconds()).slice(-2);
+
+	if(!date) {
+		return h + ':' + m + ':' + i;
+	} else {
+		var y = t.getUTCFullYear();
+		var m = ('0' + t.getUTCMonth()).slice(-2);
+		var d = ('0' + t.getUTCDay()).slice(-2);
+		return y + '-' + m + '-' + d + ' ' + h + ':' + m + ':' + i;
+	}
 }
 
 function get_alt(p) {
@@ -308,7 +318,7 @@ function get_alt(p) {
 	return p_height;
 }
 
-function updateData() {
+function updateData(withraw = false) {
 
 	if(!init && typeof google !== 'undefined') {
 		// Chart 1
@@ -387,14 +397,17 @@ function updateData() {
 		init = true;
 	}
 
-	$.getJSON("ajax/telemetry.php?call=" + call + "&from=" + lastrxtime, function(json) {
+	withraw = withraw ? '&withraw=1' : '';
+	$.getJSON("ajax/telemetry.php?call=" + call + "&from=" + lastrxtime + withraw, function(json) {
 
 		images = json['images'];
 		tel = json['telemetry'];
+		raw = json['raw'];
 
 		// Update telemetry
 		if(tel.length) {
-			lastrxtime = tel[tel.length-1].rxtime+1;
+			if(lastrxtime < tel[tel.length-1].rxtime+1)
+				lastrxtime = tel[tel.length-1].rxtime+1;
 
 			$.each(tel[tel.length-1], function(key, d) {
 				switch(key) {
@@ -694,7 +707,8 @@ function updateData() {
 
 		// Update images
 		if(images.length) {
-			lastrxtime = images[images.length-1].time_last+1;
+			if(lastrxtime < images[images.length-1].time_last+1)
+				lastrxtime = images[images.length-1].time_last+1;
 
 			$.each(images, function(key, data) {
 				// Remove old div
@@ -703,7 +717,7 @@ function updateData() {
 				// Process images
 				$('#images').prepend("<div class=\"pic\" id=\"img_" + data['id'] + "\">"
 				 + "<img src=\"images/" + data['call'].replace('-','') + "-" + data['id'] + ".jpg?packetID=" + data['packetID'] + "\"><br>"
-				 + "Last packet " + time_format(json['time']-data['time_last']) + ", " + number_format(data['count']) + " packets, "
+				 + "Last packet " + time_format(json['time']-data['time_last'], false) + ", " + number_format(data['count']) + " packets, "
 				 + number_format(data['packetID']-data['count']+1) + " lost" + "<br>ImageID " + number_format(data['imageID']) + ", ServerID "
 				 + number_format(data['id']) + "</div>");
 			});
@@ -711,6 +725,45 @@ function updateData() {
 			data = images[images.length-1];
 			$('#image').html("<a href=\"images.php?call=" + data['call'] + "\">"
 				+ "<img src=\"images/" + images[images.length-1]['call'].replace('-','') + "-" + images[images.length-1]['id'] + ".jpg?packetID=" + data['packetID'] + "\"></a>");
+		}
+
+		// Update raw
+		if(raw.length) {
+			if(lastrxtime < raw[raw.length-1].rxtime+1)
+				lastrxtime = raw[raw.length-1].rxtime+1;
+
+			$.each(raw, function(key, data) {
+				// Filter
+				if((filter != '' && data['meta'].type != filter) || !data['meta'].type)
+					return;
+
+				// Process raw packet
+				if(lastraw != null && data.rxtime-lastraw >= 20) {
+					$('#raw').prepend("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&darr;<br>");
+					$('#raw').prepend("Gap " + (data.rxtime-lastraw) + " seconds<br>");
+					$('#raw').prepend("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&uarr;<br>");
+				}
+
+				if(data['meta'] != null) {
+					var meta = "";
+					switch(data['meta'].type) {
+						case 'img':
+							meta += " <b>Image packet</b> ";
+							meta += data['meta'].error ? "Error: " + data['meta'].error + "<br>" : "<i>No error</i><br>";
+							meta += "<b>Meta:</b> imageID=" + data['meta'].imageID + " packetID=" + data['meta'].packetID + " serverID=" + data['meta'].serverID;
+							break;
+						case 'pos':
+							meta += " <b>Position packet</b><br>";
+							meta += "<b>Meta:</b> reset=" + data['meta'].reset + " id=" + data['meta'].id;
+							break;
+					}
+					$('#raw').prepend("<p class=\"bluish raw\"><b>" + time_format(data['rxtime']*1000, true) + "</b>" + meta + "<br style=\"margin-bottom:8px;\">" + data['data'].replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>");
+				} else {
+					$('#raw').prepend("<p class=\"bluish raw\"><b>" + time_format(data['rxtime']*1000, true) +  "</b> <i>no meta data from server</i><br>" + data['data'] + "</p>");
+				}
+
+				lastraw = data.rxtime;
+			});
 		}
 
 	});

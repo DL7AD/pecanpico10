@@ -28,6 +28,7 @@ google.charts.setOnLoadCallback(drawChart);
 
 <?php
 include "sidebar.inc.php";
+include "topbar.inc.php";
 ?>
 
 
@@ -163,22 +164,6 @@ include "sidebar.inc.php";
 			</table>
 		</div>
 	</telemetry>
-	<div class="range">
-		&nbsp;Range:
-		<a href="?call=<?=$_GET['call']?>&range=3600">1h</a>
-		<a href="?call=<?=$_GET['call']?>&range=10800">3h</a>
-		<a href="?call=<?=$_GET['call']?>&range=21600">6h</a>
-		<a href="?call=<?=$_GET['call']?>&range=43200">12h</a>
-		<a href="?call=<?=$_GET['call']?>&range=86400">24h</a>
-		<a href="?call=<?=$_GET['call']?>&range=172800">2d</a>
-		<a href="?call=<?=$_GET['call']?>&range=259200">3d</a>
-		<a href="?call=<?=$_GET['call']?>&range=432000">5d</a>
-		<a href="?call=<?=$_GET['call']?>&range=604800">7d</a>
-		<a href="?call=<?=$_GET['call']?>&range=1209600">14d</a>
-		<a href="?call=<?=$_GET['call']?>&range=1814400">21d</a>
-		<a href="?call=<?=$_GET['call']?>&range=2592000">30d</a>
-	</div>
-
 	<div class="inner chart">
 		<div class="subheader">Power</div>
 		<div id="batteryDiv"></div>

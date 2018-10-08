@@ -30,10 +30,11 @@
 			$amonthago = true;
 		}
 
-		echo "<div class=\"call\">
+		echo "<div class=\"bluish\">
 		<b><a href=\"telemetry.php?call=" . $tr->getCall() . "\">" . $tr->getCall() . "</a> ...
 		<a href=\"map.php?call=" . $tr->getCall() . "\">Map</a>
-		<a href=\"images.php?call=" . $tr->getCall() . "\">Images</a></b><br>
+		<a href=\"images.php?call=" . $tr->getCall() . "\">Images</a>
+		<a href=\"raw.php?call=" . $tr->getCall() . "\">Raw</a></b><br>
 		Last Activity: " . time_format($act) . "<br>";
 
 		if($act <= 3600) {
