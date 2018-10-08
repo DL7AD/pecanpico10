@@ -46,7 +46,7 @@ const si446x_mcucfg_t radio1_cfg = {
   .nirq	    = LINE_RADIO1_NIRQ,
   .sdn	    = LINE_RADIO1_SDN,
   .cs		= LINE_RADIO1_CS,
-  .spi	    = PKT_RADIO1_SPI,
+  .spi	    = &PKT_RADIO1_SPI,
   .init     = {
     .gpio       = {
      .gpio0 = 00,          /**< DONOTHING. */
@@ -76,7 +76,7 @@ const si446x_mcucfg_t radio1_cfg = {
                .line = &radio1_cfg.nirq,
                .mode = PAL_MODE_INPUT_PULLUP
     },
-    .icu     = PKT_RADIO1_ICU,
+    .icu     = &PKT_RADIO1_ICU,
     .cfg     = {
        ICU_INPUT_ACTIVE_HIGH,
        ICU_COUNT_FREQUENCY,      /**< ICU clock frequency. */

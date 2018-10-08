@@ -15,7 +15,6 @@
 */
 
 #include "hal.h"
-#include "config.h"
 
 /* Virtual serial ports over USB.*/
 SerialUSBDriver SDU1;

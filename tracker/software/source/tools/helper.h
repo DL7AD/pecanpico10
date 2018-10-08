@@ -9,7 +9,7 @@
 #ifndef SYS_HELPER_H_
 #define SYS_HELPER_H_
 
-#define ARRAYSZ(x)  (sizeof(x) / sizeof((x)[0]))
+#define ARRAYSZ(x)  (sizeof(x) / sizeof(x[0]))
 
 #define MAX(x,y) ( \
     { __auto_type __x = (x); __auto_type __y = (y); \

@@ -38,6 +38,9 @@ static uint8_t bme280_error;
  */
 static const char *state[] = {GPS_STATE_NAMES};
 
+/* Remembers power state. */
+static bool stay_on = false;
+
 /*===========================================================================*/
 /* Module external variables.                                                */
 /*===========================================================================*/
@@ -127,6 +130,7 @@ static void getPositionFallback(dataPoint_t* tp,
  * @notapi
  */
 static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
+                           bcn_app_conf_t *config,
                            sysinterval_t timeout) {
   systime_t start = chVTGetSystemTime();
 
@@ -138,14 +142,16 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   uint16_t batt = stm32_get_vbat();
   if(batt < conf_sram.gps_on_vbat) {
     getPositionFallback(tp, ltp, GPS_LOWBATT1);
-    /* In case GPS was already on power it off. */
+    /* In case GPS was already on then power it off. */
+    stay_on = false;
     GPS_Deinit();
     return false;
   }
 
-  /* Try to switch on GPS. */
+  /* Try to switch on GPS. If there is an error switch off. */
   if(!GPS_Init()) {
     getPositionFallback(tp, ltp, GPS_ERROR);
+    stay_on = false;
     GPS_Deinit();
     return false;
   }
@@ -180,17 +186,38 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
 
     TRACE_WARN("COLL > GPS acquisition stopped due low battery");
     getPositionFallback(tp, ltp, GPS_LOWBATT2);
+    stay_on = false;
     GPS_Deinit();
     return false;
-
   }
+
+  /*
+   * Remember conditions to keep power on.
+   * Keep GPS switched on if...
+   * - battery threshold met and not a run once request.
+   * - not a fixed beacon (just wants RTC to be set).
+   * This is an OR of the multiple users of the GPS.
+   */
+  stay_on |= !config->run_once
+      && (conf_sram.gps_onper_vbat != 0
+          && batt >= conf_sram.gps_onper_vbat)
+          && !config->beacon.fixed;
+
   if(!isGPSLocked(&gpsFix)) {
     /*
      * GPS was switched on but it failed to get a lock within timeout period.
-     * Keep GPS switched on.
+
      */
     TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
     getPositionFallback(tp, ltp, GPS_LOSS);
+
+    if(stay_on) {
+        TRACE_INFO("COLL > Keep GPS switched on. VBAT >= %dmV",
+                   conf_sram.gps_onper_vbat);
+      } else {
+        GPS_Deinit();
+        TRACE_INFO("COLL > Switching off GPS");
+      }
     return false;
   }
 
@@ -201,8 +228,7 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
    */
   TRACE_INFO("GPS  > Lock acquired. Model in use is %s",
              gps_get_model_name(gpsFix.model));
-  /* Enable power saving mode. */
-  gps_switch_power_save_mode(true);
+
   gps_svinfo_t svinfo;
   if(gps_get_sv_info(&svinfo, sizeof(svinfo))) {
     TRACE_INFO("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d",
@@ -220,13 +246,16 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
     TRACE_ERROR("GPS  > Error getting Space Vehicle info");
   }
 
+  /* Enable power saving mode. */
+  gps_switch_power_save_mode(true);
+
   /* Leave GPS on if cycle time is less than 60 seconds. */
   if(timeout < TIME_S2I(60)) {
-    TRACE_INFO("COLL > Keep GPS switched on because cycle < 60sec");
+    TRACE_INFO("COLL > Keep GPS switched on. Cycle < 60sec");
     tp->gps_state = GPS_LOCKED2;
-  } else if(conf_sram.gps_onper_vbat != 0
-      && batt >= conf_sram.gps_onper_vbat) {
-    TRACE_INFO("COLL > Keep GPS switched on because VBAT >= %dmV",
+    /* Leave GPS on if power conditions good. */
+  } else if(stay_on) {
+    TRACE_INFO("COLL > Keep GPS switched on. VBAT >= %dmV",
                conf_sram.gps_onper_vbat);
     tp->gps_state = GPS_LOCKED2;
   } else {
@@ -238,7 +267,7 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   // Debug
   TRACE_INFO("COLL > GPS sampling finished GPS LOCK");
 
-  // Read time from RTC
+  /* Set RTC if not already. */
   ptime_t time;
   getTime(&time);
   if(time.year == RTC_BASE_YEAR) {
@@ -546,14 +575,18 @@ THD_FUNCTION(collectorThread, arg) {
                  chTimeI2MS(gps_wait_time) / 1000,
                  chTimeI2MS(gps_wait_time) % 1000);
 
-      if(aquirePosition(tp, ltp, gps_wait_time)) {
+      if(aquirePosition(tp, ltp, config, gps_wait_time)) {
         /* Acquisition succeeded. */
         if(ltp->gps_state == GPS_TIME) {
           /* Write the time stamp where RTC was calibrated. */
           ltp->gps_sats = 0;
           ltp->gps_ttff = 0;
           ltp->gps_pdop = 0;
+          /* Use the new ID for the GPS_TIME entry. */
+          ltp->id = tp->id;
           flash_writeLogDataPoint(ltp);
+          /* Increment to next ID for new datapoint. */
+          tp->id++;
         }
         TRACE_INFO("COLL > RTC update acquired from GPS");
       } else {
@@ -590,7 +623,7 @@ THD_FUNCTION(collectorThread, arg) {
       TRACE_INFO("COLL > Acquire position using GPS for up to %d.%d seconds",
                                    chTimeI2MS(gps_wait_fix) / 1000,
                                    chTimeI2MS(gps_wait_fix) % 1000);
-      if(aquirePosition(tp, ltp, gps_wait_fix)) {
+      if(aquirePosition(tp, ltp, config, gps_wait_fix)) {
         if(ltp->gps_state == GPS_TIME) {
           /* Write the time stamp where RTC was calibrated. */
           ltp->gps_sats = 0;
@@ -625,7 +658,7 @@ THD_FUNCTION(collectorThread, arg) {
         TRACE_TAB, time.year, time.month, time.day, time.hour, time.minute, time.day,
         TRACE_TAB, tp->gps_lat/10000000, (tp->gps_lat > 0 ? 1:-1)*(tp->gps_lat/100)%100000, tp->gps_lon/10000000, (tp->gps_lon > 0 ? 1:-1)*(tp->gps_lon/100)%100000, tp->gps_alt,
         TRACE_TAB, tp->gps_sats, tp->gps_ttff,
-        TRACE_TAB, tp->adc_vbat/1000, (tp->adc_vbat%1000), tp->adc_vsol/1000, (tp->adc_vsol%1000), tp->pac_pbat,
+        TRACE_TAB, tp->adc_vbat/1000, (tp->adc_vbat%1000), tp->adc_vsol/1000, (tp->adc_vsol%1000), tp->pac_pbat / 10,
         TRACE_TAB, tp->sen_i1_press/10, tp->sen_i1_press%10, tp->sen_i1_temp/100, tp->sen_i1_temp%100, tp->sen_i1_hum/10, tp->sen_i1_hum%10,
         TRACE_TAB, tp->gpio & 1, (tp->gpio >> 1) & 1, (tp->gpio >> 2) & 1, (tp->gpio >> 3) & 1,
         TRACE_TAB, config->call

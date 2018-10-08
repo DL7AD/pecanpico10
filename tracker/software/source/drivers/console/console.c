@@ -14,14 +14,14 @@
   msg_t c;                                                                  \
   do {                                                                      \
     c = chnGetTimeout((BaseAsynchronousChannel *)chp, TIME_MS2I(100));      \
-  } while(c != STM_TIMEOUT && c != STM_RESET);
+  } while(c == STM_OK);
 
 /*===========================================================================*/
 /* Module data structures and arrays.                                        */
 /*===========================================================================*/
 
-static const ShellConfig shell_cfg = {
-	(BaseSequentialStream*)&SDU1,
+static ShellConfig shell_cfg = {
+	NULL,
 	commands
 };
 
@@ -290,13 +290,12 @@ THD_FUNCTION(pktConsole, arg) {
       switch(console_state) {
       /* The next two cases are entered by a channel connect happening. */
       case CON_CHN_WAIT:
-        /* Falls into. */
       case CON_CHN_CONNECT:
         /* Wait for any garbage input to subside. */
         chThdSleep(TIME_MS2I(1200));
        (void)chEvtGetAndClearEvents(CONSOLE_CHANNEL_EVT);
        (void)chEvtGetAndClearFlags(&con_el);
-       /* Falls into. */
+       /* FALLTHRU  */
       case CON_CHN_FLUSH: {
         /* Flush the input queue. */
         flushConsoleInputQueue(chp);
@@ -312,10 +311,13 @@ THD_FUNCTION(pktConsole, arg) {
         chprintf(chp, "\r\n*** Trace suspended - type ^D or use the "
                       "'exit' command to resume trace ***\r\n");
         chDbgAssert(shelltp == NULL, "shell thread still assigned");
+
+        /* Set the channel for the shell to use. */
+        shell_cfg.sc_channel = chp;
         shellInit();
         shelltp = chThdCreateFromHeap(NULL,
                                       THD_WORKING_AREA_SIZE(3 * 1024),
-                                      "shell", NORMALPRIO + 1,
+                                      "shell", LOWPRIO,
                                       shellThread,
                                       (void *)&shell_cfg);
         if(shelltp == NULL) {
@@ -392,7 +394,7 @@ msg_t pktStartConsole(BaseAsynchronousChannel *ser) {
   thread_t *con_thd = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(1 * 1024),
               "CON",
-              LOWPRIO + 10,
+              LOWPRIO,
               pktConsole,
               ser);
   if(con_thd == NULL)

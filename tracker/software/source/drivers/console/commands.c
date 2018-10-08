@@ -12,13 +12,15 @@
 #include "ublox.h"
 #include <string.h>
 #include <time.h>
+#include "ov5640.h"
 
-static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
+//static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
 
 const ShellCommand commands[] = {
     {"trace", usb_cmd_set_trace_level},
 	{"picture", usb_cmd_printPicture},
 	{"print_log", usb_cmd_printLog},
+    {"log", usb_cmd_printLog},
 	{"config", usb_cmd_printConfig},
 	{"msg", usb_cmd_send_aprs_message},
 
@@ -29,6 +31,7 @@ const ShellCommand commands[] = {
 #endif
     {"sats", usb_cmd_get_gps_sat_info},
     {"error_list", usb_cmd_get_error_list},
+    {"errors", usb_cmd_get_error_list},
     {"time", usb_cmd_time},
     {"radio", usb_cmd_radio},
 	{NULL, NULL}
@@ -124,48 +127,68 @@ void usb_cmd_set_trace_level(BaseSequentialStream *chp, int argc, char *argv[])
 
 void usb_cmd_printPicture(BaseSequentialStream *chp, int argc, char *argv[])
 {
-	(void)argc;
-	(void)argv;
+    (void)argc;
+    (void)argv;
+#define PKT_PICTURE_CMD_BUFFER_SIZE (16 * 1024)
 
+    uint8_t *buffer = chHeapAllocAligned(NULL, PKT_PICTURE_CMD_BUFFER_SIZE,
+                                         PDCMI_DMA_FIFO_BURST_ALIGN);
+    if(buffer == NULL) {
+      chprintf(chp, "DATA > image,jpeg,0\r\n");
+      chprintf(chp, "DATA > error,no capture memory\r\n");
+      return;
+    }
     /*
      * Take picture.
      * Status is returned in msg.
      * MSG_OK = capture success.
-     * MSG_RESET = no cmaera found
+     * MSG_RESET = no camera found
      * MSG_TIMEOUT = capture failed.
      */
-	uint32_t size_sampled;
-	msg_t msg = takePicture(usb_buffer, sizeof(usb_buffer), RES_QVGA,
-	                        &size_sampled, false);
+    size_t size_sampled;
+    msg_t msg = takePicture(buffer, PKT_PICTURE_CMD_BUFFER_SIZE, RES_QVGA,
+                            &size_sampled, false);
 
-	// Transmit image via USB
-	if(size_sampled && msg == MSG_OK)
-	{
-		bool start_detected = false;
-		for(uint32_t i=0; i<size_sampled; i++)
-		{
-			// Look for APP0 instead of SOI because SOI is lost sometimes, but we can add SOI easily later on
-			if(!start_detected && usb_buffer[i] == 0xFF && usb_buffer[i+1] == 0xE0) {
-				start_detected = true;
-				TRACE_INFO("DATA > image/jpeg,%d", size_sampled-i+2); // Flag the data on serial output
-				streamPut(chp, 0xFF);
-				streamPut(chp, 0xD8);
-			}
-			if(start_detected)
-				streamPut(chp, usb_buffer[i]);
-		}
-		if(!start_detected)
-		{
-			TRACE_INFO("DATA > image/jpeg,0");
-			TRACE_INFO("DATA > text/trace,no SOI flag found");
-		}
+    // Transmit image via USB
+    if(msg == MSG_OK)
+    {
+        bool start_detected = false;
+        for(size_t i = 0; i < size_sampled; i++)
+        {
+            // Look for APP0 instead of SOI because SOI is lost sometimes, but we can add SOI easily later on
+            if(!start_detected && buffer[i] == 0xFF && buffer[i+1] == 0xE0) {
+                start_detected = true;
+                chprintf(chp, "DATA > image/jpeg,%d\r\n", size_sampled-i+2); // Flag the data on serial output
+                streamPut(chp, 0xFF);
+                streamPut(chp, 0xD8);
+            }
+            if(start_detected)
+                streamPut(chp, buffer[i]);
+        }
+        if(!start_detected)
+        {
+            chprintf(chp, "DATA > image/jpeg,0\r\n");
+            chprintf(chp, "DATA > text/trace,no SOI flag found\r\n");
+            chHeapFree(buffer);
+            return;
+        }
+        chprintf(chp, "DATA > image,jpeg,0\r\n");
+        chprintf(chp, "DATA > end,image end\r\n");
+        chHeapFree(buffer);
+        return;
 
-	} else { // Camera error
-
-		TRACE_INFO("DATA > image,jpeg,0");
-		TRACE_INFO("DATA > error,no camera found");
-
-	}
+    } else if(msg == MSG_RESET) { // Camera error
+        chprintf(chp, "DATA > image,jpeg,0\r\n");
+        chprintf(chp, "DATA > error,no camera found\r\n");
+        chHeapFree(buffer);
+        return;
+    } else if(msg == MSG_TIMEOUT) {
+      /* MSG_TIMEOUT. */
+      chprintf(chp, "DATA > image,jpeg,0\r\n");
+      chprintf(chp, "DATA > error,capture failed\r\n");
+      chHeapFree(buffer);
+    }
+    return;
 }
 
 void usb_cmd_printLog(BaseSequentialStream *chp, int argc, char *argv[])
@@ -178,7 +201,7 @@ void usb_cmd_printLog(BaseSequentialStream *chp, int argc, char *argv[])
 		"lat,lon,"
 		"alt,sats,ttff,"
 		"adc_vbat,adc_vsol,"
-		"pac_vbat,pac_vsol,pac_pbat,pac_psol"
+		"pac_vbat,pac_vsol,pac_pbat,pac_psol,"
 		"press_i1,temp_i1,hum_i1,"
 		"press_e1,temp_e1,hum_e1,"
 		"press_e2,temp_e2,hum_e2,"
@@ -205,10 +228,10 @@ void usb_cmd_printLog(BaseSequentialStream *chp, int argc, char *argv[])
 						dp->gps_alt, dp->gps_sats, dp->gps_ttff,
 						dp->adc_vbat/1000, (dp->adc_vbat%1000), dp->adc_vsol/1000, (dp->adc_vsol%1000),
 						dp->adc_vbat/1000, (dp->adc_vbat%1000), dp->adc_vsol/1000, (dp->adc_vsol%1000), dp->pac_pbat, dp->pac_psol,
-						dp->sen_i1_press/10, dp->sen_i1_press%10, dp->sen_i1_temp/100, dp->sen_i1_temp%100, dp->sen_i1_hum/10, dp->sen_i1_hum%10,
-						dp->sen_e1_press/10, dp->sen_e1_press%10, dp->sen_e1_temp/100, dp->sen_e1_temp%100, dp->sen_e1_hum/10, dp->sen_e1_hum%10,
-						dp->sen_e2_press/10, dp->sen_e2_press%10, dp->sen_e2_temp/100, dp->sen_e2_temp%100, dp->sen_e2_hum/10, dp->sen_e2_hum%10,
-						dp->stm32_temp/100, dp->stm32_temp%100, dp->si446x_temp/100, dp->si446x_temp%100,
+						dp->sen_i1_press/10, dp->sen_i1_press%10, dp->sen_i1_temp/100, abs(dp->sen_i1_temp%100), dp->sen_i1_hum/10, dp->sen_i1_hum%10,
+						dp->sen_e1_press/10, dp->sen_e1_press%10, dp->sen_e1_temp/100, abs(dp->sen_e1_temp%100), dp->sen_e1_hum/10, dp->sen_e1_hum%10,
+						dp->sen_e2_press/10, dp->sen_e2_press%10, dp->sen_e2_temp/100, abs(dp->sen_e2_temp%100), dp->sen_e2_hum/10, dp->sen_e2_hum%10,
+						dp->stm32_temp/100, dp->stm32_temp%100, dp->si446x_temp/100, abs(dp->si446x_temp%100),
 						dp->light_intensity, dp->sys_error
 			);
 		}

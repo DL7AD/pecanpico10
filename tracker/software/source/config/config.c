@@ -15,8 +15,8 @@ const conf_t conf_flash_default = {
     .pos_pri = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 30),
-            .init_delay = TIME_S2I(0),
+            .cycle = TIME_S2I(60 * 10),
+            .init_delay = TIME_S2I(5),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
             .lat = -337331175, // Degrees (expressed in 1e-7 form)
             .lon = 1511143478, // Degrees (expressed in 1e-7 form)
@@ -38,15 +38,15 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = true,
-            .cycle = TIME_S2I(60 * 5), // Beacon interval
+            .active = false,
+            .cycle = TIME_S2I(10), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
         },
         .radio_conf = {
             .pwr = 0x1F,
-            .freq = 144800000,
-            .mod = MOD_2FSK_9k6,
+            .freq = 144850000,
+            .mod = MOD_AFSK,
             .cca = 0x4F
         },
         // App identity
@@ -59,8 +59,8 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = true,
-            .cycle = TIME_S2I(0),
+            .active = false,
+            .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(10)
         },
@@ -85,10 +85,10 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = true,
-            .cycle = TIME_S2I(60 * 3),
-            .init_delay = TIME_S2I(120),
-            .send_spacing = TIME_S2I(0)
+            .active = false,
+            .cycle = TIME_S2I(60 * 2),
+            .init_delay = TIME_S2I(10),
+            .send_spacing = TIME_S2I(5)
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -97,13 +97,13 @@ const conf_t conf_flash_default = {
             .cca = 0x5F
         },
         // App identity
-        .call = "VK2GJ-11",
+        .call = "VK2GJ-2",
         .path = "",
 
         // Image settings
         .res = RES_VGA,
         .quality = 4,
-        .buf_size = 60 * 1024,
+        .buf_size = 90 * 1024,
         .redundantTx = false,
         .no_burst = false
     },
@@ -134,8 +134,15 @@ const conf_t conf_flash_default = {
              .svc_conf = {
                  // The packet receive service is enabled if true
                  // Receive is paused and resumed by transmission
+                 // Receive can have a schedule set by cycle and on (interval) time
+                 // If there is no cycle time or interval then run continuously.
+                 // If there is a duration only then it is a run once setup.
+                 // The APRS schedule thread terminates and leaves the radio active.
+                 // If duration is TIME_INFINITE then the radio stays active while the thread waits forever.
                  .active = true,
-                 .init_delay = TIME_S2I(20)
+                 .init_delay = TIME_S2I(20),
+                 .cycle = TIME_S2I(60 * 10),
+                 .interval = TIME_S2I(60 * 9)
              },
             // Receive radio configuration
             .radio_conf = {
@@ -182,7 +189,7 @@ const conf_t conf_flash_default = {
 
     // APRS
     // How often to send telemetry config (global for beacons)
-    .tel_enc_cycle = TIME_S2I(3600),
+    .tel_enc_cycle = TIME_S2I(60 * 60),
 
     // The default APRS frequency when geofence is not resolved
     .freq = FREQ_APRS_AUSTRALIA,

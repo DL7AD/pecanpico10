@@ -1483,7 +1483,9 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
+  /* Request radio lock. */
   msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
+
   if(msg == MSG_RESET || msg == MSG_TIMEOUT) {
     TRACE_ERROR("SI   > AFSK TX reset or timeout from radio acquisition");
 
@@ -1512,12 +1514,9 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   Si446x_terminateReceive(radio);
 
   /*
-   * Set receive for CCA detection to AFSK.
-   * TODO: Implement a standard carrier detect setup.
+   * Set the radio for AFSK upsampled mode.
+   * Set receive for CCA detection.
    */
-  //Si446x_setModemCCAdetection(radio);
-
-  /* Set the radio for AFSK upsampled mode. */
   Si446x_setModemAFSK_TX(radio);
 
   /* Initialize variables for AFSK encoder. */
@@ -1635,14 +1634,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
          * Wait for a timeout event during up-sampled NRZI send.
          * Time delay allows ~SAMPLES_PER_BAUD bytes to be consumed from FIFO.
          * If no timeout event go back and load more data to FIFO.
+         * TODO: Use interrupt to trigger FIFO fill.
          */
-        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
-                                              chTimeUS2I(833 * 8));
+/*        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
+                                              chTimeUS2I(833 * 8));*/
+        eventmask_t evt = chEvtGetAndClearEvents(SI446X_EVT_TX_TIMEOUT);
         if(evt) {
           exit_msg = MSG_TIMEOUT;
           break;
         }
-      }
+        /* Let other threads run. */
+        chThdYield();
+      } /* End while(). */
     } else {
       /* Transmit start failed. */
       TRACE_ERROR("SI   > Transmit start failed");
@@ -1669,7 +1672,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
        *  Warn when free level is more than 50% of FIFO size.
        *  This means the FIFO is not being filled fast enough.
        */
-      TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
+      TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i of %i",
+                 lower, free);
     }
     /* Get the next linked packet to send. */
     packet_t np = pp->nextp;
@@ -1777,12 +1781,9 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   Si446x_terminateReceive(radio);
 
   /*
-   * Set receive for CCA detection to AFSK.
-   * TODO: Implement a standard carrier detect setup.
+   * Set the radio for 2FSK transmission.
+   * Set receive for CCA detection.
    */
-  //Si446x_setModemCCAdetection(radio);
-
-  /* Set parameters for 2FSK transmission. */
   Si446x_setModem2FSK_TX(radio, rto->tx_speed);
 
   /* Initialize variables for 2FSK encoder. */
@@ -1798,7 +1799,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
   /*
    * Use the specified CCA RSSI level.
-   * CCA will be set to blind send after first packet.
+   * This can be be blind send (PKT_SI446X_NO_CCA_RSSI).
+   * In burst mode CCA will be set to blind send after first packet.
    */
   radio_squelch_t rssi = rto->squelch;
 
@@ -1899,14 +1901,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
          * Wait for a timeout event during up-sampled NRZI send.
          * Time delay allows ~10 bytes to be consumed from FIFO.
          * If no timeout event go back and load more data to FIFO.
+         * TODO: Use interrupt to trigger FIFO fill.
          */
-        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
-                                              chTimeUS2I(104 * 8 * 10));
+/*        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
+                                              chTimeUS2I(104 * 8 * 10));*/
+        eventmask_t evt = chEvtGetAndClearEvents(SI446X_EVT_TX_TIMEOUT);
         if(evt) {
           exit_msg = MSG_TIMEOUT;
           break;
         }
-      }
+        /* Let other threads run. */
+        chThdYield();
+      } /* End while(). */
     } else {
       /* Transmit start failed. */
       TRACE_ERROR("SI   > 2FSK transmit start failed");
@@ -1930,7 +1936,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
     if(lower > (free / 2)) {
       /* Warn when free level is > 50% of FIFO size. */
-      TRACE_WARN("SI   > AFSK TX FIFO dropped below safe threshold %i", lower);
+      TRACE_WARN("SI   > 2FSK TX FIFO dropped below safe threshold %i of %i",
+                 lower, free);
     }
     /* Get the next linked packet to send. */
     packet_t np = pp->nextp;
@@ -1992,8 +1999,7 @@ bool Si446x_blocSend2FSK(radio_task_object_t *rt) {
 }
 
 /**
- * Used by collector. At the moment it collects for PKT_RADIO_1 only.
- * There should be an LLD API selecting the radio type via VMT etc.
+ * Used by collector to get radio temp data.
  */
 si446x_temp_t Si446x_getLastTemperature(const radio_unit_t radio) {
   return Si446x_getData(radio)->lastTemp;
@@ -2019,7 +2025,7 @@ ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
   /*
    * Return the ICU this radio is assigned to.
    * TODO: Check that the ICU is not already taken?
-   * This would only be made possible by a config error.
+   * This would only be made possible by a radio data config error.
    * Packet channel control enforces single use of decoder PWM for AFSK.
    */
   return Si446x_getConfig(radio)->rafsk.icu;

@@ -18,7 +18,7 @@
 #include "pktservice.h"
 
 static uint32_t lightIntensity;
-static uint8_t error;
+static pdcmi_error_t error;
 
 //bool    decode_pause;
 
@@ -710,10 +710,9 @@ static resolution_t last_res = RES_NONE;
   * that could lead to different resolutions on different method calls.
   * The method returns the size of the image.
   */
-uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
+size_t OV5640_Snapshot2RAM(uint8_t* buffer,
                              uint32_t size, resolution_t res) {
-	//uint8_t cntr = 1; // Retry is implemented next level up so only do this once.
-	uint32_t size_sampled;
+	size_t size_sampled;
 
 	// Set resolution (if not already done earlier)
 	if(res != last_res) {
@@ -727,16 +726,12 @@ uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
 	// Capture image until we get a good image or reach max retries.
     TRACE_INFO("CAM  > Capture image into buffer @ 0x%08x size 0x%08x",
                buffer, size);
-/*	do {*/
-		size_sampled = OV5640_Capture(buffer, size);
-		if(size_sampled > 0) {
-		  TRACE_INFO("CAM  > Captured %d bytes", size_sampled);
-		  return size_sampled;
-		}
-		/* Allow time for other threads. */
-		//chThdSleep(TIME_MS2I(10));
-/*	} while(--cntr);*/
-    TRACE_ERROR("CAM  > No image captured");
+    error = OV5640_Capture(buffer, size, &size_sampled);
+    if(error == PDCMI_NO_ERR) {
+      TRACE_INFO("CAM  > Captured %d bytes", size_sampled);
+      return size_sampled;
+    }
+    TRACE_ERROR("CAM  > Error %d in capture", error);
 	return 0;
 }
 
@@ -1041,7 +1036,8 @@ bool OV5640_GetPDCMILockStateI(void) {
 /**
  *
  */
-uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
+pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
+                             size_t *size_sampled) {
   /*
    * Buffer address must be word aligned.
    * Also note requirement for burst transfers from FIFO.
@@ -1050,9 +1046,10 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
    *
    */
 
+  *size_sampled = 0;
   if (((uint32_t)buffer % PDCMI_DMA_FIFO_BURST_ALIGN) != 0) {
     TRACE_ERROR("CAM  > Buffer not allocated on DMA burst boundary");
-    return 0;
+    return PDCMI_BURST_ALIGN_ERR;
   }
 
 #if PDCMI_USE_DMA_DBM == TRUE
@@ -1061,16 +1058,16 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
      */
     if((size / PDCMI_DMA_DBM_PAGE_SIZE) < 2) {
       TRACE_ERROR("CAM  > Capture buffer is less than 2 DMA DBM pages");
-      return 0;
+      return PDCMI_DMA_DBM_PAGE_ERR;
     }
     if(PDCMI_DMA_DBM_PAGE_SIZE % 4 != 0) {
       TRACE_ERROR("CAM  > DBM page size must be multiple of 4 bytes");
-      return 0;
+      return PDCMI_DMA_DBM_ALIGN_ERR;
     }
 #else
     if((size > 0xFFFF)) {
       TRACE_ERROR("CAM  > Capture buffer in non-DBM mode can not exceed 0xFFFF in size");
-      return 0;
+      return PDCMI_DMA_SBM_SIZE_ERR;
     }
 #endif
 
@@ -1081,11 +1078,11 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	 *   UDEFS = -DSTM32_DMA_REQUIRED
 	 */
 
-    /* WARNING: Do not use TRACE when resources are locked. */
+    /* Stop other processes gaining DCMI. */
 	if(OV5640_LockPDCMI() != MSG_OK) {
       TRACE_ERROR("CAM  > Capture failed to lock competing resources");
 	  /* Unable to lock resources. */
-	  return 0;
+	  return PDCMI_LOCK_ERR;
 	}
 
 	pdcmi_capture_t dma_control = {0};
@@ -1114,9 +1111,8 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	if(dmaStreamAllocate(dma_control.dmastp, PDCMI_DMA_IRQ_PRIO,
 	                  (stm32_dmaisr_t)dma_interrupt, &dma_control)) {
 	    OV5640_UnlockPDCMI();
-	    error = 0x9;
         TRACE_ERROR("CAM  > DMA could not allocate stream");
-	    return 0;
+        return PDCMI_DMA_STREAM_ERR;
 	}
 	/* Read data from GPIO port. */
 	dmaStreamSetPeripheral(dma_control.dmastp, &GPIOA->IDR);
@@ -1175,19 +1171,14 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 
     palSetLineCallback(dma_control.vsync_line, (palcallback_t)mode3_vsync_cb,
                                                      &dma_control);
+
+    /* Lock out I2C which will compete with our DMA. */
+    i2cAcquireBus(&PKT_CAM_I2C);
+
+    /* Start capture process. */
     palEnableLineEvent(dma_control.vsync_line, PAL_EVENT_MODE_BOTH_EDGES);
 
-    /*
-     * Setup capture mode triggered from TI1.
-     * The timer capture is irrelevant.
-     * We just want the DMA trigger.
-     */
-    //dma_control.timer->CCMR1 = TIM_CCMR1_CC1S_0;
-
-    /* Start the timer. */
-    //dma_control.timer->CCER = TIM_CCER_CC1E;
-
-	// Wait for capture to be finished
+	/* Wait for capture to be finished. */
 	uint8_t timeout = 50; // 500ms max
 	do {
 		chThdSleep(TIME_MS2I(10));
@@ -1203,69 +1194,73 @@ uint32_t OV5640_Capture(uint8_t* buffer, uint32_t size) {
 	pdcmi_state_t state = dma_control.pdcmi_state;
 	dma_control.pdcmi_state = PDCMI_NOT_ACTIVE;
 
+    /* Release I2C. */
+    i2cReleaseBus(&PKT_CAM_I2C);
+
+    /* Let other processes gain DCMI. */
     OV5640_UnlockPDCMI();
 
     switch(state) {
     case PDCMI_DMA_ERROR: {
       if(dma_control.dma_flags & STM32_DMA_ISR_FEIF) {
         TRACE_ERROR("CAM  > DMA FIFO error");
-        error = 0x3;
-        return 0;
+        return PDCMI_DMA_FIFO_ERR;
         }
 
         if(dma_control.dma_flags & STM32_DMA_ISR_TEIF) {
         TRACE_ERROR("CAM  > DMA stream transfer error");
-        error = 0x4;
-        return 0;
+        return PDCMI_DMA_STREAM_ERR;
         }
 
         if(dma_control.dma_flags & STM32_DMA_ISR_DMEIF) {
         TRACE_ERROR("CAM  > DMA direct mode error");
-        error = 0x5;
+        return PDCMI_DMA_DIRECT_MODE_ERR;
         }
-        return 0;
-    }
+      return PDCMI_DMA_INTERRUPT_ERR;
+      }
 
     case PDCMI_DMA_END_BUFFER: {
-      TRACE_ERROR("CAM  > DMA ran out of buffer space in DBM."
-                  " Image possibly useable");
-      error = 0x6;
-      return (dma_control.transfer_count);
-    }
+      TRACE_ERROR("CAM  > DMA ran out of buffer space in DBM at 0x%x of 0x%x",
+                  dma_control.transfer_count, size);
+      *size_sampled = 0;
+      return PDCMI_DMA_DBM_OVERFLOW_ERR;
+      }
 
     case PDCMI_CAPTURE_TIMEOUT: {
       TRACE_ERROR("CAM  > DMA image capture timeout");
-      error = 0x7;
-      return 0;
-    }
+      return PDCMI_DMA_TIMEOUT_ERR;
+      }
 
     case PDCMI_DMA_UNKNOWN_IRQ: {
       TRACE_ERROR("CAM  > DMA unknown interrupt. DMA I flags: %x",
                   dma_control.dma_flags);
-      error = 0x8;
-      return 0;
-    }
+      return PDCMI_DMA_INTERRUPT_ERR;
+      }
 
     case PDCMI_DMA_COUNT_END: {
       TRACE_WARN("CAM  > DMA count ended w/o VSYNC in SBM. DMA I flags: %x."
                         " Image possibly useable.",
                  dma_control.dma_flags);
-      error = 0x9;
-      return (dma_control.transfer_count);
-    }
+      *size_sampled = dma_control.transfer_count;
+      return PDCMI_DMA_SBM_OVERFLOW;
+
+      }
 
     case PDCMI_VSYNC_END: {
       TRACE_INFO("CAM  > Capture success");
-      error = 0x0;
-      return (dma_control.transfer_count);
-    }
+      *size_sampled = dma_control.transfer_count;
+      return PDCMI_NO_ERR;
+      }
 
-    default:
+    case PDCMI_WAIT_VSYNC:
+    case PDCMI_CAPTURE_ACTIVE:
+    case PDCMI_NOT_ACTIVE: {
       TRACE_INFO("CAM  > Invalid PDCMI state %d", state);
-      error = 0xA;
-      return 0;
+      return PDCMI_INVALID_STATE_ERR;
+      }
     } /* End switch on PDCMI state. */
-    return 0;
+    TRACE_INFO("CAM  > Invalid PDCMI state %d", state);
+    return PDCMI_UNKNOWN_STATE_ERR;
 } /* End OV5640_Capture(...) */
 
 /**
@@ -1292,96 +1287,102 @@ void OV5640_InitGPIO(void)
 	chThdSleep(TIME_MS2I(10));
 }
 
+/**
+ *
+ */
 void OV5640_TransmitConfig(void)
 {
 	TRACE_INFO("CAM  > ... Software reset");
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3103, 0x11);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3008, 0x82);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3103, 0x11);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3008, 0x82);
 	chThdSleep(TIME_MS2I(100));
 
 	TRACE_INFO("CAM  > ... Initialization");
 	for(uint32_t i=0; (OV5640YUV_Sensor_Dvp_Init[i].reg != 0xffff) || (OV5640YUV_Sensor_Dvp_Init[i].val != 0xff); i++)
-		I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640YUV_Sensor_Dvp_Init[i].reg, OV5640YUV_Sensor_Dvp_Init[i].val);
+		I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, OV5640YUV_Sensor_Dvp_Init[i].reg, OV5640YUV_Sensor_Dvp_Init[i].val);
 
 	chThdSleep(TIME_MS2I(500));
 
 	/* TODO: Implement a basic JPEG configuration dataset versus using QSXGA. */
 	TRACE_INFO("CAM  > ... Configure JPEG");
 	for(uint32_t i=0; (OV5640_JPEG_QSXGA[i].reg != 0xffff) || (OV5640_JPEG_QSXGA[i].val != 0xff); i++)
-		I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_JPEG_QSXGA[i].reg, OV5640_JPEG_QSXGA[i].val);
+		I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_JPEG_QSXGA[i].reg, OV5640_JPEG_QSXGA[i].val);
 
 	TRACE_INFO("CAM  > ... Light Mode: Auto");
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3406, 0x00);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3400, 0x04);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3401, 0x00);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3402, 0x04);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3403, 0x00);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3404, 0x04);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3405, 0x00);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // lanuch group 3
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5183, 0x0 );
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3406, 0x00);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3400, 0x04);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3401, 0x00);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3402, 0x04);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3403, 0x00);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3404, 0x04);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3405, 0x00);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // lanuch group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5183, 0x0 );
 
 	TRACE_INFO("CAM  > ... Saturation: 0");
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5381, 0x1c);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5382, 0x5a);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5383, 0x06);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5384, 0x1a);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5385, 0x66);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5386, 0x80);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5387, 0x82);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5388, 0x80);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5389, 0x02);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x538b, 0x98);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x538a, 0x01);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5381, 0x1c);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5382, 0x5a);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5383, 0x06);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5384, 0x1a);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5385, 0x66);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5386, 0x80);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5387, 0x82);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5388, 0x80);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5389, 0x02);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x538b, 0x98);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x538a, 0x01);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
 
 	TRACE_INFO("CAM  > ... Brightness: 0");
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5587, 0x00);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5588, 0x01);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5587, 0x00);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5588, 0x01);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
 
 	TRACE_INFO("CAM  > ... Contrast: 0");
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5586, 0x20);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x5585, 0x00);
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
-	I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x03); // start group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5586, 0x20);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x5585, 0x00);
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0x13); // end group 3
+	I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3212, 0xa3); // launch group 3
 }
 
+/**
+ *
+ */
 void OV5640_SetResolution(resolution_t res)
 {
 	TRACE_INFO("CAM  > ... Configure Resolution");
 	switch(res) {
 		case RES_QQVGA:
 			for(uint32_t i=0; (OV5640_QSXGA2QQVGA[i].reg != 0xffff) || (OV5640_QSXGA2QQVGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QQVGA[i].reg, OV5640_QSXGA2QQVGA[i].val);
+				I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QQVGA[i].reg, OV5640_QSXGA2QQVGA[i].val);
 			break;
 
 		case RES_QVGA:
 			for(uint32_t i=0; (OV5640_QSXGA2QVGA[i].reg != 0xffff) || (OV5640_QSXGA2QVGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
+				I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
 			break;
 
 		case RES_VGA:
 			for(uint32_t i=0; (OV5640_QSXGA2VGA[i].reg != 0xffff) || (OV5640_QSXGA2VGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2VGA[i].reg, OV5640_QSXGA2VGA[i].val);
+				I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2VGA[i].reg, OV5640_QSXGA2VGA[i].val);
 			break;
 
 		case RES_XGA:
 			for(uint32_t i=0; (OV5640_QSXGA2XGA[i].reg != 0xffff) || (OV5640_QSXGA2XGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2XGA[i].reg, OV5640_QSXGA2XGA[i].val);
+				I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2XGA[i].reg, OV5640_QSXGA2XGA[i].val);
 			break;
 
 		case RES_UXGA:
 			for(uint32_t i=0; (OV5640_QSXGA2UXGA[i].reg != 0xffff) || (OV5640_QSXGA2UXGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2UXGA[i].reg, OV5640_QSXGA2UXGA[i].val);
+				I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2UXGA[i].reg, OV5640_QSXGA2UXGA[i].val);
 			break;
 
 		case RES_NONE: // No configuration is made
@@ -1389,10 +1390,13 @@ void OV5640_SetResolution(resolution_t res)
 
 		default: // Default QVGA
 			for(uint32_t i=0; (OV5640_QSXGA2QVGA[i].reg != 0xffff) || (OV5640_QSXGA2QVGA[i].val != 0xff); i++)
-				I2C_write8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
+				I2C_write8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, OV5640_QSXGA2QVGA[i].reg, OV5640_QSXGA2QVGA[i].val);
 	}
 }
 
+/**
+ *
+ */
 void OV5640_powerup(void) {
   // Configure pins
     OV5640_InitGPIO();
@@ -1405,20 +1409,28 @@ void OV5640_powerup(void) {
     chThdSleep(TIME_MS2I(50));     // Spec is >= 20ms delay after reset high to SCCB ready
 }
 
-
+/**
+ *
+ */
 void OV5640_init(void)
 {
 	TRACE_INFO("CAM  > Init GPIO and power up");
 	OV5640_powerup();
+	/* Allow time for camera to settle. */
+	chThdSleep(TIME_MS2I(200));
+
+	/* Now measure light intensity. */
 	OV5640_setLightIntensity();
 
-	// Send settings to OV5640
+	/* Send settings to OV5640. */
 	TRACE_INFO("CAM  > Transmit config to camera");
 	OV5640_TransmitConfig();
 
 	chThdSleep(TIME_MS2I(200));
 }
-
+/**
+ *
+ */
 void OV5640_deinit(void)
 {
 	// Power off OV5640
@@ -1443,17 +1455,20 @@ void OV5640_deinit(void)
 	last_res = RES_NONE;
 }
 
+/**
+ *
+ */
 bool OV5640_isAvailable(void) {
 
   OV5640_powerup();
 
   uint8_t val, val2;
   bool ret;
-  if(I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x300A, &val)
-      && I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x300B, &val2)) {
+  if(I2C_read8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x300A, &val)
+      && I2C_read8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x300B, &val2)) {
       ret = val == 0x56 && val2 == 0x40;
   } else {
-      error = 0x1;
+      error = PDCMI_NO_CAM_ERR;
       ret = false;
   }
 
@@ -1463,22 +1478,31 @@ bool OV5640_isAvailable(void) {
   return ret;
 }
 
+/**
+ *
+ */
 void OV5640_setLightIntensity(void)
 {
 	uint8_t val1,val2,val3;
-	I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1B, &val1);
-	I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1C, &val2);
-	I2C_read8_16bitreg(PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1D, &val3);
+	I2C_read8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1B, &val1);
+	I2C_read8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1C, &val2);
+	I2C_read8_16bitreg(&PKT_CAM_I2C, OV5640_I2C_ADR, 0x3C1D, &val3);
 	lightIntensity = (val1 << 16) | (val2 << 8) | val3;
 }
 
+/**
+ *
+ */
 uint32_t OV5640_getLastLightIntensity(void)
 {
 	uint32_t ret = lightIntensity;
 	return ret;
 }
 
-uint8_t OV5640_hasError(void)
+/**
+ *
+ */
+pdcmi_error_t OV5640_hasError(void)
 {
 	return error;
 }

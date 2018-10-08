@@ -17,12 +17,13 @@
  * Serial port definitions
  */
 #define SERIAL_DEBUG_DRIVER		    SD3
-#define SERIAL_CONSOLE_DRIVER       SDU1
+#define SERIAL_CONSOLE_DRIVER       SDU2
+#define SERIAL_STREAM_DRIVER        SDU1
 
 /*
  * SPI definitions
  */
-#define SPI_BUS1_DRIVER             &SPID3
+#define SPI_BUS1_DRIVER             SPID3
 
 /*
  * Radio SPI definitions.
@@ -32,12 +33,13 @@
 /**
  * I2C definitions
  */
-#define I2C_BUS1_DRIVER             &I2CD1
+#define I2C_BUS1_DRIVER             I2CD1
 
 /**
- * UBLOX I2C definition
+ * UBLOX IO definition
  */
 #define PKT_GPS_I2C                 I2C_BUS1_DRIVER
+#define PKT_GPS_UART                SD5
 
 /**
  * OV5640 I2C definition
@@ -185,7 +187,7 @@
 /**
  *  ICU related definitions.
  */
-#define PKT_RADIO1_ICU              &ICUD4
+#define PKT_RADIO1_ICU              ICUD4
 
 #define PWM_ICU_CLK                 STM32_TIMCLK1
 
@@ -240,12 +242,13 @@
  */
 #define NUMBER_COMMON_PKT_BUFFERS       30U
 #define RESERVE_BUFFERS_FOR_INTERNAL    10U
+#if (NUMBER_COMMON_PKT_BUFFERS - RESERVE_BUFFERS_FOR_INTERNAL) < 2
+#error "Insufficient buffers available for send."
+#endif
 #define MAX_BUFFERS_FOR_BURST_SEND      5U
 #if (MAX_BUFFERS_FOR_BURST_SEND >                                            \
     (NUMBER_COMMON_PKT_BUFFERS - RESERVE_BUFFERS_FOR_INTERNAL))
-#warning "Can not allocate requested buffers for burst send - set to 50%"
-#undef MAX_BUFFERS_FOR_BURST_SEND
-#define MAX_BUFFERS_FOR_BURST_SEND   (NUMBER_COMMON_PKT_BUFFERS / 2)
+#error "Can not allocate requested buffers for burst send"
 #endif
 
 /*===========================================================================*/
