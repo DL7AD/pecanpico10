@@ -782,7 +782,7 @@ static resolution_t last_res = RES_NONE;
   * that could lead to different resolutions on different method calls.
   * The method returns the size of the image.
   */
-uint32_t OV5640_Snapshot2RAM(uint8_t* buffer,
+size_t OV5640_Snapshot2RAM(uint8_t* buffer,
                              uint32_t size, resolution_t res) {
 	size_t size_sampled;
 
@@ -1150,7 +1150,7 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
 	 *   UDEFS = -DSTM32_DMA_REQUIRED
 	 */
 
-    /* WARNING: Do not use TRACE when resources are locked. */
+    /* Stop other processes gaining DCMI. */
 	if(OV5640_LockPDCMI() != MSG_OK) {
       TRACE_ERROR("CAM  > Capture failed to lock competing resources");
 	  /* Unable to lock resources. */
@@ -1243,6 +1243,11 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
 
     palSetLineCallback(dma_control.vsync_line, (palcallback_t)mode3_vsync_cb,
                                                      &dma_control);
+
+    /* Lock out I2C which will compete with our DMA. */
+    i2cAcquireBus(&PKT_CAM_I2C);
+
+    /* Start capture process. */
     palEnableLineEvent(dma_control.vsync_line, PAL_EVENT_MODE_BOTH_EDGES);
 
 	/* Wait for capture to be finished. */
@@ -1261,6 +1266,10 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
 	pdcmi_state_t state = dma_control.pdcmi_state;
 	dma_control.pdcmi_state = PDCMI_NOT_ACTIVE;
 
+    /* Release I2C. */
+    i2cReleaseBus(&PKT_CAM_I2C);
+
+    /* Let other processes gain DCMI. */
     OV5640_UnlockPDCMI();
 
     switch(state) {
@@ -1283,11 +1292,10 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
       }
 
     case PDCMI_DMA_END_BUFFER: {
-      TRACE_ERROR("CAM  > DMA ran out of buffer space in DBM"
-                  " (image possibly useable).");
-      *size_sampled = dma_control.transfer_count;
+      TRACE_ERROR("CAM  > DMA ran out of buffer space in DBM at 0x%x of 0x%x",
+                  dma_control.transfer_count, size);
+      *size_sampled = 0;
       return PDCMI_DMA_DBM_OVERFLOW_ERR;
-
       }
 
     case PDCMI_CAPTURE_TIMEOUT: {
@@ -1576,7 +1584,7 @@ uint32_t OV5640_getLastLightIntensity(void)
 /**
  *
  */
-uint8_t OV5640_hasError(void)
+pdcmi_error_t OV5640_hasError(void)
 {
 	return error;
 }

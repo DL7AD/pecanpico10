@@ -17,7 +17,8 @@
  * Serial port definitions
  */
 #define SERIAL_DEBUG_DRIVER		    SD3
-#define SERIAL_CONSOLE_DRIVER       SDU1
+#define SERIAL_CONSOLE_DRIVER       SDU2
+#define SERIAL_STREAM_DRIVER        SDU1
 
 /*
  * SPI definitions

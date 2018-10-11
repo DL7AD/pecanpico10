@@ -1,14 +1,14 @@
 #!/usr/bin/python3
 
-import re,io,os
-import sys
+import re,io,os,sys,time
 import argparse
-import telnetlib
-import time
 import mysql.connector as mariadb
 import image
 import position
+import json
+from datetime import datetime,timezone
 from subprocess import *
+from terminal import Terminal
 
 # Parse arguments from terminal
 parser = argparse.ArgumentParser(description='APRS/SSDV decoder')
@@ -90,95 +90,147 @@ db.cursor().execute("""
 		PRIMARY KEY (`call`,`rxtime`)
 	)
 """)
+db.cursor().execute("""
+	CREATE TABLE IF NOT EXISTS `raw`
+	(
+		`call` VARCHAR(10),
+		`rxtime` INTEGER,
+		`data` VARCHAR(1024),
+		`meta` VARCHAR(1024)
+	)
+""")
+
+db.cursor().execute("""
+	CREATE TABLE IF NOT EXISTS `location`
+	(
+		`call` VARCHAR(10),
+		`rxtime` INTEGER,
+		`lat` FLOAT,
+		`lon` FLOAT,
+		`packets` INTEGER DEFAULT 1,
+		PRIMARY KEY (`call`)
+	)
+""")
 
 """ Packet handler for received APRS packets"""
 def received_data(data):
 
-	data = data.strip()
+	rawdata = data.strip()
+	term = Terminal(args.verbose)
 
-	# Parse line and detect data
-	callreg = "([A-Z]{2}[0-9][A-Z]{1,3}(?:-[0-9]{1,2})?)" # Callregex to filter bad igated packets
+	# Callregex to filter bad igated packets and packets which couldn't have been transmitted
+	# with the APRS protocol (because they don't fit in the APRS protocol)
+	callreg = "((?:[A-Z][A-Z0-9]?|[A-Z0-9][A-Z])[0-9][A-Z]{1,3}(?:-[0-9]{1,2})?)>"
 
-	all = re.search("^" + callreg + "\>APECAN(.*?):", data)
-	pos = re.search("^" + callreg + "\>APECAN(.*?):[\=|!](.{13})(.*?)\|(.*)\|", data)
-	dat = re.search("^" + callreg + "\>APECAN(.*?):\{\{(I|L)(.*)", data)
-	dir = re.search("^" + callreg + "\>APECAN(.*?)::(.{9}):Directs=(.*)", data)
+	# Callsign
+	re_call = re.search("^" + callreg, rawdata)
 
-	if pos or dat or dir:
-		# Debug
-		if args.verbose:
-			print('='*100)
-			print(data)
-			print('-'*100)
+	# APECAN packets
+	re_all = re.search("^" + callreg + "APECAN(.*?):", rawdata)
+	re_pos = re.search("^" + callreg + "APECAN(.*?):[!=](.{13})(.*?)\|(.*)\|", rawdata)
+	re_dat = re.search("^" + callreg + "APECAN(.*?):\{\{(I|L)(.*)", rawdata)
+	re_dir = re.search("^" + callreg + "APECAN(.*?)::(.{9}):Directs=(.*)", rawdata)
 
-		call = all.group(1).split(' ')[-1]
-		rxer = all.group(2).split(',')[-1]
-		if not len(rxer): rxer = args.call
+	# Regular position packets
+	re_loc_uncomp_no_time = re.search("^" + callreg + ".*?:[!=]([0-9]{4}.[0-9]{2})([SN]).([0-9]{5}.[0-9]{2})([WE]).*|", rawdata)
+	re_loc_uncomp_wi_time = re.search("^" + callreg + ".*?:[@\/][0-9]{6}[zh]([0-9]{4}.[0-9]{2})([SN]).([0-9]{5}.[0-9]{2})([WE]).*|", rawdata)
 
-		if pos: # Position packet (with comment and telementry)
+	# Log time
+	rxtime = int(datetime.now(timezone.utc).timestamp())
 
-			comm = pos.group(4)
-			position.insert_position(db, call, comm, 'pos')
+	if re_pos or re_dat or re_dir: # Is recognized APECAN packet
 
-		elif dat: # Data packet (Image or Logging)
+		call = re_all.group(1).split(' ')[-1]
 
-			typ  = dat.group(3)
-			data = dat.group(4)
+		meta = {}
 
-			if typ is 'I': # Image packet
-				image.insert_image(db, rxer, call, data)
-			elif typ is 'L': # Log packet
-				position.insert_position(db, call, data, 'log')
+		if re_all:
 
-		elif dir: # Directs packet
-			position.insert_directs(db, call, dir.group(4))
+			# Position packet (with comment and telementry)
+			if re_pos:
+
+				comm = re_pos.group(4)
+				meta = position.insert_position(db, call, comm, 'pos', rxtime)
+
+			# Data packet (Image or Logging)
+			elif re_dat:
+
+				typ  = re_dat.group(3)
+				data = re_dat.group(4)
+
+				if typ is 'I': # Image packet
+					meta = image.insert_image(db, call, data, rxtime)
+				elif typ is 'L': # Log packet
+					meta = position.insert_position(db, call, data, 'log', rxtime)
+
+			# Directs packet
+			elif re_dir:
+				meta = position.insert_directs(db, call, re_dir.group(4), rxtime)
+
+			term.packet_apecan(rxtime, rawdata, meta)
+
+		else:
+			term.packet_apecan(rxtime, rawdata, 'Unrecognized APECAN packet')
+
+		# Insert into raw database
+		db.cursor().execute("""
+			INSERT INTO `raw` (`call`,`rxtime`,`data`,`meta`)
+			VALUES (%s,%s,%s,%s)""",
+			(call, str(rxtime), rawdata, json.dumps(meta))
+		)
+
+	elif (re_loc_uncomp_no_time and re_loc_uncomp_no_time.group(0) != '') or (re_loc_uncomp_wi_time and re_loc_uncomp_wi_time.group(0) != ''):
+
+		re_un = re_loc_uncomp_no_time if re_loc_uncomp_no_time.group(0) != '' else re_loc_uncomp_wi_time
+
+		call = re_un.group(1)	
+		try:
+			lat = (1 if re_un.group(3) == 'N' else -1) * round(float(re_un.group(2)) / 100, 4)
+			lon = (1 if re_un.group(5) == 'E' else -1) * round(float(re_un.group(4)) / 100, 4)
+
+			# Debug
+			term.packet_ext_info(rxtime, rawdata, 'Position call=%s lat=%f lon=%f' % (call, lat, lon))
+
+			db.cursor().execute("""
+				INSERT INTO `location` (`call`,`rxtime`,`lat`,`lon`)
+				VALUES (%s,%s,%s,%s)
+				ON DUPLICATE KEY UPDATE
+				`rxtime`=%s, `lat`=%s, `lon`=%s, packets=packets+1""",
+				(call, str(rxtime), lat, lon, str(rxtime), lat, lon)
+			)
+
+		except ValueError:
+			term.packet_ext_error(rxtime, rawdata, 'Value error in packet')
+			print(rawdata)
+
+
+
+	else:
+
+		if re_call == None:
+			# Invalid callsign: Must comply with APRS e.g. DL7AD-C => Inalid SSID
+			term.packet_ext_error(rxtime, rawdata, 'Invalid APRS callsign: ' + rawdata.split('>')[0])
+		else:
+			term.packet_ext_error(rxtime, rawdata, 'Unknown format')
 
 if args.device == 'I': # Source APRS-IS
 
-	print('Connect to APRS-IS')
-	try:
-		tn = telnetlib.Telnet("euro.aprs2.net", 14580, 3)
-		tn.write(("user %s filter u/APECAN\n" % args.call).encode('ascii'))
-		print('Connected')
-	except Exception as e:
-		print('Could not connect to APRS-IS: %s' % str(e))
-		print('exit...')
-		sys.exit(1)
-
-	wdg = time.time() + 10 # Connection watchdog
+	from aprsis import AprsIS
+	conn = AprsIS()
+	last_db_commit = time.time()
 	while True:
-		# Read data
-		try:
-			buf = tn.read_until(b"\n").decode('charmap')
-		except EOFError: # Server has connection closed
-			wdg = 0 # Tell watchdog to reconnect
-		except UnicodeDecodeError:
-			pass
-
-		# Watchdog reconnection
-		if wdg < time.time():
-			print('APRS-IS connection lost... reconnect')
-			try:
-				tn = telnetlib.Telnet("euro.aprs2.net", 14580, 3)
-				tn.write(("user %s filter u/APECAN\n" % args.call).encode('ascii'))
-				print('Connected')
-				wdg = time.time() + 10
-			except Exception as e:
-				print('Could not connect to APRS-IS: %s' % str(e))
-				print('Try again...')
-
-		if '# aprsc' in buf: # Watchdog reload
-			print('Ping from APRS-IS')
-			wdg = time.time() + 30
-		else: # Data handling
-			received_data(buf)
-
-		time.sleep(0.01)
+		data = conn.getData()
+		if data is not None:
+			received_data(data)
+		if last_db_commit+1 < time.time():
+			db.commit()
+			last_db_commit = time.time()
 
 elif args.device is '-': # Source stdin
 
 	while True:
 		received_data(sys.stdin.readline())
+		db.commit()
 
 else: # Source Serial connection
 
@@ -203,4 +255,5 @@ else: # Source Serial connection
 			data += chr(b[0])
 
 		received_data(data)
+		db.commit()
 

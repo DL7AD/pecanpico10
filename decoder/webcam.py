@@ -30,9 +30,9 @@ with serial.Serial(port='/dev/ttyACM1') as ser:
 	i=0
 	while True:
 		line = ser.readline()
-		m = re.search("\[(.*)\]\[(.*)\] DATA \> image\/jpeg\,(.*)", line)
+		m = re.search("DATA \> image\/jpeg\,(.*)", line)
 		try:
-			size = m.group(3)
+			size = m.group(1)
 		except:
 			print line.strip()
 			continue

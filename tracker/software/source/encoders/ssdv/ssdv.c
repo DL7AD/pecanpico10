@@ -386,7 +386,7 @@ static char ssdv_outbits(ssdv_t *s, uint16_t bits, uint8_t length)
 		/* Insert stuffing byte if needed */
 		if(s->out_stuff && b == 0xFF)
 		{
-			s->outbits &= (1 << s->outlen) - 1;
+	        s->outbits <<= 8;
 			s->outlen += 8;
 		}
 	}
@@ -413,7 +413,7 @@ static char ssdv_out_jpeg_int(ssdv_t *s, uint8_t rle, int value)
 	
 	if(r != SSDV_OK) {
 	  TRACE_ERROR("SSDV > jpeg_dht_lookup_symbol: %i (%i:%i)", r, value, rle);
-	  return SSDV_ERROR;
+	  return(SSDV_ERROR);
 	}
 	
 	ssdv_outbits(s, huffbits, hufflen);
@@ -424,11 +424,10 @@ static char ssdv_out_jpeg_int(ssdv_t *s, uint8_t rle, int value)
 
 static char ssdv_process(ssdv_t *s)
 {
-  int r;
-  switch(s->state) {
-  case S_HUFF:
+	if(s->state == S_HUFF)
 	{
 		uint8_t symbol, width;
+		int r;
 		
 		if(s->mcupart == 0 && s->acpart == 0 && s->next_reset_mcu > s->reset_mcu)
 		{
@@ -450,18 +449,18 @@ static char ssdv_process(ssdv_t *s)
 				{
 					if(s->mode == S_ENCODING)
 					{
-						r = ssdv_out_jpeg_int(s, 0, s->adc[s->component]);
+						ssdv_out_jpeg_int(s, 0, s->adc[s->component]);
 					}
 					else
 					{
-						r = ssdv_out_jpeg_int(s, 0, 0 - s->dc[s->component]);
+						ssdv_out_jpeg_int(s, 0, 0 - s->dc[s->component]);
 						s->dc[s->component] = 0;
 					}
 				}
-				else r = ssdv_out_jpeg_int(s, 0, 0);
+				else ssdv_out_jpeg_int(s, 0, 0);
+				
 				/* skip to the next AC part immediately */
 				s->acpart++;
-                if(r != SSDV_OK) return(r);
 			}
 			else
 			{
@@ -476,13 +475,13 @@ static char ssdv_process(ssdv_t *s)
 			if(symbol == 0x00)
 			{
 				/* EOB -- all remaining AC parts are zero */
-				r = ssdv_out_jpeg_int(s, 0, 0);
+				ssdv_out_jpeg_int(s, 0, 0);
 				s->acpart = 64;
 			}
 			else if(symbol == 0xF0)
 			{
 				/* The next 16 AC parts are zero */
-				r = ssdv_out_jpeg_int(s, 15, 0);
+				ssdv_out_jpeg_int(s, 15, 0);
 				s->acpart += 16;
 			}
 			else
@@ -494,14 +493,12 @@ static char ssdv_process(ssdv_t *s)
 				s->needbits = symbol & 0x0F;
 			}
 		}
+		
 		/* Clear processed bits */
 		s->worklen -= width;
 		s->workbits &= (1 << s->worklen) - 1;
-        if(r != SSDV_OK) return(r);
-		break;
 	}
-
-  case S_INT:
+	else if(s->state == S_INT)
 	{
 		int i;
 		
@@ -520,22 +517,21 @@ static char ssdv_process(ssdv_t *s)
 					/* Output absolute DC value */
 					s->dc[s->component] += UADJ(i);
 					s->adc[s->component] = AADJ(s->dc[s->component]);
-					r = ssdv_out_jpeg_int(s, 0, s->adc[s->component]);
+					ssdv_out_jpeg_int(s, 0, s->adc[s->component]);
 				}
 				else
 				{
 					/* Output relative DC value */
-					r = ssdv_out_jpeg_int(s, 0, i - s->dc[s->component]);
+					ssdv_out_jpeg_int(s, 0, i - s->dc[s->component]);
 					s->dc[s->component] = i;
 				}
-				if(r != SSDV_OK) return(r);
 			}
 			else
 			{
 				if(s->mode == S_DECODING)
 				{
 					s->dc[s->component] += UADJ(i);
-					r = ssdv_out_jpeg_int(s, 0, i);
+					ssdv_out_jpeg_int(s, 0, i);
 				}
 				else
 				{
@@ -544,10 +540,9 @@ static char ssdv_process(ssdv_t *s)
 					
 					/* Calculate closest adjusted DC value */
 					i = AADJ(s->dc[s->component]);
-					r = ssdv_out_jpeg_int(s, 0, i - s->adc[s->component]);
+					ssdv_out_jpeg_int(s, 0, i - s->adc[s->component]);
 					s->adc[s->component] = i;
 				}
-				if(r != SSDV_OK) return(r);
 			}
 		}
 		else /* AC */
@@ -557,22 +552,19 @@ static char ssdv_process(ssdv_t *s)
 				s->accrle += s->acrle;
 				while(s->accrle >= 16)
 				{
-					r = ssdv_out_jpeg_int(s, 15, 0);
+					ssdv_out_jpeg_int(s, 15, 0);
 					s->accrle -= 16;
-					if(r != SSDV_OK) return(r);
 				}
-				r = ssdv_out_jpeg_int(s, s->accrle, i);
+				ssdv_out_jpeg_int(s, s->accrle, i);
 				s->accrle = 0;
-				if(r != SSDV_OK) return(r);
 			}
 			else
 			{
 				/* AC value got reduced to 0 in the DQT conversion */
 				if(s->acpart >= 63)
 				{
-					r = ssdv_out_jpeg_int(s, 0, 0);
+					ssdv_out_jpeg_int(s, 0, 0);
 					s->accrle = 0;
-					if(r != SSDV_OK) return(r);
 				}
 				else s->accrle += s->acrle + 1;
 			}
@@ -587,11 +579,8 @@ static char ssdv_process(ssdv_t *s)
 		/* Clear processed bits */
 		s->worklen -= s->needbits;
 		s->workbits &= (1 << s->worklen) - 1;
-		break;
 	}
-  default:
-    break;
-  } /* End switch on state. */
+	
 	if(s->acpart >= 64)
 	{
 		s->mcupart++;
@@ -602,10 +591,8 @@ static char ssdv_process(ssdv_t *s)
 			for(; s->mcupart < s->ycparts + 2; s->mcupart++)
 			{
 				s->component = s->mcupart - s->ycparts + 1;
-				s->acpart = 0; r = ssdv_out_jpeg_int(s, 0, 0); /* DC */
-				if(r != SSDV_OK) return(SSDV_ERROR);
-				s->acpart = 1; r = ssdv_out_jpeg_int(s, 0, 0); /* AC */
-				if(r != SSDV_OK) return(SSDV_ERROR);
+				s->acpart = 0; ssdv_out_jpeg_int(s, 0, 0); /* DC */
+				s->acpart = 1; ssdv_out_jpeg_int(s, 0, 0); /* AC */
 			}
 		}
 		
@@ -1116,6 +1103,7 @@ char ssdv_enc_get_packet(ssdv_t *s)
 				/* Have we reached the end of the image data? */
 				if(r == SSDV_EOI) s->state = S_EOI;
 				
+				/* Return SSDV_EOI or SSDV_BUFFER_FULL */
 				return(r);
 			}
 			else if(r != SSDV_FEED_ME)
@@ -1128,9 +1116,9 @@ char ssdv_enc_get_packet(ssdv_t *s)
 		
 		case S_EOI:
 			/* Shouldn't reach this point */
-			break;
-		}
-	}
+			return(SSDV_ERROR);
+		} /* End switch on state */
+	} /* End while in_len */
 	
 	/* Need more data */
 	return(SSDV_FEED_ME);
@@ -1145,14 +1133,19 @@ char ssdv_enc_feed(ssdv_t *s, const uint8_t *buffer, size_t length)
 
 /*****************************************************************************/
 
-static void ssdv_write_marker(ssdv_t *s, uint16_t id, uint16_t length, const uint8_t *data)
+static char ssdv_write_marker(ssdv_t *s, uint16_t id, uint16_t length, const uint8_t *data)
 {
-	ssdv_outbits(s, id, 16);
-	if(length > 0)
+	int r;
+	r = ssdv_outbits(s, id, 16);
+	if(length > 0 && r == SSDV_OK)
 	{
-		ssdv_outbits(s, length + 2, 16);
-		while(length--) ssdv_outbits(s, *(data++), 8);
+		if(ssdv_outbits(s, length + 2, 16) != SSDV_OK)
+		  return(SSDV_ERROR);
+		do {
+	        r = ssdv_outbits(s, *(data++), 8);
+		} while(--length && r == SSDV_OK);
 	}
+	return(length == 0 ? r : SSDV_ERROR);
 }
 
 static void ssdv_out_headers(ssdv_t *s)
@@ -1350,6 +1343,7 @@ char ssdv_dec_feed(ssdv_t *s, uint8_t *packet)
 		
 		/* Fill the gap left by the missing packet */
 		ssdv_fill_gap(s, s->packet_mcu_id);
+
 		
 		/* Skip the bytes of the lost MCU */
 		i = s->packet_mcu_offset;

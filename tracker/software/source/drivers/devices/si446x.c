@@ -1483,7 +1483,9 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
+  /* Request radio lock. */
   msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
+
   if(msg == MSG_RESET || msg == MSG_TIMEOUT) {
     TRACE_ERROR("SI   > AFSK TX reset or timeout from radio acquisition");
 
@@ -1512,12 +1514,9 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   Si446x_terminateReceive(radio);
 
   /*
-   * Set receive for CCA detection to AFSK.
-   * TODO: Implement a standard carrier detect setup.
+   * Set the radio for AFSK upsampled mode.
+   * Set receive for CCA detection.
    */
-  //Si446x_setModemCCAdetection(radio);
-
-  /* Set the radio for AFSK upsampled mode. */
   Si446x_setModemAFSK_TX(radio);
 
   /* Initialize variables for AFSK encoder. */
@@ -1637,13 +1636,16 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
          * If no timeout event go back and load more data to FIFO.
          * TODO: Use interrupt to trigger FIFO fill.
          */
-        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
-                                              chTimeUS2I(833 * 8));
+/*        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
+                                              chTimeUS2I(833 * 8));*/
+        eventmask_t evt = chEvtGetAndClearEvents(SI446X_EVT_TX_TIMEOUT);
         if(evt) {
           exit_msg = MSG_TIMEOUT;
           break;
         }
-      }
+        /* Let other threads run. */
+        chThdYield();
+      } /* End while(). */
     } else {
       /* Transmit start failed. */
       TRACE_ERROR("SI   > Transmit start failed");
@@ -1779,12 +1781,9 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   Si446x_terminateReceive(radio);
 
   /*
-   * Set receive for CCA detection to AFSK.
-   * TODO: Implement a standard carrier detect setup.
+   * Set the radio for 2FSK transmission.
+   * Set receive for CCA detection.
    */
-  //Si446x_setModemCCAdetection(radio);
-
-  /* Set parameters for 2FSK transmission. */
   Si446x_setModem2FSK_TX(radio, rto->tx_speed);
 
   /* Initialize variables for 2FSK encoder. */
@@ -1800,7 +1799,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
   /*
    * Use the specified CCA RSSI level.
-   * CCA will be set to blind send after first packet.
+   * This can be be blind send (PKT_SI446X_NO_CCA_RSSI).
+   * In burst mode CCA will be set to blind send after first packet.
    */
   radio_squelch_t rssi = rto->squelch;
 
@@ -1903,13 +1903,16 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
          * If no timeout event go back and load more data to FIFO.
          * TODO: Use interrupt to trigger FIFO fill.
          */
-        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
-                                              chTimeUS2I(104 * 8 * 10));
+/*        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
+                                              chTimeUS2I(104 * 8 * 10));*/
+        eventmask_t evt = chEvtGetAndClearEvents(SI446X_EVT_TX_TIMEOUT);
         if(evt) {
           exit_msg = MSG_TIMEOUT;
           break;
         }
-      }
+        /* Let other threads run. */
+        chThdYield();
+      } /* End while(). */
     } else {
       /* Transmit start failed. */
       TRACE_ERROR("SI   > 2FSK transmit start failed");

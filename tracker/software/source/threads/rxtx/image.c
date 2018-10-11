@@ -912,6 +912,7 @@ static bool resend_image_packet(const uint8_t *image,
         chSemSignal(&tx_complete);
         return false;
       }
+      /* Transmit complete releases the semaphore. */
       return true;
     } /* End case SSDV_BUFFER_FULL/SSDV_EOI. */
 
@@ -1000,7 +1001,6 @@ static bool send_image_packets(const uint8_t *image,
 
       case SSDV_EOI:
       case SSDV_BUFFER_FULL: {
-        //bi += sizeof(pkt);
         /*
          * Have a full SSDV buffer to encode and send or an EOI.
          * Sync byte, CRC and FEC of SSDV not transmitted.
@@ -1036,6 +1036,7 @@ static bool send_image_packets(const uint8_t *image,
         }
 
       default: {
+        /* TODO: Check c and handle case of SSDV_ERROR versus other states. */
         TRACE_ERROR("CAM  > Error in image (ssdv_enc_get_packet failed:"
                     " %d at %d of %d)",
                     c, (image_len - ssdv.in_len), image_len);
@@ -1096,7 +1097,7 @@ static bool send_image_packets(const uint8_t *image,
         && conf->redundantTx) {
       /* Wait for packet to be available. */
       if(chSemWait(&tx_complete) == MSG_RESET)
-                return false;
+        return false;
       packet_t packet = aprs_encode_data_packet(conf->call, conf->path,
                                                 'I', pkt_base91);
       if(packet == NULL) {
@@ -1152,12 +1153,14 @@ static msg_t analyze_image(const uint8_t *image, size_t image_len) {
 
   ssdv_t ssdv;
   uint8_t pkt[SSDV_PKT_SIZE];
-  //size_t b = 1;
   uint8_t c;
 
   ssdv_enc_init(&ssdv, SSDV_TYPE_NOFEC, "", 0, 7);
   ssdv_enc_set_buffer(&ssdv, pkt);
   ssdv_enc_feed(&ssdv, image, image_len);
+
+  systime_t sNow = chVTGetSystemTime();
+  systime_t sEnd = chTimeAddX(sNow, TIME_MS2I(4000));
 
   do {
 
@@ -1166,28 +1169,32 @@ static msg_t analyze_image(const uint8_t *image, size_t image_len) {
       TRACE_ERROR("CAM  > Error in image (premature end of file at %d)",
                   image_len);
       return MSG_TIMEOUT;
-      }
+    } /* End case. */
 
     case SSDV_BUFFER_FULL: {
-      chThdSleep(TIME_MS2I(5));
+      //chThdSleep(TIME_MS2I(5));
+      chThdYield();
       break;
-    }
+    } /* End case. */
 
     case SSDV_EOI: {
       return MSG_OK;
-      }
+    } /* End case. */
 
     case SSDV_OK: {
       continue;
-      }
+    } /* End case. */
 
     default: {
+      /* This catches SSDV_ERROR. */
       TRACE_ERROR("CAM  > Error in image (ssdv_enc_get_packet failed:"
                   " %d at %d of %d)", c, (image_len - ssdv.in_len), image_len);
       return MSG_TIMEOUT;
-      }
+      } /* End case. */
     } /* End switch. */
-  } while(true);/* End while. */
+  } while(chVTIsSystemTimeWithin(sNow, sEnd));/* End while. */
+  TRACE_ERROR("CAM  > Timeout analyzing image");
+  return MSG_TIMEOUT;
 }
 
 /**
@@ -1212,7 +1219,7 @@ uint32_t takePicture(uint8_t* buffer, size_t size,
 	    /* Camera responded and ID was correct. */
 		TRACE_INFO("IMG  > OV5640 found");
 #define PKT_IMAGE_CAPTURE_RETRIES 5
-        uint8_t cntr = PKT_IMAGE_CAPTURE_RETRIES;
+        int8_t cntr = PKT_IMAGE_CAPTURE_RETRIES;
 
 		do {
 			/* Switch on and init camera. */
@@ -1220,7 +1227,7 @@ uint32_t takePicture(uint8_t* buffer, size_t size,
               OV5640_init();
               camInitialized = true;
 	        }
-
+	        result = MSG_TIMEOUT;
 			/* Sample data from pseudo DCMI through DMA into RAM. */
 			*size_sampled = OV5640_Snapshot2RAM(buffer, size, res);
             if(*size_sampled == 0) {
@@ -1230,18 +1237,18 @@ uint32_t takePicture(uint8_t* buffer, size_t size,
               chThdSleep(TIME_MS2I(500));
               continue;
             }
-
+            result = MSG_OK;
 			/* Validate JPEG image. */
-			if(enableJpegValidation) {
-				TRACE_INFO("CAM  > Validate integrity of JPEG");
-				result = analyze_image(buffer, *size_sampled);
-				TRACE_INFO("CAM  > JPEG image %s at %d retries, size %d",
-				           (result == MSG_OK) ? "valid" : "invalid",
-				               (PKT_IMAGE_CAPTURE_RETRIES - cntr),
-				               *size_sampled);
-				if(result == MSG_OK) break;
-			}
-		} while(cntr--);
+			if(!enableJpegValidation)
+			  break;
+            TRACE_INFO("CAM  > Validate integrity of JPEG");
+            result = analyze_image(buffer, *size_sampled);
+            TRACE_INFO("CAM  > JPEG image %s at retry %d, size %d",
+                       (result == MSG_OK) ? "valid" : "invalid",
+                           (PKT_IMAGE_CAPTURE_RETRIES - cntr),
+                           *size_sampled);
+            if(result == MSG_OK) break;
+		} while(cntr-- > 0);
 
 	} else { // Camera not found
 		TRACE_ERROR("IMG  > No camera found");
@@ -1402,7 +1409,7 @@ THD_FUNCTION(imgThread, arg) {
 void start_image_thread(img_app_conf_t *conf, const char *name)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
-	                                   THD_WORKING_AREA_SIZE(8 * 1024),
+	                                   THD_WORKING_AREA_SIZE(9 * 1024),
 	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
       // Print startup error, do not start watchdog for this thread

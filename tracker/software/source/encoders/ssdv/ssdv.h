@@ -85,7 +85,7 @@ typedef struct
 	char out_stuff;    /* Flag to add stuffing bytes to output          */
 	
 	/* Output bits */
-	uint32_t outbits;  /* Output bit buffer                             */
+	uint64_t outbits;  /* Output bit buffer                             */
 	uint8_t outlen;    /* Number of bits in the output bit buffer       */
 	
 	/* JPEG decoder state */
@@ -128,6 +128,9 @@ typedef struct
 	uint8_t dtbls[TBL_LEN];
 	uint8_t *ddht[2][2], *ddqt[2];
 	uint16_t dtbl_len;
+
+	/* Preserved values between state machine iterations */
+	int badj_int;
 } ssdv_t;
 
 typedef struct {

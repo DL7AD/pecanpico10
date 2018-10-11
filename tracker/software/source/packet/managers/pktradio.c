@@ -363,13 +363,8 @@ THD_FUNCTION(pktRadioManager, arg) {
                 "resume after transmit", radio);
             break;
           }
-          /*
-           * TODO: Rationalise/rework the stream enable.
-           * Resume packet stream. */
+          /* Resume receive packet stream. */
           pktEnableRadioStream(radio);
-          //pktLLDradioAttachStream(radio);
-          //pktEnableRadioPWM(radio);
-          //pktLLDradioResumeDecoding(radio);
         } else {
           /* Enter standby state (low power). */
           TRACE_INFO("RAD  > Radio %d entering standby", radio);
@@ -390,8 +385,6 @@ THD_FUNCTION(pktRadioManager, arg) {
     /* Return radio task object to free list. */
     chFifoReturnObject(radio_queue, (radio_task_object_t *)task_object);
   } /* End while. */
-/*  chFactoryReleaseObjectsFIFO(handler->the_radio_fifo);
-  chThdExit(MSG_OK);*/
 }
 
 /**
@@ -720,6 +713,7 @@ msg_t pktLockRadio(const radio_unit_t radio, const radio_mode_t mode,
 #else
   if((msg = chBSemWaitTimeout(&handler->radio_sem, timeout)) == MSG_OK) {
     if((msg = OV5640_LockPDCMI()) != MSG_OK)
+      /* If PDCMI lock failed the release the radio lock. */
       chBSemSignal(&handler->radio_sem);
   }
 #endif

@@ -1,7 +1,6 @@
 import binascii
 import urllib.request
 import urllib.error
-from datetime import datetime
 from subprocess import *
 import time
 import threading
@@ -59,12 +58,12 @@ def imgproc():
 		time.sleep(1)
 
 w = time.time()
-def insert_image(db, receiver, call, data_b91):
+def insert_image(db, call, data_b91, rxtime):
 	global imageProcessor,imageData,w
 
 	data = base91.decode(data_b91)
-	if len(data) != 174:
-		return # APRS message has invalid type or length (or both)
+	if len(data) != 174: # APRS message has invalid type or length (or both)
+		return {'type': 'img', 'error': 'Invalid data: message too short'}
 
 	cur = db.cursor()
 
@@ -87,11 +86,18 @@ def insert_image(db, receiver, call, data_b91):
 	data  = ('68%08x%02x%04x' % (ssdv_encode_callsign(bcall), imageID, packetID)) + data
 	data += "%08x" % (binascii.crc32(binascii.unhexlify(data)) & 0xffffffff)
 
-	timd = int(datetime.now().timestamp())
-
 	# Find image ID (or generate new one)
 	_id = None
-	cur.execute("SELECT `id`,`packetID` FROM `image` WHERE `call` = %s AND `imageID` = %s AND `rxtime`+5*60 >= %s ORDER BY `rxtime` DESC LIMIT 1", (call, imageID, timd))
+	cur.execute("""
+		SELECT `id`,`packetID`
+		FROM `image`
+		WHERE `call` = %s
+		AND `imageID` = %s
+		AND `rxtime`+5*60 >= %s
+		ORDER BY `rxtime`
+		DESC LIMIT 1""",
+		(call, imageID, str(rxtime))
+	)
 	fetch = cur.fetchall()
 	if len(fetch):
 		_id = fetch[0][0]
@@ -113,7 +119,7 @@ def insert_image(db, receiver, call, data_b91):
 	cur.execute("""
 		INSERT IGNORE INTO `image` (`call`,`rxtime`,`imageID`,`packetID`,`data`,`id`)
 		VALUES (%s,%s,%s,%s,%s,%s)""",
-		(call, timd, imageID, packetID, data, _id)
+		(call, str(rxtime), imageID, packetID, data, _id)
 	)
 
 	if w+0.5 < time.time():
@@ -130,4 +136,6 @@ def insert_image(db, receiver, call, data_b91):
 	if imageProcessor is None:
 		imageProcessor = threading.Thread(target=imgproc)
 		imageProcessor.start()
+
+	return {'type': 'img', 'imageID': imageID, 'packetID': packetID, 'serverID': _id}
 

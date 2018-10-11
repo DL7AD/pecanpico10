@@ -90,7 +90,7 @@ extern binary_semaphore_t pdcmi_sem;
 #ifdef __cplusplus
 extern "C" {
 #endif
-uint32_t        OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size,
+size_t          OV5640_Snapshot2RAM(uint8_t* buffer, uint32_t size,
                                 resolution_t resolution);
 pdcmi_error_t   OV5640_Capture(uint8_t* buffer, uint32_t size,
                            size_t *size_sampled);
@@ -102,7 +102,7 @@ void            OV5640_deinit(void);
 bool            OV5640_isAvailable(void);
 void            OV5640_setLightIntensity(void);
 uint32_t        OV5640_getLastLightIntensity(void);
-uint8_t         OV5640_hasError(void);
+pdcmi_error_t   OV5640_hasError(void);
 msg_t           OV5640_LockPDCMI(void);
 void            OV5640_UnlockPDCMI(void);
 bool            OV5640_GetPDCMILockStateI(void);

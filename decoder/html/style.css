@@ -8,10 +8,13 @@ html, body {
 	margin: 3px;
 	border: solid 1px #666666;
 }
-.call {
+.bluish {
 	background-color: #ccdaec;
 	padding: 5px;
 	margin: 4px 0;
+}
+.raw {
+	overflow-wrap: break-word;
 }
 a {
 	text-decoration: none;
@@ -58,7 +61,9 @@ telemetry div img {
 }
 
 .wrapper {
-	display: flex;  
+	display: flex;
+	width: 1330px;
+	float: left;
 	flex-flow: row wrap;
 }
 .subheader {
@@ -69,16 +74,22 @@ telemetry div img {
 	background-color: #ccdaec;
 }
 
-.wrapper > * {
-	flex: 1 100%;
+.wrapper {
+	width: calc(100vw - 280px);
+	float: left;
 }
 
 telemetry {
 	width: 600px;
-	margin: 0;
 }
 
 .side {
+	padding: 3px;
+}
+
+.bigright {
+	width: calc(100vw - 302px);
+	float: left;
 	padding: 3px;
 }
 
