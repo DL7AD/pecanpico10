@@ -142,6 +142,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	r = ax25_get_first_not_repeated(pp);
 
 	if (r < AX25_REPEATER_1) {
+	    TRACE_INFO("DIGI > All stations have been repeated already");
 	  return (NULL);
 	}
 
@@ -180,6 +181,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
  */
 	ax25_get_addr_with_ssid(pp, AX25_SOURCE, source);
 	if (strcmp(source, mycall_rec) == 0) {
+      TRACE_INFO("DIGI > Don't repeat my own traffic");
 	  return (NULL);
 	}
 
@@ -202,7 +204,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	if (dedupe_check(pp, to_freq)) {
 	  char freq[50];
 	  pktDisplayFrequencyCode(to_freq, freq, sizeof(freq));
-	  TRACE_INFO("PKT  > Drop redundant packet for: %s", freq);
+	  TRACE_INFO("DIGI > Drop redundant packet for: %s", freq);
 	  return NULL;
 	}
 
@@ -272,7 +274,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	          }
 	          break;
 	      } /* End switch. */
-
+	      TRACE_INFO("DIGI > Digipeat traffic");
 	      return (result);
 	    }
  	  }

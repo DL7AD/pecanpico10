@@ -1280,7 +1280,7 @@ static void aprs_digipeat(packet_t pp) {
                                    preempt, NULL);
   if(result == NULL) {
     /* No packet buffer means don't digipeat. */
-    TRACE_INFO("PKT  > Packet will not be digipeated");
+    TRACE_DEBUG("PKT  > Packet will not be digipeated");
     return;
   }
   /*
