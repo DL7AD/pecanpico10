@@ -141,9 +141,9 @@ static struct {
 
 	unsigned short checksum;	/* Some sort of checksum for the */
 					/* source, destination, and information. */
-					/* is is not used anywhere else. */
+					/* it is not used anywhere else. */
 
-	short xmit_channel;		/* Radio channel number. */
+	radio_freq_t xmit_channel;		/* Radio channel number. */
 
 } history[HISTORY_MAX];
 
@@ -191,10 +191,10 @@ void dedupe_init (sysinterval_t ttl) {
  *		
  *------------------------------------------------------------------------------*/
 
-void dedupe_remember (packet_t pp, int chan) {
+void dedupe_remember (packet_t pp, radio_freq_t freq) {
 	history[insert_next].time_stamp = chVTGetSystemTime();
 	history[insert_next].checksum = ax25_dedupe_crc(pp);
-	history[insert_next].xmit_channel = chan;
+	history[insert_next].xmit_channel = freq;
 
 	insert_next++;
 	if (insert_next >= HISTORY_MAX) {
@@ -222,15 +222,14 @@ void dedupe_remember (packet_t pp, int chan) {
  *		
  *------------------------------------------------------------------------------*/
 
-int dedupe_check (packet_t pp, int chan) {
+int dedupe_check (packet_t pp, radio_freq_t freq) {
 	unsigned short crc = ax25_dedupe_crc(pp);
-	///sysinterval_t now = chVTGetSystemTime();
 	int j;
 
-	for (j=0; j<HISTORY_MAX; j++) {
-	  if (chVTTimeElapsedSinceX(history[j].time_stamp) > history_time &&
+	for (j = 0; j < HISTORY_MAX; j++) {
+	  if (chVTTimeElapsedSinceX(history[j].time_stamp) < history_time &&
 	      history[j].checksum == crc && 
-	      history[j].xmit_channel == chan) {
+	      history[j].xmit_channel == freq) {
 	    return 1;
 	  }
 	}

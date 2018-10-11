@@ -67,6 +67,7 @@
 #include "dedupe.h"
 #include "fcs_calc.h"
 #include "debug.h"
+#include "pktradio.h"
 
 
 
@@ -95,7 +96,7 @@
  *
  *		wide		- Compiled pattern for normal WIDEn-n digipeating.
  *
- *		to_chan		- Channel number that we are transmitting to.
+ *		freq		- Frequency that we are transmitting to.
  *				  This is needed to maintain a history for 
  *			 	  removing duplicates during specified time period.
  *
@@ -118,11 +119,11 @@
  *------------------------------------------------------------------------------*/
 				  
 
-packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec,
+packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
                          char *mycall_xmit, char *alias, char *wide,
-                         int to_chan, enum preempt_e preempt,
+                         radio_freq_t to_freq, enum preempt_e preempt,
                          char *filter_str) {
-	(void)from_chan;
+	(void)from_freq;
 	(void)filter_str;
 
 	char source[AX25_MAX_ADDR_LEN];
@@ -198,13 +199,10 @@ packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec,
  *
  */
 
-	if (dedupe_check(pp, to_chan)) {
-//#if DEBUG
-	  /* Might be useful if people are wondering why */
-	  /* some are not repeated.  Might also cause confusion. */
-
-	  TRACE_DEBUG("Digipeater: Drop redundant packet to channel %d.\n", to_chan);
-//#endif
+	if (dedupe_check(pp, to_freq)) {
+	  char freq[50];
+	  pktDisplayFrequencyCode(to_freq, freq, sizeof(freq));
+	  TRACE_INFO("PKT  > Drop redundant packet for: %s", freq);
 	  return NULL;
 	}
 
@@ -273,7 +271,7 @@ packet_t digipeat_match (int from_chan, packet_t pp, char *mycall_rec,
  		    r2--;
 	          }
 	          break;
-	      }
+	      } /* End switch. */
 
 	      return (result);
 	    }

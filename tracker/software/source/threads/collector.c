@@ -204,10 +204,7 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
           && !config->beacon.fixed;
 
   if(!isGPSLocked(&gpsFix)) {
-    /*
-     * GPS was switched on but it failed to get a lock within timeout period.
-
-     */
+    /* GPS was switched on but failed to lock within a timeout period. */
     TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
     getPositionFallback(tp, ltp, GPS_LOSS);
 

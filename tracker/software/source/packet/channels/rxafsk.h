@@ -32,15 +32,16 @@
 #define AFSK_SPACE_INDEX            1U
 #define AFSK_SPACE_FREQUENCY        2200U
 
-/* Thread working area size. */
-#define PKT_AFSK_DECODER_WA_SIZE    (1024 * 1)
 
 /* AFSK decoder type selection. */
 #define AFSK_NULL_DECODE            0
 #define AFSK_DSP_QCORR_DECODE       1
-#define AFSK_DSP_FCORR_DECODE       2 /* Currently unimplemented. */
+#define AFSK_DSP_FCORR_DECODE       2 /* Currently under test. */
 
-#define AFSK_DECODE_TYPE            AFSK_DSP_QCORR_DECODE
+#define AFSK_DECODE_TYPE            AFSK_DSP_FCORR_DECODE
+#if !defined(AFSK_DECODE_TYPE)
+#error "AFSK decoder not specified"
+#endif
 
 /* Debug output type selection. */
 #define AFSK_NO_DEBUG               0
@@ -58,7 +59,7 @@
 
 /* Error output type selection. */
 #define AFSK_NO_ERROR               0
-#define AFSK_QSQRT_ERROR            1
+#define AFSK_SQRT_ERROR             1
 
 #define AFSK_ERROR_TYPE             AFSK_NO_ERROR
 
@@ -76,6 +77,7 @@
 #endif
 
 #define USE_QCORR_MAG_LPF           TRUE
+#define USE_FCORR_MAG_LPF           TRUE
 
 #define MAG_FILTER_NUM_TAPS         15U
 #define MAG_FILTER_BLOCK_SIZE       1U
@@ -107,6 +109,38 @@
 /* Sample rate in Hz. */
 #define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
 #define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
+
+/* Thread working area size. */
+#define PKT_AFSK_DECODER_WA_SIZE    (1024 * 1)
+
+#endif
+
+#if AFSK_DECODE_TYPE == AFSK_DSP_FCORR_DECODE
+/* BPF followed by floating point IQ correlation decoder.
+ * Changing decimation changes the filter sample rate.
+ * Coefficients created dynamically are calculated at run-time.
+ * Coefficients for fixed arrays can be generated externally in Matlab/Octave.
+ *
+ * Pre-filter (BPF) coefficients.
+ * Fs=sample_rate, f1 = low_corner, f2 = high_corner, number of taps = N
+ * Matlab/Octave parameters:
+ * hc = fir1(N-1, [low_corner, high_corner]/(Fs/2), 'pass');
+ *
+ * Magnitude (LPF) coefficients.
+ * Fs=sample_rate, f1 = high_corner, number of taps = N
+ * Matlab/Octave parameters:
+ * hc = fir1(N-1, high_corner/(Fs/2), 'low');
+ *
+ */
+
+#define SYMBOL_DECIMATION           (12U)
+/* Sample rate in Hz. */
+#define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
+#define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
+
+/* Thread working area size. */
+#define PKT_AFSK_DECODER_WA_SIZE    (1024 * 1)
+
 #endif
 
 /* Named services. */

@@ -95,7 +95,8 @@ void create_qfir_filter(
 void reset_qfir_filter(qfir_filter_t *filter) {
   uint16_t pState_size = filter->filter_instance->numTaps
       + filter->block_size - 1;
-  memset(filter->filter_instance->pState, 0, pState_size * sizeof(q31_t));
+  arm_fill_q31(0, filter->filter_instance->pState, pState_size);
+  //memset(filter->filter_instance->pState, 0, pState_size * sizeof(q31_t));
 }
 
 /**
@@ -178,8 +179,8 @@ void create_qfir_embedded_filter(qfir_emb_filter_t *filter,
  * @param[in] filter        pointer to filter object.
  */
 void reset_qfir_embedded_filter(arm_fir_instance_q31 *instance) {
-  memset((uint8_t *)instance->pState, 0,
-      (PKT_QFIR_BLOCK_SIZE + instance->numTaps - 1) * sizeof(q31_t));
+  arm_fill_q31(0, instance->pState,
+               PKT_QFIR_BLOCK_SIZE + instance->numTaps - 1);
 }
 
 /**

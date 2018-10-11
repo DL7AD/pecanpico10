@@ -26,14 +26,7 @@
 #define QCORR_SAMPLE_LEVEL          0.9f
 #define QCORR_HYSTERESIS            0.01f
 
-#define QCORR_PHASE_SEARCH          1
-#define QCORR_PLL_COMB_SIZE         64
-
-#if (QCORR_PLL_COMB_SIZE & (QCORR_PLL_COMB_SIZE - 1)) != 0
-#error "QCORR_PLL_COMB_SIZE is not a power of two"
-#endif
-
-#define USE_QCORR_FRACTIONAL_PLL    TRUE
+/* Symbol PLL parameters. */
 #define QCORR_PLL_SEARCH_RATE       0.5f
 #define QCORR_PLL_LOCKED_RATE       0.75f
 
@@ -95,17 +88,8 @@ typedef struct qCorrFilter {
   q31_t             hysteresis;
   tone_t            prior_demod;
   tone_t            current_demod;
-#if  USE_QCORR_FRACTIONAL_PLL == TRUE
   int32_t           symbol_pll;
   int32_t           prior_pll;
-#else
-  dsp_phase_t       phase_delta;
-  dsp_phase_t       phase_correction;
-  dsp_phase_t       search_rate;
-  dsp_phase_t       pll_comb_filter[QCORR_PLL_COMB_SIZE];
-  dsp_phase_t       pll_locked_integrator;
-#endif
-
 } qcorr_decoder_t;
 
 /*===========================================================================*/

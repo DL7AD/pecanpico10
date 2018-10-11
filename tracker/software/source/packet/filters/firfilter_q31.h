@@ -72,7 +72,7 @@ typedef struct QFIREmbeddedFilter {
  * @notes   The instance, state and coefficient data are held in one structure.
  * @notes   Used for fully embedding a filter inside another object/struct.
  * @notes   Note the requirement for use of an anonymous struct in the macro.
- * @notes   This allows the macro to be re-used (else why make a macro...)
+ * @notes   This allows the macro to be re-used.
  *
  * @param[in]   taps    number of taps in the filter
  * @param[in]   name    name of the filter

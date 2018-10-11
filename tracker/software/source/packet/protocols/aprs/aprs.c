@@ -1263,7 +1263,7 @@ static bool aprs_decode_message(packet_t pp) {
 }
 
 /**
- * Transmit failure will release the packet memory.
+ * Digipeat if not a recent packet or our call is not in the list.
  */
 static void aprs_digipeat(packet_t pp) {
   if(!dedupe_initialized) {
@@ -1271,32 +1271,44 @@ static void aprs_digipeat(packet_t pp) {
     dedupe_initialized = true;
   }
 
-  if(!dedupe_check(pp, 0)) { // Last identical packet older than 10 seconds
-    packet_t result = digipeat_match(0, pp, conf_sram.aprs.rx.call,
-                                     conf_sram.aprs.tx.call, alias_re,
-                                     wide_re, 0, preempt, NULL);
-    if(result != NULL) {
-      /*
-       * Got a packet TX buffer.
-       * Remember the transmission.
-       * Frequency may be a code or absolute.
-       */
-      dedupe_remember(result, conf_sram.aprs.tx.radio_conf.freq);
-      /* If transmit fails the packet buffer is released. */
-      if(!transmitOnRadio(result,
-                      conf_sram.aprs.tx.radio_conf.freq,
-                      0,
-                      0,
-                      conf_sram.aprs.tx.radio_conf.pwr,
-                      conf_sram.aprs.tx.radio_conf.mod,
-                      conf_sram.aprs.tx.radio_conf.cca)) {
-        TRACE_ERROR("PKT  > Failed to digipeat packet");
-      } /* TX failed. */
-    } else {
-      /* No packet buffer means don't digipeat. */
-      TRACE_INFO("PKT  > Recent packet - will not be digipeated");
-    }
-  } /* Duplicate check. */
+  /* Check if the packet was already repeated recently. */
+  packet_t result = digipeat_match(conf_sram.aprs.rx.radio_conf.freq,
+                                   pp, conf_sram.aprs.rx.call,
+                                   conf_sram.aprs.tx.call, alias_re,
+                                   wide_re,
+                                   conf_sram.aprs.tx.radio_conf.freq,
+                                   preempt, NULL);
+  if(result == NULL) {
+    /* No packet buffer means don't digipeat. */
+    TRACE_INFO("PKT  > Packet will not be digipeated");
+    return;
+  }
+  /*
+   * Got a packet TX buffer.
+   * Remember the transmission.
+   * Frequency may be a code or absolute.
+   * TODO: Store absolute frequency.
+   * radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
+                                      radio_freq_t base_freq,
+                                      channel_hz_t step,
+                                      radio_ch_t chan,
+                                      const radio_mode_t mode) {
+   */
+
+  /* If transmit fails the packet buffer is released. */
+  if(!transmitOnRadio(result,
+                  conf_sram.aprs.tx.radio_conf.freq,
+                  0,
+                  0,
+                  conf_sram.aprs.tx.radio_conf.pwr,
+                  conf_sram.aprs.tx.radio_conf.mod,
+                  conf_sram.aprs.tx.radio_conf.cca)) {
+    /* TX failed. */
+    TRACE_ERROR("PKT  > Failed to digipeat packet");
+    return;
+  }
+  /* TX succeeded. Remember the frequency. */
+  dedupe_remember(result, conf_sram.aprs.tx.radio_conf.freq);
 }
 
 /**

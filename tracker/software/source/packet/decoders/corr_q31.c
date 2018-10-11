@@ -83,24 +83,8 @@ void reset_qcorr_all(AFSKDemodDriver *driver) {
   decoder->prior_demod = TONE_NONE;
   decoder->current_demod = TONE_NONE;
 
-#if  USE_QCORR_FRACTIONAL_PLL == TRUE
-  decoder->symbol_pll = 0/*(int32_t)-1*/;
-#else
-  decoder->search_rate = 0;
-  decoder->phase_correction = 0;
-  /*
-   * Reset phase drift analysis.
-   */
-  decoder->phase_delta = 0;
-  decoder->pll_locked_integrator = 0;
+  decoder->symbol_pll = 0;
 
-  /*
-   * Clear the comb filter.
-   */
-  for(i = QCORR_PLL_COMB_SIZE - 1; i > 0; i--) {
-    decoder->pll_comb_filter[i] = 0;
-  }
-#endif
 }
 
 /**
@@ -236,25 +220,17 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
 bool get_qcorr_symbol_timing(AFSKDemodDriver *myDriver) {
   qcorr_decoder_t *decoder = myDriver->tone_decoder;
 
-#if USE_QCORR_FRACTIONAL_PLL == TRUE
+  /* Update symbol PLL. */
   decoder->prior_pll = decoder->symbol_pll;
-  /* PLL increment is size of uint32_t / decimation rate. */
-#define PLL_INCREMENT (UINT_MAX / SYMBOL_DECIMATION)
+
+  /* PLL increment is max of uint32_t / decimation rate. */
+#define PLL_INCREMENT (UINT32_MAX / SYMBOL_DECIMATION)
   decoder->symbol_pll = (int32_t)((uint32_t)(decoder->symbol_pll) + PLL_INCREMENT);
   /*
    * Check if the symbol period was reached and return status.
    * The symbol period is reached when the PLL counter wraps around.
    */
   return ((decoder->symbol_pll < 0) && (decoder->prior_pll > 0));
-#else
-  /*
-   * Calculate current phase point in symbol.
-   */
-  uint8_t symbol_phase = (decoder->current_n + decoder->phase_correction)
-      % SYMBOL_DECIMATION/*myDriver->decimation_slices*/;
-
-  return (symbol_phase == 0);
-#endif
 }
 
 /**
@@ -262,7 +238,7 @@ bool get_qcorr_symbol_timing(AFSKDemodDriver *myDriver) {
  * @notes The rate of advance is determined by the HDLC frame state.
  * @notes If a frame start has not been detected a faster search rate is used.
  * @notes This aids in finding the HDLC sync point as soon as possible.
- * @notea After HDLC frame start has been found the PLL search rate is reduced.
+ * @notes After HDLC frame start has been found the PLL search rate is reduced.
  *
  * @param[in] myDriver    pointer to AFSKDemodDriver structure.
  *
@@ -277,7 +253,8 @@ void update_qcorr_pll(AFSKDemodDriver *myDriver) {
 
     /* Update tone state. */
     decoder->prior_demod = decoder->current_demod;
-#if USE_QCORR_FRACTIONAL_PLL == TRUE
+
+    /* Adjust symbol PLL. */
     if(myDriver->frame_state == FRAME_SEARCH) {
       decoder->symbol_pll = (int32_t)((float32_t)decoder->symbol_pll
           * QCORR_PLL_SEARCH_RATE);
@@ -286,112 +263,7 @@ void update_qcorr_pll(AFSKDemodDriver *myDriver) {
           * QCORR_PLL_LOCKED_RATE);
     }
   }
-#else
-
-    /*
-     * Calculate the phase delta from the center of the filter.
-     * A positive delta means the tone transition is late in the window.
-     * The phase correction will be increased when delta is added.
-     * A negative delta means the tone transition is early in the window.
-     * The phase correction will be decreased when delta is added.
-     *
-     * After CIC filtering the delta is applied to phase correction at symbol end.
-     */
-      decoder->phase_delta = (decoder->current_n % decoder->decode_length)
-          - SYMBOL_DECIMATION;
-
-  }
-  /* Filter current sample count has already been updated. */
-  ++decoder->current_n;
-#endif
 }
-
-#if USE_QCORR_FRACTIONAL_PLL != TRUE
-/*
- * Unused code relating to CIC based PLL management.
- * TODO: Deprecate or fix this to replace floating point accumulator PLL.
- */
-void placeholder_qcorr_pll(AFSKDemodDriver *myDriver) {
-  qcorr_decoder_t *decoder = myDriver->tone_decoder;
-  /*
-   * Calculate current phase point in symbol.
-   */
-  uint8_t symbol_phase = (decoder->current_n + decoder->phase_correction)
-      % SYMBOL_DECIMATION/*myDriver->decimation_slices*/;
-  /*
-   * If a symbol end has been reached then process.
-   */
-  if(symbol_phase == 0) {
-    /*
-     * A moving average filter is used to calculate phase delta.
-     *
-     * The MA filter is implemented as a CIC running sum filter.
-     * Values taken from the accumulator must be scaled by the filter size (taps).
-     * This normalizes the gain inherent in the accumulator.
-     *
-     * Get the phase delta from N symbol periods ago.
-     * Apply comb filter: Yn = Zn - Z(n - N).
-     *
-     * Note phase delta is captured at tone transition.
-     * In the case there is no transition in the symbol period a zero is added.
-     */
-    dsp_phase_t history_comb_out = decoder->phase_delta -
-        decoder->pll_comb_filter[QCORR_PLL_COMB_SIZE - 1];
-
-    /*
-     * Compute new integrator value Z.
-     * Z is a sum of phase errors * comb size.
-     * Update Z0 and Z-1 saved values.
-     */
-    decoder->pll_locked_integrator += history_comb_out;
-
-    /*
-     * Push the comb filter history down.
-     */
-    uint8_t i;
-    for(i = QCORR_PLL_COMB_SIZE - 1; i > 0; i--) {
-      decoder->pll_comb_filter[i] = decoder->pll_comb_filter[i - 1];
-    }
-
-    /*
-     * Add the most recent symbol phase delta to the comb filter.
-     * There may be no tone transition prior to next symbol end.
-     * So clear the phase error after using the current value.
-     * Thus a zero will be fed to the comb filter at next symbol time.
-     */
-    decoder->pll_comb_filter[0] = decoder->phase_delta;
-    decoder->phase_delta = 0;
-
-    if(myDriver->frame_state == FRAME_SEARCH) {
-      /*
-       * Adjust sample search offset timing within symbol.
-       * TODO: Is this really helping versus using si radio clock re-timing?
-       */
-/*      ++decoder->search_rate;
-      if((decoder->search_rate > 32) && (decoder->search_rate % 8 == 0)) {
-          decoder->phase_correction =
-          (decoder->phase_correction + QCORR_PHASE_SEARCH)
-          % SYMBOL_DECIMATION;
-      }*/
-    }
-    //return true;
-    return;
-  }
-  if(symbol_phase == (SYMBOL_DECIMATION / 2)) {
-    /*
-     * Update the phase correction at the center of the symbol time.
-     * This ensures that a symbol end is not re-detected or missed.
-     */
-
-    if(myDriver->frame_state == FRAME_OPEN) {
-      /* The CIC value has to scaled by the number of taps in the filter. */
-      //decoder->phase_correction +=
-          //(decoder->pll_locked_integrator / QCORR_PLL_COMB_SIZE);
-    }
-  }
-  return;
-}
-#endif /* #if USE_QCORR_FRACTIONAL_PLL == TRUE */
 
 /**
  * @brief Calculate magnitudes.
@@ -439,7 +311,7 @@ void calc_qcorr_magnitude(AFSKDemodDriver *myDriver) {
         /* Update raw bin magnitude. */
         decoder->filter_bins[i].raw_mag = mag;
       } else { /* arm_sqrt_q31 failed. */
-  #if AFSK_ERROR_TYPE == AFSK_QSQRT_ERROR
+  #if AFSK_ERROR_TYPE == AFSK_SQRT_ERROR
         char buf[200];
         int out = chsnprintf(buf, sizeof(buf),
           "MAG SQRT failed bin %i, cosQ %X, sinQ %X, cos %X, sin %X,"

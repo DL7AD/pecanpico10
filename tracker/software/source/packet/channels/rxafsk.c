@@ -64,19 +64,15 @@ static bool pktCheckAFSKSymbolTime(AFSKDemodDriver *myDriver) {
 
   switch(AFSK_DECODE_TYPE) {
     case AFSK_DSP_QCORR_DECODE: {
-
-      /*
-       * Check if symbol decode should be run now.
-       */
       return (get_qcorr_symbol_timing(myDriver));
     }
 
     case AFSK_DSP_FCORR_DECODE: {
-      break;
+      return (get_fcorr_symbol_timing(myDriver));
     }
 
     default: {
-      break;
+      chDbgAssert(myDriver != NULL, "Invalid AFSK decoder specified");
     }
   } /* end switch. */
   return false;
@@ -96,21 +92,17 @@ static void pktUpdateAFSKSymbolPLL(AFSKDemodDriver *myDriver) {
 
   switch(AFSK_DECODE_TYPE) {
     case AFSK_DSP_QCORR_DECODE: {
-
-      /*
-       *
-       */
-
       update_qcorr_pll(myDriver);
       break;
     }
 
     case AFSK_DSP_FCORR_DECODE: {
-
+      update_fcorr_pll(myDriver);
+      break;
     }
 
     default: {
-      break;
+      chDbgAssert(myDriver != NULL, "Invalid AFSK decoder specified");
     }
   } /* end switch. */
   return;
@@ -133,12 +125,12 @@ static void pktAddAFSKFilterSample(AFSKDemodDriver *myDriver, bit_t binary) {
     }
 
     case AFSK_DSP_FCORR_DECODE: {
-      //(void)push_fcorr_sample(myDriver, binary);
+      (void)push_fcorr_sample(myDriver, binary);
       break;
     }
 
     default: {
-      break;
+      chDbgAssert(myDriver != NULL, "Invalid AFSK decoder specified");
     }
   } /* End switch. */
 }
@@ -173,11 +165,11 @@ static bool pktProcessAFSKFilteredSample(AFSKDemodDriver *myDriver) {
     }
 
     case AFSK_DSP_FCORR_DECODE: {
-
+      return process_fcorr_output(myDriver);
     }
 
     default: {
-      break;
+      chDbgAssert(myDriver != NULL, "Invalid AFSK decoder specified");
     }
   } /* end switch. */
   return false;
@@ -212,17 +204,14 @@ static bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver) {
 
     case AFSK_DSP_FCORR_DECODE: {
       /* Tone analysis is done per sample in FCORR. */
+      fcorr_decoder_t *decoder = myDriver->tone_decoder;
+      myDriver->tone_freq = decoder->current_demod;
       break;
     } /* End case AFSK_DSP_FCORR_DECODE. */
 
-    case AFSK_NULL_DECODE: {
-      /*
-       * Do nothing (used when in debug capture mode).
-       */
-      return true;
-    } /* End case AFSK_NULL_DECODE. */
+    default:
+      chDbgAssert(myDriver != NULL, "Invalid AFSK decoder specified");
   } /* End switch. */
-
   /* After tone detection generate an HDLC bit. */
   return pktExtractHDLCfromAFSK(myDriver);
 } /* End function. */
@@ -307,15 +296,12 @@ static void pktResetAFSKDecoder(AFSKDemodDriver *myDriver) {
 
     case AFSK_DSP_FCORR_DECODE: {
       /* TODO: Reset FCORR. */
+      (void)reset_fcorr_all(myDriver);
       break;
     }
 
-    case AFSK_NULL_DECODE: {
-      /*
-       * Do nothing (used when in debug capture mode).
-       */
-      break;
-    } /* End case AFSK_NULL_DECODE. */
+    default:
+    chDbgAssert(myDriver != NULL, "Invalid AFSK decoder specified");
   } /* End switch. */
 }
 
@@ -486,9 +472,18 @@ void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver) {
   chHeapFree(myDriver->pwm_queue_heap);
   myDriver->pwm_queue_heap = NULL;
 #endif
-#if AFSK_DECODE_TYPE == AFSK_DSP_QCORR_DECODE
-  release_qcorr_decoder(myDriver);
-#endif
+  switch(AFSK_DECODE_TYPE) {
+  case AFSK_DSP_QCORR_DECODE:
+    release_qcorr_decoder(myDriver);
+    break;
+
+  case AFSK_DSP_FCORR_DECODE:
+    release_fcorr_decoder(myDriver);
+    break;
+
+  default:
+    chDbgAssert(myDriver != NULL, "Invalid AFSK decoder specified");
+  } /* End switch. */
 }
 
 #if USE_HEAP_PWM_BUFFER == TRUE
@@ -562,9 +557,18 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                                 / (pwm_accum_t)AFSK_BAUD_RATE)
                                 / (pwm_accum_t)SYMBOL_DECIMATION;
 
-#if AFSK_DECODE_TYPE == AFSK_DSP_QCORR_DECODE
-  init_qcorr_decoder(myDriver);
-#endif
+  switch(AFSK_DECODE_TYPE) {
+  case AFSK_DSP_QCORR_DECODE:
+    init_qcorr_decoder(myDriver);
+    break;
+
+  case AFSK_DSP_FCORR_DECODE:
+    init_fcorr_decoder(myDriver);
+    break;
+
+  default:
+    chDbgAssert(myDriver != NULL, "Invalid AFSK decoder specified");
+  }
 
   /* Save the priority that calling thread gave us. */
   tprio_t decoder_idle_priority = chThdGetPriorityX();
@@ -693,8 +697,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
         /* Increase thread priority. */
         (void)chThdSetPriority(DECODER_RUN_PRIORITY);
-        /* Turn on the decoder LED. */
-        //pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
+
         /* Enable processing of incoming PWM stream. */
         myDriver->decoder_state = DECODER_ACTIVE;
         break;

@@ -917,6 +917,7 @@ static bool resend_image_packet(const uint8_t *image,
     } /* End case SSDV_BUFFER_FULL/SSDV_EOI. */
 
     case SSDV_OK: {
+      chThdYield();
       break;
     }
 
@@ -1172,8 +1173,8 @@ static msg_t analyze_image(const uint8_t *image, size_t image_len) {
     } /* End case. */
 
     case SSDV_BUFFER_FULL: {
-      //chThdSleep(TIME_MS2I(5));
-      chThdYield();
+      /* Allow some time for lower priority threads. */
+      chThdSleep(TIME_MS2I(5));
       break;
     } /* End case. */
 
@@ -1182,6 +1183,7 @@ static msg_t analyze_image(const uint8_t *image, size_t image_len) {
     } /* End case. */
 
     case SSDV_OK: {
+      chThdYield();
       continue;
     } /* End case. */
 
@@ -1373,7 +1375,10 @@ THD_FUNCTION(imgThread, arg) {
                      (my_image_id) % 0xFFFF);
 
           writeBufferToFile(filename, &buffer[soi], size_sampled - soi);
-        } /* End initSD() */
+        } else {
+          /* End initSD() */
+          TRACE_WARN("IMG  > SD card not present");
+        }
 
         /* Transmit on radio. */
         if(IS_FAST_2FSK(conf->radio_conf.mod) && conf->redundantTx) {

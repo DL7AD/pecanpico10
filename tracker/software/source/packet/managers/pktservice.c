@@ -745,8 +745,6 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer) {
     /* Schedule a callback. */
     thread_t *cb_thd = pktCreateReceiveCallback(pkt_buffer);
 
-    //chDbgAssert(cb_thd != NULL, "failed to create callback thread");
-
     if(cb_thd == NULL) {
       /* Failed to create CB thread. Release buffer. Broadcast event. */
       chFifoReturnObject(pkt_fifo, pkt_buffer);

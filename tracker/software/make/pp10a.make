@@ -94,6 +94,11 @@ BUILDDIR := ${CURDIR}/build/$(PROJECT)
 DEPDIR := ${CURDIR}/.dep/$(PROJECT)
 CMSISINC = ${CURDIR}/CMSIS/include
 CMSISLIB = ${CURDIR}/CMSIS/Lib/GCC
+ifeq ($(USE_FPU), hard)
+   CMSISFILE = libarm_cortexM4lf_math.a
+else
+   CMSISFILE = libarm_cortexM4l_math.a
+endif
 
 # ChibiOS versions of system calls
 ALLCSRC := $(CHIBIOS)/os/various/syscalls.c
@@ -228,7 +233,7 @@ UINCDIR = $(CMSISINC)
 ULIBDIR = $(CMSISLIB)
 
 # List all user libraries here
-ULIBS = -lm $(CMSISLIB)/libarm_cortexM4l_math.a
+ULIBS = -lm $(CMSISLIB)/$(CMSISFILE)
 
 #
 # End of user defines

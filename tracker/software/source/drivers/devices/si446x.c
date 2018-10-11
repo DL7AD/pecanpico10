@@ -1643,7 +1643,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
           exit_msg = MSG_TIMEOUT;
           break;
         }
-        /* Let other threads run. */
+        /* Let peer and higher priority threads run. */
         chThdYield();
       } /* End while(). */
     } else {
@@ -1910,7 +1910,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
           exit_msg = MSG_TIMEOUT;
           break;
         }
-        /* Let other threads run. */
+        /* Let peer and higher priority threads run. */
         chThdYield();
       } /* End while(). */
     } else {
@@ -2009,7 +2009,7 @@ si446x_temp_t Si446x_getLastTemperature(const radio_unit_t radio) {
  *
  */
 ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
-  /* The RX_RAW_DATA input is routed to ICU timer channel.  */
+  /* The radio RX_RAW_DATA output is routed to ICU timer channel.  */
 
   pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.pwm.line,
                      Si446x_getConfig(radio)->rafsk.pwm.mode);

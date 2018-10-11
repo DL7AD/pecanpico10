@@ -1282,7 +1282,8 @@ void OV5640_InitGPIO(void)
 	palSetLineMode(LINE_CAM_D9, PAL_MODE_INPUT | PAL_STM32_OSPEED_HIGHEST);
 	palSetLineMode(LINE_CAM_EN, PAL_MODE_OUTPUT_PUSHPULL);
 	palSetLineMode(LINE_CAM_RESET, PAL_MODE_OUTPUT_PUSHPULL);
-	/* Force reset low prior to power up. */
+	/* Power supply off and reset low prior to power up. */
+	palClearLine(LINE_CAM_EN);
 	palClearLine(LINE_CAM_RESET);
 	chThdSleep(TIME_MS2I(10));
 }
@@ -1402,7 +1403,7 @@ void OV5640_powerup(void) {
     OV5640_InitGPIO();
 
     // Switch on camera
-    palSetLine(LINE_CAM_EN);        // Switch on camera
+    palSetLine(LINE_CAM_EN);        // Switch on camera power
     chThdSleep(TIME_MS2I(5));       // Spec is >= 1ms delay after DOVDD stable
     palSetLine(LINE_CAM_RESET);     // De-assert reset
 
