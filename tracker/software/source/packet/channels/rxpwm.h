@@ -145,9 +145,12 @@ typedef struct {
    */
   radio_pwm_object_t        *radio_pwm_queue;
   radio_pwm_object_t        *decode_pwm_queue;
+#if TRACE_PWM_BUFFER_STATS == TRUE
   uint8_t                   in_use;
+  uint8_t                   sync;
   uint8_t                   rlsd;
   uint8_t                   peak;
+#endif
 #else
   /* Allocate a PWM buffer in the queue object. */
   radio_pwm_buffer_t        packed_buffer;

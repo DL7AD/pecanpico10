@@ -1263,7 +1263,7 @@ static bool aprs_decode_message(packet_t pp) {
 }
 
 /**
- * Digipeat if not a recent packet or our call is not in the list.
+ * Digipeat handling.
  */
 static void aprs_digipeat(packet_t pp) {
   if(!dedupe_initialized) {
@@ -1271,10 +1271,12 @@ static void aprs_digipeat(packet_t pp) {
     dedupe_initialized = true;
   }
 
-  /* Check if the packet was already repeated recently. */
+  /* Check the digipeat conditions. */
   packet_t result = digipeat_match(conf_sram.aprs.rx.radio_conf.freq,
-                                   pp, conf_sram.aprs.rx.call,
-                                   conf_sram.aprs.tx.call, alias_re,
+                                   pp,
+                                   conf_sram.aprs.rx.call,
+                                   conf_sram.aprs.tx.call,
+                                   alias_re,
                                    wide_re,
                                    conf_sram.aprs.tx.radio_conf.freq,
                                    preempt, NULL);

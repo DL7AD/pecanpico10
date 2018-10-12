@@ -518,10 +518,16 @@ uint8_t pktReleasePWMbuffers(AFSKDemodDriver *myDriver) {
     /* Then check that the pool reference points to CCM. */
     pktAssertCCMdynamicCheck(myDriver->pwm_buffer_pool.next);
 #endif
+#if TRACE_PWM_BUFFER_STATS == TRUE
     myDriver->active_demod_stream->rlsd++;
+#endif
   } while((object = next) != NULL);
   myFIFO->decode_pwm_queue = NULL;
+#if TRACE_PWM_BUFFER_STATS == TRUE
   return myDriver->active_demod_stream->rlsd;
+#else
+  return 0;
+#endif
 }
 #endif
 
@@ -841,7 +847,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                *  Switch to the next queue/buffer object for decoding.
                */
               chPoolFree(&myDriver->pwm_buffer_pool, myFIFO->decode_pwm_queue);
+#if TRACE_PWM_BUFFER_STATS == TRUE
               myFIFO->rlsd++;
+              if(myDriver->frame_state == FRAME_SEARCH)
+                myFIFO->sync++;
+#endif
               myFIFO->decode_pwm_queue = nextObject;
             } else {
               /*
@@ -884,7 +894,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* Check for change of frame state. */
         switch(myDriver->frame_state) {
         case FRAME_SEARCH:
-          //pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_TOGGLE);
           continue;
 
         case FRAME_OPEN:
@@ -910,7 +919,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
       /*
        * RESET readies the decoder for the next session.
        * It frees any held buffers/objects.
-       * The DSP system is reset and then transitions to IDLE.
+       * The DSP system is reset and then decoder transitions to IDLE.
        * The decoder indicator is extinguished.
        */
       case DECODER_RESET: {
@@ -981,14 +990,13 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 #if USE_HEAP_PWM_BUFFER == TRUE
           /* Release PWM queue/buffer objects back to the pool. */
           radio_pwm_fifo_t *myFIFO = myDriver->active_demod_stream;
-          uint8_t u = myFIFO->in_use;
           uint8_t n = pktReleasePWMbuffers(myDriver);
 #if TRACE_PWM_BUFFER_STATS == TRUE
+          uint8_t u = myFIFO->in_use;
           TRACE_DEBUG("AFSK > PWM buffer use:"
-              " pool %d, cycled %d, released %d, queue max %d",
-              PWM_DATA_BUFFERS, u, n, myFIFO->peak);
+              " pool %d, cycled %d, search %d, released %d, queue max %d",
+              PWM_DATA_BUFFERS, u, myFIFO->sync, n, myFIFO->peak);
 #else
-          (void)u;
           (void)n;
 #endif
 #endif

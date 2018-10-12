@@ -171,6 +171,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	  /* could have different calls. */
 	  ax25_set_addr (result, r, mycall_xmit);	
 	  ax25_set_h (result, r);
+      TRACE_INFO("DIGI > Repeat my callsign path");
 	  return (result);
 	}
 
@@ -215,14 +216,16 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
  * My call should be an implied member of this set.
  * In this implementation, we already caught it further up.
  */
-	regex(alias, repeater, &found_len);
+	char *found = regex(alias, repeater, &found_len);
 	if(found_len) {
 	   packet_t result = ax25_dup (pp);
       if(result == NULL)
         return NULL;
-
+      char alias[50] = {0};
+      memcpy(alias, found, found_len);
 	  ax25_set_addr (result, r, mycall_xmit);	
 	  ax25_set_h (result, r);
+      TRACE_INFO("DIGI > Digipeat alias pattern: %s ", alias);
 	  return (result);
 	}
 
@@ -239,8 +242,10 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 
 	    ax25_get_addr_with_ssid(pp, r2, repeater2);
 
-		regex(alias, repeater2, &found_len);
-
+		found = regex(alias, repeater2, &found_len);
+		char pre[50] = {0};
+	    if(found_len)
+	      memcpy(pre, found, found_len);
 	    if (strcmp(repeater2, mycall_rec) == 0 ||
 	      found_len != 0) {
 	       packet_t result = ax25_dup (pp);
@@ -254,7 +259,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	        case PREEMPT_DROP:	/* remove all prior */
 	          while (r2 > AX25_REPEATER_1) {
 	            ax25_remove_addr (result, r2-1);
- 		    r2--;
+	            r2--;
 	          }
 	          break;
 
@@ -262,7 +267,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	          r2--;
 	          while (r2 >= AX25_REPEATER_1 && ax25_get_h(result,r2) == 0) {
 	            ax25_set_h (result, r2);
- 		    r2--;
+	            r2--;
 	          }
 	          break;
 
@@ -270,11 +275,11 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	        default:
 	          while (r2 > AX25_REPEATER_1 && ax25_get_h(result,r2-1) == 0) {
 	            ax25_remove_addr (result, r2-1);
- 		    r2--;
+	            r2--;
 	          }
 	          break;
 	      } /* End switch. */
-	      TRACE_INFO("DIGI > Digipeat traffic");
+	      TRACE_INFO("DIGI > Digipeat preemptive %s traffic", pre);
 	      return (result);
 	    }
  	  }
@@ -283,9 +288,10 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 /*
  * For the wide pattern, we check the ssid and decrement it.
  */
-	regex(wide, repeater, &found_len);
+	found = regex(wide, repeater, &found_len);
 	if (found_len != 0) {
-
+      char path[50] = {0};
+      memcpy(path, found, found_len);
 /*
  * If ssid == 1, we simply replace the repeater with my call and
  *	mark it as being used.
@@ -305,6 +311,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 
  	    ax25_set_addr (result, r, mycall_xmit);	
 	    ax25_set_h (result, r);
+        TRACE_INFO("DIGI > Digipeat %s traffic", path);
 	    return (result);
 	  }
 
@@ -321,6 +328,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	      ax25_insert_addr (result, r, mycall_xmit);	
 	      ax25_set_h (result, r);
 	    }
+        TRACE_INFO("DIGI > Digipeat %s traffic", path);
 	    return (result);
 	  }
 	}

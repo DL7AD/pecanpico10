@@ -503,9 +503,12 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
 
   /* Save this object as the one currently receiving PWM. */
   myFIFO->radio_pwm_queue = pwm_object;
+#if TRACE_PWM_BUFFER_STATS == TRUE
   myFIFO->in_use = 1;
+  myFIFO->sync = 1;
   myFIFO->peak = 0;
   myFIFO->rlsd = 0;
+#endif
   myFIFO->decode_pwm_queue = pwm_object;
   /*
    * Initialize the queue object.
@@ -846,14 +849,14 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
           myDemod->active_radio_stream->radio_pwm_queue;
 
       qSetLink(&myObject->queue, pwm_object);
-
+#if TRACE_PWM_BUFFER_STATS == TRUE
       /* Update statistics. */
       myDemod->active_radio_stream->in_use++;
       uint8_t out = (myDemod->active_radio_stream->in_use
           - myDemod->active_radio_stream->rlsd);
       if(out > myDemod->active_radio_stream->peak)
         myDemod->active_radio_stream->peak = out;
-
+#endif
       /* Write the in-band queue swap message to the current object. */
 
 #if USE_12_BIT_PWM == TRUE
