@@ -152,7 +152,7 @@ const radio_band_t *const radio1_bands[] = {
 };
 
 /* List of indicators controlled by this radio. */
-const indicator_io_t const radio1_ind[] = {
+const indicator_io_t radio1_ind[] = {
   {
    .ind = PKT_INDICATOR_DECODE,
    .type = PKT_IND_GPIO_LINE,

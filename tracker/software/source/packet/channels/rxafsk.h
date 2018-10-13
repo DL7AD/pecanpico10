@@ -38,7 +38,7 @@
 #define AFSK_DSP_QCORR_DECODE       1
 #define AFSK_DSP_FCORR_DECODE       2 /* Currently under test. */
 
-#define AFSK_DECODE_TYPE            AFSK_DSP_FCORR_DECODE
+#define AFSK_DECODE_TYPE            AFSK_DSP_QCORR_DECODE
 #if !defined(AFSK_DECODE_TYPE)
 #error "AFSK decoder not specified"
 #endif
