@@ -381,53 +381,54 @@ extern "C" {
 }
 
 /**
- * @brief   Fetches a buffer from the packet buffer free pool.
+ * @brief   Gets an sets up a packet management object.
+ * @notes   Fetches a management object from the FIFO pool.
+ * @notes   A packet buffer is then obtained and assigned to the object.
  * @details This function is called from thread level to obtain a buffer
  *          to write AX25 data into.
  *
  * @param[in]   handler     pointer to a @p packet service object
  * @param[in]   fifo        pointer to a @p objects FIFO
- * @paream[in]  timeout     Allowable wait for a free buffer
+ * @paream[in]  timeout     Allowable wait for a free data buffer
  *
- * @return      pointer to packet buffer object.
- * @retval      NULL if no buffer object available.
+ * @return      pointer to packet management object.
+ * @retval      NULL if no management object or buffer available.
  *
  * @api
  */
 static inline pkt_data_object_t *pktTakeDataBuffer(packet_svc_t *handler,
                                                     objects_fifo_t *fifo,
                                                     sysinterval_t timeout) {
+  /* Get a management object from the FIFO pool. */
   pkt_data_object_t *pkt_buffer = chFifoTakeObjectTimeout(fifo, timeout);
   handler->active_packet_object = pkt_buffer;
   if(pkt_buffer != NULL) {
 
     /*
-     * Packet buffer available.
+     * Packet management object available.
+     * Initialize the object fields.
      */
-    //handler->active_packet_object = pkt_buffer;
-
-    /* Initialize the object fields. */
     pkt_buffer->handler = handler;
     pkt_buffer->status = EVT_STATUS_CLEAR;
     pkt_buffer->packet_size = 0;
     pkt_buffer->buffer_size = PKT_RX_BUFFER_SIZE;
     pkt_buffer->cb_func = handler->usr_callback;
 
-    /* Save the pointer to the packet factory for use when releasing object. */
+    /* Save the pointer to the object factory for use when releasing object. */
     pkt_buffer->pkt_factory = handler->the_packet_fifo;
 #if USE_CCM_HEAP_RX_BUFFERS == TRUE
     extern memory_heap_t *ccm_heap;
     pkt_buffer->buffer = chHeapAlloc(ccm_heap, PKT_RX_BUFFER_SIZE);
     if(pkt_buffer->buffer == NULL) {
-      /* No heap available. */
-      /* Return packet buffer object to free list. */
+      /* No heap available for data buffer. */
+      /* Return management object to free list. */
       chFifoReturnObject(fifo, (pkt_data_object_t *)pkt_buffer);
 
       /*
        * Decrease FIFO reference counter (increased by decoder).
        * FIFO will be destroyed when all references are released.
        */
-      chFactoryReleaseObjectsFIFO(pkt_buffer->pkt_factory);
+      /*chFactoryReleaseObjectsFIFO(pkt_buffer->pkt_factory);*/
       pkt_buffer = NULL;
     }
 #endif

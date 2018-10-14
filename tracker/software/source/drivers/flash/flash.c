@@ -8,13 +8,14 @@
 #include "flash.h"
 #include <string.h>
 
+ /* TODO: The flash driver needs to be dynamically defined based on MCU. */
 size_t flashSectorSize(flashsector_t sector)
 {
     if (sector <= 3)
         return 16 * 1024;
     else if (sector == 4)
         return 64 * 1024;
-    else if (sector >= 5 && sector <= 11)
+    else if (sector >= 5 && sector < FLASH_SECTOR_COUNT)
         return 128 * 1024;
     return 0;
 }
@@ -22,6 +23,7 @@ size_t flashSectorSize(flashsector_t sector)
 flashaddr_t flashSectorBegin(flashsector_t sector)
 {
     flashaddr_t address = FLASH_BASE;
+    chDbgAssert(sector < FLASH_SECTOR_COUNT, "Invalid flash sector index");
     while (sector > 0)
     {
         --sector;

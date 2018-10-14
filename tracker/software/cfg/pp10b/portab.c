@@ -214,16 +214,6 @@ void pktConfigSerialDiag(void) {
   palSetLineMode(LINE_USART3_RX, PAL_MODE_ALTERNATE(7));
 }
 
-/**
- * TODO: Move this into pktradio.c or make it an Si446x function in si446x.c
- * The GPIO assignments per radio should be in the radio record.
- */
-/*ioline_t pktSetLineModeICU(const radio_unit_t radio) {
-  (void)radio;
-  palSetLineMode(LINE_ICU, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2));
-  return LINE_ICU;
-}*/
-
 /*
  * Read GPIO that are used for:
  * a) general use

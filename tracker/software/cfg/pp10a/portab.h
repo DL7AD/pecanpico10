@@ -161,7 +161,7 @@
 //#define LINE_UART4_RX               PAL_LINE(GPIOA, 11U)
 
 /* The external port can be used for bit bang I2C. */
-#define ENABLE_EXTERNAL_I2C         TRUE
+#define ENABLE_EXTERNAL_I2C         FALSE
 
 #define EI2C_SCL                    LINE_IO_TXD /* SCL */
 #define EI2C_SDA                    LINE_IO_RXD /* SDA */

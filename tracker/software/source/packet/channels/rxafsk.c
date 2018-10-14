@@ -543,6 +543,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   AFSKDemodDriver *myDriver = arg;
   packet_svc_t *myHandler = myDriver->packet_handler;
   radio_unit_t radio = myHandler->radio;
+  tprio_t decoder_idle_priority;
 
   /* No active packet object. */
   myHandler->active_packet_object = NULL;
@@ -577,7 +578,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   }
 
   /* Save the priority that calling thread gave us. */
-  tprio_t decoder_idle_priority = chThdGetPriorityX();
+  decoder_idle_priority = chThdGetPriorityX();
 
   /* Setup LED for decoder blinker.  */
   pktLLDradioConfigIndicator(radio, PKT_INDICATOR_DECODE);
@@ -608,7 +609,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           pktAddEventFlags(myDriver, DEC_CLOSE_EXEC);
           pktReleaseAFSKDecoder(myDriver);
           myDriver->decoder_state = DECODER_TERMINATED;
-          pktWriteGPIOline(LINE_DECODER_LED, PAL_LOW);
+          pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_LOW);
           chThdExit(MSG_OK);
           /* Something went wrong if we arrive here. */
           chSysHalt("ThdExit");
@@ -670,18 +671,24 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* Check if prior packet buffer released. */
         chDbgCheck(myHandler->active_packet_object == NULL);
 
-        /* Get a packet buffer. */
+        /*
+         * Get a reference to the packet management FIFO.
+         * The factory reference count is increased when found.
+         */
         dyn_objects_fifo_t *pkt_fifo =
             chFactoryFindObjectsFIFO(myHandler->pbuff_name);
         chDbgAssert(pkt_fifo != NULL, "unable to find packet fifo");
 
-        /* The factory reference count is increased. */
-        objects_fifo_t *pkt_buffer_pool = chFactoryGetObjectsFIFO(pkt_fifo);
-        chDbgAssert(pkt_buffer_pool != NULL, "no packet fifo list");
+        /*
+         * Packet management FIFO found.
+         * Now get reference to inner FIFO allocator.
+         */
+        objects_fifo_t *pkt_object_pool = chFactoryGetObjectsFIFO(pkt_fifo);
+        chDbgAssert(pkt_object_pool != NULL, "no packet fifo list");
 
-        /* Get a buffer and have it initialized ready for use. */
+        /* Get a packet management object and assign a data buffer. */
         pkt_data_object_t *myPktBuffer = pktTakeDataBuffer(myHandler,
-                                                            pkt_buffer_pool,
+                                                           pkt_object_pool,
                                                             TIME_MS2I(100));
 #if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
           char buf[80];
@@ -690,9 +697,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           pktWrite( (uint8_t *)buf, out);
 #endif
 
-        /* If no buffer is available the handler pointer is also set to NULL. */
+        /* If no management object or data buffer is available get NULL. */
         if(myPktBuffer == NULL) {
-          /* Decrease ref count on AX25 FIFO. */
+          /* Decrease ref count on packet management object FIFO. */
           chFactoryReleaseObjectsFIFO(pkt_fifo);
           pktAddEventFlags(myHandler, EVT_PKT_NO_BUFFER);
           myDriver->active_demod_stream->status |= STA_PKT_NO_BUFFER;
@@ -702,7 +709,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
 
         /* Increase thread priority. */
-        (void)chThdSetPriority(DECODER_RUN_PRIORITY);
+        decoder_idle_priority = chThdSetPriority(DECODER_RUN_PRIORITY);
 
         /* Enable processing of incoming PWM stream. */
         myDriver->decoder_state = DECODER_ACTIVE;
@@ -745,7 +752,10 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* Timeout calculated as SYMBOL time x 8 x 20. */
 
         if(n != sizeof(packed_pwm_counts_t)) {
-          /* PWM stream wait timeout. */
+          /*
+           * PWM stream wait timeout.
+           * No in-band close or abort in stream.
+           */
           pktAddEventFlags(myHandler, EVT_PWM_STREAM_TIMEOUT);
           myFIFO->status |= STA_PWM_STREAM_TIMEOUT;
           myDriver->decoder_state = DECODER_RESET;
@@ -819,7 +829,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
             /* This is a debug error.
              * CCA is validated but a PWM is still active.
-             * The PWM side has already posted a PWM_FIFO_REMNANT event.
+             * The PWM side has already posted a PWM_FIFO_ORDER event.
              */
           case PWM_TERM_QUEUE_ERR:
 
@@ -912,9 +922,33 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           myDriver->decoder_state = DECODER_DISPATCH;
           continue; /* From this case. */
           }
-        } /* End switch. */
+        } /* End switch on frame_state. */
         break; /* Keep GCC 7 happy. */
       } /* End case DECODER_ACTIVE. */
+
+      case DECODER_DISPATCH: {
+        if(myHandler->active_packet_object != NULL) {
+
+          /*
+           * Indicate AFSK decode done.
+           * PWM handler will terminate capture session if still active.
+           */
+          myDriver->active_demod_stream->status |= STA_AFSK_DECODE_DONE;
+
+          /* Copy latest status into packet buffer object. */
+          myHandler->active_packet_object->status =
+              myDriver->active_demod_stream->status;
+
+          /* Set AX25 status and dispatch the packet buffer object. */
+          pktDispatchReceivedBuffer(myHandler->active_packet_object);
+
+          /* Packet object has been handed over. Remove our reference. */
+          myHandler->active_packet_object = NULL;
+        } /* Active packet object != NULL. */
+        /* Release PWM buffers and reset decoder in RESET state. */
+        myDriver->decoder_state = DECODER_RESET;
+        break;
+      } /* End case DECODER_DISPATCH. */
 
       /*
        * RESET readies the decoder for the next session.
@@ -955,10 +989,10 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 #if USE_CCM_BASED_PWM_HEAP == TRUE
           pktAssertCCMdynamicCheck(myHandler->active_packet_object->buffer);
 #endif
-          /* Free the packet buffer referenced in the packet object. */
+          /* Free the data buffer referenced in the packet object. */
           chHeapFree(myHandler->active_packet_object->buffer);
 #endif
-          /* Release the AX25 receive packet buffer management object. */
+          /* Release the receive packet buffer management object. */
           objects_fifo_t *pkt_fifo =
               chFactoryGetObjectsFIFO(myHandler->active_packet_object->pkt_factory);
 
@@ -1020,30 +1054,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         myDriver->decoder_state = DECODER_IDLE;
         break;
       } /* End case DECODER_RESET. */
-
-      case DECODER_DISPATCH: {
-        if(myHandler->active_packet_object != NULL) {
-
-          /*
-           * Indicate AFSK decode done.
-           * PWM handler will terminate capture session if still active.
-           */
-          myDriver->active_demod_stream->status |= STA_AFSK_DECODE_DONE;
-
-          /* Copy latest status into packet buffer object. */
-          myHandler->active_packet_object->status =
-              myDriver->active_demod_stream->status;
-
-          /* Set AX25 status and dispatch the packet buffer object. */
-          pktDispatchReceivedBuffer(myHandler->active_packet_object);
-
-          /* Packet object has been handed over. Remove our reference. */
-          myHandler->active_packet_object = NULL;
-        } /* Active packet object != NULL. */
-        /* Release PWM buffers and reset decoder in RESET state. */
-        myDriver->decoder_state = DECODER_RESET;
-        break;
-      } /* End case DECODER_DISPATCH. */
     } /* End switch on decoder state. */
   } /* End thread while(true). */
 }

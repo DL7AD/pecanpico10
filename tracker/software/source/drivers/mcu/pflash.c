@@ -4,8 +4,11 @@
 
 dataPoint_t* flash_getLogBuffer(uint16_t id)
 {
-	uint32_t addr = LOG_FLASH_ADDR + LOG_SECTOR_ID(id) * LOG_SECTOR_SIZE + LOG_POS_IN_SECTOR(id) * sizeof(dataPoint_t);
-	if(addr >= LOG_FLASH_ADDR && addr <= LOG_FLASH_ADDR+LOG_FLASH_SIZE-sizeof(dataPoint_t))
+	uint32_t addr = LOG_FLASH_ADDR
+	    + (LOG_SECTOR_ID(id) * LOG_SECTOR_SIZE)
+	    + (LOG_POS_IN_SECTOR(id) * sizeof(dataPoint_t));
+	if(addr >= LOG_FLASH_ADDR
+	    && addr <= (LOG_FLASH_ADDR + LOG_FLASH_SIZE - sizeof(dataPoint_t)))
 		return (dataPoint_t*)addr;
 	else
 		return NULL; // Outside of memory address allocation
@@ -95,7 +98,7 @@ void flash_writeLogDataPoint(dataPoint_t* tp)
 {
 	// Get address to write on
 	dataPoint_t* address = flash_getNextFreeLogAddress();
-	if(address == NULL) // Memory completly used, erase oldest data
+	if(address == NULL) // Memory completely used, erase oldest data
 	{
 		flash_eraseOldestLogData();
 		address = flash_getNextFreeLogAddress();

@@ -239,9 +239,6 @@
 #define GPIOK_PIN14                 14U
 #define GPIOK_PIN15                 15U
 
-/*
- * IO lines assignments.
- */
 
 /* For enabling TCXO. Done in early_init. */
 #define LINE_TCXO_EN                PAL_LINE(GPIOC, 13U)

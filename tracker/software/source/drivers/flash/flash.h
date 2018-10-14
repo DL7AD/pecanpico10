@@ -14,9 +14,10 @@
 
 /**
  * @brief Number of sectors in the flash memory.
+ * TODO: The flash driver needs to be dynamically defined based on MCU.
  */
 #if !defined(FLASH_SECTOR_COUNT) || defined(__DOXYGEN__)
-#define FLASH_SECTOR_COUNT 12
+#define FLASH_SECTOR_COUNT 16
 #endif
 
 /* Error codes */

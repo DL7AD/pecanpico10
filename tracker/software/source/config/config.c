@@ -29,7 +29,7 @@ const conf_t conf_flash_default = {
             .cca = 0x5F,
         },
         // App identity
-        .call = "VK2GJ-6",
+        .call = "VK2GJ-5",
         .path = "WIDE1-1",
         .symbol = SYM_DIGIPEATER,
         .aprs_msg = false, // Enable APRS message reception on this app
@@ -141,8 +141,8 @@ const conf_t conf_flash_default = {
                  // If duration is TIME_INFINITE then the radio stays active while the thread waits forever.
                  .active = true,
                  .init_delay = TIME_S2I(20),
-                 .cycle = CYCLE_CONTINUOUSLY,
-                 .interval = 0
+                 .cycle = TIME_S2I(60),
+                 .interval = TIME_S2I(45)
              },
             // Receive radio configuration
             .radio_conf = {
@@ -165,7 +165,7 @@ const conf_t conf_flash_default = {
                .cca = 0x5F
            },
            // Digipeat transmission identity
-           .call = "VK2GJ-6",
+           .call = "VK2GJ-5",
            .path = "WIDE2-1",
            .symbol = SYM_DIGIPEATER,
            // A digipeater beacon can be added using one of the POS apps

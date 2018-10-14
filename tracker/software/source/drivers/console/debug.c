@@ -111,7 +111,7 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
 	chvprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, format, args);
     va_end(args);
     chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, "\r\n");
-#endif
+#endif /* ENABLE_SERIAL_DEBUG == TRUE */
 
 	chMtxUnlock(&debug_mtx);
 }

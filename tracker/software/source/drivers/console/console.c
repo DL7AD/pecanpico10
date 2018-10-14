@@ -248,16 +248,16 @@ THD_FUNCTION(pktConsole, arg) {
   event_listener_t shell_el;
 
   /*Wait for start permission. */
-  thread_t *initiator = chMsgWait();
-  (void)chMsgGet(initiator);
+  //thread_t *initiator = chMsgWait();
+  //(void)chMsgGet(initiator);
 
   console_state = CON_CHN_INIT;
 
   /* Signal that basic init is done. */
-  chMsgRelease(initiator, MSG_OK);
+  //chMsgRelease(initiator, MSG_OK);
 
   /* Wait for serial channel to be started for us. */
-  initiator = chMsgWait();
+  thread_t *initiator = chMsgWait();
   (void)chMsgGet(initiator);
 
   /* Attach event listener to serial channel. */
@@ -272,6 +272,9 @@ THD_FUNCTION(pktConsole, arg) {
                                       pktConsoleInputAvailable,
                                       NULL
   };
+
+  (void)chEvtGetAndClearEvents(CONSOLE_CHANNEL_EVT);
+  (void)chEvtGetAndClearFlags(&con_el);
 
   /* Flag that channel setup is done. */
   chMsgRelease(initiator, MSG_OK);
@@ -334,7 +337,7 @@ THD_FUNCTION(pktConsole, arg) {
         console_state = CON_CHN_SHELL;
         /* Wait for next event. */
         continue;
-      } /* End case CON_CHN_CONNECT or CON_CHN_WAIT. */
+      } /* End case CON_CHN_CONNECT, CON_CHN_WAIT or CON_CHN_FLUSH. */
 
       default:
         /* Check if there was a shell event. */
@@ -404,7 +407,7 @@ msg_t pktStartConsole(BaseAsynchronousChannel *ser) {
   msg_t smsg = chMsgSend(con_thd, MSG_OK);
 
   /* Signal thread to enter trace output and shell request monitoring. */
-  smsg = chMsgSend(con_thd, MSG_OK);
+  //smsg = chMsgSend(con_thd, MSG_OK);
 
   return smsg;
 }
