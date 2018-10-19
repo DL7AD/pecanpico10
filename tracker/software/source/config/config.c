@@ -15,7 +15,7 @@ const conf_t conf_flash_default = {
     .pos_pri = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 15),
+            .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(5),
             .fixed = false, // Add lat, lon alt fields when enabling fixed
             .lat = -337331175, // Degrees (expressed in 1e-7 form)
@@ -86,7 +86,7 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = false,
-            .cycle = TIME_S2I(60 * 1),
+            .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(10),
             .send_spacing = TIME_S2I(0)
         },
@@ -142,7 +142,7 @@ const conf_t conf_flash_default = {
                  .active = true,
                  .init_delay = TIME_S2I(20),
                  .cycle = TIME_S2I(60),
-                 .interval = TIME_S2I(45)
+                 .interval = TIME_S2I(55)
              },
             // Receive radio configuration
             .radio_conf = {

@@ -493,6 +493,10 @@ void pktStartDecoder(const radio_unit_t radio) {
       return;
     }
 
+    case MOD_CW: {
+      return;
+    }
+
     default:
       return;
   } /* End switch. */
@@ -600,6 +604,9 @@ void pktStopDecoder(radio_unit_t radio) {
     case MOD_2FSK_115k2: {
       return;
     }
+
+    case MOD_CW:
+      return;
 
     default:
       return;

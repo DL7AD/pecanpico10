@@ -164,14 +164,15 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	  packet_t result;
 
 	  result = ax25_dup (pp);
-	  if(result == NULL)
+      if(result == NULL) {
+        TRACE_ERROR("DIGI > Digipeat failed for my callsign as path (no free packet object)");
         return NULL;
-
+      }
 	  /* If using multiple radio channels, they */
 	  /* could have different calls. */
 	  ax25_set_addr (result, r, mycall_xmit);	
 	  ax25_set_h (result, r);
-      TRACE_INFO("DIGI > Repeat my callsign path");
+      TRACE_INFO("DIGI > Digipeat my callsign as path");
 	  return (result);
 	}
 
@@ -219,8 +220,10 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	char *found = regex(alias, repeater, &found_len);
 	if(found_len) {
 	   packet_t result = ax25_dup (pp);
-      if(result == NULL)
-        return NULL;
+       if(result == NULL) {
+         TRACE_ERROR("DIGI > Digipeat failed for %s traffic (no free packet object)", found);
+         return NULL;
+       }
       char alias[50] = {0};
       memcpy(alias, found, found_len);
 	  ax25_set_addr (result, r, mycall_xmit);	
@@ -306,9 +309,10 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	    packet_t result;
 
 	    result = ax25_dup (pp);
-        if(result == NULL)
+        if(result == NULL) {
+          TRACE_ERROR("DIGI > Digipeat failed for %s traffic (no free packet object)", path);
           return NULL;
-
+        }
  	    ax25_set_addr (result, r, mycall_xmit);	
 	    ax25_set_h (result, r);
         TRACE_INFO("DIGI > Digipeat %s traffic", path);
@@ -319,8 +323,10 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	    packet_t result;
 
 	    result = ax25_dup (pp);
-        if(result == NULL)
+        if(result == NULL) {
+          TRACE_ERROR("DIGI > Digipeat failed for %s traffic (no free packet object)", path);
           return NULL;
+        }
 
 	    ax25_set_ssid(result, r, ssid-1);	// should be at least 1
 

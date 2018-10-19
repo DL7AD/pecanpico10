@@ -58,6 +58,7 @@ typedef struct {
 
 typedef enum { // Modulation type
     MOD_NONE,
+    MOD_CW,
 	MOD_AFSK,
 	MOD_2FSK_300,
 	MOD_2FSK_9k6,

@@ -143,17 +143,18 @@
 #endif
 
 /* Si446x clock setup. */
-#define Si446x_CLK					STM32_HSECLK			/* Oscillator frequency in Hz */
-#define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
-#define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
+#define Si446x_CLK                  STM32_HSECLK            /* Clock in Hz */
+#define Si446x_CLK_OFFSET           700                     /* Adjustment in Hz */
+#define Si446x_CLK_TCXO_EN          true                    /* Xtal or external. */
+#define Si446x_XO_TUNE              0x40                    /* Xtal trim. */
 
 /* LED status indicators (set to PAL_NOLINE if not available). */
-#define LINE_OVERFLOW_LED               PAL_NOLINE
-#define LINE_DECODER_LED                LINE_IO_BLUE
-#define LINE_SQUELCH_LED                PAL_NOLINE
-#define LINE_NO_FIFO_LED                PAL_NOLINE
-#define LINE_NO_BUFF_LED                PAL_NOLINE
-#define LINE_PWM_ERROR_LED              PAL_NOLINE
+#define LINE_OVERFLOW_LED           PAL_NOLINE
+#define LINE_DECODER_LED            LINE_IO_BLUE
+#define LINE_SQUELCH_LED            PAL_NOLINE
+#define LINE_NO_FIFO_LED            PAL_NOLINE
+#define LINE_NO_BUFF_LED            PAL_NOLINE
+#define LINE_PWM_ERROR_LED          PAL_NOLINE
 
 /* Diagnostic PWM mirror port. */
 #define LINE_PWM_MIRROR                 PAL_NOLINE

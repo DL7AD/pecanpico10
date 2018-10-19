@@ -229,13 +229,9 @@
 /* Module macros.                                                            */
 /*===========================================================================*/
 
-//#define Si446x_getGPIO0()           palReadLine(LINE_RADIO_GPIO0)
-//#define Si446x_getGPIO1()           palReadLine(LINE_RADIO_GPIO1)
-//#define Si446x_getCCA(cca_line)		palReadLine(cca_line)
-
  /* Frequency offset corrected oscillator frequency */
-#define Si446x_CCLK                 ((Si446x_CLK) + (Si446x_CLK_OFFSET)      \
-                                      * (Si446x_CLK) / 1000000)
+/*#define Si446x_CCLK ((Si446x_CLK) + (Si446x_CLK_OFFSET * (Si446x_CLK / 1000000)))*/
+#define Si446x_CCLK (Si446x_CLK + Si446x_CLK_OFFSET)
 
 #define is_part_Si4463(part) (part == 0x4463)
 
@@ -365,6 +361,7 @@ extern "C" {
   bool Si446x_blocSendAFSK(radio_task_object_t *rto);
   //void Si446x_send2FSK(packet_t pp);
   bool Si446x_blocSend2FSK(radio_task_object_t *rto);
+  bool Si446x_blocSendCW(radio_task_object_t *rt);
   void Si446x_disableReceive(radio_unit_t radio);
   void Si446x_stopDecoder(void);
   bool Si4464_enableReceive(const radio_unit_t radio,

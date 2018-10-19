@@ -125,11 +125,6 @@ typedef struct radioAction {
   packet_t                  packet_out;
 } radio_action_t;
 
-/*struct radioTaskx {
-  radio_settings_t          settings;
-  radio_action_t            action;
-};*/
-
 /**
  * @brief       Radio task object.
  * @details     queue object submitted via FIFO or radio task requests.
@@ -150,6 +145,7 @@ struct radioTask {
   packet_t                  packet_out;
   radio_pwr_t               tx_power;
   uint32_t                  tx_speed;
+  deviation_hz_t            tx_dev;
   uint8_t                   tx_seq_num;
 };
 

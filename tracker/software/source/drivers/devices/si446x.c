@@ -432,7 +432,7 @@ static bool Si446x_init(const radio_unit_t radio) {
 
   /* If Si446x is using its own xtal set the trim capacitor value. */
   #if !Si446x_CLK_TCXO_EN
-  Si446x_setProperty8(radio, Si446x_GLOBAL_XO_TUNE, 0x40);
+  Si446x_setProperty8(radio, Si446x_GLOBAL_XO_TUNE, Si446x_XO_TUNE);
   #endif
 
   /* Fast response registers - not used at this time. */
@@ -493,9 +493,9 @@ static bool Si446x_init(const radio_unit_t radio) {
   Si446x_setProperty8(radio, Si446x_MODEM_ANT_DIV_CONTROL, 0x80);
 
   /* RSSI value compensation. */
-  if(is_part_Si4463(handler->radio_part))
-    Si446x_setProperty8(radio, Si446x_MODEM_RSSI_COMP, 0x44);
-  else
+/*  if(is_part_Si4463(handler->radio_part))
+    Si446x_setProperty8(radio, Si446x_MODEM_RSSI_COMP, 0x40);
+  else*/
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_COMP, 0x40);
 
   /*
@@ -542,36 +542,60 @@ static bool Si446x_setBandParameters(const radio_unit_t radio,
 
 
   /* Set the output divider as recommended in Si446x data sheet. */
-  uint32_t outdiv = 0;
-  uint32_t band = 0;
+  uint8_t outdiv = 0;
+  uint8_t band = 0;
   if(freq < 705000000UL) {outdiv = 6;  band = 1;}
   if(freq < 525000000UL) {outdiv = 8;  band = 2;}
   if(freq < 353000000UL) {outdiv = 12; band = 3;}
   if(freq < 239000000UL) {outdiv = 16; band = 4;}
   if(freq < 177000000UL) {outdiv = 24; band = 5;}
 
-  /* Set the band parameter. */
-  uint32_t sy_sel = 8;
+  /*
+   * Set the PLL band parameters.
+   * Select high performance PLL.
+   */
+
+  /* Use performance PLL. */
+#define Si446x_USE_HI_PLL   TRUE
+#define Si446x_PRESCALER    (Si446x_USE_HI_PLL ? 2 : 4)
+#define Si446x_PLL_MODE     (Si446x_USE_HI_PLL ? 0x08 : 0x00)
+#define Si446x_2_19_SCALE   524288.0
+
   uint8_t set_band_property_command[] = {Si446x_SET_PROPERTY,
-                                         0x20, 0x01, 0x51, (band + sy_sel)};
+                                         0x20, 0x01, 0x51,
+                                         (Si446x_PLL_MODE | band)};
   Si446x_write(radio, set_band_property_command,
 		  sizeof(set_band_property_command));
 
-  /* Set the PLL parameters. */
-  uint32_t f_pfd = 2 * Si446x_CCLK / outdiv;
-  uint32_t n = ((uint32_t)(freq / f_pfd)) - 1;
-  float ratio = (float)freq / (float)f_pfd;
-  float rest  = ratio - (float)n;
+  /*
+   *  Calculate the frequency control parameters...
+   *  1. Base frequency integer and fractional parts.
+   *  2. Channel stepping converted to PLL shift factor
+   *  3. Deviation converted to PLL shift factor.
+   */
+  uint32_t pll_freq = Si446x_PRESCALER * Si446x_CCLK;
+  uint32_t pll_out = pll_freq / outdiv;
 
-  uint32_t m = (uint32_t)(rest * 0x80000UL);
-  uint32_t m2 = m >> 16;
-  uint32_t m1 = (m - m2 * 0x10000) >> 8;
-  uint32_t m0 = (m - m2 * 0x10000 - (m1 << 8));
+  /* Calculate integer part. */
+  uint32_t n = ((uint32_t)(freq / pll_out)) - 1;
+  float32_t ratio = (float32_t)freq / (float32_t)pll_out;
+  float32_t rem  = ratio - (float32_t)n;
 
-  uint32_t channel_increment = 0x80000 * outdiv * step / (2 * Si446x_CCLK);
-  uint8_t c1 = channel_increment / 0x100;
-  uint8_t c0 = channel_increment - (0x100 * c1);
+  /* Calculate fractional part. */
+  uint32_t m = (uint32_t)(rem * Si446x_2_19_SCALE);
+  uint8_t m2 = (m >> 16) & 0xFF;
+  uint8_t m1 = (m >>  8) & 0xFF;
+  uint8_t m0 = m & 0xFF;
 
+  /* Calculate scaling factor for PLL shifting. */
+  float32_t scaled_outdiv = outdiv * Si446x_2_19_SCALE;
+
+  /* Calculate channel step size. */
+  uint16_t c = (scaled_outdiv * step) / pll_freq;
+  uint8_t c1 = (c >> 8) & 0xFF;
+  uint8_t c0 = c & 0xFF;
+
+  /* Set channel base frequency int, frac and step size. */
   uint8_t set_frequency_property_command[] = {Si446x_SET_PROPERTY,
                                               0x40, 0x04, 0x00, n,
                                               m2, m1, m0, c1, c0};
@@ -579,13 +603,15 @@ static bool Si446x_setBandParameters(const radio_unit_t radio,
                sizeof(set_frequency_property_command));
 
   /* Set TX deviation. */
-  uint32_t x = ((((uint32_t)1 << 19) * outdiv * (float32_t)dev)/(2*Si446x_CCLK))*2;
+  uint32_t x = (scaled_outdiv * dev) / pll_freq;
   uint8_t x2 = (x >> 16) & 0xFF;
   uint8_t x1 = (x >>  8) & 0xFF;
-  uint8_t x0 = (x >>  0) & 0xFF;
+  uint8_t x0 = x & 0xFF;
 
   uint8_t set_deviation[] = {Si446x_SET_PROPERTY, 0x20, 0x03, 0x0a, x2, x1, x0};
   Si446x_write(radio, set_deviation, sizeof(set_deviation));
+
+  /* TODO: Move NCO modulo and data rate setting into here? */
 
   /* Measure the chip temperature and update saved value. */
   Si446x_getTemperature(radio);
@@ -778,12 +804,6 @@ static void Si446x_setModemAFSK_TX(const radio_unit_t radio) {
   // Setup the NCO data rate for APRS
   Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE, 0x00, 0x33, 0x90);
 
-  /*
-   *  TODO: Set deviation set to +-2.0KHz
-   *  Currently deviation is set to 1.3KHz in setBand function.
-   */
-  //Si446x_setProperty24(radio, Si446x_MODEM_FREQ_DEV, 0x00, 0x01, 0xA3);
-
   // Use up-sampled AFSK from FIFO (PH)
   Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
 
@@ -972,12 +992,6 @@ static void Si446x_setModem2FSK_TX(const radio_unit_t radio,
                        (uint8_t)(speed >> 16),
                        (uint8_t)(speed >> 8), (uint8_t)speed);
 
-  /*
-   *  TODO: Set deviation according to data rate.
-   *  Currently deviation is set to 1.3KHz in setBand function.
-   */
-  //Si446x_setProperty24(radio, Si446x_MODEM_FREQ_DEV, 0x00, 0x00, 0x79);
-
   /* Use 2FSK from FIFO (PH). */
   Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
 
@@ -1034,11 +1048,18 @@ static uint8_t Si446x_getTXfreeFIFO(const radio_unit_t radio) {
  *  Radio States
  */
 
-radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio) {
+size_t Si446x_getModemStatus(const radio_unit_t radio, uint8_t *status,
+                           size_t size) {
   /* Get status. Leave any pending interrupts intact. */
-    const uint8_t status_info[] = {Si446x_GET_MODEM_STATUS, 0xEF};
+    const uint8_t status_info[] = {Si446x_GET_MODEM_STATUS, 0xFF};
+    Si446x_read(radio, status_info, sizeof(status_info), status, size);
+    return (size < 11 ? size : 11);
+}
+
+radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio) {
+  /* Get status and return RSSI value. */
     uint8_t rxData[11];
-    Si446x_read(radio, status_info, sizeof(status_info), rxData, sizeof(rxData));
+    Si446x_getModemStatus(radio, rxData, sizeof(rxData));
     return rxData[4];
 }
 
@@ -1159,6 +1180,10 @@ static bool Si446x_checkCCAthresholdForTX(const radio_unit_t radio,
     cca_line = *Si446x_getConfig(radio)->tafsk.cca.line;
     break;
   }
+
+  case MOD_CW:
+    cca_line = PAL_NOLINE;
+    break;
 
   case MOD_NONE:
     cca_line = PAL_NOLINE;
@@ -1335,6 +1360,10 @@ bool Si446x_receiveNoLock(const radio_unit_t radio,
     break;
   }
 
+  case MOD_CW:
+    Si446x_setModemCCAdetection(radio);
+    break;
+
   case MOD_NONE:
     TRACE_ERROR("SI   > Invalid modulation type %s in receive",
                 getModulation(mod));
@@ -1506,10 +1535,6 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   /* Initialize radio before any commands as it may have been powered down. */
   Si446x_conditional_init(radio);
 
-  /* Base frequency is an absolute frequency in Hz. */
-/*  Si446x_setBandParameters(radio, rto->base_frequency,
-                           rto->step_hz);*/
-
   /* Set 446x back to READY. */
   Si446x_terminateReceive(radio);
 
@@ -1602,7 +1627,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                        rto->channel,
                        rto->tx_power,
                        rto->type,
-                       2000, // Deviation in Hz
+                       rto->tx_dev,
                        all,
                        rssi,
                        TIME_S2I(SI446X_AFSK_TX_TIMEOUT / 2))) {
@@ -1631,7 +1656,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
         c += more;
 
         /*
-         * Wait for a timeout event during up-sampled NRZI send.
+         * Wait for a timeout event during NRZI send.
          * Time delay allows ~SAMPLES_PER_BAUD bytes to be consumed from FIFO.
          * If no timeout event go back and load more data to FIFO.
          * TODO: Use interrupt to trigger FIFO fill.
@@ -1771,13 +1796,15 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     chThdExit(MSG_RESET);
     /* We never arrive here. */
   }
+
+  /* Stop packet system reception. */
   pktSetReceiveInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
                         ? TIME_IMMEDIATE : TIME_MS2I(300));
 
   /* Initialize radio before any commands as it may have been powered down. */
   Si446x_conditional_init(radio);
 
-  /* Set 446x back to READY from RX (if active). */
+  /* Set 446x back to READY state from RX (if active). */
   Si446x_terminateReceive(radio);
 
   /*
@@ -1870,7 +1897,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                        rto->channel,
                        rto->tx_power,
                        rto->type,
-                       1300, // TODO: Deviation to be set based on data rate
+                       rto->tx_dev,
                        all,
                        rssi,
                        TIME_S2I(SI446X_2FSK_TX_TIMEOUT / 2))) {
@@ -1898,7 +1925,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
         c += more;
 
         /*
-         * Wait for a timeout event during up-sampled NRZI send.
+         * Wait for a timeout event during NRZI send.
          * Time delay allows ~10 bytes to be consumed from FIFO.
          * If no timeout event go back and load more data to FIFO.
          * TODO: Use interrupt to trigger FIFO fill.
@@ -1998,6 +2025,16 @@ bool Si446x_blocSend2FSK(radio_task_object_t *rt) {
   return true;
 }
 
+/*
+ * Return true on send successfully enqueued.
+ * Task object will be returned
+ * Return false on failure
+ */
+bool Si446x_blocSendCW(radio_task_object_t *rt) {
+  (void)rt;
+  return false;
+}
+
 /**
  * Used by collector to get radio temp data.
  */
@@ -2083,6 +2120,9 @@ uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio,
   case MOD_AFSK: {
     return palReadLine(*Si446x_getConfig(radio)->rafsk.cca.line);
   }
+
+  case MOD_CW:
+    return palReadLine(*Si446x_getConfig(radio)->r2fsk.cca.line);
 
   case MOD_NONE:
     break;

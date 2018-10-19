@@ -85,9 +85,11 @@ THD_FUNCTION(pktRadioManager, arg) {
     radio_task_object_t *task_object;
     (void)chFifoReceiveObjectTimeout(radio_queue,
                          (void *)&task_object, TIME_INFINITE);
-    /* Something to do. */
 
-    /* Process command. */
+    /*
+     * Something to do.
+     * Process command.
+     */
     switch(task_object->command) {
     case PKT_RADIO_MGR_CLOSE: {
       /*
@@ -104,9 +106,10 @@ THD_FUNCTION(pktRadioManager, arg) {
       /*
        * There are still TX sessions running.
        * Wait, repost task, let the FIFO be processed and check again.
+       * TODO: RX open should also be handled in some way?
        */
       chThdSleep(TIME_MS2I(PKT_RADIO_TX_TASK_RECHECK_WAIT_MS));
-      pktSubmitRadioTask(radio, task_object, NULL);
+      pktSubmitRadioTask(radio, task_object, task_object->callback);
       continue;
     }
 
@@ -153,7 +156,7 @@ THD_FUNCTION(pktRadioManager, arg) {
           handler->rx_link_type = MOD_AFSK;
           handler->rx_state = PACKET_RX_OPEN;
           break;
-        } /* End case PKT_RADIO_OPEN. */
+        } /* End case MOD_AFSK. */
 
         case MOD_NONE:
         case MOD_2FSK_300:
@@ -166,7 +169,12 @@ THD_FUNCTION(pktRadioManager, arg) {
         case MOD_2FSK_115k2: {
           break;
         }
-        break;
+
+        case MOD_CW:
+          break;
+
+        default:
+          break;
       } /* End switch on modulation type. */
       break;
     } /* End case PKT_RADIO_OPEN. */
@@ -190,6 +198,12 @@ THD_FUNCTION(pktRadioManager, arg) {
       case MOD_2FSK_115k2: {
         break;
       }
+
+      case MOD_CW:
+        break;
+
+      default:
+        break;
       } /* End switch on task_object->type. */
       break;
     } /* End case PKT_RADIO_RX. */
@@ -212,35 +226,22 @@ THD_FUNCTION(pktRadioManager, arg) {
         case MOD_2FSK_115k2: {
           break;
         }
+
+        case MOD_CW:
+          break;
        } /* End switch. */
       //handler->rx_state = PACKET_RX_OPEN;
       break;
     } /* End case PKT_RADIO_RX_STOP. */
 
     case PKT_RADIO_TX_SEND: {
-      /* Give each send a sequence number. */
-/*      if(pktIsReceiveEnabled(radio)) {
-        pktLockRadioTransmit(radio, TIME_INFINITE);
-        if(pktIsReceiveInProgress(radio)
-            && task_object->squelch != PKT_SI446X_NO_CCA_RSSI) {
-          sysinterval_t timeout = TIME_MS2I(300);
-          systime_t start = chVTGetSystemTime();
-          systime_t end = chTimeAddX(chVTGetSystemTime(), timeout);
-          while(pktRadioGetInProgress(radio)
-              && chVTIsSystemTimeWithin(start, end)) {
-            chThdSleep(TIME_MS2I(1));
-          }
-          TRACE_INFO("RAD  > Waited %d ms for in progress receive to complete",
-                     chTimeI2MS(chVTGetSystemTime() - start));
-        }
-        pktDisableRadioStream(radio);
-        pktUnlockRadioTransmit(radio);
-      }*/
+
       /*
        * Queue transmission.
        * This is non blocking as each radio send runs in a thread.
        */
       if(pktLLDradioSendPacket(task_object)) {
+
         /*
          * Keep count of active sends.
          * Shutdown or resume receive when all done.
@@ -305,6 +306,12 @@ THD_FUNCTION(pktRadioManager, arg) {
       case MOD_2FSK_115k2: {
         break;
         } /* End case DECODE_FSK. */
+
+      case MOD_CW:
+        break;
+
+      default:
+        break;
       } /* End switch on link_type. */
       if(decoder == NULL)
         /* No decoder processed. */
@@ -393,8 +400,6 @@ THD_FUNCTION(pktRadioManager, arg) {
 thread_t *pktRadioManagerCreate(const radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
-
-  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   /* Create the radio manager name. */
   chsnprintf(handler->rtask_name, sizeof(handler->rtask_name),
@@ -486,7 +491,13 @@ void pktRadioManagerRelease(const radio_unit_t radio) {
  */
 bool pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
+
+  /* Hold any transmit requests. */
+  if(pktLockRadio(radio, RADIO_TX, TIME_INFINITE) != MSG_OK) {
+    TRACE_ERROR("RAD  > Unable to lock radio %d prior to receive start", radio);
+    return false;
+  }
+
   /* Configure receive. */
   if(!pktLLDradioStartReceive(radio, rto)) {
     TRACE_ERROR("RAD  > Receive on radio %d failed to start", radio);
@@ -499,7 +510,7 @@ bool pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
    * The decoder attaches the packet stream and waits for data.
    */
   pktRadioStartDecoder(radio);
-  //pktStartDecoder(radio);
+
   /* Unlock radio and allow transmit requests. */
   handler->rx_state = PACKET_RX_ENABLED;
   pktUnlockRadio(radio, RADIO_TX);
@@ -522,9 +533,12 @@ bool pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
 bool pktStopRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
   (void)rto;
   packet_svc_t *handler = pktGetServiceObject(radio);
-  pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
+  /* Hold any transmit requests. */
+  if(pktLockRadio(radio, RADIO_TX, TIME_INFINITE) != MSG_OK) {
+    TRACE_ERROR("RAD  > Unable to lock radio %d prior to receive stop", radio);
+    return false;
+  }
   pktRadioStopDecoder(radio);
-  //pktStopDecoder(radio);
   handler->rx_state = PACKET_RX_OPEN;
   pktUnlockRadio(radio, RADIO_TX);
   return true;
@@ -713,7 +727,7 @@ msg_t pktLockRadio(const radio_unit_t radio, const radio_mode_t mode,
 #else
   if((msg = chBSemWaitTimeout(&handler->radio_sem, timeout)) == MSG_OK) {
     if((msg = OV5640_LockPDCMI()) != MSG_OK)
-      /* If PDCMI lock failed the release the radio lock. */
+      /* If PDCMI lock failed then release the radio lock. */
       chBSemSignal(&handler->radio_sem);
   }
 #endif
@@ -1229,6 +1243,10 @@ bool pktLLDradioSendPacket(radio_task_object_t *rto) {
     status = Si446x_blocSendAFSK(rto);
     break;
 
+  case MOD_CW:
+    status = Si446x_blocSendCW(rto);
+    break;
+
   case MOD_NONE:
     status = false;
   } /* End switch on task_object->type. */
@@ -1414,9 +1432,14 @@ bool pktRadioGetInProgress(const radio_unit_t radio) {
     return myDemod->icustate == PKT_PWM_ACTIVE;
   }
 
+  case MOD_CW:
+    /* TODO: Implement check of RSSI threshold. */
+    return false;
+
   case MOD_NONE:
     return false;
   } /* End switch on rx_link_type. */
+
   return false;
 }
 

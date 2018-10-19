@@ -561,6 +561,7 @@ THD_FUNCTION(collectorThread, arg) {
     if(time.year == RTC_BASE_YEAR) {
       /*
        * The RTC is not set.
+       * Note: This test is only good until RTC ticks over the base year.
        * There may be a fixed location beacon requiring time only.
        * Alternatively this can be a normal request for a full fix.
        * Enable the GPS and attempt a lock which results in setting the RTC.

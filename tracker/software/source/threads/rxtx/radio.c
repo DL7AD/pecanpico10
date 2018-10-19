@@ -155,15 +155,19 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
     rt.step_hz = step;
     rt.channel = chan;
     rt.tx_power = pwr;
+    /* TODO: Make this a lookup table/static array. */
     switch(mod) {
-        case MOD_2FSK_9k6:      rt.tx_speed = 9600;     break;
-        case MOD_2FSK_19k2:     rt.tx_speed = 19200;    break;
-        case MOD_2FSK_38k4:     rt.tx_speed = 38400;    break;
-        case MOD_2FSK_57k6:     rt.tx_speed = 57600;    break;
-        case MOD_2FSK_76k8:     rt.tx_speed = 76800;    break;
-        case MOD_2FSK_96k:      rt.tx_speed = 96000;    break;
-        case MOD_2FSK_115k2:    rt.tx_speed = 115200;   break;
-        default:                                        break; // tx_speed not relevant for AFSK
+      case MOD_2FSK_300:      rt.tx_speed = 300;    rt.tx_dev = 200;    break;
+      case MOD_2FSK_9k6:      rt.tx_speed = 9600;   rt.tx_dev = 1300;   break;
+      case MOD_2FSK_19k2:     rt.tx_speed = 19200;  rt.tx_dev = 1300;   break;
+      case MOD_2FSK_38k4:     rt.tx_speed = 38400;  rt.tx_dev = 1300;   break;
+      case MOD_2FSK_57k6:     rt.tx_speed = 57600;  rt.tx_dev = 1300;   break;
+      case MOD_2FSK_76k8:     rt.tx_speed = 76800;  rt.tx_dev = 1300;   break;
+      case MOD_2FSK_96k:      rt.tx_speed = 96000;  rt.tx_dev = 1300;   break;
+      case MOD_2FSK_115k2:    rt.tx_speed = 115200; rt.tx_dev = 1300;   break;
+      case MOD_AFSK:          rt.tx_speed = 1200;   rt.tx_dev = 2000;   break;
+      case MOD_CW:            rt.tx_speed = 0;      rt.tx_dev = 0;      break;
+      default:                                                          break;
     }
     rt.squelch = cca;
     rt.packet_out = pp;
@@ -208,7 +212,9 @@ THD_FUNCTION(aprsThread, arg) {
     }
 
     /* Open packet radio service.
-     * TODO: The parameter should be channel not step.
+     * TODO:
+     * - The parameter should be channel not step.
+     * - The modulation should be set by the conf.
      */
     TRACE_INFO("RX   > Opening receive on radio %d", PKT_RADIO_1);
     msg_t omsg = pktOpenRadioReceive(PKT_RADIO_1,
