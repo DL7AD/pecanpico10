@@ -18,9 +18,10 @@
 #define SI446X_EVT_TX_TIMEOUT                   EVENT_MASK(0)
 
 #define Si446x_LOCK_BY_SEMAPHORE                TRUE
+#define Si446x_DYNAMIC_TCXO                     FALSE
 
 /* Si4464 States. */
-#define Si446x_STATE_NOCHANGE                   0
+#define Si446x_STATE_REMAIN                     0
 #define Si446x_STATE_SLEEP                      1
 #define Si446x_STATE_STANDBY                    1
 #define Si446x_STATE_SPI_ACTIVE                 2
@@ -230,8 +231,8 @@
 /*===========================================================================*/
 
  /* Frequency offset corrected oscillator frequency */
-/*#define Si446x_CCLK ((Si446x_CLK) + (Si446x_CLK_OFFSET * (Si446x_CLK / 1000000)))*/
-#define Si446x_CCLK (Si446x_CLK + Si446x_CLK_OFFSET)
+/*#define Si446x_CCLK ((Si446x_CLK) + (Si446x_CLK_ERROR * (Si446x_CLK / 1000000)))*/
+#define Si446x_CCLK (Si446x_CLK + Si446x_CLK_ERROR)
 
 #define is_part_Si4463(part) (part == 0x4463)
 
@@ -336,9 +337,12 @@ typedef struct {
   uint8_t   info[10];
 } si446x_func_t;
 
+typedef uint32_t si446x_clock_t;
+
 /* Data associated with a specific radio. */
 typedef struct Si446x_DAT {
-  si446x_temp_t lastTemp;
+  si446x_temp_t     lastTemp;
+  si446x_clock_t    radio_clock;
 } si446x_data_t;
 
 /* External. */
@@ -354,7 +358,7 @@ extern void pktReleasePacketBuffer(packet_t pp);
 extern "C" {
 #endif
   si446x_temp_t Si446x_getLastTemperature(const radio_unit_t radio);
-  bool Si446x_radioStartup(const radio_unit_t radio);
+  bool Si446x_radioWakeUp(const radio_unit_t radio);
   void Si446x_radioShutdown(const radio_unit_t radio);
   void Si446x_radioStandby(const radio_unit_t radio);
   //void Si446x_sendAFSK(packet_t pp);
@@ -363,14 +367,13 @@ extern "C" {
   bool Si446x_blocSend2FSK(radio_task_object_t *rto);
   bool Si446x_blocSendCW(radio_task_object_t *rt);
   void Si446x_disableReceive(radio_unit_t radio);
-  void Si446x_stopDecoder(void);
   bool Si4464_enableReceive(const radio_unit_t radio,
                             radio_freq_t rx_frequency,
                             channel_hz_t rx_step,
                             radio_ch_t rx_chan,
                             radio_squelch_t rx_rssi,
                             radio_mod_t rx_mod);
-  bool Si446x_receiveNoLock(const radio_unit_t radio,
+  bool Si446x_receiveActivate(const radio_unit_t radio,
                             radio_freq_t rx_frequency,
                             channel_hz_t rx_step,
                             radio_ch_t chan,
@@ -387,6 +390,7 @@ extern "C" {
   const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio, palcallback_t cb);
   void Si446x_disablePWMeventsI(const radio_unit_t radio);
   uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio, radio_mod_t mod);
+  bool Si446x_waitTransmitEnd(const radio_unit_t radio, sysinterval_t timeout);
 #ifdef __cplusplus
 }
 #endif

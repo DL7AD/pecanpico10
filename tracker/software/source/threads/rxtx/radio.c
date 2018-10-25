@@ -15,7 +15,7 @@ static void processPacket(uint8_t *buf, uint32_t len) {
   if(len < 3) {
     /*
      *  Incoming packet was too short.
-     *  Don't yet have a general packet so nothing to do.
+     *  Nothing to do.
      */
     TRACE_INFO("RX    > Packet dropped due to data length < 2");
     return;
@@ -140,7 +140,7 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
     /* TODO: Check size of buf. */
     char buf[1024];
     aprs_debug_getPacket(pp, buf, sizeof(buf));
-    TRACE_INFO("TX   > %s", buf);
+    TRACE_MON("TX   > %s", buf);
 
     /* The service object. */
     packet_svc_t *handler = pktGetServiceObject(radio);
@@ -155,20 +155,6 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
     rt.step_hz = step;
     rt.channel = chan;
     rt.tx_power = pwr;
-    /* TODO: Make this a lookup table/static array. */
-    switch(mod) {
-      case MOD_2FSK_300:      rt.tx_speed = 300;    rt.tx_dev = 200;    break;
-      case MOD_2FSK_9k6:      rt.tx_speed = 9600;   rt.tx_dev = 1300;   break;
-      case MOD_2FSK_19k2:     rt.tx_speed = 19200;  rt.tx_dev = 1300;   break;
-      case MOD_2FSK_38k4:     rt.tx_speed = 38400;  rt.tx_dev = 1300;   break;
-      case MOD_2FSK_57k6:     rt.tx_speed = 57600;  rt.tx_dev = 1300;   break;
-      case MOD_2FSK_76k8:     rt.tx_speed = 76800;  rt.tx_dev = 1300;   break;
-      case MOD_2FSK_96k:      rt.tx_speed = 96000;  rt.tx_dev = 1300;   break;
-      case MOD_2FSK_115k2:    rt.tx_speed = 115200; rt.tx_dev = 1300;   break;
-      case MOD_AFSK:          rt.tx_speed = 1200;   rt.tx_dev = 2000;   break;
-      case MOD_CW:            rt.tx_speed = 0;      rt.tx_dev = 0;      break;
-      default:                                                          break;
-    }
     rt.squelch = cca;
     rt.packet_out = pp;
 
@@ -224,7 +210,8 @@ THD_FUNCTION(aprsThread, arg) {
 
     if(omsg != MSG_OK) {
       TRACE_ERROR("RX   > Open of radio service failed");
-      break;
+      time = waitForTrigger(time, conf->rx.svc_conf.cycle);
+      continue;
     }
 
     /* Start the decoder. */
@@ -235,12 +222,15 @@ THD_FUNCTION(aprsThread, arg) {
     if(smsg != MSG_OK) {
       pktCloseRadioReceive(PKT_RADIO_1);
       TRACE_ERROR("RX   > Start of radio packet reception failed");
-      break;
+      time = waitForTrigger(time, conf->rx.svc_conf.cycle);
+      continue;
     }
     TRACE_INFO("RX   > Radio %d now active", PKT_RADIO_1);
+/*    if(conf->rx.svc_conf.cycle == CYCLE_CONTINUOUSLY)
+      break;*/
     /*
-     * Check if there is a "listening" duration.
-     * In that case turn the receive off after that timeout.
+     * Check if there is a "listening" interval.
+     * In that case turn the receive off after that time.
      */
     if(conf->rx.svc_conf.interval != TIME_IMMEDIATE) {
       chThdSleep(conf->rx.svc_conf.interval);
@@ -255,16 +245,14 @@ THD_FUNCTION(aprsThread, arg) {
         pktCloseRadioReceive(PKT_RADIO_1);
         TRACE_ERROR("RX   > Close of radio packet reception failed");
       }
-      /* Start reception at next run time (which may be immediately). */
-      time = waitForTrigger(time, conf->rx.svc_conf.cycle);
     }
-  } while(conf->rx.svc_conf.cycle != CYCLE_CONTINUOUSLY
-      || conf->rx.svc_conf.interval != TIME_IMMEDIATE);
+    /* Start reception at next run time (which may be immediately). */
+    time = waitForTrigger(time, conf->rx.svc_conf.cycle);
+  } while(true);
   /*
-   * If there is no cycle time or interval then run continuously.
-   * If there is a duration only then this is a run once setup.
-   * In both cases the APRS thread terminates and leaves the radio active.
-   * Otherwise the thread stays active and manages the schedule.
+   * If there is no cycle time then run continuously by terminating thread.
+   * If there is a cycle time and duration then turn the radio off after that duration.
+   * Then turn the radio on after cycle time
    * If duration is TIME_INFINITE then the thread is active but sleeps forever.
    * Hence the radio stays active.
    */

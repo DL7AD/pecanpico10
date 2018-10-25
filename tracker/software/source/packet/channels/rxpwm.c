@@ -130,8 +130,11 @@ void pktDetachRadio(const radio_unit_t radio) {
 
   /*
    * Detach the radio from the PWM handlers.
+   * Unlink the driver from the ICU.
+   * Forget the ICU driver.
    */
   pktLLDradioDetachStream(radio);
+  myDemod->icudriver->link = NULL;
   myDemod->icudriver = NULL;
 
   /* Disable the squelch LED. */
@@ -929,8 +932,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 void pktRadioICUOverflow(ICUDriver *myICU) {
   chSysLockFromISR();
   AFSKDemodDriver *myDemod = myICU->link;
-/*  packet_svc_t *myHandler = myDemod->packet_handler;
-  pktAddEventFlagsI(myHandler, EVT_ICU_OVERFLOW);*/
+
   if(myDemod->active_radio_stream != NULL) {
     /* Close the channel and stop ICU notifications. */
     pktClosePWMchannelI(myICU, EVT_NONE, PWM_TERM_ICU_OVERFLOW);

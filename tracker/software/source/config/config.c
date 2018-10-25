@@ -85,7 +85,7 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = false,
+            .active = true,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(10),
             .send_spacing = TIME_S2I(0)
@@ -133,16 +133,18 @@ const conf_t conf_flash_default = {
         .rx = {
              .svc_conf = {
                  // The packet receive service is enabled if true
-                 // Receive is paused and resumed by transmission
-                 // Receive can have a schedule set by cycle and on (interval) time
-                 // If there is no cycle time or interval then run continuously.
-                 // If there is a duration only then it is a run once setup.
-                 // The APRS schedule thread terminates and leaves the radio active.
-                 // If duration is TIME_INFINITE then the radio stays active while the thread waits forever.
+                 // Receive is paused and resumed by transmission on that radio
+                 // Receive can have a schedule set by cycle and interval
+                 // An interval will run receive for the specified time period
+                 // If interval is TIME_IMMEDIATE the radio turns off then on immediately
+                 // If interval is TIME_INFINITE then the radio stays on and cycle is ignored
+                 // Cycle is checked after the interval has expired
+                 // Cycle timing less than interval means the cycle will run immediately after interval
+                 // If cycle is CYCLE_CONTINUOUSLY the radio turns off and on at each interval
                  .active = true,
                  .init_delay = TIME_S2I(20),
-                 .cycle = TIME_S2I(60),
-                 .interval = TIME_S2I(55)
+                 .cycle = TIME_S2I(120),
+                 .interval = TIME_INFINITE
              },
             // Receive radio configuration
             .radio_conf = {

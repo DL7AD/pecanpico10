@@ -65,7 +65,10 @@ typedef enum ICUStates {
   PKT_PWM_STOP
 } rx_icu_state_t;
 
-/* Types for ICU and PWM data. */
+/*
+ *  Types for ICU and PWM data are sized to 16 bits only.
+ *  Thus PWM can use any ICU capable timer.
+ */
 typedef uint16_t            min_icucnt_t;
 typedef uint16_t            min_pwmcnt_t;
 
@@ -241,7 +244,6 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
   dest->pwm.valley = src.pwm.valley;
 #endif
 }
-
 
 /*===========================================================================*/
 /* External declarations.                                                    */

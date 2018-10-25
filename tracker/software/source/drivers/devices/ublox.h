@@ -81,6 +81,22 @@ typedef struct {
 	gps_svchn_t svinfo[GPS_MAX_SV_CHANNELS];
 } gps_svinfo_t;
 
+typedef uint8_t tpidx_t;
+
+typedef struct {
+    uint8_t     tpIdx;              // Timepulse selection
+    uint8_t     reserved0;          // reserved
+    uint16_t    reserved1;          // reserved
+    int16_t     antCableDelay;      // Antenna cable delay (nS)
+    int16_t     rfGroupDelay;       // RF group delay (nS)
+    uint32_t    freqPeriod;         // Frequency or period time
+    uint32_t    freqPeriodLock;     // Frequency or period when locked
+    uint32_t    pulseLenRatio;      // Pulse length or duty cycle
+    uint32_t    pulseLenRatioLock;  // Pulse length or duty cycle when locked
+    int32_t     userConfigDelay;    // User configurable time pulse delay
+    uint32_t    flags;              // Configuration flags
+} gps_tp5_t;
+
 typedef struct {
     ptime_t time;       // Time
     uint8_t type;       // type of fix (validity)
@@ -101,9 +117,9 @@ uint8_t gps_set_portable_model(void);
 uint8_t gps_set_airborne_model(void);
 uint8_t gps_set_power_options(void);
 uint8_t gps_switch_power_save_mode(bool on);
-//uint8_t gps_save_settings(void);
 bool gps_get_fix(gpsFix_t *fix);
 bool gps_get_sv_info(gps_svinfo_t *svinfo, size_t size);
+bool gps_get_timepulse_info(tpidx_t tp, gps_tp5_t *tp5, size_t size);
 bool GPS_Init(void);
 void GPS_Deinit(void);
 uint32_t GPS_get_mcu_frequency(void);

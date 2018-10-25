@@ -13,6 +13,7 @@
 #include <string.h>
 #include <time.h>
 #include "ov5640.h"
+#include "tcxo.h"
 
 //static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
 
@@ -29,44 +30,73 @@ const ShellCommand commands[] = {
 #else
     {"mem", usb_cmd_ccm_heap},
 #endif
-    {"sats", usb_cmd_get_gps_sat_info},
+    {"gps", usb_cmd_get_gps_info},
     {"error_list", usb_cmd_get_error_list},
     {"errors", usb_cmd_get_error_list},
     {"time", usb_cmd_time},
     {"radio", usb_cmd_radio},
+    {"tcxo", usb_cmd_tcxo},
 	{NULL, NULL}
 };
 
 /**
  *
  */
-void usb_cmd_get_gps_sat_info(BaseSequentialStream *chp, int argc, char *argv[]) {
+void usb_cmd_get_gps_info(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
-  if(argc > 0) {
-    shellUsage(chp, "sats");
+  if(argc > 2) {
+    shellUsage(chp, "gps [sats | tp [n]");
     return;
   }
-  chprintf(chp, "Checking for satellite information\r\n");
-  gps_svinfo_t svinfo;
-  if(!gps_get_sv_info(&svinfo, sizeof(svinfo))) {
-    chprintf(chp, "No information available\r\n");
+  if(strcmp(argv[0], "sats") == 0) {
+    chprintf(chp, "Checking for satellite information\r\n");
+    gps_svinfo_t svinfo = {0};
+    if(!gps_get_sv_info(&svinfo, sizeof(svinfo))) {
+      chprintf(chp, "No information available\r\n");
+      return;
+    }
+    if(svinfo.numCh == 0) {
+      chprintf(chp, "No satellites found\r\n");
+      return;
+    }
+    chprintf(chp, "Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d\r\n",
+             svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
+    uint8_t i;
+    for(i = 0; i < svinfo.numCh; i++) {
+      gps_svchn_t *sat = &svinfo.svinfo[i];
+      chprintf(chp, "chn=%03d svid=%03d flags=0x%02x quality=%02d"
+               " cno=%03d elev=%03d azim=%06d prRes=%06d\r\n",
+               sat->chn, sat->svid, sat->flags, sat->flags,
+               sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
+    }
     return;
   }
-  if(svinfo.numCh == 0) {
-    chprintf(chp, "No satellites found\r\n");
+  if(strcmp(argv[0], "tp") == 0) {
+    tpidx_t n = 0;
+    if(argc == 2) {
+      n = atoi(argv[1]);
+      if(n > 1) {
+        shellUsage(chp, "invalid timepulse index");
+        return;
+      }
+    }
+    chprintf(chp, "Checking for timepulse information\r\n");
+    gps_tp5_t tp5 = {0};
+    if(!gps_get_timepulse_info(n, &tp5, sizeof(tp5))) {
+      chprintf(chp, "No information available\r\n");
+      return;
+    }
+    chprintf(chp, "Timepulse %d information\r\n", tp5.tpIdx);
+    chprintf(chp, "antD=%05d rfD=%05d ForP %08d ForPL %08d pLenR %08d "
+                  "pLenRL %08d UDelay %08d flags=0x%02x\r\n",
+                  tp5.antCableDelay, tp5.rfGroupDelay, tp5.freqPeriod,
+                  tp5.freqPeriodLock, tp5.pulseLenRatio,
+                  tp5.pulseLenRatioLock, tp5.userConfigDelay, tp5.flags);
     return;
   }
-  chprintf(chp, "Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d\r\n",
-           svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
-  uint8_t i;
-  for(i = 0; i < svinfo.numCh; i++) {
-    gps_svchn_t *sat = &svinfo.svinfo[i];
-    chprintf(chp, "chn=%03d svid=%03d flags=0x%02x quality=%02d"
-             " cno=%03d elev=%03d azim=%06d prRes=%06d\r\n",
-             sat->chn, sat->svid, sat->flags, sat->flags,
-             sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
-  }
+  shellUsage(chp, "unknown gps parameter");
+  return;
 }
 
 /*
@@ -421,4 +451,22 @@ void usb_cmd_radio(BaseSequentialStream *chp, int argc, char *argv[]) {
                    "patch ID %04x\r\n",
                    radio, handler->radio_part,
                    handler->radio_rom_rev, handler->radio_patch);
+}
+
+/**
+ * Get TCXO count.
+ */
+void usb_cmd_tcxo(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
+
+  if(argc > 0) {
+    shellUsage(chp, "tcxo");
+    return;
+  }
+/*  uint32_t f_tcxo = pktMeasureTCXO(TIME_S2I(30));*/
+  uint32_t f_tcxo = pktGetCurrentTCXO();
+  if(f_tcxo == 0)
+    chprintf(chp, "Unable to get TCXO frequency\r\n");
+  else
+    chprintf(chp, "TCXO frequency is %d Hz\r\n", f_tcxo);
 }

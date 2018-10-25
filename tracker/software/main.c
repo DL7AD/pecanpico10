@@ -13,6 +13,7 @@ int main(void) {
 	chSysInit();				// Startup RTOS
     /*
      * Setup packet system...
+     * TODO: Check power state and start systems only if enough power available
      * Create memory (CCM based heap).
      * - Most DSP related data is held in CCM.
      * - There is no DMA involved in DSP filtering/decoding.

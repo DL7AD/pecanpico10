@@ -1014,6 +1014,27 @@ const radio_config_t *pktGetRadioData(radio_unit_t radio) {
 }
 
 /**
+ *
+ */
+bool pktLookupModParameters(const radio_unit_t radio, mod_params_t *mp) {
+  (void)radio;
+  switch(mp->type) {
+    case MOD_2FSK_300:    mp->tx_speed = 300;    mp->tx_dev = 200;    break;
+    case MOD_2FSK_9k6:    mp->tx_speed = 9600;   mp->tx_dev = 1300;   break;
+    case MOD_2FSK_19k2:   mp->tx_speed = 19200;  mp->tx_dev = 1300;   break;
+    case MOD_2FSK_38k4:   mp->tx_speed = 38400;  mp->tx_dev = 1300;   break;
+    case MOD_2FSK_57k6:   mp->tx_speed = 57600;  mp->tx_dev = 1300;   break;
+    case MOD_2FSK_76k8:   mp->tx_speed = 76800;  mp->tx_dev = 1300;   break;
+    case MOD_2FSK_96k:    mp->tx_speed = 96000;  mp->tx_dev = 1300;   break;
+    case MOD_2FSK_115k2:  mp->tx_speed = 115200; mp->tx_dev = 1300;   break;
+    case MOD_AFSK:        mp->tx_speed = 1200;   mp->tx_dev = 2000;   break;
+    case MOD_CW:          mp->tx_speed = 0;      mp->tx_dev = 0;      break;
+    default:                                                          return false;
+  }
+  return true;
+}
+
+/**
  * @brief   Set receive inactive.
  * @notes   Will wait a timeout for receive in progress before setting inactive.
  * @notes   This function is called by radio transmit threads.
@@ -1275,13 +1296,15 @@ bool pktLLDradioStartReceive(const radio_unit_t radio,
   if(handler == NULL)
     return false;
 
-  return Si4464_enableReceive(radio,
+  if(!Si4464_enableReceive(radio,
                             rto->base_frequency,
                             rto->step_hz,
                             rto->channel,
                             rto->squelch,
-                            rto->type);
-  pktLLDradioAttachStream(radio);
+                            rto->type)) {
+    return false;
+  }
+  return pktLLDradioAttachStream(radio);
 }
 
 /**

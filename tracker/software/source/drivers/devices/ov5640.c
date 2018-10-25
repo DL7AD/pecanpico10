@@ -1231,6 +1231,10 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
 
 	/*
 	 * Setup timer for DMA trigger using PCLK as CC input.
+	 * TODO: Define TIM in header and check it is not already allocated
+	 * #if defined(STM32_TIM8_IS_USED)
+	 * Alternatively require TIM8 to be allocated to GPT and hijack it.
+	 * That way we don't need to put rccEnable() etc. here.
 	 */
     dma_control.timer = TIM8;
 	rccEnableTIM8(FALSE);

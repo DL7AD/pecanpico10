@@ -141,9 +141,15 @@
 #error "Default operating frequency must be an absolute value in Hz"
 #endif
 
+/* TCXO calibrator setup. */
+#define PKT_TCXO_TIMER              ICUD12
+#define PKT_TCXO_TIMER_CLOCK        STM32_TIMCLK1
+#define PKT_TCXO_TIMER_CHANNEL      ICU_CHANNEL_2
+#define PKT_TCXO_DEFAULT_ERROR      650                     /**< Error in Hz */
+
 /* Si446x clock setup. */
 #define Si446x_CLK					STM32_HSECLK            /* Clock in Hz */
-#define Si446x_CLK_OFFSET			650		    	        /* Adjustment in Hz */
+#define Si446x_CLK_ERROR			PKT_TCXO_DEFAULT_ERROR  /* Error in Hz */
 #define Si446x_CLK_TCXO_EN			true                    /* Xtal or external. */
 #define Si446x_XO_TUNE              0x40                    /* Xtal trim. */
 
@@ -189,7 +195,6 @@
  *  ICU related definitions.
  */
 #define PKT_RADIO1_ICU              ICUD4
-
 #define PWM_ICU_CLK                 STM32_TIMCLK1
 
 /* ICU counter frequency. */

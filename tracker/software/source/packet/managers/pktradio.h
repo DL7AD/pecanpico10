@@ -115,6 +115,13 @@ typedef struct radioSettings {
   radio_squelch_t           squelch;
 } radio_settings_t;
 
+
+typedef struct modParams {
+  radio_mod_t               type;
+  uint32_t                  tx_speed;
+  deviation_hz_t            tx_dev;
+} mod_params_t;
+
 typedef struct radioAction {
   radio_command_t           command;
   radio_task_cb_t           callback;
@@ -144,8 +151,8 @@ struct radioTask {
   packet_svc_t              *handler;
   packet_t                  packet_out;
   radio_pwr_t               tx_power;
-  uint32_t                  tx_speed;
-  deviation_hz_t            tx_dev;
+  //uint32_t                  tx_speed;
+  //deviation_hz_t            tx_dev;
   uint8_t                   tx_seq_num;
 };
 
@@ -239,6 +246,8 @@ extern "C" {
   int       	 	pktDisplayFrequencyCode(radio_freq_t code, char *buf,
             	 	                        size_t size);
   const radio_config_t	*pktGetRadioData(radio_unit_t radio);
+  bool              pktLookupModParameters(const radio_unit_t radio,
+                                           mod_params_t *mp);
   uint8_t           pktLLDradioReadCCAline(const radio_unit_t radio);
   void              pktLLDradioConfigIndicator(const radio_unit_t radio,
                                                const indicator_t ind);

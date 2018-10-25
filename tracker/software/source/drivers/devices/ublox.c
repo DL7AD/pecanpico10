@@ -189,6 +189,27 @@ uint16_t gps_receive_payload(uint8_t class_id, uint8_t msg_id,
 }
 
 /**
+  * gps_get_timepulse_info
+  *
+  *
+  */
+bool gps_get_timepulse_info(tpidx_t tp, gps_tp5_t *tp5, size_t size) {
+  if(!gps_enabled)
+    return false;
+
+  // Transmit request
+  uint8_t tp5_req[] = {0xB5, 0x62, 0x06, 0x31, 0x01, 0x00, tp & 0x01, 0xFF, 0xFF};
+  gps_transmit_string(tp5_req, sizeof(tp5_req));
+
+  if(!gps_receive_payload(0x06, 0x31, (unsigned char*)tp5, size,
+                          TIME_MS2I(3000))) { // Receive request
+    TRACE_ERROR("GPS  > CFG-TP5 Polling FAILED");
+    return false;
+  }
+  return true;
+}
+
+/**
   * gps_get_sv_info
   *
   *

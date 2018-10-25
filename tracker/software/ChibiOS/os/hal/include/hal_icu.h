@@ -200,8 +200,8 @@ typedef void (*icucallback_t)(ICUDriver *icup);
 
 /**
  * @brief   Common ISR code, ICU timer overflow event.
- * @note    An overflow always brings the driver back to the @p ICU_WAITING
- *          state.
+ * @note    An overflow leaves the state unchanged so that the callback can
+ *          determine what action to take.
  *
  * @param[in] icup      pointer to the @p ICUDriver object
  *
@@ -209,7 +209,6 @@ typedef void (*icucallback_t)(ICUDriver *icup);
  */
 #define _icu_isr_invoke_overflow_cb(icup) do {                              \
   (icup)->config->overflow_cb(icup);                                        \
-  (icup)->state = ICU_WAITING;                                              \
 } while (0)
 /** @} */
 
