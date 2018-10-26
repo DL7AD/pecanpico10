@@ -164,8 +164,9 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
     /* Update the task mirror. */
     handler->radio_tx_config = rt;
 
-    msg_t msg = pktSendRadioCommand(radio, &rt, (radio_task_cb_t)cb);
-    if(msg != MSG_OK) {
+    msg_t msg = pktSendRadioCommand(radio, &rt, TIME_S2I(10),
+                                    (radio_task_cb_t)cb);
+    if(msg == MSG_TIMEOUT) {
       TRACE_ERROR("RAD  > Failed to post radio task");
       pktReleaseBufferChain(pp);
       return false;

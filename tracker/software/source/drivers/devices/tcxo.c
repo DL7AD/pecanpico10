@@ -27,8 +27,8 @@ ICUConfig tcxo_cfg = {
 
 BSEMAPHORE_DECL(tcxo_busy, false);
 
-uint32_t tcxo_period;
-uint32_t tcxo_active;
+xtal_osc_t tcxo_period;
+xtal_osc_t tcxo_active = PKT_TCXO_TIMER_CLOCK + PKT_TCXO_DEFAULT_ERROR;
 volatile tcxo_state_t  tcxo_state;
 
 /*===========================================================================*/
@@ -39,24 +39,22 @@ volatile tcxo_state_t  tcxo_state;
  *
  */
 
-THD_FUNCTION(tcxo_thd, arg)
-{
-    (void)arg;
+THD_FUNCTION(tcxo_thd, arg) {
+  (void)arg;
 
-    while(true)
-    {
-      uint32_t f = pktMeasureTCXO(TIME_S2I(30));
-      if(f != 0) {
-        if(f != tcxo_active) {
-          tcxo_active = f;
-          TRACE_INFO("TCXO > Update to %d Hz", f);
-        } else {
-          TRACE_INFO("TCXO > Unchanged at %d Hz", f);
-        }
-      } else
-        TRACE_WARN("TCXO > No update available");
-        chThdSleep(TIME_S2I(60));
-    }
+  while(true) {
+    uint32_t f = pktMeasureTCXO(TIME_S2I(30));
+    if(f != 0) {
+      if(f != tcxo_active) {
+        tcxo_active = f;
+        TRACE_INFO("TCXO > Update to %d Hz", f);
+      } else {
+        TRACE_INFO("TCXO > Unchanged at %d Hz", f);
+      }
+    } else
+      TRACE_WARN("TCXO > No update available");
+    chThdSleep(TIME_S2I(60));
+  }
 }
 
 /**
@@ -77,14 +75,23 @@ void pktInitTCXO()  {
 /**
  *
  */
-uint32_t pktGetCurrentTCXO()  {
+inline xtal_osc_t pktGetCurrentTCXO()  {
   return tcxo_active;
 }
 
 /**
  *
  */
-uint32_t pktMeasureTCXO(sysinterval_t timeout) {
+xtal_osc_t pktCheckUpdatedTCXO(xtal_osc_t current)  {
+  if(current != tcxo_active)
+    return tcxo_active;
+  return 0;
+}
+
+/**
+ *
+ */
+xtal_osc_t pktMeasureTCXO(sysinterval_t timeout) {
   if(timeout == TIME_INFINITE)
     return 0;
   if(!hasGPSacquiredLock(getLastDataPoint()))
@@ -109,7 +116,7 @@ uint32_t pktMeasureTCXO(sysinterval_t timeout) {
   icuStopCapture(&PKT_TCXO_TIMER);
   icuStop(&PKT_TCXO_TIMER);
   tcxo_state = TCXO_READY;
-  uint32_t f_tcxo = (float32_t)STM32_HSECLK
+  xtal_osc_t f_tcxo = (float32_t)STM32_HSECLK
       * ((float32_t)tcxo_period / (float32_t)PKT_TCXO_TIMER_CLOCK);
   chBSemSignal(&tcxo_busy);
   return s == TCXO_COMPLETE ? f_tcxo : 0;

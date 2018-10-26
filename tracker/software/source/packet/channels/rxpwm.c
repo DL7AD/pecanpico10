@@ -197,6 +197,7 @@ void pktEnableRadioStream(const radio_unit_t radio) {
   case PKT_PWM_READY:
     return;
 
+  case PKT_PWM_WAITING:
   case PKT_PWM_ACTIVE: {
     chDbgAssert(false, "wrong PWM state");
     return;
@@ -228,6 +229,7 @@ void pktDisableRadioStream(const radio_unit_t radio) {
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
   switch(myDemod->icustate) {
+  case PKT_PWM_WAITING:
   case PKT_PWM_ACTIVE: {
     /* PWM incoming active. */
 
@@ -557,7 +559,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   /* Clear status bits. */
   myFIFO->status = 0;
 
-  myDemod->icustate = PKT_PWM_ACTIVE;
+  myDemod->icustate = PKT_PWM_WAITING;
 }
 
 /**
@@ -587,7 +589,7 @@ void pktPWMInactivityTimeout(ICUDriver *myICU) {
   chSysLockFromISR();
   AFSKDemodDriver *myDemod = myICU->link;
   if(myDemod->active_radio_stream != NULL
-      && myDemod->icustate == PKT_PWM_ACTIVE) {
+      && myDemod->icustate == PKT_PWM_WAITING) {
     pktClosePWMchannelI(myICU, EVT_PWM_NO_DATA, PWM_TERM_NO_DATA);
   }
   chSysUnlockFromISR();
@@ -701,7 +703,8 @@ void pktRadioCCAInput(ICUDriver *myICU) {
   /* CCA changed. */
   switch(cca) {
     case PAL_LOW: {
-      if(myDemod->icustate == PKT_PWM_ACTIVE) {
+      if(myDemod->icustate == PKT_PWM_ACTIVE
+          || myDemod->icustate == PKT_PWM_WAITING) {
         /* CCA trailing edge glitch handling.
          * Start timer and check if CCA remains low before closing PWM.
          *
@@ -767,15 +770,16 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
   AFSKDemodDriver *myDemod = myICU->link;
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
-  if(myDemod->icustate != PKT_PWM_ACTIVE)
-    return;
-
   chSysLockFromISR();
-  /*
-   * On period clear the ICU activity watchdog timer.
-   * i.e. Once radio data appears a "no data" timeout is invalidated.
-   */
-  chVTResetI(&myICU->pwm_timer);
+
+  if(myDemod->icustate == PKT_PWM_WAITING) {
+    /*
+     * On period clear the ICU activity watchdog timer.
+     * i.e. Once radio data appears a "no data" timeout is invalidated.
+     */
+    chVTResetI(&myICU->pwm_timer);
+    myDemod->icustate = PKT_PWM_ACTIVE;
+  }
 
   if(myDemod->active_radio_stream == NULL) {
     /*
@@ -932,7 +936,13 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 void pktRadioICUOverflow(ICUDriver *myICU) {
   chSysLockFromISR();
   AFSKDemodDriver *myDemod = myICU->link;
+  /* Is the ICU active? */
+  if(myDemod->icustate != PKT_PWM_ACTIVE) {
+    chSysUnlockFromISR();
+    return;
+  }
 
+  /* Is there a stream attached? */
   if(myDemod->active_radio_stream != NULL) {
     /* Close the channel and stop ICU notifications. */
     pktClosePWMchannelI(myICU, EVT_NONE, PWM_TERM_ICU_OVERFLOW);

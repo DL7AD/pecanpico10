@@ -142,7 +142,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	r = ax25_get_first_not_repeated(pp);
 
 	if (r < AX25_REPEATER_1) {
-	    TRACE_INFO("DIGI > All stations have been repeated already");
+	    TRACE_INFO("DIGI > All stations already repeated");
 	  return (NULL);
 	}
 

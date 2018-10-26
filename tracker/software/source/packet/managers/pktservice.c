@@ -368,13 +368,11 @@ msg_t pktOpenRadioReceive(const radio_unit_t radio,
   /*
    * Open (init) the radio receive (via submit radio task).
    */
-  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
+  msg_t msg = pktSendRadioCommand(radio, &rt, TIME_INFINITE, NULL);
 
   if(msg != MSG_OK)
     return msg;
 
-  //handler->state = PACKET_OPEN;
-  //handler->rx_state = PACKET_RX_OPEN;
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
 
   return MSG_OK;
@@ -436,7 +434,7 @@ msg_t pktEnableDataReception(const radio_unit_t radio,
 
   rt.command = PKT_RADIO_RX_START;
 
-  msg_t msg = pktSendRadioCommand(radio, &rt,
+  msg_t msg = pktSendRadioCommand(radio, &rt, TIME_INFINITE,
                                   (radio_task_cb_t) pktDecoderActive);
   if(msg != MSG_OK)
     return MSG_TIMEOUT;
@@ -523,7 +521,7 @@ void pktStartDecoder(const radio_unit_t radio) {
  * @pre     The packet channel must be running.
  * @post    The packet channel is stopped.
  *
- * @param[in] radio     radio unit ID..
+ * @param[in] radio     radio unit ID.
  *
  * @return              Status of the operation.
  * @retval MSG_OK       if the channel was stopped.
@@ -540,7 +538,6 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
   if(handler == NULL)
     return MSG_RESET;
 
-  //if(handler->state != PACKET_DECODE || handler->state != PACKET_PAUSE)
   if(handler->state != PACKET_READY)
     return MSG_RESET;
 
@@ -553,11 +550,10 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
 
   rt.command = PKT_RADIO_RX_STOP;
 
-  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
+  msg_t msg = pktSendRadioCommand(radio, &rt, TIME_INFINITE, NULL);
   if(msg != MSG_OK)
     return msg;
 
-  //handler->state = PACKET_STOP;
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_STOP);
   return MSG_OK;
 }
@@ -622,8 +618,7 @@ void pktStopDecoder(radio_unit_t radio) {
     evt = chEvtGetAndClearFlags(&el);
   } while (evt != DEC_STOP_EXEC);
   pktUnregisterEventListener(esp, &el);
-  //handler->state = PACKET_PAUSE;
-  //handler->rx_state = PACKET_RX_ENABLED;
+  handler->rx_state = PACKET_RX_OPEN;
 }
 
 /**
@@ -647,12 +642,9 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
   if(handler == NULL)
     return MSG_RESET;
 
-/*  if(!(handler->state == PACKET_STOP || handler->state == PACKET_CLOSE))
-    return MSG_RESET;*/
   chDbgCheck(handler->state == PACKET_READY);
   if(handler->state != PACKET_READY)
     return MSG_RESET;
-  //handler->state = PACKET_CLOSE;
 
   /* Set parameters for radio. */;
 
@@ -661,13 +653,11 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
   rt.command = PKT_RADIO_RX_CLOSE;
 
   /* Submit command. A timeout can occur waiting for a command queue object. */
-  msg_t msg = pktSendRadioCommand(radio, &rt, NULL);
+  msg_t msg = pktSendRadioCommand(radio, &rt, TIME_INFINITE, NULL);
   if(msg != MSG_OK)
     return msg;
 
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_CLOSE);
-  //handler->state = PACKET_READY;
-  //handler->rx_state = PACKET_RX_IDLE;
   return MSG_OK;
 }
 

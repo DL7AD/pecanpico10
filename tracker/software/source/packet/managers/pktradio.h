@@ -88,7 +88,8 @@ typedef enum radioCommand {
   PKT_RADIO_RX_CLOSE,
   PKT_RADIO_TX_DONE,
   PKT_RADIO_MGR_CLOSE,
-  PKT_RADIO_RX_RSSI
+  PKT_RADIO_RX_RSSI,
+  PKT_RADIO_RTO_FREE
 } radio_command_t;
 
 /**
@@ -103,7 +104,7 @@ typedef struct radioConfig radio_config_t;
  *
  * @param[in] task_object  pointer to a @p radio task object
  */
-typedef void (*radio_task_cb_t)(radio_task_object_t *task_object);
+typedef bool (*radio_task_cb_t)(radio_task_object_t *task_object);
 
 #include "ax25_pad.h"
 
@@ -151,8 +152,6 @@ struct radioTask {
   packet_svc_t              *handler;
   packet_t                  packet_out;
   radio_pwr_t               tx_power;
-  //uint32_t                  tx_speed;
-  //deviation_hz_t            tx_dev;
   uint8_t                   tx_seq_num;
 };
 
@@ -187,9 +186,9 @@ extern "C" {
 #endif
   thread_t  		*pktRadioManagerCreate(const radio_unit_t radio);
   void      		pktRadioManagerRelease(const radio_unit_t radio);
-  bool pktStartRadioReceive(const radio_unit_t radio,
+  bool              pktStartRadioReceive(const radio_unit_t radio,
                             radio_task_object_t *rto);
-  bool pktStopRadioReceive(const radio_unit_t radio,
+  bool              pktStopRadioReceive(const radio_unit_t radio,
                            radio_task_object_t *rto);
   void      		pktRadioManager(void *arg);
   msg_t     		pktGetRadioTaskObject(const radio_unit_t radio,
@@ -198,6 +197,9 @@ extern "C" {
   void      		pktSubmitRadioTask(const radio_unit_t radio,
                           radio_task_object_t *object,
                           radio_task_cb_t cb);
+  void              pktSubmitPriorityRadioTask(const radio_unit_t radio,
+                           radio_task_object_t *object,
+                           const radio_task_cb_t cb);
   void      		pktScheduleThreadRelease(const radio_unit_t radio,
                                 thread_t *thread);
   msg_t     		pktLockRadio(const radio_unit_t radio,
@@ -256,6 +258,8 @@ extern "C" {
   void              pktLLDradioUpdateIndicator(const radio_unit_t radio,
                                                const indicator_t ind,
                                                const indicator_msg_t val);
+  bool              pktLLDradioOscUpdate(const radio_unit_t radio,
+                                         xtal_osc_t freq);
 #ifdef __cplusplus
 }
 #endif

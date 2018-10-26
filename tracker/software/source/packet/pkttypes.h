@@ -107,4 +107,6 @@ typedef uint32_t link_speed_t;
 
 typedef uint16_t volt_level_t;
 
+typedef uint32_t xtal_osc_t;
+
 #endif /* PKT_PKTTYPES_H_ */

@@ -18,7 +18,6 @@
 #define SI446X_EVT_TX_TIMEOUT                   EVENT_MASK(0)
 
 #define Si446x_LOCK_BY_SEMAPHORE                TRUE
-#define Si446x_DYNAMIC_TCXO                     FALSE
 
 /* Si4464 States. */
 #define Si446x_STATE_REMAIN                     0
@@ -391,6 +390,7 @@ extern "C" {
   void Si446x_disablePWMeventsI(const radio_unit_t radio);
   uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio, radio_mod_t mod);
   bool Si446x_waitTransmitEnd(const radio_unit_t radio, sysinterval_t timeout);
+  bool Si446x_updateClock(const radio_unit_t, xtal_osc_t freq);
 #ifdef __cplusplus
 }
 #endif

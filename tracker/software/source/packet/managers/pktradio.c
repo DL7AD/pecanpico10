@@ -21,6 +21,7 @@
 #include "debug.h"
 #include "geofence.h"
 #include "ov5640.h"
+#include "tcxo.h"
 
 /*===========================================================================*/
 /* Module local definitions.                                                 */
@@ -38,6 +39,45 @@ const radio_band_t band_70cm = {
   .step     = BAND_STEP_70CM_HZ,
 };
 
+/*===========================================================================*/
+/* Module local functions.                                                   */
+/*===========================================================================*/
+
+/**
+ *
+ */
+static bool pktReceiveOscUpdate(radio_task_object_t *rt) {
+  packet_svc_t *handler = rt->handler;
+  const radio_unit_t radio = handler->radio;
+  xtal_osc_t tcxo = pktGetCurrentTCXO();
+  /* TODO: We are in a callback and can't block the RM thread. */
+  msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_MS2I(10));
+  if(msg == MSG_OK) {
+    /*
+     * Radio is locked.
+     * Apply the oscillator update.
+     */
+    (void)pktLLDradioOscUpdate(radio, tcxo);
+    pktUnlockRadio(radio, RADIO_TX);
+  }
+  /*
+   * FIXME: The update will not re-try on failed lock.
+   * xtal was already updated in the RM thread.
+   */
+
+  /*
+   *  Now re-start RX.
+   *  The existing object is re-posted as a priority command.
+   *  A re-schedule may have allowed another task to be queued.
+   *  The radio is locked during start actions.
+   */
+  rt->command = PKT_RADIO_RX_START;
+  pktSubmitPriorityRadioTask(radio, rt, NULL);
+  TRACE_INFO("RAD  > Restarting receive on radio %d", radio);
+  /* Task object passed in is re-used so not freed upon return. */
+  return true;
+}
+
 /**
  * @brief   Process radio task requests.
  * @notes   Task objects posted to the queue are processed per radio.
@@ -53,7 +93,9 @@ const radio_band_t band_70cm = {
  */
 THD_FUNCTION(pktRadioManager, arg) {
   /* When waiting for TX tasks to complete if manager is terminating. */
-#define PKT_RADIO_TX_TASK_RECHECK_WAIT_MS     100
+#define PKT_RADIO_TX_TASK_RECHECK_WAIT      TIME_MS2I(100)
+  /* Poll for TCXO changes. */
+#define PKT_RADIO_TCXO_POLL                 TIME_S2I(10)
 
   packet_svc_t *handler = arg;
 
@@ -66,6 +108,8 @@ THD_FUNCTION(pktRadioManager, arg) {
   chDbgAssert(radio_queue != NULL, "no queue in radio manager FIFO");
 
   const radio_unit_t radio = handler->radio;
+
+  xtal_osc_t xtal = 0;
 
   /* Take radio out of shutdown and initialize base registers. */
   bool init = pktLLDradioInit(radio);
@@ -83,15 +127,53 @@ THD_FUNCTION(pktRadioManager, arg) {
   while(true) {
     /* Check for task requests. */
     radio_task_object_t *task_object;
-    (void)chFifoReceiveObjectTimeout(radio_queue,
-                         (void *)&task_object, TIME_INFINITE);
+    msg_t msg = chFifoReceiveObjectTimeout(radio_queue,
+                         (void *)&task_object, PKT_RADIO_TCXO_POLL);
+    if(msg == MSG_TIMEOUT) {
+      /*
+       * Update the radio clock if TCXO has changed.
+       */
+      xtal_osc_t tcxo = pktCheckUpdatedTCXO(xtal);
+      if(tcxo != 0) {
+        TRACE_INFO("RAD  > Sending new TCXO %d Hz to radio %d", tcxo, radio);
+        radio_task_object_t rt = handler->radio_rx_config;
+        if(pktIsReceiveEnabled(radio)) {
+          /*
+           * Stop the radio processing.
+           * Post a priority command.
+           * A re-schedule may have allowed another task to be queued.
+           * The radio is locked during the stop actions.
+           * Handle clock update in callback.
 
+           */
+          rt.command = PKT_RADIO_RX_STOP;
+          msg = pktSendPriorityRadioCommand(radio, &rt, TIME_MS2I(100),
+                                    pktReceiveOscUpdate);
+          if(msg == MSG_TIMEOUT) {
+            /* Try again (if TCXO is still changed). */
+            continue;
+          }
+        } else {
+          /* Handle TX update immediately. */
+          msg = pktLockRadio(radio, RADIO_TX, TIME_MS2I(10));
+          if(msg == MSG_TIMEOUT)
+            /* Try again (if TCXO is still changed). */
+            continue;
+          (void)pktLLDradioOscUpdate(radio, tcxo);
+          pktUnlockRadio(radio, RADIO_TX);
+        }
+        /* Update the local TCXO value. */
+        xtal = tcxo;
+      }
+      chThdSleep(TIME_MS2I(5));
+      continue;
+    }
     /*
-     * Something to do.
+     * Queued task object to handle.
      * Process command.
      */
     switch(task_object->command) {
-    case PKT_RADIO_MGR_CLOSE: {
+        case PKT_RADIO_MGR_CLOSE: {
       /*
        * Radio manager close is sent as a task object.
        * When no TX tasks are outstanding release the FIFO and terminate.
@@ -108,8 +190,8 @@ THD_FUNCTION(pktRadioManager, arg) {
        * Wait, repost task, let the FIFO be processed and check again.
        * TODO: RX open should also be handled in some way?
        */
-      chThdSleep(TIME_MS2I(PKT_RADIO_TX_TASK_RECHECK_WAIT_MS));
-      pktSubmitRadioTask(radio, task_object, task_object->callback);
+      chThdSleep(PKT_RADIO_TX_TASK_RECHECK_WAIT);
+      pktSubmitPriorityRadioTask(radio, task_object, task_object->callback);
       continue;
     }
 
@@ -230,7 +312,6 @@ THD_FUNCTION(pktRadioManager, arg) {
         case MOD_CW:
           break;
        } /* End switch. */
-      //handler->rx_state = PACKET_RX_OPEN;
       break;
     } /* End case PKT_RADIO_RX_STOP. */
 
@@ -381,15 +462,24 @@ THD_FUNCTION(pktRadioManager, arg) {
       break;
     } /* End case PKT_RADIO_TX_THREAD */
 
+    case PKT_RADIO_RTO_FREE:
+      break;
     } /* End switch on command. */
     /* Perform radio task callback if specified. */
-    if(task_object->callback != NULL)
+    if(task_object->callback != NULL) {
       /*
        * Perform the callback.
        * The callback should be brief and non-blocking.
+       * The callback returns true if it has re-posted the object
+       * If not free the object.
        */
-      task_object->callback(task_object);
-    /* Return radio task object to free list. */
+      if(task_object->callback(task_object))
+        /* Task object has been re-used.
+         * Don't return radio task object to free list.
+         */
+        continue;
+    }
+    /* Return task object to free list. */
     chFifoReturnObject(radio_queue, (radio_task_object_t *)task_object);
   } /* End while. */
 }
@@ -674,7 +764,42 @@ void pktSubmitRadioTask(const radio_unit_t radio,
                          const radio_task_cb_t cb) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
-  //chDbgAssert(handler != NULL, "invalid radio ID");
+
+  dyn_objects_fifo_t *task_fifo = handler->the_radio_fifo;
+  chDbgAssert(task_fifo != NULL, "no radio task fifo");
+
+  objects_fifo_t *task_queue = chFactoryGetObjectsFIFO(task_fifo);
+  chDbgAssert(task_queue != NULL, "no objects fifo list");
+
+  /* Update object information. */
+
+  object->handler = handler;
+  object->callback = cb;
+
+  /*
+   * Submit the task to the queue.
+   * The task thread will process the request.
+   * If a callback is specified it is called.
+   * After callback the task object is returned to the free list if the callback is not re-posting.
+   */
+  chFifoSendObject(task_queue, object);
+}
+
+/**
+ * @brief   Submit a priority radio command to the task manager.
+ * @post    A task object is populated and submitted to the radio manager.
+ *
+ * @param[in]   radio   radio unit ID.
+ * @param[in]   object  radio task object to be submitted.
+ * @param[in]   cb      function to call with result (can be NULL).
+ *
+ * @api
+ */
+void pktSubmitPriorityRadioTask(const radio_unit_t radio,
+                         radio_task_object_t *object,
+                         const radio_task_cb_t cb) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
 
   dyn_objects_fifo_t *task_fifo = handler->the_radio_fifo;
   chDbgAssert(task_fifo != NULL, "no radio task fifo");
@@ -693,7 +818,7 @@ void pktSubmitRadioTask(const radio_unit_t radio,
    * The task object is returned to the free list.
    * If a callback is specified it is called before the task object is freed.
    */
-  chFifoSendObject(task_queue, object);
+  chFifoSendObjectAhead(task_queue, object);
 }
 
 /**
@@ -1425,6 +1550,25 @@ uint8_t pktLLDradioReadCCAline(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   return Si446x_readCCAlineForRX(radio, handler->rx_link_type);
+}
+
+/**
+ * @brief Send the latest main clock value to the radio.
+ * @notes The radio may update its local Xtal/Osc frequency.
+ * @notes The decision to update or not would based on the drift magnitude.
+ *
+ * @return  status from the radio driver
+ * @retval  true if the change was applied
+ * @retval  false if the change was not applied
+ */
+bool pktLLDradioOscUpdate(const radio_unit_t radio, xtal_osc_t freq) {
+  /*
+   * TODO: Implement as VMT inside radio driver (Si446x is only one at present).
+   * - Lookup radio type from radio ID.
+   * - Then call VMT dispatcher inside radio driver.
+   */
+
+  return Si446x_updateClock(radio, freq);
 }
 
 /**

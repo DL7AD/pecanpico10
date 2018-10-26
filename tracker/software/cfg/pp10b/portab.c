@@ -141,7 +141,7 @@ const si446x_mcucfg_t radio1_cfg = {
 /* Variable data for a radio. */
 si446x_data_t radio1_dat = {
         .lastTemp = 0x7FFF,
-        .radio_clock = Si446x_CLK + PKT_TCXO_DEFAULT_ERROR
+        .radio_clock = Si446x_CLK + Si446x_CLK_ERROR
         // TODO: Move part and func structs into here and add functions to get
 };
 

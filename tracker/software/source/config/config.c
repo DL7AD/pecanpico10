@@ -85,7 +85,7 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(10),
             .send_spacing = TIME_S2I(0)
@@ -143,7 +143,7 @@ const conf_t conf_flash_default = {
                  // If cycle is CYCLE_CONTINUOUSLY the radio turns off and on at each interval
                  .active = true,
                  .init_delay = TIME_S2I(20),
-                 .cycle = TIME_S2I(120),
+                 .cycle = TIME_S2I(600),
                  .interval = TIME_INFINITE
              },
             // Receive radio configuration

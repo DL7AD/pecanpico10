@@ -16,7 +16,7 @@
 /* Module local variables.                                                   */
 /*===========================================================================*/
 
-si446x_clock_t latest_tcxo = Si446x_CLK + PKT_TCXO_DEFAULT_ERROR;
+//si446x_clock_t latest_tcxo = Si446x_CLK + PKT_TCXO_DEFAULT_ERROR;
 
 /*===========================================================================*/
 /* Module constants.                                                         */
@@ -502,7 +502,10 @@ static bool Si446x_init(const radio_unit_t radio) {
 
   /* Number of cycles to count for VCO calibration at frequency change. */
   Si446x_setProperty8(radio, Si446x_FREQ_CONTROL_W_SIZE, 0x20);
-  /* Adjustment to cycle count for RX frequency (equates to IF offset) */
+  /*
+   * Adjustment to cycle count for RX frequency (equates to IF offset)
+   * FIXME: This will need to be re-calculated where IF is changed.
+   */
   Si446x_setProperty8(radio, Si446x_FREQ_CONTROL_VCOCNT_RX_ADJ, 0xFA);
 
   /* Antenna settings. */
@@ -536,40 +539,13 @@ static bool Si446x_init(const radio_unit_t radio) {
 }
 
 /**
- * Intialize radio if it has been shutdown or clock has been updated.
+ * Intialize radio if it has been shutdown.
  */
 bool Si446x_conditional_init(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-
-  //si446x_clock_t radio_clock = Si446x_getData(radio)->radio_clock;
-
-  si446x_clock_t tcxo = pktGetCurrentTCXO();
-
-  /* Check and set latest TCXO if nothing set. */
-  if(latest_tcxo == 0 && tcxo == 0) {
-    latest_tcxo = Si446x_CCLK;
-    TRACE_INFO("SI   > Set default Si446x clock to %d Hz", latest_tcxo);
-  }
-
-  /* Update latest TCXO if new value available. */
-  if(tcxo != 0 && tcxo != latest_tcxo) {
-    /* Update the driver common clock value. */
-    latest_tcxo = tcxo;
-    if(Si446x_getData(radio)->radio_clock != latest_tcxo) {
-#if Si446x_DYNAMIC_TCXO == TRUE
-      TRACE_INFO("SI   > Restarting radio %d with updated clock: %d Hz",
-                 radio, radio_clock);
-      Si446x_radioShutdown(radio);
-      Si446x_getData(radio)->radio_clock = _latest_tcxo;
-      return Si446x_init(radio);
-#else
-      TRACE_INFO("SI   > Clock updates are not enabled for radio %d", radio);
-#endif
-    }
-  }
   if(handler->radio_init)
     return true;
-  Si446x_getData(radio)->radio_clock = latest_tcxo;
+  //Si446x_getData(radio)->radio_clock = latest_tcxo;
   return Si446x_init(radio);
 }
 
@@ -1173,8 +1149,8 @@ bool Si446x_radioWakeUp(const radio_unit_t radio) {
   palSetLineMode(Si446x_getConfig(radio)->gpio1, PAL_MODE_INPUT_PULLDOWN);
 
   /* First assert SDN high to ensure radio is asleep. */
-/*  palSetLine(Si446x_getConfig(radio)->sdn);
-  chThdSleep(TIME_MS2I(100));*/
+  palSetLine(Si446x_getConfig(radio)->sdn);
+  chThdSleep(TIME_MS2I(100));
 
   /* Assert SDN low to perform radio POR wakeup. */
   palClearLine(Si446x_getConfig(radio)->sdn);
@@ -2363,4 +2339,22 @@ uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio,
     break;
   }
   return 0;
+}
+
+/**
+ * return true if clock change was applied else false.
+ */
+bool Si446x_updateClock(const radio_unit_t radio, xtal_osc_t freq) {
+  if(freq == 0)
+    return false;
+  si446x_clock_t xo = Si446x_getData(radio)->radio_clock;
+  if((si446x_clock_t)freq != xo) {
+    Si446x_getData(radio)->radio_clock = (si446x_clock_t)freq;
+    if(!Si446x_init(radio)) {
+      TRACE_ERROR("SI   > Init of radio %d failed when applying clock update",
+                  radio);
+    }
+    return true;
+  }
+  return false;
 }

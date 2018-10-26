@@ -61,6 +61,7 @@ typedef uint8_t pwm_code_t;
 typedef enum ICUStates {
   PKT_PWM_INIT = 0,
   PKT_PWM_READY,
+  PKT_PWM_WAITING,
   PKT_PWM_ACTIVE,
   PKT_PWM_STOP
 } rx_icu_state_t;
