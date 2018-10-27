@@ -190,6 +190,8 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
 THD_FUNCTION(aprsThread, arg) {
   thd_aprs_conf_t* conf = (thd_aprs_conf_t*)arg;
 
+  radio_unit_t radio = PKT_RADIO_1;
+
   if(conf->rx.svc_conf.init_delay) chThdSleep(conf->rx.svc_conf.init_delay);
   systime_t time = chVTGetSystemTime();
   do {
@@ -198,35 +200,35 @@ THD_FUNCTION(aprsThread, arg) {
       break;
     }
 
-    /* Open packet radio service.
-     * TODO:
-     * - The parameter should be channel not step.
-     * - The modulation should be set by the conf.
-     */
+    /* Open packet radio receive service. */
     TRACE_INFO("RX   > Opening receive on radio %d", PKT_RADIO_1);
-    msg_t omsg = pktOpenRadioReceive(PKT_RADIO_1,
+    msg_t omsg = pktOpenRadioReceive(radio,
                          MOD_AFSK,
                          conf->rx.radio_conf.freq,
-                         0); // Step is 0 for now. Get from radio record.
+                         0, // Step is 0 for now. Get from radio record.
+                         TIME_S2I(5));
 
     if(omsg != MSG_OK) {
-      TRACE_ERROR("RX   > Open of radio service failed");
+      TRACE_ERROR("RX   > Open of radio receive service failed with error %d",
+                  omsg);
       time = waitForTrigger(time, conf->rx.svc_conf.cycle);
       continue;
     }
 
     /* Start the decoder. */
-    msg_t smsg = pktEnableDataReception(PKT_RADIO_1,
+    msg_t smsg = pktEnableDataReception(radio,
                            0, // Chan = 0 for now
                            conf->rx.radio_conf.rssi,
-                           mapCallback);
+                           mapCallback,
+                           TIME_S2I(10));
     if(smsg != MSG_OK) {
-      pktCloseRadioReceive(PKT_RADIO_1);
-      TRACE_ERROR("RX   > Start of radio packet reception failed");
+      pktCloseRadioReceive(radio);
+      TRACE_ERROR("RX   > Start of radio %d packet reception failed with error %d",
+                  radio, smsg);
       time = waitForTrigger(time, conf->rx.svc_conf.cycle);
       continue;
     }
-    TRACE_INFO("RX   > Radio %d now active", PKT_RADIO_1);
+    TRACE_INFO("RX   > Radio %d now active", radio);
 /*    if(conf->rx.svc_conf.cycle == CYCLE_CONTINUOUSLY)
       break;*/
     /*
@@ -235,15 +237,15 @@ THD_FUNCTION(aprsThread, arg) {
      */
     if(conf->rx.svc_conf.interval != TIME_IMMEDIATE) {
       chThdSleep(conf->rx.svc_conf.interval);
-      TRACE_INFO("RX   > Closing receive on radio %d", PKT_RADIO_1);
-      smsg = pktDisableDataReception(PKT_RADIO_1);
+      TRACE_INFO("RX   > Closing receive on radio %d", radio);
+      smsg = pktDisableDataReception(radio);
       if(smsg != MSG_OK) {
-        pktCloseRadioReceive(PKT_RADIO_1);
+        pktCloseRadioReceive(radio);
         TRACE_ERROR("RX   > Stop of radio packet reception failed");
       }
-      smsg = pktCloseRadioReceive(PKT_RADIO_1);
+      smsg = pktCloseRadioReceive(radio);
       if(smsg != MSG_OK) {
-        pktCloseRadioReceive(PKT_RADIO_1);
+        pktCloseRadioReceive(radio);
         TRACE_ERROR("RX   > Close of radio packet reception failed");
       }
     }

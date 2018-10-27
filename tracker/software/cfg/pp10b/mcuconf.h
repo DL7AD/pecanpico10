@@ -170,7 +170,7 @@
 #define STM32_ICU_TIM5_IRQ_PRIORITY         7
 #define STM32_ICU_TIM8_IRQ_PRIORITY         7
 #define STM32_ICU_TIM9_IRQ_PRIORITY         7
-#define STM32_ICU_TIM12_IRQ_PRIORITY        7
+#define STM32_ICU_TIM12_IRQ_PRIORITY        2
 
 /*
  * PWM driver system settings.

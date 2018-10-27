@@ -143,14 +143,14 @@ const conf_t conf_flash_default = {
                  // If cycle is CYCLE_CONTINUOUSLY the radio turns off and on at each interval
                  .active = true,
                  .init_delay = TIME_S2I(20),
-                 .cycle = TIME_S2I(600),
+                 .cycle = TIME_S2I(60),
                  .interval = TIME_INFINITE
              },
             // Receive radio configuration
             .radio_conf = {
                 .freq = FREQ_APRS_AUSTRALIA,
                 .mod = MOD_AFSK,
-                .rssi = 0x3F
+                .rssi = 0x3C
             },
             // APRS identity used in message responses if digipeat is not enabled
             .call = "VK2GJ-4",

@@ -3,6 +3,7 @@
 
 #include "collector.h"
 
+/* FIXME: Log address and size should be taken from linker origin (flash2). */
 #define LOG_FLASH_ADDR			0x08080000	/* Log flash memory address */
 #define LOG_FLASH_SIZE			0x100000	/* Log flash memory size */
 #define LOG_SECTOR_SIZE			0x20000		/* Single sector size */

@@ -88,8 +88,7 @@ typedef enum radioCommand {
   PKT_RADIO_RX_CLOSE,
   PKT_RADIO_TX_DONE,
   PKT_RADIO_MGR_CLOSE,
-  PKT_RADIO_RX_RSSI,
-  PKT_RADIO_RTO_FREE
+  PKT_RADIO_RX_RSSI
 } radio_command_t;
 
 /**
@@ -141,6 +140,7 @@ struct radioTask {
   /* For safety keep clear - where pool stores its free link. */
   struct pool_header        link;
   radio_command_t           command;
+  radio_command_t           next_command;
   radio_mod_t               type;
   radio_freq_t              base_frequency;
   channel_hz_t              step_hz;

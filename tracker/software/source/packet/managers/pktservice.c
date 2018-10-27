@@ -335,7 +335,8 @@ bool pktServiceWakeup(const radio_unit_t radio) {
 msg_t pktOpenRadioReceive(const radio_unit_t radio,
                           const radio_mod_t encoding,
                           const radio_freq_t frequency,
-                          const channel_hz_t ch_step) {
+                          const channel_hz_t ch_step,
+                          const sysinterval_t timeout) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
   if(handler == NULL)
@@ -368,31 +369,18 @@ msg_t pktOpenRadioReceive(const radio_unit_t radio,
   /*
    * Open (init) the radio receive (via submit radio task).
    */
-  msg_t msg = pktSendRadioCommand(radio, &rt, TIME_INFINITE, NULL);
+  msg_t msg = pktSendRadioCommand(radio, &rt, timeout, NULL);
 
-  if(msg != MSG_OK)
-    return msg;
-
-  pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
-
-  return MSG_OK;
+  if(msg == MSG_OK)
+    pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
+  return msg;
 }
 
 /**
- * @brief   Callback for packet decoding started.
- * @post    The decoder is running.
- *
- * @param[in]   handler pointer to a @p radio task object.
- *
- * @special
- */
-void pktDecoderActive(radio_task_object_t *rt) {
-  (void)rt;
-}
-
-/**
- * @brief   Starts packet reception.
+ * @brief   Enable packet reception.
  * @pre     The packet service must have been opened.
+ * @notes   This function submits a request.
+ * @notes   The request may fail in the radio manager.
  * @post    The radio is tuned to the specified channel.
  * @post    The packet reception is running if it was stopped.
  *
@@ -400,31 +388,33 @@ void pktDecoderActive(radio_task_object_t *rt) {
  * @param[in]   channel radio channel number to select
  * @param[in]   sq      the RSSI setting to be used.
  * @param[in]   cb      callback function called on receipt of packet.
+ * @param[in]   to      timeout
  *
- * @return              Status of the operation.
- * @retval MSG_OK       if the service was started.
+ * @return              Status of the service request.
+ * @retval MSG_OK       if the service request was queued successfully.
  * @retval MSG_RESET    parameter error or service not in correct state.
- * @retval MSG_TIMEOUT  if the service could not be started.
+ * @retval MSG_TIMEOUT  if the service request could not be queued.
  *
  * @api
  */
 msg_t pktEnableDataReception(const radio_unit_t radio,
                              const radio_ch_t channel,
                              const radio_squelch_t sq,
-                             const pkt_buffer_cb_t cb) {
+                             const pkt_buffer_cb_t cb,
+                             const sysinterval_t to) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
   if(handler == NULL)
     return MSG_RESET;
 
-/*  if(!(handler->state == PACKET_OPEN || handler->state == PACKET_STOP))
-    return MSG_RESET;*/
-
   if(handler->state != PACKET_READY)
     return MSG_RESET;
 
-  if(handler->rx_state != PACKET_RX_OPEN)
-    return MSG_RESET;
+  /* FIXME: Temporary hack. */
+  while(handler->rx_state != PACKET_RX_OPEN) {
+    chThdSleep(TIME_MS2I(1));
+  }
+
   handler->usr_callback = cb;
 
   handler->radio_rx_config.channel = channel;
@@ -434,16 +424,128 @@ msg_t pktEnableDataReception(const radio_unit_t radio,
 
   rt.command = PKT_RADIO_RX_START;
 
-  msg_t msg = pktSendRadioCommand(radio, &rt, TIME_INFINITE,
-                                  (radio_task_cb_t) pktDecoderActive);
-  if(msg != MSG_OK)
-    return MSG_TIMEOUT;
-
-  /* Wait in PAUSE state for a decoder start. */
-  //handler->state = PACKET_PAUSE;
-  pktAddEventFlags(handler, EVT_PKT_DECODER_START);
-  return MSG_OK;
+  msg_t msg = pktSendRadioCommand(radio, &rt, to, NULL);
+  if(msg == MSG_OK)
+    pktAddEventFlags(handler, EVT_PKT_RECEIVE_START);
+  return msg;
 }
+
+/**
+ *
+ */
+static bool pktReceiveStartCB(radio_task_object_t *rt) {
+  (void)rt;
+  return false;
+}
+
+#if 0
+/**
+ * @brief   Request start of packet reception.
+ * @pre     The packet receive service is opened if not already.
+ * @notes   This function submits a request to the radio manager.
+ * @notes   The request may fail in the radio manager.
+ * @post    The radio is tuned to the specified channel.
+ * @post    The packet reception is running if it was stopped.
+ *
+ * @param[in]   radio       radio ID
+ * @param[in]   encoding    modulation type
+ * @param[in]   frequency   base operating frequency (code or Hz)
+ * @param[in]   step        channel step size in Hz
+ * @param[in]   channel     radio channel number to select
+ * @param[in]   sq          the RSSI setting to be used.
+ * @param[in]   cb          callback function called on receipt of packet.
+ * @param[in]   to          timeout
+ *
+ * @return              Status of the service request.
+ * @retval MSG_OK       if the service request was queued successfully.
+ * @retval MSG_RESET    data lock semaphore was reset.
+ * @retval MSG_ERROR    parameter error, service not in correct state.
+ * @retval MSG_TIMEOUT  if the service request could not be queued.
+ *
+ * @api
+ */
+msg_t pktStartDataReception(const radio_unit_t radio,
+                            const radio_mod_t encoding,
+                            const radio_freq_t frequency,
+                            const channel_hz_t step,
+                            const radio_ch_t channel,
+                            const radio_squelch_t sq,
+                            const pkt_buffer_cb_t cb,
+                            const sysinterval_t to) {
+
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  if(handler == NULL)
+    return MSG_ERROR;
+
+  /* Is the packet radio service active? */
+  if(handler->state != PACKET_READY)
+    return MSG_ERROR;
+
+  switch(handler->rx_state) {
+  case PACKET_RX_IDLE: {
+    /*
+     *  Wait for any prior session to complete closing.
+     *  TODO: Check if this...
+     *   It protects handler data integrity while there are still packets out?
+     */
+    msg_t msg = chBSemWait(&handler->close_sem);
+    if(msg != MSG_OK)
+      return msg;
+
+    /* Save radio configuration. */
+    handler->radio_rx_config.type = encoding;
+    handler->radio_rx_config.base_frequency = frequency;
+    handler->radio_rx_config.step_hz = ch_step;
+    handler->radio_rx_config.channel = channel;
+    handler->radio_rx_config.squelch = sq;
+
+    /* Reset the statistics collection variables. */
+    handler->sync_count = 0;
+    handler->frame_count = 0;
+    handler->valid_count = 0;
+    handler->good_count = 0;
+
+    radio_task_object_t rt = handler->radio_rx_config;
+
+    /* Set parameters for radio command. */
+    rt.command = PKT_RADIO_RX_OPEN;
+    rt.next_command = PKT_RADIO_RX_START;
+    /*
+     * Open (init) the radio receive (via submit radio task).
+     */
+    msg_t msg = pktSendRadioCommand(radio, &rt, timeout, pktReceiveStartCB);
+
+    if(msg == MSG_OK)
+      pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
+    return msg;
+  }
+  case PACKET_RX_OPEN:
+  case PACKET_RX_ENABLED:
+  case PACKET_RX_CLOSE:
+  case PACKET_RX_INVALID:
+    break;
+  } /* End switch. */
+
+  /* FIXME: Temporary hack. */
+  while(handler->rx_state != PACKET_RX_OPEN) {
+    chThdSleep(TIME_MS2I(1));
+  }
+
+  handler->usr_callback = cb;
+
+  handler->radio_rx_config.channel = channel;
+  handler->radio_rx_config.squelch = sq;
+
+  radio_task_object_t rt = handler->radio_rx_config;
+
+  rt.command = PKT_RADIO_RX_START;
+
+  msg_t msg = pktSendRadioCommand(radio, &rt, to, NULL);
+  if(msg == MSG_OK)
+    pktAddEventFlags(handler, EVT_PKT_RECEIVE_START);
+  return msg;
+}
+#endif
 
 /**
  * @brief   Enables a packet decoder.
@@ -833,77 +935,6 @@ THD_FUNCTION(pktCallback, arg) {
   pktReleaseDataBuffer(pkt_buffer);
 }
 
-#if PKT_RX_RLS_USE_NO_FIFO != TRUE
-/**
- * @brief   Process release of completed callbacks.
- * @notes   Release is initiated by posting the packet buffer to the queue.
- * @notes   The queue is used as a completion mechanism in callback mode.
- * @notes   In poll mode the received packet is posted to the consumer
- *
- * @post    Call back thread has been released.
- * @post    Packet buffer object is returned to free pool.
- * @post    Packet object is released (for this instance).
- * @post    If the FIFO is now unused it will be released.
- *
- * @param[in] arg pointer to packet service handler object.
- *
- * @return  status (MSG_OK) on exit.
- *
- * @notapi
- */
-
-/* TODO: Deprecate and use radio manager thread for callback release? */
-THD_FUNCTION(pktCompletion, arg) {
-  packet_svc_t *handler = arg;
-#define PKT_COMPLETION_THREAD_TIMER 100 /* 100 mS. */
-
-  chDbgAssert(handler != NULL, "invalid handler reference");
-
-  dyn_objects_fifo_t *pkt_factory = handler->the_packet_fifo;
-  objects_fifo_t *pkt_queue = chFactoryGetObjectsFIFO(pkt_factory);
-  chDbgAssert(pkt_queue != NULL, "no packet fifo list");
-
-  /* TODO: Implement thread events to control start/stop. */
-  while(true) {
-
-    /*
-     * Wait for a callback to be outstanding.
-     * If no callbacks outstanding check for termination request.
-     */
-    if(handler->cb_count == 0) {
-      if(chThdShouldTerminateX())
-        chThdExit(MSG_OK);
-      chThdSleep(TIME_MS2I(PKT_COMPLETION_THREAD_TIMER));
-      continue;
-    }
-    /* Wait for a buffer to be released. */
-    pkt_data_object_t *pkt_object;
-
-    msg_t fmsg = chFifoReceiveObjectTimeout(pkt_queue,
-                         (void *)&pkt_object,
-                         TIME_MS2I(PKT_COMPLETION_THREAD_TIMER));
-    if(fmsg == MSG_TIMEOUT)
-      continue;
-
-    /* Release the callback thread and recover heap. */
-    chThdRelease(pkt_object->cb_thread);
-
-    /* Return packet buffer object to free list. */
-    chFifoReturnObject(pkt_queue, (pkt_data_object_t *)pkt_object);
-
-    /*
-     * Decrease FIFO reference counter (increased by decoder).
-     * FIFO will be destroyed if all references now released.
-     */
-    chFactoryReleaseObjectsFIFO(pkt_factory);
-
-    /* Decrease count of outstanding callbacks. */
-    --handler->cb_count;
-  }
-  chThdExit(MSG_OK);
-}
-#endif
-
 /**
  * @brief   Create receive callback thread terminator.
  *
@@ -1108,39 +1139,6 @@ void pktReleaseBufferSemaphore(radio_unit_t radio) {
 /*#endif*/
 }
 
-#if PKT_RX_RLS_USE_NO_FIFO != TRUE
-/*
- *
- */
-thread_t *pktCallbackManagerCreate(radio_unit_t radio) {
-
-  packet_svc_t *handler = pktGetServiceObject(radio);
-
-  //chDbgAssert(handler != NULL, "invalid radio ID");
-
-  /* Create the callback termination thread name. */
-  chsnprintf(handler->cbend_name, sizeof(handler->cbend_name),
-             "%s%02i", PKT_CALLBACK_TERMINATOR_PREFIX, radio);
-
-  /*
-   * Initialize the outstanding callback count.
-   */
-  handler->cb_count = 0;
-
-  /* Start the callback thread terminator. */
-  thread_t *cbh = chThdCreateFromHeap(NULL,
-              THD_WORKING_AREA_SIZE(PKT_TERMINATOR_WA_SIZE),
-              handler->cbend_name,
-              NORMALPRIO - 30,
-              pktCompletion,
-              handler);
-
-  chDbgAssert(cbh != NULL, "failed to create callback terminator thread");
-  handler->cb_terminator = cbh;
-  return cbh;
-}
-#endif
-
 /**
  *
  */
@@ -1186,10 +1184,6 @@ packet_svc_t *pktGetServiceObject(radio_unit_t radio) {
    * Get packet handler object for this radio.
    */
   packet_svc_t *handler = data->pkt;
-
-/*  if(radio == PKT_RADIO_1) {
-    handler = &RPKTD1;
-  }*/
 
   chDbgAssert(handler != NULL, "invalid radio packet driver");
 

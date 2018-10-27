@@ -248,11 +248,13 @@ extern "C" {
   msg_t pktOpenRadioReceive(const radio_unit_t radio,
                                      const radio_mod_t encoding,
                                      const radio_freq_t frequency,
-                                     const channel_hz_t ch_step);
+                                     const channel_hz_t ch_step,
+                                     const sysinterval_t timeout);
   msg_t pktEnableDataReception(const radio_unit_t radio,
                               const radio_ch_t channel,
                               const radio_squelch_t sq,
-                              const pkt_buffer_cb_t cb);
+                              const pkt_buffer_cb_t cb,
+                              const sysinterval_t to);
   void pktStartDecoder(const radio_unit_t radio);
   msg_t pktDisableDataReception(const radio_unit_t radio);
   void pktStopDecoder(const radio_unit_t radio);
@@ -264,9 +266,6 @@ extern "C" {
   //void pktCallbackManagerOpen(const radio_unit_t radio);
   void pktCompletion(void *arg);
   dyn_objects_fifo_t *pktIncomingBufferPoolCreate(const radio_unit_t radio);
-#if PKT_RX_RLS_USE_NO_FIFO != TRUE
-  thread_t *pktCallbackManagerCreate(const radio_unit_t radio);
-#endif
   void pktCallbackManagerRelease(packet_svc_t *handler);
   void pktIncomingBufferPoolRelease(packet_svc_t *handler);
   dyn_objects_fifo_t *pktCommonBufferPoolCreate(const radio_unit_t radio);
@@ -465,7 +464,6 @@ static inline void pktReleaseDataBuffer(pkt_data_object_t *object) {
 
   /* Is this a callback release? */
   if(object->cb_func != NULL) {
-#if PKT_RX_RLS_USE_NO_FIFO == TRUE
     extern void pktThdTerminateSelf(void);
     /*
      * Free the object.
@@ -477,17 +475,6 @@ static inline void pktReleaseDataBuffer(pkt_data_object_t *object) {
     chFifoReturnObject(pkt_fifo, object);
     chFactoryReleaseObjectsFIFO(pkt_factory);
     pktThdTerminateSelf();
-    /* We don't get to here. */
-#endif
-    /*
-     * For callback mode send the packet buffer to the FIFO queue.
-     * It will be released in the collector thread.
-     * The callback thread memory will be recovered.
-     * The semaphore will be signaled.
-     */
-    chSysLock();
-    chFifoSendObjectI(pkt_fifo, object);
-    chThdExitS(MSG_OK);
     /* We don't get to here. */
   }
 

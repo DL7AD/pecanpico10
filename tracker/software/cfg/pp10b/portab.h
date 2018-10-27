@@ -241,7 +241,7 @@
 #define USE_CCM_HEAP_RX_BUFFERS         TRUE
 
 /* Set TRUE to use the idle thread sweeper to release terminated threads. */
-#define PKT_RX_RLS_USE_NO_FIFO          TRUE
+//#define PKT_RX_RLS_USE_NO_FIFO          TRUE
 
 /*
  * Number of general AX25/APRS processing & frame send buffers.

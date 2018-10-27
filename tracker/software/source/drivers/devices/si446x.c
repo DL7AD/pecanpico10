@@ -442,7 +442,7 @@ static bool Si446x_init(const radio_unit_t radio) {
 
   handler->radio_patch = (func_info.info[5] << 8) + func_info.info[6];
 
-  TRACE_INFO("SI   > Radio %d started with patch ID 0x%x", radio,
+  TRACE_INFO("SI   > Radio %d started. Patch ID 0x%x", radio,
              handler->radio_patch);
 
   /* Set the radio GPIOs to the basic configuration. */
@@ -504,7 +504,7 @@ static bool Si446x_init(const radio_unit_t radio) {
   Si446x_setProperty8(radio, Si446x_FREQ_CONTROL_W_SIZE, 0x20);
   /*
    * Adjustment to cycle count for RX frequency (equates to IF offset)
-   * FIXME: This will need to be re-calculated where IF is changed.
+   * FIXME: This should be re-calculated in RX setup where IF is changed.
    */
   Si446x_setProperty8(radio, Si446x_FREQ_CONTROL_VCOCNT_RX_ADJ, 0xFA);
 

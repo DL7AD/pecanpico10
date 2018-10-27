@@ -87,7 +87,7 @@
 
 #define EVT_PKT_FAILED_CB_THD   EVENT_MASK(EVT_PRIORITY_BASE + 20)
 #define EVT_PKT_BUFFER_MGR_FAIL EVENT_MASK(EVT_PRIORITY_BASE + 21)
-#define EVT_PKT_DECODER_START   EVENT_MASK(EVT_PRIORITY_BASE + 22)
+#define EVT_PKT_RECEIVE_START   EVENT_MASK(EVT_PRIORITY_BASE + 22)
 #define EVT_PKT_CBK_MGR_FAIL    EVENT_MASK(EVT_PRIORITY_BASE + 23)
 
 #define EVT_PKT_CHANNEL_STOP    EVENT_MASK(EVT_PRIORITY_BASE + 24)
@@ -264,6 +264,10 @@ static inline int8_t pktReadGPIOline(ioline_t line) {
  * @param[in]           timeout
  * @param[in]   cb      function to call with result (can be NULL).
  *
+ * @return      status of operation
+ * @retval      MSG_OK      if command queued successfully
+ * @retval      MSG_TIMEOUT if a task object could not be obtained
+ *
  * @api
  */
 static inline msg_t pktSendRadioCommand(const radio_unit_t radio,
@@ -272,10 +276,10 @@ static inline msg_t pktSendRadioCommand(const radio_unit_t radio,
                                         const radio_task_cb_t cb) {
   radio_task_object_t *rt = NULL;
   msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
-  if(msg == MSG_TIMEOUT)
-    return MSG_TIMEOUT;
-  *rt = *task;
-  pktSubmitRadioTask(radio, rt, cb);
+  if(msg == MSG_OK) {
+    *rt = *task;
+    pktSubmitRadioTask(radio, rt, cb);
+  }
   return msg;
 }
 

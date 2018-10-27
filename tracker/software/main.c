@@ -20,6 +20,7 @@ int main(void) {
      * Configure core IO/bus devices
      * Setup the debug output (UART, USB)
      * Configure radios.
+     * Start system services.
      * Start packet event monitoring.
      * Start applications.
      */

@@ -240,7 +240,7 @@
 #define NUMBER_RX_PKT_BUFFERS       5U
 #define USE_CCM_HEAP_RX_BUFFERS     TRUE
 
-#define PKT_RX_RLS_USE_NO_FIFO      TRUE
+//#define PKT_RX_RLS_USE_NO_FIFO      TRUE
 
 /*
  * Number of general AX25/APRS processing & frame send buffers.
