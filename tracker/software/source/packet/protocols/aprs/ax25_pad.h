@@ -351,7 +351,7 @@ extern void ax25_delete (packet_t pp);
 
 
 extern msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
-extern void pktReleasePacketBuffer(packet_t pp);
+extern void pktReleaseCommonPacketBuffer(packet_t pp);
 
 #endif
 

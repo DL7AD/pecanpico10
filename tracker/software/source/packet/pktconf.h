@@ -322,7 +322,7 @@ static inline void pktReleaseBufferObject(packet_t pp) {
 #if USE_CCM_HEAP_FOR_PKT == TRUE
   pktAssertCCMdynamicCheck(pp);
 #endif
-  pktReleasePacketBuffer(pp);
+  pktReleaseCommonPacketBuffer(pp);
 }
 
 /**

@@ -207,7 +207,7 @@ typedef struct packetHandlerData {
    * @brief Counter for active callback threads.
    * TODO: type should be of a generic counter?
    */
-  uint8_t                   cb_count;
+  uint8_t                   rx_count;
 
   /**
    * @brief Event source object.
@@ -246,11 +246,19 @@ extern "C" {
   bool pktServiceCreate(const radio_unit_t radio);
   bool pktServiceRelease(const radio_unit_t radio);
   msg_t pktOpenRadioReceive(const radio_unit_t radio,
-                                     const radio_mod_t encoding,
-                                     const radio_freq_t frequency,
-                                     const channel_hz_t ch_step,
-                                     const sysinterval_t timeout);
+                            const radio_mod_t encoding,
+                            const radio_freq_t frequency,
+                            const channel_hz_t ch_step,
+                            const sysinterval_t timeout);
   msg_t pktEnableDataReception(const radio_unit_t radio,
+                               const radio_ch_t channel,
+                               const radio_squelch_t sq,
+                               const pkt_buffer_cb_t cb,
+                               const sysinterval_t to);
+  msg_t pktStartDataReception(const radio_unit_t radio,
+                              const radio_mod_t encoding,
+                              const radio_freq_t frequency,
+                              const channel_hz_t step,
                               const radio_ch_t channel,
                               const radio_squelch_t sq,
                               const pkt_buffer_cb_t cb,
@@ -272,7 +280,7 @@ extern "C" {
   void pktCommonBufferPoolRelease(const radio_unit_t radio);
   void pktReleaseBufferSemaphore(const radio_unit_t radio);
   msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
-  void pktReleasePacketBuffer(packet_t pp);
+  void pktReleaseCommonPacketBuffer(packet_t pp);
   dyn_semaphore_t *pktInitBufferControl(void);
   void pktDeinitBufferControl(void);
   packet_svc_t *pktGetServiceObject(radio_unit_t radio);
@@ -457,34 +465,25 @@ static inline void pktReleaseDataBuffer(pkt_data_object_t *object) {
   objects_fifo_t *pkt_fifo = chFactoryGetObjectsFIFO(pkt_factory);
   chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
 
+  chDbgAssert(object->cb_func != NULL, "no user callback set");
+
 #if USE_CCM_HEAP_RX_BUFFERS == TRUE
   /* Free the packet buffer in the heap now. */
   chHeapFree(object->buffer);
 #endif
 
-  /* Is this a callback release? */
-  if(object->cb_func != NULL) {
-    extern void pktThdTerminateSelf(void);
-    /*
-     * Free the object.
-     * Decrease the factory reference count.
-     * If the service is closed and all buffers freed then the FIFO is destroyed.
-     * Terminate this thread and have idle thread sweeper clean up memory.
-     */
-    object->handler->cb_count--;
-    chFifoReturnObject(pkt_fifo, object);
-    chFactoryReleaseObjectsFIFO(pkt_factory);
-    pktThdTerminateSelf();
-    /* We don't get to here. */
-  }
-
+  extern void pktThdTerminateSelf(void);
   /*
    * Free the object.
    * Decrease the factory reference count.
    * If the service is closed and all buffers freed then the FIFO is destroyed.
+   * Terminate this thread and have idle thread sweeper clean up memory.
    */
+  object->handler->rx_count--;
   chFifoReturnObject(pkt_fifo, object);
   chFactoryReleaseObjectsFIFO(pkt_factory);
+  pktThdTerminateSelf();
+  /* We don't get to here. */
 }
 
 /**

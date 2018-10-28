@@ -391,7 +391,7 @@ packet_t ax25_from_text (char *monitor, int strict) {
 
 	if(strlcpy(stuff, monitor, sizeof(stuff)) >= sizeof(stuff)) {
       TRACE_ERROR("PKT  > Source string is too large");
-      pktReleasePacketBuffer(this_p);
+      pktReleaseCommonPacketBuffer(this_p);
 	  return NULL;
 	}
 
@@ -413,7 +413,7 @@ packet_t ax25_from_text (char *monitor, int strict) {
 
 	if(ax25_get_num_addr(this_p) != AX25_MIN_ADDRS) {
 		TRACE_ERROR("PKT  > Packet does not have required addresses after initialisation");
-		pktReleasePacketBuffer(this_p);
+		pktReleaseCommonPacketBuffer(this_p);
 		return NULL;
 	}
 
@@ -424,7 +424,7 @@ packet_t ax25_from_text (char *monitor, int strict) {
 
 	if (pinfo == NULL) {
       TRACE_ERROR("PKT  > No address separator");
-	  pktReleasePacketBuffer(this_p);
+	  pktReleaseCommonPacketBuffer(this_p);
 	  return (NULL);
 	}
 
@@ -444,14 +444,14 @@ packet_t ax25_from_text (char *monitor, int strict) {
 	if (pa == NULL) {
       TRACE_ERROR("PKT  > No source address in packet");
       /* Only need single packet release here but linked probably better for consistency. */
-      pktReleasePacketBuffer(this_p);
+      pktReleaseCommonPacketBuffer(this_p);
 	  return (NULL);
 	}
 
 	if ( ! ax25_parse_addr (AX25_SOURCE, pa, strict, atemp, &ssid_temp, &heard_temp)) {
       TRACE_ERROR("PKT  > Bad source address in packet");
 	  /* Only need single packet release here but linked would be fine for consistency. */
-      pktReleasePacketBuffer(this_p);
+      pktReleaseCommonPacketBuffer(this_p);
 	  return (NULL);
 	}
 
@@ -467,14 +467,14 @@ packet_t ax25_from_text (char *monitor, int strict) {
 	if (pa == NULL) {
       TRACE_ERROR("PKT  > No destination address in packet");
       /* Only need single packet release here but linked probably better for consistency. */
-      pktReleasePacketBuffer(this_p);
+      pktReleaseCommonPacketBuffer(this_p);
 	  return (NULL);
 	}
 
 	if ( ! ax25_parse_addr (AX25_DESTINATION, pa, strict, atemp, &ssid_temp, &heard_temp)) {
       TRACE_ERROR("PKT  > Bad destination address in packet");
       /* Only need single packet release here but linked probably better for consistency. */
-      pktReleasePacketBuffer(this_p);
+      pktReleaseCommonPacketBuffer(this_p);
 	  return (NULL);
 	}
 
@@ -493,7 +493,7 @@ packet_t ax25_from_text (char *monitor, int strict) {
 
 	  if ( ! ax25_parse_addr (k, pa, strict, atemp, &ssid_temp, &heard_temp)) {
 	    TRACE_ERROR("PKT  > Bad digipeater address in packet");
-	    pktReleasePacketBuffer(this_p);
+	    pktReleaseCommonPacketBuffer(this_p);
 	    return (NULL);
 	  }
 
@@ -552,7 +552,7 @@ packet_t ax25_from_text (char *monitor, int strict) {
 	/* Check for buffer overflow here. */
 	if((this_p->frame_len + info_len) > AX25_MAX_PACKET_LEN) {
 	  TRACE_ERROR ("PKT  > frame buffer overrun");
-      pktReleasePacketBuffer(this_p);
+      pktReleaseCommonPacketBuffer(this_p);
       return (NULL);
 	}
 	memcpy ((char*)(this_p->frame_data + this_p->frame_len), info_part, info_len);
@@ -636,7 +636,7 @@ packet_t ax25_from_frame (unsigned char *fbuf, uint16_t flen)
     /* Check for buffer overflow. */
     if(flen > AX25_MAX_PACKET_LEN) {
       TRACE_ERROR ("PKT  > frame buffer overrun");
-      pktReleasePacketBuffer(this_p);
+      pktReleaseCommonPacketBuffer(this_p);
       return (NULL);
     }
 

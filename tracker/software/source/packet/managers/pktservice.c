@@ -430,15 +430,33 @@ msg_t pktEnableDataReception(const radio_unit_t radio,
   return msg;
 }
 
+#if 1
 /**
  *
  */
 static bool pktReceiveStartCB(radio_task_object_t *rt) {
-  (void)rt;
-  return false;
+  packet_svc_t *handler = rt->handler;
+  const radio_unit_t radio = handler->radio;
+
+  /*
+   * TODO: Check result from open (rt->result)
+   *  Now start receive.
+   *  A re-schedule may have allowed another task to be queued.
+   *  The existing object is re-posted as a priority command.
+   *  The radio is locked during receive start actions.
+   */
+  rt->command = PKT_RADIO_RX_START;
+  pktSubmitPriorityRadioTask(radio, rt, NULL);
+  TRACE_INFO("RAD  > Starting receive on radio %d (CB)", radio);
+
+  /*
+   *  Task object passed in has been re-posted.
+   *  Indicate not to be freed upon return from this callback.
+   */
+  return true;
 }
 
-#if 0
+
 /**
  * @brief   Request start of packet reception.
  * @pre     The packet receive service is opened if not already.
@@ -477,27 +495,37 @@ msg_t pktStartDataReception(const radio_unit_t radio,
   if(handler == NULL)
     return MSG_ERROR;
 
-  /* Is the packet radio service active? */
-  if(handler->state != PACKET_READY)
+  /*
+   * Is the packet radio service active?
+   * Do we have a callback set? (mandatory)
+   */
+  if(handler->state != PACKET_READY || cb == NULL)
     return MSG_ERROR;
 
   switch(handler->rx_state) {
+  /**
+   *
+   */
   case PACKET_RX_IDLE: {
     /*
      *  Wait for any prior session to complete closing.
-     *  TODO: Check if this...
-     *   It protects handler data integrity while there are still packets out?
+     *  TODO: Check if this is still relevant...
+     *   It used to protect handler data integrity while there were FIFO packets out.
+     *   But now the pool based packet buffers are independent.
      */
     msg_t msg = chBSemWait(&handler->close_sem);
     if(msg != MSG_OK)
       return msg;
 
-    /* Save radio configuration. */
+    /* Set entire radio configuration. */
     handler->radio_rx_config.type = encoding;
     handler->radio_rx_config.base_frequency = frequency;
-    handler->radio_rx_config.step_hz = ch_step;
+    handler->radio_rx_config.step_hz = step;
     handler->radio_rx_config.channel = channel;
     handler->radio_rx_config.squelch = sq;
+
+    /* Set the packet callback. */
+    handler->usr_callback = cb;
 
     /* Reset the statistics collection variables. */
     handler->sync_count = 0;
@@ -509,41 +537,51 @@ msg_t pktStartDataReception(const radio_unit_t radio,
 
     /* Set parameters for radio command. */
     rt.command = PKT_RADIO_RX_OPEN;
-    rt.next_command = PKT_RADIO_RX_START;
+
     /*
      * Open (init) the radio receive (via submit radio task).
      */
-    msg_t msg = pktSendRadioCommand(radio, &rt, timeout, pktReceiveStartCB);
+    msg = pktSendRadioCommand(radio, &rt, to, pktReceiveStartCB);
 
     if(msg == MSG_OK)
       pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
     return msg;
   }
-  case PACKET_RX_OPEN:
+  /**
+   * The service is already opened for receive.
+   * Just start it.
+   */
+  case PACKET_RX_OPEN: {
+    /* Set the packet callback. */
+    handler->usr_callback = cb;
+
+    /* Update start parameters in radio configuration. */
+    handler->radio_rx_config.channel = channel;
+    handler->radio_rx_config.squelch = sq;
+
+    /* TODO: Check other parameters match current values in rx_config.
+     * Encoding, frequency, step... actually only encoding matters.
+     */
+
+    radio_task_object_t rt = handler->radio_rx_config;
+
+    rt.command = PKT_RADIO_RX_START;
+
+    msg_t msg = pktSendRadioCommand(radio, &rt, to, NULL);
+    if(msg == MSG_OK)
+      pktAddEventFlags(handler, EVT_PKT_RECEIVE_START);
+    return msg;
+  }
+
+  /**
+   *
+   */
   case PACKET_RX_ENABLED:
   case PACKET_RX_CLOSE:
   case PACKET_RX_INVALID:
     break;
   } /* End switch. */
-
-  /* FIXME: Temporary hack. */
-  while(handler->rx_state != PACKET_RX_OPEN) {
-    chThdSleep(TIME_MS2I(1));
-  }
-
-  handler->usr_callback = cb;
-
-  handler->radio_rx_config.channel = channel;
-  handler->radio_rx_config.squelch = sq;
-
-  radio_task_object_t rt = handler->radio_rx_config;
-
-  rt.command = PKT_RADIO_RX_START;
-
-  msg_t msg = pktSendRadioCommand(radio, &rt, to, NULL);
-  if(msg == MSG_OK)
-    pktAddEventFlags(handler, EVT_PKT_RECEIVE_START);
-  return msg;
+  return MSG_ERROR;
 }
 #endif
 
@@ -796,8 +834,7 @@ bool pktStoreReceiveData(pkt_data_object_t *pkt_buffer, ax25char_t data) {
  * @notes   The buffer is checked to determine validity and CRC.
  * @post    The buffer status is updated in the packet FIFO.
  * @post    Packet quality statistics are updated.
- * @post    Where no callback is used the buffer is posted to the FIFO mailbox.
- * @post    Where a callback is used a thread is created to execute the callback.
+ * @post    A callback is used a thread is created to execute the user callback.
  *
  * @param[in] pkt_buffer    pointer to a @p packet buffer object.
  *
@@ -836,11 +873,14 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer) {
 
   chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
 
+#if 0
   if(pkt_buffer->cb_func == NULL) {
 
     /* Send the packet buffer to the FIFO queue. */
     chFifoSendObject(pkt_fifo, pkt_buffer);
   } else {
+#endif
+    chDbgAssert(pkt_buffer->cb_func != NULL, "no packet callback specified");
     /* Schedule a callback. */
     thread_t *cb_thd = pktCreateReceiveCallback(pkt_buffer);
 
@@ -850,9 +890,9 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer) {
       pktAddEventFlags(handler, EVT_PKT_FAILED_CB_THD);
     } else {
       /* Increase outstanding callback count. */
-      handler->cb_count++;
+      handler->rx_count++;
     }
-  }
+  //}
   return flags;
 }
 
@@ -896,7 +936,7 @@ thread_t *pktCreateReceiveCallback(pkt_data_object_t *pkt_buffer) {
  * @brief   Run a callback processing thread.
  * @notes   Packet callbacks are processed by individual threads.
  * @notes   Thus packet callbacks are non-blocking to the decoder thread.
- * @notes   After callback completes the thread it is scheduled for release.
+ * @notes   After callback completes the thread is scheduled for release.
  *
  * @post    Call back has been executed (for however long it takes).
  * @post    Callback thread release is completed in the terminator thread.
@@ -929,8 +969,8 @@ THD_FUNCTION(pktCallback, arg) {
 
   /*
    * Upon return the buffer control object is queued for release.
-   * Thread is scheduled for destruction in pktReleaseDataBuffer(...).
-   * .i.e pktReleaseDataBuffer does not return to callback.
+   * This tread is scheduled for destruction in pktReleaseDataBuffer(...).
+   * .i.e pktReleaseDataBuffer does not return.
    */
   pktReleaseDataBuffer(pkt_buffer);
 }
@@ -1098,7 +1138,7 @@ msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout) {
 /*
  * A common pool of AX25 buffers used in TX and APRS.
  */
-void pktReleasePacketBuffer(packet_t pp) {
+void pktReleaseCommonPacketBuffer(packet_t pp) {
   /* Check if the packet buffer semaphore exists.
    * If not this is a system error.
    */

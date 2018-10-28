@@ -10,16 +10,6 @@
 #include "portab.h"
 #include "collector.h"
 
-ICUConfig tcxo_cfg = {
-  ICU_INPUT_ACTIVE_HIGH,
-  PKT_TCXO_TIMER_CLOCK,    /**< ICU clock frequency. */
-  NULL,                    /**< ICU width callback. */
-  pktCBPeriodTCXO,         /**< ICU period callback. */
-  pktCBOverflowTCXO,       /**< ICU overflow callback. */
-  PKT_TCXO_TIMER_CHANNEL,  /**< Timer channel. */
-  0                        /**< DIER bits. */
-};
-
 
 /*===========================================================================*/
 /* Module local variables.                                                   */
@@ -32,66 +22,57 @@ xtal_osc_t tcxo_active = PKT_TCXO_TIMER_CLOCK + PKT_TCXO_DEFAULT_ERROR;
 volatile tcxo_state_t  tcxo_state;
 
 /*===========================================================================*/
-/* Module exported functions.                                                */
+/* Module local structures.                                                  */
+/*===========================================================================*/
+
+static void pktCBPeriodTCXO(ICUDriver *icup);
+static void pktCBOverflowTCXO(ICUDriver *icup);
+
+ICUConfig tcxo_cfg = {
+  ICU_INPUT_ACTIVE_HIGH,
+  PKT_TCXO_TIMER_CLOCK,    /**< ICU clock frequency. */
+  NULL,                    /**< ICU width callback. */
+  pktCBPeriodTCXO,         /**< ICU period callback. */
+  pktCBOverflowTCXO,       /**< ICU overflow callback. */
+  PKT_TCXO_TIMER_CHANNEL,  /**< Timer channel. */
+  0                        /**< DIER bits. */
+};
+
+/*===========================================================================*/
+/* Module local functions.                                                   */
 /*===========================================================================*/
 
 /**
  *
  */
-
-THD_FUNCTION(tcxo_thd, arg) {
-  (void)arg;
-
-  while(true) {
-    uint32_t f = pktMeasureTCXO(TIME_S2I(30));
-    if(f != 0) {
-      if(f != tcxo_active) {
-        tcxo_active = f;
-        TRACE_INFO("TCXO > Update to %d Hz", f);
-      } else {
-        TRACE_INFO("TCXO > Unchanged at %d Hz", f);
-      }
-    } else
-      TRACE_WARN("TCXO > No update available");
-    chThdSleep(TIME_S2I(60));
+static void pktCBPeriodTCXO(ICUDriver *icup) {
+  if(tcxo_state == TCXO_CAPTURE) {
+    chSysLockFromISR();
+    tcxo_period += icuGetPeriodX(icup);
+    icuDisableNotificationsI(icup);
+    tcxo_state = TCXO_COMPLETE;
+    chSysUnlockFromISR();
+    return;
+  } else if(tcxo_state == TCXO_READY) {
+    tcxo_period = 0;
+    tcxo_state = TCXO_CAPTURE;
+    return;
   }
 }
 
 /**
  *
  */
-void pktInitTCXO()  {
-  TRACE_INFO("TCXO > Init TCXO");
-  pktSetGPIOlineMode(LINE_GPS_TIMEPULSE, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(9));
-  icuObjectInit(&PKT_TCXO_TIMER);
-  /* TODO: Get last known good from flash. */
-  tcxo_active = STM32_HSECLK + PKT_TCXO_DEFAULT_ERROR;
-  TRACE_INFO("TCXO > Start TCXO continuous measurement");
-  chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(512), "TCXO", LOWPRIO,
-                      tcxo_thd, NULL);
-  chThdSleep(TIME_MS2I(10));
+static void pktCBOverflowTCXO(ICUDriver *icup) {
+  (void)icup;
+  if(tcxo_state == TCXO_CAPTURE)
+    tcxo_period += TCXO_OVERFLOW_COUNT;
 }
 
 /**
  *
  */
-inline xtal_osc_t pktGetCurrentTCXO()  {
-  return tcxo_active;
-}
-
-/**
- *
- */
-xtal_osc_t pktCheckUpdatedTCXO(xtal_osc_t current)  {
-  if(current != tcxo_active)
-    return tcxo_active;
-  return 0;
-}
-
-/**
- *
- */
-xtal_osc_t pktMeasureTCXO(sysinterval_t timeout) {
+static xtal_osc_t pktMeasureTCXO(sysinterval_t timeout) {
   if(timeout == TIME_INFINITE)
     return 0;
   if(!hasGPSacquiredLock(getLastDataPoint()))
@@ -125,26 +106,56 @@ xtal_osc_t pktMeasureTCXO(sysinterval_t timeout) {
 /**
  *
  */
-void pktCBPeriodTCXO(ICUDriver *icup) {
-  if(tcxo_state == TCXO_CAPTURE) {
-    chSysLockFromISR();
-    tcxo_period += icuGetPeriodX(icup);
-    icuDisableNotificationsI(icup);
-    tcxo_state = TCXO_COMPLETE;
-    chSysUnlockFromISR();
-    return;
-  } else if(tcxo_state == TCXO_READY) {
-    tcxo_period = 0;
-    tcxo_state = TCXO_CAPTURE;
-    return;
+THD_FUNCTION(tcxo_thd, arg) {
+  (void)arg;
+
+  while(true) {
+    uint32_t f = pktMeasureTCXO(TIME_S2I(30));
+    if(f != 0) {
+      if(f != tcxo_active) {
+        tcxo_active = f;
+        TRACE_INFO("TCXO > Update to %d Hz", f);
+      } else {
+        TRACE_INFO("TCXO > Unchanged at %d Hz", f);
+      }
+    } else
+      TRACE_WARN("TCXO > No update available");
+    chThdSleep(TIME_S2I(60));
   }
+}
+
+/*===========================================================================*/
+/* Module exported functions.                                                */
+/*===========================================================================*/
+
+/**
+ *
+ */
+void pktInitTCXO()  {
+  TRACE_INFO("TCXO > Init TCXO");
+  pktSetGPIOlineMode(LINE_GPS_TIMEPULSE, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(9));
+  icuObjectInit(&PKT_TCXO_TIMER);
+  /* TODO: Get last known good from flash. */
+  tcxo_active = STM32_HSECLK + PKT_TCXO_DEFAULT_ERROR;
+  TRACE_INFO("TCXO > Start TCXO continuous measurement");
+  chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(512), "TCXO", LOWPRIO,
+                      tcxo_thd, NULL);
+  chThdSleep(TIME_MS2I(10));
 }
 
 /**
  *
  */
-void pktCBOverflowTCXO(ICUDriver *icup) {
-  (void)icup;
-  if(tcxo_state == TCXO_CAPTURE)
-    tcxo_period += TCXO_OVERFLOW_COUNT;
+inline xtal_osc_t pktGetCurrentTCXO()  {
+  return tcxo_active;
 }
+
+/**
+ *
+ */
+xtal_osc_t pktCheckUpdatedTCXO(xtal_osc_t current)  {
+  if(current != tcxo_active)
+    return tcxo_active;
+  return 0;
+}
+

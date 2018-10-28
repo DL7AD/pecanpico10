@@ -35,7 +35,7 @@ static void processPacket(uint8_t *buf, uint32_t len) {
   uint32_t ilen = ax25_get_info(pp, &c);
   if(ilen == 0) {
     TRACE_INFO("RX   > Invalid packet structure - dropped");
-    pktReleasePacketBuffer(pp);
+    pktReleaseCommonPacketBuffer(pp);
     return;
   }
   /* Output packet as text. */
@@ -49,7 +49,7 @@ static void processPacket(uint8_t *buf, uint32_t len) {
   else {
     TRACE_INFO("RX   > No addresses in packet - dropped");
   }
-  pktReleasePacketBuffer(pp);
+  pktReleaseCommonPacketBuffer(pp);
 }
 
 void mapCallback(pkt_data_object_t *pkt_buff) {
@@ -199,7 +199,7 @@ THD_FUNCTION(aprsThread, arg) {
       TRACE_ERROR("RX   > Cannot specify FREQ_RX_APRS for receive");
       break;
     }
-
+#if 0
     /* Open packet radio receive service. */
     TRACE_INFO("RX   > Opening receive on radio %d", PKT_RADIO_1);
     msg_t omsg = pktOpenRadioReceive(radio,
@@ -231,6 +231,22 @@ THD_FUNCTION(aprsThread, arg) {
     TRACE_INFO("RX   > Radio %d now active", radio);
 /*    if(conf->rx.svc_conf.cycle == CYCLE_CONTINUOUSLY)
       break;*/
+#else
+    msg_t msg = pktStartDataReception(radio,
+                                     MOD_AFSK,
+                                     conf->rx.radio_conf.freq,
+                                     0, // Step is 0 for now. Get from radio record.
+                                     0, // Chan = 0 for now
+                                     conf->rx.radio_conf.rssi,
+                                     mapCallback,
+                                     TIME_S2I(10));
+    if(msg != MSG_OK) {
+      TRACE_ERROR("RX   > Start of radio %d packet reception failed with error %d",
+                  radio, msg);
+      time = waitForTrigger(time, conf->rx.svc_conf.cycle);
+      continue;
+    }
+#endif
     /*
      * Check if there is a "listening" interval.
      * In that case turn the receive off after that time.
@@ -238,13 +254,13 @@ THD_FUNCTION(aprsThread, arg) {
     if(conf->rx.svc_conf.interval != TIME_IMMEDIATE) {
       chThdSleep(conf->rx.svc_conf.interval);
       TRACE_INFO("RX   > Closing receive on radio %d", radio);
-      smsg = pktDisableDataReception(radio);
-      if(smsg != MSG_OK) {
+      msg = pktDisableDataReception(radio);
+      if(msg != MSG_OK) {
         pktCloseRadioReceive(radio);
         TRACE_ERROR("RX   > Stop of radio packet reception failed");
       }
-      smsg = pktCloseRadioReceive(radio);
-      if(smsg != MSG_OK) {
+      msg = pktCloseRadioReceive(radio);
+      if(msg != MSG_OK) {
         pktCloseRadioReceive(radio);
         TRACE_ERROR("RX   > Close of radio packet reception failed");
       }

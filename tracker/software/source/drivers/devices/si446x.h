@@ -351,7 +351,7 @@ typedef struct radioTask radio_task_object_t;
 /* External declarations.                                                    */
 /*===========================================================================*/
 
-extern void pktReleasePacketBuffer(packet_t pp);
+extern void pktReleaseCommonPacketBuffer(packet_t pp);
 
 #ifdef __cplusplus
 extern "C" {
@@ -400,7 +400,7 @@ extern "C" {
 /*===========================================================================*/
 
 static inline void Si446x_releaseSendObject(packet_t pp) {
-  pktReleasePacketBuffer(pp);
+  pktReleaseCommonPacketBuffer(pp);
 }
 
 #endif /* __si446x__H__ */

@@ -337,7 +337,7 @@ OSAL_IRQ_HANDLER(STM32_TIM9_HANDLER) {
 #error "STM32_TIM12_HANDLER not defined"
 #endif
 /**
- * @brief   TIM9 interrupt handler.
+ * @brief   TIM12 interrupt handler.
  *
  * @isr
  */

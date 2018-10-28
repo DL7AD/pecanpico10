@@ -106,7 +106,9 @@ typedef struct radioConfig radio_config_t;
 typedef bool (*radio_task_cb_t)(radio_task_object_t *task_object);
 
 #include "ax25_pad.h"
-
+/**
+ *
+ */
 typedef struct radioSettings {
   radio_mod_t               type;
   radio_freq_t              base_frequency;
@@ -115,22 +117,14 @@ typedef struct radioSettings {
   radio_squelch_t           squelch;
 } radio_settings_t;
 
-
+/**
+ *
+ */
 typedef struct modParams {
   radio_mod_t               type;
   uint32_t                  tx_speed;
   deviation_hz_t            tx_dev;
 } mod_params_t;
-
-typedef struct radioAction {
-  radio_command_t           command;
-  radio_task_cb_t           callback;
-  msg_t                     result;
-  thread_t                  *thread;
-  char                      tx_thd_name[16];
-  packet_svc_t              *handler;
-  packet_t                  packet_out;
-} radio_action_t;
 
 /**
  * @brief       Radio task object.
@@ -140,7 +134,6 @@ struct radioTask {
   /* For safety keep clear - where pool stores its free link. */
   struct pool_header        link;
   radio_command_t           command;
-  radio_command_t           next_command;
   radio_mod_t               type;
   radio_freq_t              base_frequency;
   channel_hz_t              step_hz;
@@ -186,8 +179,8 @@ extern "C" {
 #endif
   thread_t  		*pktRadioManagerCreate(const radio_unit_t radio);
   void      		pktRadioManagerRelease(const radio_unit_t radio);
-  bool              pktStartRadioReceive(const radio_unit_t radio,
-                            radio_task_object_t *rto);
+  msg_t             pktStartRadioReceive(const radio_unit_t radio,
+                            radio_task_object_t *rto, sysinterval_t timeout);
   bool              pktStopRadioReceive(const radio_unit_t radio,
                            radio_task_object_t *rto);
   void      		pktRadioManager(void *arg);
