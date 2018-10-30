@@ -74,8 +74,6 @@ typedef struct indicatorIO {
   } driver;
 } indicator_io_t;
 
-//#include "pkttypes.h"
-
 /**
  * @brief   Radio manager control commands.
  * @details Radio task requests execute these commands.
@@ -122,7 +120,7 @@ typedef struct radioSettings {
  */
 typedef struct modParams {
   radio_mod_t               type;
-  uint32_t                  tx_speed;
+  link_speed_t              tx_speed;
   deviation_hz_t            tx_dev;
 } mod_params_t;
 
@@ -178,10 +176,10 @@ struct radioTask {
 extern "C" {
 #endif
   thread_t  		*pktRadioManagerCreate(const radio_unit_t radio);
-  void      		pktRadioManagerRelease(const radio_unit_t radio);
+  msg_t      		pktRadioManagerRelease(const radio_unit_t radio);
   msg_t             pktStartRadioReceive(const radio_unit_t radio,
                             radio_task_object_t *rto, sysinterval_t timeout);
-  bool              pktStopRadioReceive(const radio_unit_t radio,
+  msg_t             pktStopRadioReceive(const radio_unit_t radio,
                            radio_task_object_t *rto);
   void      		pktRadioManager(void *arg);
   msg_t     		pktGetRadioTaskObject(const radio_unit_t radio,
@@ -213,19 +211,8 @@ extern "C" {
                                           const channel_hz_t step,
                                           const radio_ch_t chan,
                                           const radio_mode_t mode);
-  bool      		pktLLDradioStartReceive(const radio_unit_t radio,
-                                radio_task_object_t *rto);
   msg_t             pktSetReceiveInactive(const radio_unit_t radio,
                                           sysinterval_t timeout);
-  void      		pktLLDradioStopReceive(const radio_unit_t radio);
-  bool      		pktLLDradioResumeReceive(const radio_unit_t radio);
-  bool      		pktLLDradioSendPacket(radio_task_object_t *rto);
-  void      		pktLLDradioCaptureRSSI(const radio_unit_t radio);
-  bool      		pktLLDradioInit(const radio_unit_t radio);
-  void      		pktLLDradioStandby(const radio_unit_t radio);
-  void      		pktLLDradioShutdown(const radio_unit_t radio);
-  void      		pktLLDradioPauseDecoding(const radio_unit_t radio);
-  void      		pktLLDradioResumeDecoding(const radio_unit_t radio);
   void      		pktRadioStartDecoder(const radio_unit_t radio);
   void      		pktRadioStopDecoder(const radio_unit_t radio);
   void      		pktRadioSendComplete(radio_task_object_t *rto,
@@ -243,7 +230,7 @@ extern "C" {
   const radio_config_t	*pktGetRadioData(radio_unit_t radio);
   bool              pktLookupModParameters(const radio_unit_t radio,
                                            mod_params_t *mp);
-  uint8_t           pktLLDradioReadCCAline(const radio_unit_t radio);
+  uint8_t           pktLLDradioReadCCAlineI(const radio_unit_t radio);
   void              pktLLDradioConfigIndicator(const radio_unit_t radio,
                                                const indicator_t ind);
   void              pktLLDradioDeconfigIndicator(const radio_unit_t radio,

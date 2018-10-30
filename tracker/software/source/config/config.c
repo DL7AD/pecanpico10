@@ -59,10 +59,10 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 30),
+            .active = true,
+            .cycle = TIME_S2I(60 * 10),
             .init_delay = TIME_S2I(60),
-            .send_spacing = TIME_S2I(10)
+            .send_spacing = TIME_S2I(3)
         },
         .radio_conf = {
             .pwr = 0x1F,
@@ -85,8 +85,8 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 5),
+            .active = true,
+            .cycle = TIME_S2I(60 * 1),
             .init_delay = TIME_S2I(10),
             .send_spacing = TIME_S2I(0)
         },

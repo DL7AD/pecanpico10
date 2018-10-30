@@ -980,7 +980,7 @@ static bool send_image_packets(const uint8_t *image,
                           MAX_BUFFERS_FOR_BURST_SEND);
     uint8_t chain = (IS_FAST_2FSK(conf->radio_conf.mod) && !conf->no_burst
        && !conf->redundantTx) ? buffers : 1;
-    TRACE_INFO("IMG  > Encode %i APRS/SSDV packet%s", chain,
+    TRACE_INFO("IMG  > Encode APRS/SSDV packet%s",
               (chain > 1 ? " burst" : ""));
 
     /* Packet linking control. */
@@ -1414,7 +1414,7 @@ THD_FUNCTION(imgThread, arg) {
 void start_image_thread(img_app_conf_t *conf, const char *name)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
-	                                   THD_WORKING_AREA_SIZE(9 * 1024),
+	                                   THD_WORKING_AREA_SIZE(10 * 1024),
 	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
       // Print startup error, do not start watchdog for this thread

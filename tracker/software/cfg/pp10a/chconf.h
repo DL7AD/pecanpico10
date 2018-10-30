@@ -557,7 +557,7 @@
  * @brief   Idle Loop hook.
  * @details This hook is continuously invoked by the idle thread loop.
  */
-#define PORT_IDLE_THREAD_STACK_SIZE 256
+#define PORT_IDLE_THREAD_STACK_SIZE 512
 #define CH_CFG_IDLE_LOOP_HOOK() {                                           \
   /* Idle loop code here.*/                                                 \
   extern void pktIdleThread(void);                                          \

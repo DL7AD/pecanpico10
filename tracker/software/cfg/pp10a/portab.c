@@ -76,10 +76,10 @@ const si446x_mcucfg_t radio1_cfg = {
                .line = &radio1_cfg.nirq,
                .mode = PAL_MODE_INPUT_PULLUP
     },
-    .icu     = &PKT_RADIO1_ICU,
+    .icu     = &PKT_RADIO1_PWM_ICU,
     .cfg     = {
        ICU_INPUT_ACTIVE_HIGH,
-       ICU_COUNT_FREQUENCY,      /**< ICU clock frequency. */
+       PWM_ICU_COUNT_FREQUENCY,   /**< ICU clock frequency. */
      #if LINE_PWM_MIRROR != PAL_NOLINE
        pktRadioICUWidth,         /**< ICU width callback. */
      #else

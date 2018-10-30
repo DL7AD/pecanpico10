@@ -20,6 +20,7 @@
 static uint32_t lightIntensity;
 static pdcmi_error_t error;
 
+/* Statically initialised binary semaphore. */
 BSEMAPHORE_DECL(pdcmi_sem, false);
 
 struct regval_list {

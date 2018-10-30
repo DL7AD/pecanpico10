@@ -20,6 +20,8 @@
 /*===========================================================================*/
 /* Module constants.                                                         */
 /*===========================================================================*/
+
+#define AFSK_THREAD_DOES_INIT       TRUE
 /*
  * AFSK decoding definitions.
  */
@@ -305,6 +307,11 @@ typedef struct AFSK_data {
    * @brief Opening HDLC flag sequence found.
    */
   frame_state_t             frame_state;
+
+  /**
+   * @brief Thread reference of initiating thread.
+   */
+  thread_t                  *caller;
 } AFSKDemodDriver;
 
 /*===========================================================================*/
@@ -335,7 +342,7 @@ extern struct qCorrFilter QCORR1;
 #ifdef __cplusplus
 extern "C" {
 #endif
-  AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktDriver);
+  AFSKDemodDriver *pktCreateAFSKDecoder(radio_unit_t radio);
   void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver);
   void pktAFSKDecoder(void *arg);
 #ifdef __cplusplus

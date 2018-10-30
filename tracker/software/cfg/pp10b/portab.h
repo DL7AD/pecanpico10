@@ -182,20 +182,28 @@
 #define LINE_USART3_RX                  LINE_IO_RXD
 #endif
 
-/* If set to true, the console using USB interface will be switched on.
- * The tracker is also switched to 3V, because USB would not work at 1.8V.
- * Note that the transmission power is increased too when operating at 3V.
- * This option will also run the STM32 at 48MHz (AHB) permanently.
- * USB needs 48MHz speed to operate.
- */
+/* If set to true, the console using USB interface will be switched on. */
 #define ACTIVATE_CONSOLE                TRUE
 
 /**
- *  ICU related definitions.
+ *  PWM ICU related definitions.
  */
-#define PKT_RADIO1_ICU                  ICUD4
+#define PKT_RADIO1_PWM_ICU              ICUD4
+#if    ((defined(ICUD1) && PKT_RADIO1_PWM_ICU == ICUD1))                     \
+    || ((defined(ICUD8) && PKT_RADIO1_PWM_ICU == ICUD8))                     \
+    || ((defined(ICUD9) && PKT_RADIO1_PWM_ICU == ICUD9))
+/**
+ * Clock of ICU timers connected to APB2 (Timers 1, 8, 9).
+ */
 
-#define PWM_ICU_CLK                     STM32_TIMCLK1
+#define PWM_ICU_RADIO1_CLK              STM32_TIMCLK2
+#else
+/**
+ * Clock of ICU timers connected to APB1 (Timers 2, 3, 4, 5, 6, 7, 12).
+ */
+#define PWM_ICU_RADIO1_CLK              STM32_TIMCLK1
+
+#endif
 
 /* ICU counter frequency. */
 /*
@@ -203,9 +211,9 @@
  * ICU has to run at an integer divide from APBx clock.
  */
 
-#define ICU_COUNT_FREQUENCY             6000000U
+#define PWM_ICU_COUNT_FREQUENCY      6000000U
 
-#if ((PWM_ICU_CLK % ICU_COUNT_FREQUENCY) != 0)
+#if ((PWM_ICU_RADIO1_CLK % PWM_ICU_COUNT_FREQUENCY) != 0)
 #error "Invalid ICU frequency for APBx clock setting"
 #endif
 
@@ -236,16 +244,19 @@
 #define PWM_DATA_SLOTS                  6000
 #endif /* USE_HEAP_PWM_BUFFER == TRUE */
 
-/* Number of frame receive buffers. */
-#define NUMBER_RX_PKT_BUFFERS           5U
-#define USE_CCM_HEAP_RX_BUFFERS         TRUE
+
+/* Number of frame receive buffers per radio. */
+#define NUMBER_RX_PKT_BUFFERS       5U
+#define USE_HEAP_RX_BUFFER_OBJECTS  TRUE
+#define USE_POOL_RX_BUFFER_OBJECTS  FALSE
+#define USE_CCM_HEAP_RX_BUFFERS     TRUE
 
 /* Set TRUE to use the idle thread sweeper to release terminated threads. */
 //#define PKT_RX_RLS_USE_NO_FIFO          TRUE
 
 /*
  * Number of general AX25/APRS processing & frame send buffers.
- * Can configured as being in CCM to save system core memory use.
+ * Can be configured as being in CCM.
  */
 #define NUMBER_COMMON_PKT_BUFFERS       30U
 #define RESERVE_BUFFERS_FOR_INTERNAL    10U

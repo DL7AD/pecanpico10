@@ -102,7 +102,7 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
     return false;
   }
 
-  if(!pktIsTransmitOpen(radio)) {
+  if(!pktIsTransmitAvailable(radio)) {
     TRACE_WARN( "RAD  > Transmit is not open on radio");
     pktReleaseBufferChain(pp);
     return false;

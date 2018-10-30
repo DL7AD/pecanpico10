@@ -16,7 +16,6 @@
 #define PKT_RX_BUFFER_SIZE              PKT_MAX_RX_PACKET_LEN
 
 #define PKT_FRAME_QUEUE_PREFIX          "pktr_"
-#define PKT_CALLBACK_TERMINATOR_PREFIX  "cbte_"
 #define PKT_CALLBACK_THD_PREFIX         "cb_"
 
 #define PKT_SEND_BUFFER_SEM_NAME        "pbsem"
@@ -32,9 +31,9 @@
 /* Packet handler states. */
 typedef enum handlerSvcStates {
   PACKET_IDLE = 0,
+  PACKET_INIT,
   PACKET_READY,
-  PACKET_CLOSE,
-  PACKET_INVALID
+  PACKET_CLOSE
 } pkt_svc_state_t;
 
 /* Packet handler states. */
@@ -63,15 +62,17 @@ typedef enum HDLCFrameStates {
 #include "pktradio.h"
 
 /* Receive packet buffer. */
-typedef struct packetBuffer pkt_data_object_t;
+typedef struct packetBufferObject pkt_data_object_t;
 
 /* Receive packet buffer callback. */
-typedef void (*pkt_buffer_cb_t)(pkt_data_object_t *pkt_buffer);
+typedef void (*pkt_buffer_cb_t)(pkt_data_object_t *pkt_object);
 
-typedef struct packetBuffer {
+typedef struct packetBufferObject {
   struct pool_header        link; /* For safety keep clear - where pool stores its free link. */
   packet_svc_t              *handler;
+#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
   dyn_objects_fifo_t        *pkt_factory;
+#endif
   thread_t                  *cb_thread;
   char                      cb_thd_name[PKT_THREAD_NAME_MAX];
   pkt_buffer_cb_t           cb_func;
@@ -183,15 +184,17 @@ typedef struct packetHandlerData {
    */
   dyn_objects_fifo_t        *the_radio_fifo;
 
+#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
   /**
    * @brief AX25 packet guarded FIFO for receive.
    */
   dyn_objects_fifo_t        *the_packet_fifo;
-
+#else
   /**
-   * @brief AX25 send buffer throttling semaphore.
+   * @brief AX25 receive packet objects guarded pool.
    */
-  //dyn_semaphore_t           *tx_packet_sem;
+  guarded_memory_pool_t     *rx_packet_pool;
+#endif
 
   /**
    * @brief Packet buffer cb_func.
@@ -241,21 +244,21 @@ extern packet_svc_t RPKTD1;
 #ifdef __cplusplus
 extern "C" {
 #endif
-  bool pktSystemInit(void);
-  bool pktSystemDeinit(void);
-  bool pktServiceCreate(const radio_unit_t radio);
-  bool pktServiceRelease(const radio_unit_t radio);
-  msg_t pktOpenRadioReceive(const radio_unit_t radio,
+  bool                  pktSystemInit(void);
+  bool                  pktSystemDeinit(void);
+  bool                  pktServiceCreate(const radio_unit_t radio);
+  bool                  pktServiceRelease(const radio_unit_t radio);
+  msg_t                 pktOpenRadioReceive(const radio_unit_t radio,
                             const radio_mod_t encoding,
                             const radio_freq_t frequency,
                             const channel_hz_t ch_step,
                             const sysinterval_t timeout);
-  msg_t pktEnableDataReception(const radio_unit_t radio,
+  msg_t                 pktEnableDataReception(const radio_unit_t radio,
                                const radio_ch_t channel,
                                const radio_squelch_t sq,
                                const pkt_buffer_cb_t cb,
                                const sysinterval_t to);
-  msg_t pktStartDataReception(const radio_unit_t radio,
+  msg_t                 pktStartDataReception(const radio_unit_t radio,
                               const radio_mod_t encoding,
                               const radio_freq_t frequency,
                               const channel_hz_t step,
@@ -263,27 +266,29 @@ extern "C" {
                               const radio_squelch_t sq,
                               const pkt_buffer_cb_t cb,
                               const sysinterval_t to);
-  void pktStartDecoder(const radio_unit_t radio);
-  msg_t pktDisableDataReception(const radio_unit_t radio);
-  void pktStopDecoder(const radio_unit_t radio);
-  msg_t pktCloseRadioReceive(const radio_unit_t radio);
-  bool  pktStoreReceiveData(pkt_data_object_t *buffer, ax25char_t data);
-  eventflags_t  pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer);
-  thread_t *pktCreateReceiveCallback(pkt_data_object_t *pkt_buffer);
-  void pktCallback(void *arg);
-  //void pktCallbackManagerOpen(const radio_unit_t radio);
-  void pktCompletion(void *arg);
-  dyn_objects_fifo_t *pktIncomingBufferPoolCreate(const radio_unit_t radio);
-  void pktCallbackManagerRelease(packet_svc_t *handler);
-  void pktIncomingBufferPoolRelease(packet_svc_t *handler);
-  dyn_objects_fifo_t *pktCommonBufferPoolCreate(const radio_unit_t radio);
-  void pktCommonBufferPoolRelease(const radio_unit_t radio);
-  void pktReleaseBufferSemaphore(const radio_unit_t radio);
-  msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
-  void pktReleaseCommonPacketBuffer(packet_t pp);
-  dyn_semaphore_t *pktInitBufferControl(void);
-  void pktDeinitBufferControl(void);
-  packet_svc_t *pktGetServiceObject(radio_unit_t radio);
+  void                  pktStartDecoder(const radio_unit_t radio);
+  msg_t                 pktDisableDataReception(const radio_unit_t radio);
+  void                  pktStopDecoder(const radio_unit_t radio);
+  msg_t                 pktCloseRadioReceive(const radio_unit_t radio);
+  bool                  pktStoreReceiveData(pkt_data_object_t *buffer,
+                                            ax25char_t data);
+  eventflags_t          pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer);
+  thread_t*             pktCreateReceiveCallback(pkt_data_object_t *pkt_buffer);
+  void                  pktCallback(void *arg);
+  void                  pktCompletion(void *arg);
+  dyn_objects_fifo_t*   pktIncomingBufferPoolCreate(const radio_unit_t radio);
+  void                  pktIncomingBufferPoolRelease(packet_svc_t *handler);
+  dyn_objects_fifo_t*   pktCommonBufferPoolCreate(const radio_unit_t radio);
+  void                  pktCommonBufferPoolRelease(const radio_unit_t radio);
+  void                  pktReleaseBufferSemaphore(const radio_unit_t radio);
+  msg_t                 pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
+  void                  pktReleaseCommonPacketBuffer(packet_t pp);
+  dyn_semaphore_t*      pktInitBufferControl(void);
+  void                  pktDeinitBufferControl(void);
+  packet_svc_t*         pktGetServiceObject(radio_unit_t radio);
+  pkt_data_object_t*    pktAssignReceivePacketObject(packet_svc_t *handler,
+                                                      sysinterval_t timeout);
+  void                  pktReleaseDataBuffer(pkt_data_object_t *object);
 #ifdef __cplusplus
 }
 #endif
@@ -388,105 +393,6 @@ extern "C" {
 }
 
 /**
- * @brief   Gets an sets up a packet management object.
- * @notes   Fetches a management object from the FIFO pool.
- * @notes   A packet buffer is then obtained and assigned to the object.
- * @details This function is called from thread level to obtain a buffer
- *          to write AX25 data into.
- *
- * @param[in]   handler     pointer to a @p packet service object
- * @param[in]   fifo        pointer to a @p objects FIFO
- * @paream[in]  timeout     Allowable wait for a free data buffer
- *
- * @return      pointer to packet management object.
- * @retval      NULL if no management object or buffer available.
- *
- * @api
- */
-static inline pkt_data_object_t *pktTakeDataBuffer(packet_svc_t *handler,
-                                                    objects_fifo_t *fifo,
-                                                    sysinterval_t timeout) {
-  /* Get a management object from the FIFO pool. */
-  pkt_data_object_t *pkt_buffer = chFifoTakeObjectTimeout(fifo, timeout);
-  handler->active_packet_object = pkt_buffer;
-  if(pkt_buffer != NULL) {
-
-    /*
-     * Packet management object available.
-     * Initialize the object fields.
-     */
-    pkt_buffer->handler = handler;
-    pkt_buffer->status = EVT_STATUS_CLEAR;
-    pkt_buffer->packet_size = 0;
-    pkt_buffer->buffer_size = PKT_RX_BUFFER_SIZE;
-    pkt_buffer->cb_func = handler->usr_callback;
-
-    /* Save the pointer to the object factory for use when releasing object. */
-    pkt_buffer->pkt_factory = handler->the_packet_fifo;
-#if USE_CCM_HEAP_RX_BUFFERS == TRUE
-    extern memory_heap_t *ccm_heap;
-    pkt_buffer->buffer = chHeapAlloc(ccm_heap, PKT_RX_BUFFER_SIZE);
-    if(pkt_buffer->buffer == NULL) {
-      /* No heap available for data buffer. */
-      /* Return management object to free list. */
-      chFifoReturnObject(fifo, (pkt_data_object_t *)pkt_buffer);
-
-      /*
-       * Decrease FIFO reference counter (increased by decoder).
-       * FIFO will be destroyed when all references are released.
-       */
-      /*chFactoryReleaseObjectsFIFO(pkt_buffer->pkt_factory);*/
-      pkt_buffer = NULL;
-    }
-#endif
-  }
-  return pkt_buffer;
-}
-
-/**
- * @brief   Returns a receive buffer to the packet buffer free pool.
- * @details This function is called from thread level to free a buffer.
- * @post    The buffer is released back to the free pool.
- * @post    The semaphore for used/free buffer counting is updated.
- * @post    Or...
- * @post    The factory object is released.
- * @post    If the factory reference count reaches zero it will be destroyed.
- * @post    i.e. when the decoder is closed with no further outstanding buffers.
- *
- * @param[in]   object      pointer to a @p buffer object.
- *
- * @api
- */
-static inline void pktReleaseDataBuffer(pkt_data_object_t *object) {
-
-  dyn_objects_fifo_t *pkt_factory = object->pkt_factory;
-  chDbgAssert(pkt_factory != NULL, "no packet factory");
-
-  objects_fifo_t *pkt_fifo = chFactoryGetObjectsFIFO(pkt_factory);
-  chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
-
-  chDbgAssert(object->cb_func != NULL, "no user callback set");
-
-#if USE_CCM_HEAP_RX_BUFFERS == TRUE
-  /* Free the packet buffer in the heap now. */
-  chHeapFree(object->buffer);
-#endif
-
-  extern void pktThdTerminateSelf(void);
-  /*
-   * Free the object.
-   * Decrease the factory reference count.
-   * If the service is closed and all buffers freed then the FIFO is destroyed.
-   * Terminate this thread and have idle thread sweeper clean up memory.
-   */
-  object->handler->rx_count--;
-  chFifoReturnObject(pkt_fifo, object);
-  chFactoryReleaseObjectsFIFO(pkt_factory);
-  pktThdTerminateSelf();
-  /* We don't get to here. */
-}
-
-/**
  * @brief   Resets the buffer index of a packet buffer.
  * @details This macro resets the buffer count to zero.
  *
@@ -498,6 +404,7 @@ static inline void pktResetDataCount(pkt_data_object_t *object) {
   object->packet_size = 0;
 }
 
+#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
 /**
  * @brief   Waits for a buffer to be posted to the FIFO and gets it.
  * @details This function is called from thread level to get a posted buffer.
@@ -527,6 +434,7 @@ static inline msg_t pktReceiveDataBufferTimeout(packet_svc_t *handler,
                                               (void *)object, timeout);
   return fifo_msg;
 }
+#endif
 
 /**
  * @brief   Checks if a buffer meets minimum AX25 validity.
@@ -573,17 +481,11 @@ static inline bool pktGetAX25FrameStatus(pkt_data_object_t *object) {
  * @param[in] radio    radio unit ID.
  *
  * @return                  The service state.
- * @retval PACKET_INVALID   If the radio ID is invalid.
  *
  * @api
  */
 static inline pkt_svc_state_t pktGetServiceState(radio_unit_t radio) {
-  /*
-   * TODO: implement mapping from radio config to packet handler object.
-   */
   packet_svc_t *handler = pktGetServiceObject(radio);
-
-  //chDbgAssert(handler != NULL, "invalid radio ID");
 
   return handler->state;
 }
@@ -599,9 +501,9 @@ static inline pkt_svc_state_t pktGetServiceState(radio_unit_t radio) {
  *
  * @api
  */
-static inline bool pktIsTransmitOpen(radio_unit_t radio) {
+static inline bool pktIsTransmitAvailable(radio_unit_t radio) {
   pkt_svc_state_t state = pktGetServiceState(radio);
-  return !(state == PACKET_IDLE || state == PACKET_INVALID);
+  return state == PACKET_READY;
 }
 
 /**
@@ -617,7 +519,8 @@ static inline bool pktIsTransmitOpen(radio_unit_t radio) {
  */
 static inline bool pktIsReceiveEnabled(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  return (handler->rx_state == PACKET_RX_ENABLED);
+  return (handler->state == PACKET_READY
+      && handler->rx_state == PACKET_RX_ENABLED);
 }
 
 /**

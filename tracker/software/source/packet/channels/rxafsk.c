@@ -323,11 +323,8 @@ static void pktResetAFSKDecoder(AFSKDemodDriver *myDriver) {
  *
  * @api
  */
-AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
-
-  chDbgAssert(pktHandler != NULL, "no packet handler");
-
-  const radio_config_t *data = pktGetRadioData(pktHandler->radio);
+AFSKDemodDriver *pktCreateAFSKDecoder(radio_unit_t radio) {
+  const radio_config_t *data = pktGetRadioData(radio);
   chDbgAssert(data != NULL, "invalid radio ID");
   if(data == NULL)
     return NULL;
@@ -335,21 +332,19 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
   /* Get afsk object from radio data. */
   AFSKDemodDriver *myDriver = data->afsk;
 
+  /* Set the link from demod driver to the packet driver. */
+  myDriver->packet_handler = pktGetServiceObject(radio);
+
   chDbgAssert(data != NULL, "invalid AFSK driver");
+#if AFSK_THREAD_DOES_INIT == FALSE
   /*
    * Initialize the decoder event object.
    */
   chEvtObjectInit(pktGetEventSource(myDriver));
 
-  /* Set the link from demod driver to the packet driver. */
-  myDriver->packet_handler = pktHandler;
-
-  /* The radio associated with this AFSK driver. */
-  radio_unit_t rid = myDriver->packet_handler->radio;
-
   /* Create a PWM FIFO name for this radio. */
   chsnprintf(myDriver->pwm_fifo_name, sizeof(myDriver->pwm_fifo_name),
-             "%s%02i", PKT_PWM_QUEUE_PREFIX, rid);
+             "%s%02i", PKT_PWM_QUEUE_PREFIX, radio);
 
   /* Create the dynamic objects FIFO for the PWM data queue. */
   myDriver->the_pwm_fifo = chFactoryCreateObjectsFIFO(myDriver->pwm_fifo_name,
@@ -380,21 +375,22 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
   extern memory_heap_t *ccm_heap;
   myDriver->pwm_queue_heap = chHeapAllocAligned(ccm_heap,
         sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS, sizeof(msg_t));
-#else
+#else /* USE_CCM_BASED_PWM_HEAP != TRUE */
   myDriver->pwm_queue_heap = chHeapAllocAligned(NULL,
         sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS, sizeof(msg_t));
-#endif
+#endif /* USE_CCM_BASED_PWM_HEAP == TRUE */
   chDbgAssert(myDriver->pwm_queue_heap != NULL, "failed to create space "
                                                 "in heap for PWM pool");
   /* Initialize the memory pool to manage buffer objects. */
   chPoolObjectInitAligned(&myDriver->pwm_buffer_pool,
                           sizeof(radio_pwm_object_t),
                           sizeof(msg_t), NULL);
+
   /* Load the memory pool with buffer objects. */
   chPoolLoadArray(&myDriver->pwm_buffer_pool,
                   myDriver->pwm_queue_heap,
                   PWM_DATA_BUFFERS);
-#endif
+#endif /* USE_HEAP_PWM_BUFFER == TRUE */
 
   /* Get the objects FIFO . */
   myDriver->pwm_fifo_pool = chFactoryGetObjectsFIFO(myDriver->the_pwm_fifo);
@@ -404,7 +400,7 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
   myDriver->active_demod_stream = NULL;
 
   /* Attach and initialize the ICU PWM system. */
-  myDriver->icudriver = pktAttachRadio(pktHandler->radio);
+  myDriver->icudriver = pktAttachRadio(radio);
 
   /* Set the link from ICU driver to AFSK demod driver. */
   myDriver->icudriver->link = myDriver;
@@ -412,25 +408,42 @@ AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktHandler) {
 
   /* Create the packet buffer name. */
   chsnprintf(myDriver->decoder_name, sizeof(myDriver->decoder_name),
-             "%s%02i", PKT_AFSK_THREAD_NAME_PREFIX, rid);
+             "%s%02i", PKT_AFSK_THREAD_NAME_PREFIX, radio);
+#endif
+
+  /* Set the link from demod driver to the packet driver. */
+  myDriver->packet_handler = pktGetServiceObject(radio);
+
+  /* Set the caller thread for init handshake. */
+  myDriver->caller = chThdGetSelfX();
 
   /* Create the AFSK decoder thread in system heap. */
   extern memory_heap_t *ccm_heap;
   myDriver->decoder_thd = chThdCreateFromHeap(ccm_heap,
               THD_WORKING_AREA_SIZE(PKT_AFSK_DECODER_WA_SIZE),
               myDriver->decoder_name,
-              NORMALPRIO - 10,
+              LOWPRIO,
               pktAFSKDecoder,
               myDriver);
 
   chDbgAssert(myDriver->decoder_thd != NULL,
-              "error in decoder thread creation");
+              "error in AFSK decoder thread creation");
 
   if(myDriver->decoder_thd == NULL) {
+#if AFSK_THREAD_DOES_INIT == FALSE
     chFactoryReleaseObjectsFIFO(myDriver->the_pwm_fifo);
+#endif /* AFSK_THREAD_DOES_INIT == FALSE */
     return NULL;
   }
 
+#if AFSK_THREAD_DOES_INIT == TRUE
+  /* TODO: Add init start thread message handshake. */
+  thread_t *thd = chMsgWait();
+  msg_t msg = chMsgGet(thd);
+  chMsgRelease(thd, MSG_OK);
+  if(msg == MSG_ERROR)
+    return NULL;
+#endif
   return myDriver;
 }
 
@@ -541,8 +554,91 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
    * Setup pointers to control structure and resources.
    */
   AFSKDemodDriver *myDriver = arg;
+  chDbgAssert(myDriver != NULL, "invalid AFSK driver");
   packet_svc_t *myHandler = myDriver->packet_handler;
   radio_unit_t radio = myHandler->radio;
+
+#if AFSK_THREAD_DOES_INIT == TRUE
+
+  /*
+   * Initialize the decoder event object.
+   */
+  chEvtObjectInit(pktGetEventSource(myDriver));
+
+
+  /* Create a PWM FIFO name for this radio. */
+  chsnprintf(myDriver->pwm_fifo_name, sizeof(myDriver->pwm_fifo_name),
+             "%s%02i", PKT_PWM_QUEUE_PREFIX, radio);
+
+  /* Create the dynamic objects FIFO for the PWM data queue. */
+  myDriver->the_pwm_fifo = chFactoryCreateObjectsFIFO(myDriver->pwm_fifo_name,
+                                        sizeof(radio_pwm_fifo_t),
+                                        NUMBER_PWM_FIFOS, sizeof(msg_t));
+
+  chDbgAssert(myDriver->the_pwm_fifo != NULL, "failed to create PWM FIFO");
+
+  if(myDriver->the_pwm_fifo == NULL) {
+    chMsgSend(myDriver->caller, MSG_ERROR);
+    /* We continue and terminate when caller sends release. */
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
+  }
+
+#if USE_HEAP_PWM_BUFFER == TRUE
+  /*
+   * Create a memory pool of PWM queue objects in heap.
+   * 1. Allocate heap memory
+   * 2. Initialise pool manager
+   * 3. Load heap with pool buffer objects
+   */
+
+  /*
+   * Get heap to accommodate buffer objects.
+   * The size of the allocation is:
+   *  Number of slots for individual PWM entries in each buffer
+   *  Multiplied by the number of chained buffers to be allocated
+   */
+#if USE_CCM_BASED_PWM_HEAP == TRUE
+  extern memory_heap_t *ccm_heap;
+  myDriver->pwm_queue_heap = chHeapAllocAligned(ccm_heap,
+        sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS, sizeof(msg_t));
+#else /* USE_CCM_BASED_PWM_HEAP != TRUE */
+  myDriver->pwm_queue_heap = chHeapAllocAligned(NULL,
+        sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS, sizeof(msg_t));
+#endif /* USE_CCM_BASED_PWM_HEAP == TRUE */
+  chDbgAssert(myDriver->pwm_queue_heap != NULL, "failed to create space "
+                                                "in heap for PWM pool");
+  /* Initialize the memory pool to manage buffer objects. */
+  chPoolObjectInitAligned(&myDriver->pwm_buffer_pool,
+                          sizeof(radio_pwm_object_t),
+                          sizeof(msg_t), NULL);
+
+  /* Load the memory pool with buffer objects. */
+  chPoolLoadArray(&myDriver->pwm_buffer_pool,
+                  myDriver->pwm_queue_heap,
+                  PWM_DATA_BUFFERS);
+#endif /* USE_HEAP_PWM_BUFFER == TRUE */
+
+  /* Get the objects FIFO . */
+  myDriver->pwm_fifo_pool = chFactoryGetObjectsFIFO(myDriver->the_pwm_fifo);
+
+  /* Indicate no buffer allocated. */
+  myDriver->active_radio_stream = NULL;
+  myDriver->active_demod_stream = NULL;
+
+  /* Attach and initialize the ICU PWM system. */
+  myDriver->icudriver = pktAttachRadio(myHandler->radio);
+
+  /* Set the link from ICU driver to AFSK demod driver. */
+  myDriver->icudriver->link = myDriver;
+  myDriver->icustate = PKT_PWM_INIT;
+
+  /* Create the packet buffer name. */
+  chsnprintf(myDriver->decoder_name, sizeof(myDriver->decoder_name),
+             "%s%02i", PKT_AFSK_THREAD_NAME_PREFIX, radio);
+
+#endif /* AFSK_THREAD_DOES_INIT == TRUE */
+
   tprio_t decoder_idle_priority;
 
   /* No active packet object. */
@@ -560,7 +656,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 #define DECODER_RUN_PRIORITY        NORMALPRIO+10
 
   /* Set DSP parameters for AFSK. */
-  myDriver->decimation_size = ((pwm_accum_t)ICU_COUNT_FREQUENCY
+  myDriver->decimation_size = ((pwm_accum_t)PWM_ICU_COUNT_FREQUENCY
                                 / (pwm_accum_t)AFSK_BAUD_RATE)
                                 / (pwm_accum_t)SYMBOL_DECIMATION;
 
@@ -583,7 +679,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   /* Setup LED for decoder blinker.  */
   pktLLDradioConfigIndicator(radio, PKT_INDICATOR_DECODE);
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
-
+#if AFSK_THREAD_DOES_INIT == TRUE
+  chMsgSend(myDriver->caller, MSG_OK);
+#endif
    /* Acknowledge open then wait for start or close of decoder. */
   pktAddEventFlags(myDriver, DEC_OPEN_EXEC);
   myDriver->decoder_state = DECODER_WAIT;
@@ -670,43 +768,21 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
         /* Check if prior packet buffer released. */
         chDbgCheck(myHandler->active_packet_object == NULL);
-
-        /*
-         * Get a reference to the packet management FIFO.
-         * The factory reference count is increased when found.
-         */
-        dyn_objects_fifo_t *pkt_fifo =
-            chFactoryFindObjectsFIFO(myHandler->pbuff_name);
-        chDbgAssert(pkt_fifo != NULL, "unable to find packet fifo");
-
-        /*
-         * Packet management FIFO found.
-         * Now get reference to inner FIFO allocator.
-         */
-        objects_fifo_t *pkt_object_pool = chFactoryGetObjectsFIFO(pkt_fifo);
-        chDbgAssert(pkt_object_pool != NULL, "no packet fifo list");
-
-        /* Get a packet management object and assign a data buffer. */
-        pkt_data_object_t *myPktBuffer = pktTakeDataBuffer(myHandler,
-                                                           pkt_object_pool,
-                                                            TIME_MS2I(100));
+        pkt_data_object_t *myPktBuffer =
+            pktAssignReceivePacketObject(myHandler, TIME_MS2I(100));
+        /* If no management object or data buffer is available get NULL. */
+        if(myPktBuffer == NULL) {
+          pktAddEventFlags(myHandler, EVT_PKT_NO_BUFFER);
+          myDriver->active_demod_stream->status |= STA_PKT_NO_BUFFER;
+          myDriver->decoder_state = DECODER_RESET;
+          break;
+        }
 #if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
           char buf[80];
           int out = chsnprintf(buf, sizeof(buf),
                                "\r\n======= START ===========\r\n");
           pktWrite( (uint8_t *)buf, out);
 #endif
-
-        /* If no management object or data buffer is available get NULL. */
-        if(myPktBuffer == NULL) {
-          /* Decrease ref count on packet management object FIFO. */
-          chFactoryReleaseObjectsFIFO(pkt_fifo);
-          pktAddEventFlags(myHandler, EVT_PKT_NO_BUFFER);
-          myDriver->active_demod_stream->status |= STA_PKT_NO_BUFFER;
-          myDriver->decoder_state = DECODER_RESET;
-          break;
-        }
-
 
         /* Increase thread priority. */
         decoder_idle_priority = chThdSetPriority(DECODER_RUN_PRIORITY);
@@ -986,12 +1062,10 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                            AX25_DUMP_RAW);
 #endif
 #if USE_CCM_HEAP_RX_BUFFERS == TRUE
-#if USE_CCM_BASED_PWM_HEAP == TRUE
-          pktAssertCCMdynamicCheck(myHandler->active_packet_object->buffer);
-#endif
           /* Free the data buffer referenced in the packet object. */
           chHeapFree(myHandler->active_packet_object->buffer);
 #endif
+#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
           /* Release the receive packet buffer management object. */
           objects_fifo_t *pkt_fifo =
               chFactoryGetObjectsFIFO(myHandler->active_packet_object->pkt_factory);
@@ -999,7 +1073,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
 
           chFifoReturnObject(pkt_fifo, myHandler->active_packet_object);
-
+#else
+          chHeapFree(myHandler->active_packet_object);
+#endif
           /* Forget the AX25 buffer management object. */
           myHandler->active_packet_object = NULL;
         }
