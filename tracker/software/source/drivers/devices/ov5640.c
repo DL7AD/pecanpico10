@@ -1087,8 +1087,8 @@ void mode3_vsync_cb(void *arg) {
  *
  * Other services can lock the PDCMI to prevent resource conflicts.
  */
-msg_t OV5640_LockPDCMI(void) {
-  return chBSemWait(&pdcmi_sem);
+msg_t OV5640_LockPDCMI(sysinterval_t timeout) {
+  return chBSemWaitTimeout(&pdcmi_sem, timeout);
 }
 
 /*
@@ -1150,10 +1150,11 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
 	 *  In makefile add entry to UDEFS:
 	 *   UDEFS = -DSTM32_DMA_REQUIRED
 	 */
-
+#define PDCMI_LOCK_TIMEOUT  TIME_S2I(5)
     /* Stop other processes gaining DCMI. */
-	if(OV5640_LockPDCMI() != MSG_OK) {
-      TRACE_ERROR("CAM  > Capture failed to lock competing resources");
+	if(OV5640_LockPDCMI(PDCMI_LOCK_TIMEOUT) != MSG_OK) {
+      TRACE_WARN("CAM  > PDCMI failed to lock within timeout of %d seconds",
+                 chTimeI2S(PDCMI_LOCK_TIMEOUT));
 	  /* Unable to lock resources. */
 	  return PDCMI_LOCK_ERR;
 	}
@@ -1274,7 +1275,7 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
     /* Release I2C. */
     i2cReleaseBus(&PKT_CAM_I2C);
 
-    /* Let other processes gain DCMI. */
+    /* Let other processes lock PDCMI. */
     OV5640_UnlockPDCMI();
 
     switch(state) {

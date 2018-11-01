@@ -291,6 +291,30 @@ static inline msg_t pktSendRadioCommand(const radio_unit_t radio,
  * @param[in]   radio   radio unit ID.
  * @param[in]   task    pointer to the task descriptor.
  *                      this is usually a persistent descriptor in the handler.
+ * @param[in]   cb      function to call with result (can be NULL).
+ *
+ * @api
+ */
+static inline msg_t pktSendPriorityRadioCommandI(const radio_unit_t radio,
+                                        const radio_task_object_t *task,
+                                        const radio_task_cb_t cb) {
+  radio_task_object_t *rt = NULL;
+  msg_t msg = pktGetRadioTaskObjectI(radio, &rt);
+  if(msg == MSG_TIMEOUT)
+    return MSG_TIMEOUT;
+  *rt = *task;
+  pktSubmitPriorityRadioTaskI(radio, rt, cb);
+  return msg;
+}
+
+/**
+ * @brief   Sends a priority command request to the radio manager.
+ * @notes   The task descriptor is copied into a task object which is posted.
+ * @post    The command object posted to the radio manager queue.
+ *
+ * @param[in]   radio   radio unit ID.
+ * @param[in]   task    pointer to the task descriptor.
+ *                      this is usually a persistent descriptor in the handler.
  * @param[in]           timeout
  * @param[in]   cb      function to call with result (can be NULL).
  *

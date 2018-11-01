@@ -1959,7 +1959,33 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       while((all - c) > 0) {
         /* Get TX FIFO free count. */
         uint8_t more;
-        if(!Si446x_getTXfreeFIFO(radio, 0x00, &more) || more != 0) {
+        if(!Si446x_getTXfreeFIFO(radio, 0x00, &more)) {
+          /* Something failed so set radio ready to clear it. */
+          Si446x_setReadyState(radio);
+
+          /* Radio did not initialise. */
+          TRACE_ERROR("SI   > Radio %d write to FIFO failed for AFSK TX", radio);
+
+          /* Free packet object memory. */
+          pktReleaseBufferChain(pp);
+
+          /*
+           * TODO: Radio manager should use rto->result versus thread terminate.
+           * Then use idle level thread terminator for TX.
+           */
+          rto->result = MSG_ERROR;
+
+          /* Schedule thread and task object memory release. */
+          pktRadioSendComplete(rto, chThdGetSelfX());
+
+          /* Unlock radio. */
+          pktUnlockRadio(radio, RADIO_TX);
+
+          /* Exit thread. */
+          chThdExit(MSG_ERROR);
+          /* We never arrive here. */
+        }
+        if(more != 0) {
           /* Update the FIFO free high water mark. */
           tide = (more > tide) ? more : tide;
 
@@ -2070,14 +2096,11 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   rto->result = exit_msg;
 
   /*
-   *  Put radio in standby after TX.
-   *  If RX is enabled the radio manager will re-establish RX.
+   * Finished send so schedule thread memory and task object release.
+   * The radio manager will resume RX or put the radio in standby if RX not enabled.
    */
-  Si446x_setStandbyState(radio);
-
-  /* Finished send so schedule thread memory and task object release. */
   pktRadioSendComplete(rto, chThdGetSelfX());
-#if Si446x_UNLOCK_FOR_ENCODE == TRUE
+#if Si446x_UNLOCK_FOR_ENCODE == FALSE
   /* Unlock radio. */
   pktUnlockRadio(radio, RADIO_TX);
 #endif
@@ -2544,16 +2567,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   /* Save status in case a callback requires it. */
   rto->result = exit_msg;
 
-  /* Put radio in standby after TX. */
-  Si446x_setStandbyState(radio);
-
   /*
    * Finished send so schedule thread memory and task object release.
-   * If RX is enabled and no other TX is in progress the radio manager will re-establish RX.
+   * The radio manager will resume RX or put the radio in standby if RX not enabled.
    */
   pktRadioSendComplete(rto, chThdGetSelfX());
 
-#if Si446x_UNLOCK_FOR_ENCODE == TRUE
+#if Si446x_UNLOCK_FOR_ENCODE == FALSE
   /* Unlock radio. */
   pktUnlockRadio(radio, RADIO_TX);
 #endif

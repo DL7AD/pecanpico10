@@ -22,7 +22,7 @@
 /*===========================================================================*/
 
 /* Thread working area size. */
-#define PKT_RADIO_MANAGER_WA_SIZE       (1 * 1024)
+#define PKT_RADIO_MANAGER_WA_SIZE       (2 * 1024)
 
 #define PKT_RADIO_TASK_QUEUE_PREFIX     "radm_"
 
@@ -139,6 +139,7 @@ struct radioTask {
   radio_squelch_t           squelch;
   radio_task_cb_t           callback;
   msg_t                     result;
+  radio_signal_t            rssi;
   thread_t                  *thread;
   packet_svc_t              *handler;
   packet_t                  packet_out;
@@ -185,10 +186,15 @@ extern "C" {
   msg_t     		pktGetRadioTaskObject(const radio_unit_t radio,
                               const sysinterval_t timeout,
                               radio_task_object_t **rt);
+  msg_t pktGetRadioTaskObjectI(const radio_unit_t radio,
+                              radio_task_object_t **rt);
   void      		pktSubmitRadioTask(const radio_unit_t radio,
                           radio_task_object_t *object,
                           radio_task_cb_t cb);
   void              pktSubmitPriorityRadioTask(const radio_unit_t radio,
+                           radio_task_object_t *object,
+                           const radio_task_cb_t cb);
+  void              pktSubmitPriorityRadioTaskI(const radio_unit_t radio,
                            radio_task_object_t *object,
                            const radio_task_cb_t cb);
   void      		pktScheduleThreadRelease(const radio_unit_t radio,

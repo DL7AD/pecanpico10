@@ -952,7 +952,13 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             continue; /* Decoder state switch. */
           } /* End case. */
 #endif
-
+#if PKT_USE_SINGLE_RSSI != TRUE
+          case PWM_INF_RADIO_RSSI: {
+            myHandler->active_packet_object->rssi
+                                = myFIFO->decode_pwm_queue->rssi;
+            continue;
+          } /* End case PWM_INF_RADIO_RSSI. */
+#endif
           default: {
             /* Unknown in-band message from PWM. */
             pktAddEventFlags(myHandler, EVT_PWM_INVALID_INBAND);
@@ -984,6 +990,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
         case FRAME_OPEN:
         case FRAME_DATA:
+#if PKT_USE_SINGLE_RSSI == TRUE
+          myHandler->active_packet_object->rssi = myFIFO->rssi;
+#endif
           pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
           continue;
 

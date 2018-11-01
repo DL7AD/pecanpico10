@@ -839,6 +839,7 @@ static bool image_packet_send_complete(radio_task_object_t *rt) {
 #else
   (void)rt;
 #endif
+  /* Indicate RTO should be freed. */
   return false;
 }
 
@@ -1033,6 +1034,7 @@ static bool send_image_packets(const uint8_t *image,
       } /* End case SSDV_BUFFER_FULL/SSDV_EOI. */
 
       case SSDV_OK: {
+        chThdYield();
         continue;
         }
 
@@ -1041,6 +1043,7 @@ static bool send_image_packets(const uint8_t *image,
         TRACE_ERROR("CAM  > Error in image (ssdv_enc_get_packet failed:"
                     " %d at %d of %d)",
                     c, (image_len - ssdv.in_len), image_len);
+        chSemSignal(&tx_complete);
         return false;
         }
       } /* End switch on ssdv_enc_get_packet(&ssdv). */
@@ -1414,7 +1417,7 @@ THD_FUNCTION(imgThread, arg) {
 void start_image_thread(img_app_conf_t *conf, const char *name)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
-	                                   THD_WORKING_AREA_SIZE(10 * 1024),
+	                                   THD_WORKING_AREA_SIZE(11 * 1024),
 	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
       // Print startup error, do not start watchdog for this thread

@@ -56,14 +56,15 @@ void mapCallback(pkt_data_object_t *pkt_buff) {
   /* Packet buffer. */
   ax25char_t *frame_buffer = pkt_buff->buffer;
   ax25size_t frame_size = pkt_buff->packet_size;
-
+  /* Report the RSSI. */
+  TRACE_INFO("RX   > Packet RSSI 0x%x", pkt_buff->rssi);
   if(pktGetAX25FrameStatus(pkt_buff)) {
-
-  /* Perform the callback. */
-  processPacket(frame_buffer, frame_size);
+    /* Perform the callback if CRC is good. */
+    processPacket(frame_buffer, frame_size);
   } else {
     TRACE_INFO("RX   > Frame has bad CRC - dropped");
   }
+  /* The object and buffer are freed when the callback returns. */
 }
 
 /*

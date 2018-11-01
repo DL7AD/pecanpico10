@@ -187,7 +187,7 @@ const radio_config_t radio_list[] = {
  * Debug serial port setting.
  */
 const SerialConfig debug_config = {
-  115200,
+  230400,
   0,
   0,
   0

@@ -77,6 +77,7 @@ typedef struct packetBufferObject {
   char                      cb_thd_name[PKT_THREAD_NAME_MAX];
   pkt_buffer_cb_t           cb_func;
   volatile eventflags_t     status;
+  radio_signal_t            rssi;
   size_t                    buffer_size;
   size_t                    packet_size;
 #if USE_CCM_HEAP_RX_BUFFERS == TRUE
@@ -135,6 +136,7 @@ typedef struct packetHandlerData {
    */
   mutex_t                   radio_mtx;
 #endif
+
   /**
    * @brief Radio receiver operating parameters.
    */

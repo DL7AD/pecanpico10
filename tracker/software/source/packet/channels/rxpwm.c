@@ -464,7 +464,9 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
     pktClosePWMchannelI(myICU, PWM_FIFO_ORDER, PWM_TERM_QUEUE_ERR);
     return;
   }
-  /* Normal CCA handling. */
+  /* Normal CCA handling.
+   * TODO: Check buffer availability first before taking FIFO object?
+   */
   radio_pwm_fifo_t *myFIFO = chFifoTakeObjectI(myDemod->pwm_fifo_pool);
   if(myFIFO == NULL) {
     myDemod->active_radio_stream = NULL;
@@ -476,7 +478,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
     icuDisableNotificationsI(myICU);
 
     /*
-     * This looks like noise/jamming.
+     * This could be noise/jamming which consumes all FIFO objects.
      * Wait for a timeout before allowing new CAA detection.
      * TODO: Keep data on jamming and adjust RSSI threshold?
      */
@@ -587,7 +589,9 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
 
   /* Clear status bits. */
   myFIFO->status = 0;
-
+#if PKT_RSSI_CAPTURE == TRUE && PKT_USE_SINGLE_RSSI == TRUE
+  myFIFO->rssi = 0;
+#endif
   myDemod->icustate = PKT_PWM_WAITING;
 }
 
@@ -780,6 +784,54 @@ void pktRadioICUWidth(ICUDriver *myICU) {
 #endif
 
 /**
+ * Callback after radio manager gets RSSI from radio
+ */
+static bool pktRadioRSSIreadCB(radio_task_object_t *rt) {
+  AFSKDemodDriver *myDemod = rt->handler->rx_link_control;
+
+#if PKT_USE_SINGLE_RSSI == TRUE
+    radio_pwm_fifo_t *myFIFO = myDemod->active_radio_stream;
+    if(myFIFO != NULL) {
+      myFIFO->rssi = (rt->result == MSG_OK) ? rt->rssi : 0xFF;
+  }
+  return false;
+#else
+    /* Get the current PWM queue object. */
+    radio_pwm_object_t *myObject =
+        myDemod->active_radio_stream->radio_pwm_queue;
+    if(myObject == NULL)
+      return false;
+
+    /*
+     *  Write the RSSI captured in-band message to the current queue object.
+     *  When the decoder encounters this in-band it fetches the RSSI from the stream FIFO object.
+     *  TODO: It would be possible to have an averaged RSSI.
+     *  Currently only the opening period RSSI is captured.
+     *  RSSI could be captured at intervals throughout the PWM stream.
+     */
+
+#if USE_12_BIT_PWM == TRUE
+    byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INF_RADIO_RSSI, 0}};
+#else
+    byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INF_RADIO_RSSI}};
+#endif
+    //return false;
+    chSysLock();
+    /* Write the RSSI message to the PWM queue. */
+    msg_t qs = pktWritePWMQueueI(&myObject->queue, pack);
+    if(qs == MSG_OK) {
+      myObject->rssi = (radio_signal_t)rt->result;
+    } else {
+      myObject->rssi = 0;
+    }
+    chSysUnlock();
+  }
+  /* Indicate this RTO can be released. */
+  return false;
+#endif
+}
+
+/**
  * @brief   Period callback from ICU driver.
  * @notes   Called at ISR level.
  *
@@ -805,8 +857,20 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
     /*
      * On period clear the ICU activity watchdog timer.
      * i.e. Once radio data appears a "no data" timeout is invalidated.
+     * Request RSSI read.
      */
     chVTResetI(&myICU->pwm_timer);
+#if PKT_RSSI_CAPTURE == TRUE
+    radio_task_object_t rt = myDemod->packet_handler->radio_rx_config;
+    radio_unit_t radio = myDemod->packet_handler->radio;
+
+    rt.command = PKT_RADIO_RX_RSSI;
+    msg_t msg = pktSendPriorityRadioCommandI(radio, &rt,
+                                        (radio_task_cb_t)pktRadioRSSIreadCB);
+    if(msg != MSG_OK) {
+      myDemod->active_radio_stream->rssi = 0xFF;
+    }
+#endif
     myDemod->icustate = PKT_PWM_ACTIVE;
   }
 
@@ -1037,8 +1101,7 @@ msg_t pktQueuePWMDataI(ICUDriver *myICU) {
  *
  * @api
  */
-msg_t pktWritePWMQueueI(input_queue_t *queue,
-                                     byte_packed_pwm_t pack) {
+msg_t pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack) {
 
   size_t empty = iqGetEmptyI(queue);
 

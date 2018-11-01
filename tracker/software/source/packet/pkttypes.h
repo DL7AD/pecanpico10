@@ -35,7 +35,7 @@ typedef uint8_t radio_squelch_t;
 
 typedef int8_t  radio_pwr_t;
 
-typedef int8_t  radio_signal_t;
+typedef uint8_t radio_signal_t;
 
 typedef uint16_t deviation_hz_t;
 

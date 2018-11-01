@@ -208,9 +208,8 @@ static bool pktLLDradioResumeReceive(const radio_unit_t radio) {
  *
  * @notapi
  */
-static void pktLLDradioCaptureRSSI(const radio_unit_t radio) {
-  packet_svc_t *handler = pktGetServiceObject(radio);
-  handler->rx_strength = Si446x_getCurrentRSSI(radio);
+static radio_signal_t pktLLDradioCaptureRSSI(const radio_unit_t radio) {
+  return Si446x_getCurrentRSSI(radio);
 }
 
 /**
@@ -240,14 +239,14 @@ static bool pktReceiveOscUpdate(radio_task_object_t *rt) {
   const radio_unit_t radio = handler->radio;
   xtal_osc_t tcxo = pktGetCurrentTCXO();
   /* We are in a callback and can't block the RM thread. */
-  msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_MS2I(10));
+  msg_t msg = pktLockRadio(radio, RADIO_RX, TIME_MS2I(10));
   if(msg == MSG_OK) {
     /*
      * Radio is locked.
      * Apply the oscillator update.
      */
     (void)pktLLDradioOscUpdate(radio, tcxo);
-    pktUnlockRadio(radio, RADIO_TX);
+    pktUnlockRadio(radio, RADIO_RX);
   }
   /*
    * FIXME: The update will not re-try on failed lock.
@@ -356,12 +355,12 @@ THD_FUNCTION(pktRadioManager, arg) {
           chThdSleep(TIME_MS2I(5));
         } else {
           /* Handle TX update immediately. */
-          msg = pktLockRadio(radio, RADIO_TX, TIME_MS2I(10));
+          msg = pktLockRadio(radio, RADIO_RX, TIME_MS2I(10));
           if(msg == MSG_TIMEOUT)
             /* Try again (if TCXO is still changed). */
             continue;
           (void)pktLLDradioOscUpdate(radio, tcxo);
-          pktUnlockRadio(radio, RADIO_TX);
+          pktUnlockRadio(radio, RADIO_RX);
         }
         /* Update the local TCXO value. */
         xtal = tcxo;
@@ -372,8 +371,8 @@ THD_FUNCTION(pktRadioManager, arg) {
      * Queued task object to handle.
      * Process command.
      */
-    TRACE_DEBUG("RAD  > Radio task object 0x%x (%d) processing on radio %d",
-                task_object, task_object->command, radio);
+/*    TRACE_DEBUG("RAD  > Radio task object 0x%x (%d) processing on radio %d",
+                task_object, task_object->command, radio);*/
     switch(task_object->command) {
     /**
      * Close this radio manager
@@ -386,8 +385,20 @@ THD_FUNCTION(pktRadioManager, arg) {
        * TODO: Refactor what buffers, FIFOs are closed here.
        */
       if(handler->tx_count == 0 && handler->rx_count == 0) {
+        msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_MS2I(100));
+        if(msg == MSG_TIMEOUT) {
+          /*
+           * The radio has been locked.
+           * Wait, repost task, let the FIFO be processed and check again.
+           */
+          chThdSleep(PKT_RADIO_TASK_RESUBMIT_WAIT);
+          pktSubmitPriorityRadioTask(radio, task_object, task_object->callback);
+          continue;
+        } /* Else MSG_OK or MSG_RESET */
         pktLLDradioShutdown(radio);
         chFactoryReleaseObjectsFIFO(handler->the_radio_fifo);
+        if(msg != MSG_RESET)
+          pktUnlockRadio(radio, RADIO_TX);
         chThdExit(MSG_OK);
         /* We never arrive here. */
       }
@@ -405,9 +416,19 @@ THD_FUNCTION(pktRadioManager, arg) {
      *
      */
     case PKT_RADIO_RX_RSSI: {
-      /* TODO: Implement read RSSI radio task. */
-      pktLLDradioCaptureRSSI(radio);
-      break;
+      /* Read RSSI radio task. */
+      msg_t msg = pktLockRadio(radio, RADIO_RX, TIME_IMMEDIATE);
+      if(msg != MSG_OK) {
+       /*
+        * Could not lock the radio so can't read RSSI.
+        */
+        task_object->result = msg;
+     } else {
+       task_object->rssi = pktLLDradioCaptureRSSI(radio);
+       task_object->result = MSG_OK;
+       pktUnlockRadio(radio, RADIO_RX);
+     }
+     break;
     }
 
     /**
@@ -720,7 +741,11 @@ THD_FUNCTION(pktRadioManager, arg) {
         } else {
           /* Enter standby state (low power). */
           TRACE_INFO("RAD  > Radio %d entering standby", radio);
+          send_msg = pktLockRadio(radio, RADIO_TX, TIME_MS2I(100));
+          if(send_msg != MSG_OK)
+            break;
           pktLLDradioStandby(radio);
+          pktUnlockRadio(radio, RADIO_TX);
         }
       } /* Else more TX tasks outstanding so don't resume receive yet. */
       /* Execute any callback then release the RTO. */
@@ -745,8 +770,8 @@ THD_FUNCTION(pktRadioManager, arg) {
     }
     /* Return task object to free list. */
     chFifoReturnObject(radio_queue, (radio_task_object_t *)task_object);
-    TRACE_DEBUG("RAD  > Radio task object 0x%x (%d) freed on radio %d",
-                task_object, task_object->command, radio);
+/*    TRACE_DEBUG("RAD  > Radio task object 0x%x (%d) freed on radio %d",
+                task_object, task_object->command, radio);*/
   } /* End while. */
   /*
    *  The loop is terminated if the thread terminate request is set.
@@ -799,7 +824,7 @@ thread_t *pktRadioManagerCreate(const radio_unit_t radio) {
   handler->radio_manager = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(PKT_RADIO_MANAGER_WA_SIZE),
               handler->rtask_name,
-              NORMALPRIO - 10,
+              NORMALPRIO + 20,
               pktRadioManager,
               handler);
 
@@ -968,6 +993,7 @@ msg_t pktGetRadioTaskObjectI(const radio_unit_t radio,
     return MSG_TIMEOUT;
   }
   (*rt)->handler = handler;
+  (*rt)->result = MSG_OK;
   return MSG_OK;
 }
 
@@ -1028,22 +1054,33 @@ msg_t pktGetRadioTaskObject(const radio_unit_t radio,
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
+  dyn_objects_fifo_t *task_fifo = handler->the_radio_fifo;
+  chDbgAssert(task_fifo != NULL, "no radio task fifo");
+
+  objects_fifo_t *task_queue = chFactoryGetObjectsFIFO(task_fifo);
+  chDbgAssert(task_queue != NULL, "no objects fifo list");
+#if 0
   dyn_objects_fifo_t *task_fifo =
       chFactoryFindObjectsFIFO(handler->rtask_name);
   chDbgAssert(task_fifo != NULL, "unable to find radio task fifo");
 
   objects_fifo_t *task_queue = chFactoryGetObjectsFIFO(task_fifo);
   chDbgAssert(task_queue != NULL, "no objects fifo list");
+#endif
 
   *rt = chFifoTakeObjectTimeout(task_queue, timeout);
 
   if(*rt == NULL) {
     /* Timeout waiting for object. */
     /* Release find reference to the FIFO (decrease reference count). */
+#if 0
     chFactoryReleaseObjectsFIFO(task_fifo);
+#endif
     return MSG_TIMEOUT;
   }
+  /* TODO: deprecate? */
   (*rt)->handler = handler;
+  (*rt)->result = MSG_OK;
   return MSG_OK;
 }
 
@@ -1146,10 +1183,16 @@ msg_t pktLockRadio(const radio_unit_t radio, const radio_mode_t mode,
 #if PKT_USE_RADIO_MUTEX == TRUE
   (void)timeout;
   chMtxLock(&handler->radio_mtx);
-  return OV5640_LockPDCMI();
+  return OV5640_LockPDCMI(timeout);
 #else
+  systime_t now = chVTGetSystemTimeX();
+  sysinterval_t remainder;
   if((msg = chBSemWaitTimeout(&handler->radio_sem, timeout)) == MSG_OK) {
-    if((msg = OV5640_LockPDCMI()) != MSG_OK)
+    if(timeout == TIME_IMMEDIATE || timeout == TIME_INFINITE)
+      remainder = timeout;
+    else
+      remainder = timeout - chTimeDiffX(now, chVTGetSystemTimeX());
+    if((msg = OV5640_LockPDCMI(remainder)) != MSG_OK)
       /* If PDCMI lock failed then release the radio lock. */
       chBSemSignal(&handler->radio_sem);
   }
@@ -1158,12 +1201,18 @@ msg_t pktLockRadio(const radio_unit_t radio, const radio_mode_t mode,
   }
 
   case RADIO_RX: {
-    msg = OV5640_LockPDCMI();
+#if PKT_USE_RADIO_MUTEX == TRUE
+  (void)timeout;
+  chMtxLock(&handler->radio_mtx);
+  return OV5640_LockPDCMI(timeout);
+#else
+    msg = chBSemWaitTimeout(&handler->radio_sem, timeout);
     break;
+#endif
   }
 
   default:
-    msg = OV5640_LockPDCMI();
+    msg = chBSemWaitTimeout(&handler->radio_sem, timeout);
     break;
   }
 return msg;
@@ -1183,21 +1232,29 @@ void pktUnlockRadio(const radio_unit_t radio, const radio_mode_t mode) {
   switch(mode) {
   case RADIO_TX: {
     OV5640_UnlockPDCMI();
-  #if PKT_USE_RADIO_MUTEX == TRUE
+#if PKT_USE_RADIO_MUTEX == TRUE
     chMtxUnlock(&handler->radio_mtx);
-  #else
+#else
     chBSemSignal(&handler->radio_sem);
-  #endif
+#endif
     break;
   }
 
   case RADIO_RX: {
-    OV5640_UnlockPDCMI();
+#if PKT_USE_RADIO_MUTEX == TRUE
+  chMtxUnlock(&handler->radio_mtx);
+#else
+  chBSemSignal(&handler->radio_sem);
+#endif
     break;
   }
 
   default:
-    OV5640_UnlockPDCMI();
+#if PKT_USE_RADIO_MUTEX == TRUE
+  chMtxUnlock(&handler->radio_mtx);
+#else
+  chBSemSignal(&handler->radio_sem);
+#endif
     break;
   }
 }
