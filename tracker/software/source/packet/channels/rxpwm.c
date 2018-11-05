@@ -226,8 +226,10 @@ void pktDisableRadioStream(const radio_unit_t radio) {
   packet_svc_t *myHandler = pktGetServiceObject(radio);
 
   /* Is the receiver active? */
-  if(myHandler->rx_state != PACKET_RX_ENABLED)
+  if(!pktIsReceiveEnabled(radio))
     return;
+/*  if(myHandler->rx_state != PACKET_RX_ENABLED)
+    return;*/
   AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
   chDbgAssert(myDemod != NULL, "no link controller");
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
@@ -587,10 +589,23 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   icuEnableNotificationsI(myICU);
   pktAddEventFlagsI(myHandler, evt);
 
-  /* Clear status bits. */
+#if PKT_RTO_USE_SETTING == TRUE
+  myHandler->radio_rx_config.seq_num++;
+#else
+  /* Increment PWM session sequence number. */
+  myHandler->radio_rx_config.rt_seq++;
+#endif
+  /* Sequence stamp of PWM FIFO happens when ICU is active. */
+  myFIFO->seq_num = 0;
+
+  /* Clear PWM session status bits. */
   myFIFO->status = 0;
-#if PKT_RSSI_CAPTURE == TRUE && PKT_USE_SINGLE_RSSI == TRUE
+
+#if PKT_RSSI_CAPTURE == TRUE && PKT_USE_OPENING_RSSI == TRUE
   myFIFO->rssi = 0;
+#endif
+#if LINE_PWM_MIRROR != PAL_NOLINE
+  pktWriteGPIOline(LINE_PWM_MIRROR, PAL_HIGH);
 #endif
   myDemod->icustate = PKT_PWM_WAITING;
 }
@@ -768,31 +783,27 @@ void pktRadioCCAInput(ICUDriver *myICU) {
   return;
 }
 
-#if LINE_PWM_MIRROR != PAL_NOLINE
-/**
- * @brief   Width callback from ICU driver.
- * @notes   Called at ISR level.
- *
- * @param[in]   myICU   pointer to a @p ICUDriver structure
- *
- * @api
- */
-void pktRadioICUWidth(ICUDriver *myICU) {
-  (void)myICU;
-  //pktWriteGPIOline(LINE_PWM_MIRROR, PAL_LOW);
-}
-#endif
-
 /**
  * Callback after radio manager gets RSSI from radio
  */
 static bool pktRadioRSSIreadCB(radio_task_object_t *rt) {
   AFSKDemodDriver *myDemod = rt->handler->rx_link_control;
 
-#if PKT_USE_SINGLE_RSSI == TRUE
+#if PKT_USE_OPENING_RSSI == TRUE
     radio_pwm_fifo_t *myFIFO = myDemod->active_radio_stream;
     if(myFIFO != NULL) {
-      myFIFO->rssi = (rt->result == MSG_OK) ? rt->rssi : 0xFF;
+      /*
+       * Is the callback still good for current RX sequence?
+       * Can be out of sync if the radio manager is delayed or PWM is jittery.
+       */
+#if PKT_RTO_USE_SETTING == TRUE
+      if(myFIFO->seq_num == rt->radio_dat.seq_num) {
+#else
+      if(myFIFO->seq_num == rt->rt_seq) {
+#endif
+        /* Set the RSSI or flag unable to read. */
+        myFIFO->rssi = (rt->result == MSG_OK) ? rt->rssi : 0xFF;
+      }
   }
   return false;
 #else
@@ -832,6 +843,72 @@ static bool pktRadioRSSIreadCB(radio_task_object_t *rt) {
 }
 
 /**
+ * @brief   Width callback from ICU driver.
+ * @notes   Called at ISR level.
+ *
+ * @param[in]   myICU   pointer to a @p ICUDriver structure
+ *
+ * @api
+ */
+void pktRadioICUWidth(ICUDriver *myICU) {
+  AFSKDemodDriver *myDemod = myICU->link;
+  chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
+
+  chSysLockFromISR();
+#if LINE_PWM_MIRROR != PAL_NOLINE
+  pktWriteGPIOline(LINE_PWM_MIRROR, PAL_LOW);
+#endif
+  if(myDemod->icustate == PKT_PWM_WAITING) {
+    /*
+     * On first width clear the ICU activity watchdog timer.
+     * i.e. Once radio data appears a "no data" timeout is invalidated.
+     * Then request RSSI read.
+     */
+    chVTResetI(&myICU->pwm_timer);
+
+#if PKT_RSSI_CAPTURE == TRUE
+    /* Setup a radio task object. */
+#if PKT_RTO_USE_SETTING == TRUE
+    radio_params_t rp = myDemod->packet_handler->radio_rx_config;
+
+    /* Clear RSSI (no value). */
+    rp.rssi = 0;
+
+    /* Sequence stamp the RT and PWM FIFO objects. */
+    rp.seq_num = myDemod->packet_handler->radio_rx_config.seq_num;
+    myDemod->active_radio_stream->seq_num = rp.seq_num;
+
+    /* Send the radio task. */
+    radio_unit_t radio = myDemod->packet_handler->radio;
+    msg_t msg = pktQueuePriorityRadioCommandI(radio,
+                                             PKT_RADIO_RX_RSSI,
+                                             &rp,
+                                             (radio_task_cb_t)pktRadioRSSIreadCB);
+#else
+    radio_task_object_t rt = myDemod->packet_handler->radio_rx_config;
+
+    /* Set command and clear RSSI (no value). */
+    rt.command = PKT_RADIO_RX_RSSI;
+    rt.rssi = 0;
+
+    /* Sequence stamp the RT and PWM FIFO objects. */
+    rt.rt_seq = myDemod->packet_handler->radio_rx_config.rt_seq;
+    myDemod->active_radio_stream->seq_num = rt.rt_seq;
+
+    /* Send the radio task. */
+    radio_unit_t radio = myDemod->packet_handler->radio;
+    msg_t msg = pktQueuePriorityRadioCommandI(radio, &rt, pktRadioRSSIreadCB);
+#endif
+    if(msg != MSG_OK) {
+      myDemod->active_radio_stream->rssi = 0xFF;
+    }
+#endif
+    myDemod->icustate = PKT_PWM_ACTIVE;
+  }
+  chSysUnlockFromISR();
+}
+
+/**
  * @brief   Period callback from ICU driver.
  * @notes   Called at ISR level.
  *
@@ -846,13 +923,16 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    *
    * See halconf.h for the definition.
    */
-  //pktWriteGPIOline(LINE_PWM_MIRROR, PAL_HIGH);
 
   AFSKDemodDriver *myDemod = myICU->link;
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
   chSysLockFromISR();
 
+#if LINE_PWM_MIRROR != PAL_NOLINE
+  pktWriteGPIOline(LINE_PWM_MIRROR, PAL_HIGH);
+#endif
+#if 0
   if(myDemod->icustate == PKT_PWM_WAITING) {
     /*
      * On period clear the ICU activity watchdog timer.
@@ -864,8 +944,14 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
     radio_task_object_t rt = myDemod->packet_handler->radio_rx_config;
     radio_unit_t radio = myDemod->packet_handler->radio;
 
+    /* Set command and clear RSSI (no value). */
     rt.command = PKT_RADIO_RX_RSSI;
-    msg_t msg = pktSendPriorityRadioCommandI(radio, &rt,
+    rt.rssi = 0;
+
+    /* Sequence stamp the PWM FIFO object. */
+    rt.tx_seq = myDemod->packet_handler->radio_rx_config.tx_seq;
+
+    msg_t msg = pktQueuePriorityRadioCommandI(radio, &rt,
                                         (radio_task_cb_t)pktRadioRSSIreadCB);
     if(msg != MSG_OK) {
       myDemod->active_radio_stream->rssi = 0xFF;
@@ -873,7 +959,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 #endif
     myDemod->icustate = PKT_PWM_ACTIVE;
   }
-
+#endif
   if(myDemod->active_radio_stream == NULL) {
     /*
      * Arrive here when we are running but not buffering.

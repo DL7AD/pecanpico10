@@ -104,6 +104,8 @@ typedef struct packetHandlerData {
    */
   radio_unit_t              radio;
 
+  xtal_osc_t                xtal;      /**< XO frequency of main clock.   */
+
   /**
    * @brief Radio part number.
    */
@@ -137,21 +139,21 @@ typedef struct packetHandlerData {
   mutex_t                   radio_mtx;
 #endif
 
+#if PKT_RTO_USE_SETTING != TRUE
   /**
    * @brief Radio receiver operating parameters.
    */
   radio_task_object_t       radio_rx_config;
 
   /**
-   * @brief Radio signal strength captured on CCA.
-   */
-  radio_signal_t            rx_strength;
-
-  /**
    * @brief Radio transmitter operating parameters.
    */
   radio_task_object_t       radio_tx_config;
 
+#else
+  radio_params_t            radio_rx_config;
+  radio_params_t            radio_tx_config;
+#endif
   /**
    * @brief Counter for active transmit threads.
    */
@@ -217,7 +219,7 @@ typedef struct packetHandlerData {
   /**
    * @brief Event source object.
    */
-  binary_semaphore_t        close_sem;
+  //binary_semaphore_t        close_sem;
 
   /**
    * @brief Event source object.
@@ -252,18 +254,20 @@ extern "C" {
   bool                  pktServiceRelease(const radio_unit_t radio);
   msg_t                 pktOpenRadioReceive(const radio_unit_t radio,
                             const radio_mod_t encoding,
-                            const radio_freq_t frequency,
-                            const channel_hz_t ch_step,
+                            const radio_freq_hz_t frequency,
+                            const radio_chan_hz_t ch_step,
                             const sysinterval_t timeout);
+#if PKT_RTO_USE_SETTING == TRUE
   msg_t                 pktEnableDataReception(const radio_unit_t radio,
                                const radio_ch_t channel,
                                const radio_squelch_t sq,
                                const pkt_buffer_cb_t cb,
                                const sysinterval_t to);
-  msg_t                 pktStartDataReception(const radio_unit_t radio,
+#endif
+  msg_t                 pktOpenReceiveService(const radio_unit_t radio,
                               const radio_mod_t encoding,
-                              const radio_freq_t frequency,
-                              const channel_hz_t step,
+                              const radio_freq_hz_t frequency,
+                              const radio_chan_hz_t step,
                               const radio_ch_t channel,
                               const radio_squelch_t sq,
                               const pkt_buffer_cb_t cb,

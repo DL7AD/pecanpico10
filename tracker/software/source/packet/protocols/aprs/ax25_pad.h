@@ -82,7 +82,7 @@
 
 #include "pkttypes.h"
 
-typedef struct TXpacket {
+typedef struct genPacket {
 
     /* for error checking. */
 	int magic1;
@@ -96,7 +96,7 @@ typedef struct TXpacket {
 
 #define MAGIC 0x41583235
 
-	struct TXpacket *nextp;	/* Pointer to next in queue. */
+	struct genPacket *nextp;	/* Pointer to next in queue. */
 
     /* Number of addresses in frame. */
     /* Range of AX25_MIN_ADDRS .. AX25_MAX_ADDRS for AX.25. */
@@ -152,6 +152,9 @@ typedef struct TXpacket {
     /* Raw frame contents, without the CRC plus one byte if \0 appended. */
 	unsigned char frame_data[AX25_MAX_PACKET_LEN + 1];
 
+	/* Received signal strength of incoming packet. */
+	radio_signal_t  rssi;
+
     /* Will get stomped on if above overflows. */
 	int magic2;
 } packet_gen_t;
@@ -161,7 +164,7 @@ typedef struct TXpacket {
  *
  * The actual implementation is not visible outside ax25_pad.c.
  */
-typedef struct TXpacket *packet_t;
+typedef struct genPacket *packet_t;
 
 typedef enum cmdres_e { cr_00 = 2, cr_cmd = 1, cr_res = 0, cr_11 = 3 } cmdres_t;
 

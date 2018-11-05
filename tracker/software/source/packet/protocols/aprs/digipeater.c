@@ -119,9 +119,9 @@
  *------------------------------------------------------------------------------*/
 				  
 
-packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
+packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp, char *mycall_rec,
                          char *mycall_xmit, char *alias, char *wide,
-                         radio_freq_t to_freq, enum preempt_e preempt,
+                         radio_freq_hz_t to_freq, enum preempt_e preempt,
                          char *filter_str) {
 	(void)from_freq;
 	(void)filter_str;
@@ -142,7 +142,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	r = ax25_get_first_not_repeated(pp);
 
 	if (r < AX25_REPEATER_1) {
-	    TRACE_INFO("DIGI > All stations already repeated");
+	    TRACE_MON("DIGI > All stations already repeated");
 	  return (NULL);
 	}
 
@@ -172,7 +172,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	  /* could have different calls. */
 	  ax25_set_addr (result, r, mycall_xmit);	
 	  ax25_set_h (result, r);
-      TRACE_INFO("DIGI > Digipeat my callsign as path");
+      TRACE_MON("DIGI > Digipeat my callsign as path");
 	  return (result);
 	}
 
@@ -183,7 +183,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
  */
 	ax25_get_addr_with_ssid(pp, AX25_SOURCE, source);
 	if (strcmp(source, mycall_rec) == 0) {
-      TRACE_INFO("DIGI > Don't repeat my own traffic");
+      TRACE_MON("DIGI > Don't repeat my own traffic");
 	  return (NULL);
 	}
 
@@ -206,7 +206,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	if (dedupe_check(pp, to_freq)) {
 	  char freq[50];
 	  pktDisplayFrequencyCode(to_freq, freq, sizeof(freq));
-	  TRACE_INFO("DIGI > Drop redundant packet for: %s", freq);
+	  TRACE_MON("DIGI > Drop redundant packet for: %s", freq);
 	  return NULL;
 	}
 
@@ -228,7 +228,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
       memcpy(alias, found, found_len);
 	  ax25_set_addr (result, r, mycall_xmit);	
 	  ax25_set_h (result, r);
-      TRACE_INFO("DIGI > Digipeat alias pattern: %s ", alias);
+      TRACE_MON("DIGI > Digipeat alias pattern: %s ", alias);
 	  return (result);
 	}
 
@@ -282,7 +282,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	          }
 	          break;
 	      } /* End switch. */
-	      TRACE_INFO("DIGI > Digipeat preemptive %s traffic", pre);
+	      TRACE_MON("DIGI > Digipeat preemptive %s traffic", pre);
 	      return (result);
 	    }
  	  }
@@ -315,7 +315,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
         }
  	    ax25_set_addr (result, r, mycall_xmit);	
 	    ax25_set_h (result, r);
-        TRACE_INFO("DIGI > Digipeat %s traffic", path);
+        TRACE_MON("DIGI > Digipeat %s traffic", path);
 	    return (result);
 	  }
 
@@ -334,7 +334,7 @@ packet_t digipeat_match (radio_freq_t from_freq, packet_t pp, char *mycall_rec,
 	      ax25_insert_addr (result, r, mycall_xmit);	
 	      ax25_set_h (result, r);
 	    }
-        TRACE_INFO("DIGI > Digipeat %s traffic", path);
+        TRACE_MON("DIGI > Digipeat %s traffic", path);
 	    return (result);
 	  }
 	}

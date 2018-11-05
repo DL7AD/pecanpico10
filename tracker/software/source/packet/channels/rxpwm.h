@@ -24,7 +24,7 @@
 /*===========================================================================*/
 
 #define PKT_RSSI_CAPTURE        TRUE
-#define PKT_USE_SINGLE_RSSI     TRUE
+#define PKT_USE_OPENING_RSSI    TRUE
 
 /* Limit of ICU and PWM count for packed format. */
 
@@ -51,7 +51,9 @@
 #define PWM_INFO_QUEUE_SWAP     8
 #define PWM_ACK_DECODE_ERROR    9
 #define PWM_TERM_QUEUE_ERROR    10
+#if PKT_USE_OPENING_RSSI != TRUE
 #define PWM_INF_RADIO_RSSI      11
+#endif
 
 /* If all PWM buffers are consumed assume jamming and wait this timeout. */
 #define PWM_JAMMING_TIMEOUT     10
@@ -131,7 +133,7 @@ typedef struct PWMobject radio_pwm_object_t;
 
 typedef struct PWMobject {
   radio_pwm_buffer_t        buffer;
-#if PKT_USE_SINGLE_RSSI != TRUE
+#if PKT_USE_OPENING_RSSI != TRUE
   radio_signal_t            rssi;
 #endif
   /* In linked mode the reference to the next PWM queue is saved here.
@@ -188,6 +190,7 @@ typedef struct {
   binary_semaphore_t        sem;
   volatile eventflags_t     status;
   radio_signal_t            rssi;
+  uint8_t                   seq_num;
 } radio_pwm_fifo_t;
 
 /*===========================================================================*/
@@ -261,21 +264,20 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
 extern "C" {
 #endif
   ICUDriver *pktAttachRadio(const radio_unit_t radio_id);
-  void pktEnableRadioStream(const radio_unit_t radio);
-  void pktDisableRadioStream(const radio_unit_t radio);
-  void pktDetachRadio(const radio_unit_t radio_id);
-  void pktRadioICUWidth(ICUDriver *myICU);
-  void pktRadioICUPeriod(ICUDriver *myICU);
-  void pktRadioICUOverflow(ICUDriver *myICU);
-  void pktRadioCCAInput(ICUDriver *myICU);
-  void pktStopAllICUtimersI(ICUDriver *myICU);
-  void pktSleepICUI(ICUDriver *myICU);
-  msg_t pktQueuePWMDataI(ICUDriver *myICU);
-  void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt,
+  void      pktEnableRadioStream(const radio_unit_t radio);
+  void      pktDisableRadioStream(const radio_unit_t radio);
+  void      pktDetachRadio(const radio_unit_t radio_id);
+  void      pktRadioICUWidth(ICUDriver *myICU);
+  void      pktRadioICUPeriod(ICUDriver *myICU);
+  void      pktRadioICUOverflow(ICUDriver *myICU);
+  void      pktRadioCCAInput(ICUDriver *myICU);
+  void      pktStopAllICUtimersI(ICUDriver *myICU);
+  void      pktSleepICUI(ICUDriver *myICU);
+  msg_t     pktQueuePWMDataI(ICUDriver *myICU);
+  void      pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt,
                            pwm_code_t reason);
-  void pktICUInactivityTimeout(ICUDriver *myICU);
-  void pktPWMInactivityTimeout(ICUDriver *myICU);
-  msg_t pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack);
+  void      pktPWMInactivityTimeout(ICUDriver *myICU);
+  msg_t     pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack);
 #ifdef __cplusplus
 }
 #endif

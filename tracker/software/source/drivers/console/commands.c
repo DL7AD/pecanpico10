@@ -344,7 +344,7 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
       TRACE_WARN("CMD  > No free packet objects");
       return;
     }
-	transmitOnRadio(packet,
+	pktTransmitOnRadio(packet,
 	                conf_sram.aprs.tx.radio_conf.freq,
                     0,
                     0,

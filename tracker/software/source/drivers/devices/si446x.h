@@ -325,8 +325,6 @@ typedef struct Si446x_MCUCFG {
     } t2fsk;
 } si446x_mcucfg_t;
 
-typedef int16_t si446x_temp_t;
-
 /* Si446x part info. */
 typedef struct {
   uint8_t   info[10];
@@ -337,12 +335,13 @@ typedef struct {
   uint8_t   info[10];
 } si446x_func_t;
 
-typedef uint32_t si446x_clock_t;
-
 /* Data associated with a specific radio. */
 typedef struct Si446x_DAT {
-  si446x_temp_t     lastTemp;
-  si446x_clock_t    radio_clock;
+  radio_temp_t      lastTemp;
+  radio_clock_t     radio_clock;
+  radio_part_t      radio_part;
+  radio_rev_t       radio_rom_rev;
+  radio_patch_t     radio_patch;
 } si446x_data_t;
 
 /* External. */
@@ -357,7 +356,7 @@ extern void pktReleaseCommonPacketBuffer(packet_t pp);
 #ifdef __cplusplus
 extern "C" {
 #endif
-  si446x_temp_t Si446x_getLastTemperature(const radio_unit_t radio);
+  radio_temp_t Si446x_getLastTemperature(const radio_unit_t radio);
   bool Si446x_radioWakeUp(const radio_unit_t radio);
   void Si446x_radioShutdown(const radio_unit_t radio);
   void Si446x_radioStandby(const radio_unit_t radio);
@@ -368,14 +367,14 @@ extern "C" {
   bool Si446x_blocSendCW(radio_task_object_t *rt);
   void Si446x_disableReceive(radio_unit_t radio);
   bool Si4464_enableReceive(const radio_unit_t radio,
-                            radio_freq_t rx_frequency,
-                            channel_hz_t rx_step,
+                            radio_freq_hz_t rx_frequency,
+                            radio_chan_hz_t rx_step,
                             radio_ch_t rx_chan,
                             radio_squelch_t rx_rssi,
                             radio_mod_t rx_mod);
   bool Si446x_receiveActivate(const radio_unit_t radio,
-                            radio_freq_t rx_frequency,
-                            channel_hz_t rx_step,
+                            radio_freq_hz_t rx_frequency,
+                            radio_chan_hz_t rx_step,
                             radio_ch_t chan,
                             radio_squelch_t rssi,
                             radio_mod_t mod);

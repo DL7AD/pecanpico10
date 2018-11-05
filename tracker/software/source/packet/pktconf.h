@@ -254,14 +254,14 @@ static inline int8_t pktReadGPIOline(ioline_t line) {
 }
 
 /**
- * @brief   Sends a command request to the radio manager.
+ * @brief   Sends a command request to the radio manager queue.
  * @notes   The task descriptor is copied into a task object which is posted.
  * @post    The command object posted to the radio manager queue.
  *
  * @param[in]   radio   radio unit ID.
  * @param[in]   task    pointer to the task descriptor.
  *                      this is usually a persistent descriptor in the handler.
- * @param[in]           timeout
+ * @param[in]           timeout to wait for a radio object to be available.
  * @param[in]   cb      function to call with result (can be NULL).
  *
  * @return      status of operation
@@ -270,21 +270,36 @@ static inline int8_t pktReadGPIOline(ioline_t line) {
  *
  * @api
  */
-static inline msg_t pktSendRadioCommand(const radio_unit_t radio,
+static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
+#if PKT_RTO_USE_SETTING != TRUE
                                         const radio_task_object_t *task,
+#else
+                                        const radio_command_t cmd,
+                                        const radio_params_t *cfg,
+#endif
                                         const sysinterval_t timeout,
                                         const radio_task_cb_t cb) {
+
   radio_task_object_t *rt = NULL;
+#if PKT_RTO_USE_SETTING != TRUE
   msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
-  if(msg == MSG_OK) {
-    *rt = *task;
-    pktSubmitRadioTask(radio, rt, cb);
-  }
+  if(msg == MSG_TIMEOUT)
+    return MSG_TIMEOUT;
+  *rt = *task;
+  pktSubmitRadioTask(radio, rt, cb);
+#else
+  msg_t msg = pktGetRadioTaskObject(radio, timeout, cfg, &rt);
+  if(msg == MSG_TIMEOUT)
+    return MSG_TIMEOUT;
+  rt->user_cb = cb;
+  rt->command = cmd;
+  pktSubmitRadioTask(radio, rt, NULL);
+#endif
   return msg;
 }
 
 /**
- * @brief   Sends a priority command request to the radio manager.
+ * @brief   Sends a priority command request to the radio manager queue.
  * @notes   The task descriptor is copied into a task object which is posted.
  * @post    The command object posted to the radio manager queue.
  *
@@ -295,20 +310,34 @@ static inline msg_t pktSendRadioCommand(const radio_unit_t radio,
  *
  * @api
  */
-static inline msg_t pktSendPriorityRadioCommandI(const radio_unit_t radio,
+static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
+#if PKT_RTO_USE_SETTING != TRUE
                                         const radio_task_object_t *task,
+#else
+                                        const radio_command_t cmd,
+                                        const radio_params_t *cfg,
+#endif
                                         const radio_task_cb_t cb) {
   radio_task_object_t *rt = NULL;
+#if PKT_RTO_USE_SETTING != TRUE
   msg_t msg = pktGetRadioTaskObjectI(radio, &rt);
   if(msg == MSG_TIMEOUT)
     return MSG_TIMEOUT;
   *rt = *task;
   pktSubmitPriorityRadioTaskI(radio, rt, cb);
+#else
+  msg_t msg = pktGetRadioTaskObjectI(radio, cfg, &rt);
+  if(msg == MSG_TIMEOUT)
+    return MSG_TIMEOUT;
+  rt->user_cb = cb;
+  rt->command = cmd;
+  pktSubmitPriorityRadioTaskI(radio, rt, NULL);
+#endif
   return msg;
 }
 
 /**
- * @brief   Sends a priority command request to the radio manager.
+ * @brief   Sends a priority command request to the radio manager queue.
  * @notes   The task descriptor is copied into a task object which is posted.
  * @post    The command object posted to the radio manager queue.
  *
@@ -320,16 +349,30 @@ static inline msg_t pktSendPriorityRadioCommandI(const radio_unit_t radio,
  *
  * @api
  */
-static inline msg_t pktSendPriorityRadioCommand(const radio_unit_t radio,
+static inline msg_t pktQueuePriorityRadioCommand(const radio_unit_t radio,
+#if PKT_RTO_USE_SETTING != TRUE
                                         const radio_task_object_t *task,
+#else
+                                        const radio_command_t cmd,
+                                        const radio_params_t *cfg,
+#endif
                                         const sysinterval_t timeout,
                                         const radio_task_cb_t cb) {
   radio_task_object_t *rt = NULL;
+#if PKT_RTO_USE_SETTING != TRUE
   msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
   if(msg == MSG_TIMEOUT)
     return MSG_TIMEOUT;
   *rt = *task;
   pktSubmitPriorityRadioTask(radio, rt, cb);
+#else
+  msg_t msg = pktGetRadioTaskObject(radio, timeout, cfg, &rt);
+  if(msg == MSG_TIMEOUT)
+    return MSG_TIMEOUT;
+  rt->user_cb = cb;
+  rt->command = cmd;
+  pktSubmitPriorityRadioTask(radio, rt, NULL);
+#endif
   return msg;
 }
 

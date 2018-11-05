@@ -226,7 +226,7 @@ int ax25memdebug_seq (packet_t this_p)
  *------------------------------------------------------------------------------*/
 
 packet_t ax25_new (void) {
-	struct TXpacket *this_p;
+	struct genPacket *this_p;
 
 
 #if DEBUG 
@@ -254,11 +254,11 @@ packet_t ax25_new (void) {
 #if USE_CCM_HEAP_FOR_PKT == TRUE
     /* Use CCM heap. */
     extern memory_heap_t *ccm_heap;
-    this_p = chHeapAlloc(ccm_heap, sizeof (struct TXpacket));
+    this_p = chHeapAlloc(ccm_heap, sizeof (struct genPacket));
     pktAssertCCMdynamicCheck(this_p);
 #else /* USE_CCM_HEAP_FOR_PKT != TRUE */
     /* Use system heap. */
-    this_p = chHeapAlloc(NULL, sizeof (struct TXpacket));
+    this_p = chHeapAlloc(NULL, sizeof (struct genPacket));
 #endif /* USE_CCM_HEAP_FOR_PKT == TRUE */
 
 	if (this_p == NULL) {
@@ -266,7 +266,7 @@ packet_t ax25_new (void) {
       return NULL;
 	}
 
-	memset(this_p, 0, sizeof(struct TXpacket));
+	memset(this_p, 0, sizeof(struct genPacket));
 
 	this_p->magic1 = MAGIC;
 	this_p->seq = last_seq_num;
@@ -686,7 +686,7 @@ packet_t ax25_dup (packet_t copy_from)
 
 	save_seq = this_p->seq;
 
-	memcpy (this_p, copy_from, sizeof (struct TXpacket));
+	memcpy (this_p, copy_from, sizeof (struct genPacket));
 	this_p->seq = save_seq;
 
 #if AX25MEMDEBUG

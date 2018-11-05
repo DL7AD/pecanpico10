@@ -63,7 +63,7 @@ THD_FUNCTION(posThread, arg)
                       TRACE_WARN("POS  > No free packet objects for"
                           " telemetry transmission");
                     } else {
-                      if(!transmitOnRadio(packet,
+                      if(!pktTransmitOnRadio(packet,
                                       conf->radio_conf.freq,
                                       0,
                                       0,
@@ -88,7 +88,7 @@ THD_FUNCTION(posThread, arg)
               TRACE_WARN("POS  > No free packet objects"
                   " for position transmission");
             } else {
-              if(!transmitOnRadio(packet,
+              if(!pktTransmitOnRadio(packet,
                               conf->radio_conf.freq,
                               0,
                               0,
@@ -121,7 +121,7 @@ THD_FUNCTION(posThread, arg)
               TRACE_WARN("POS  > No free packet objects "
                   "or badly formed APRSD message");
             } else {
-              if(!transmitOnRadio(packet,
+              if(!pktTransmitOnRadio(packet,
                               conf->radio_conf.freq,
                               0,
                               0,

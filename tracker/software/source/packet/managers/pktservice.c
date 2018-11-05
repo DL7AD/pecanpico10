@@ -221,14 +221,18 @@ bool pktServiceCreate(const radio_unit_t radio) {
 
   memset(&handler->radio_rx_config, 0, sizeof(radio_task_object_t));
   memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
+#if PKT_RTO_USE_SETTING != TRUE
+  handler->radio_rx_config.handler = handler;
+  handler->radio_tx_config.handler = handler;
+#endif
 
   /* Set flags and radio ID. */
   handler->radio_init = false;
   handler->radio = radio;
-
+#if 0
   /* Set service semaphore to idle state. */
   chBSemObjectInit(&handler->close_sem, false);
-
+#endif
 #if PKT_USE_RADIO_MUTEX == TRUE
   chMtxObjectInit(&handler->radio_mtx);
 #else
@@ -266,7 +270,7 @@ bool pktServiceCreate(const radio_unit_t radio) {
 bool pktServiceRelease(const radio_unit_t radio) {
 
   /*
-   * Lookup radio and assign handler (RPKTDx).
+   * Lookup radio, release handler data objects and release RM thread.
    */
   packet_svc_t *handler = pktGetServiceObject(radio);
   if(handler == NULL)
@@ -274,14 +278,14 @@ bool pktServiceRelease(const radio_unit_t radio) {
 
   if(handler->state != PACKET_READY)
     return false;
+/* TODO: Should be executed by a radio command. */
+  //pktReleaseBufferSemaphore(radio);
 
-  pktReleaseBufferSemaphore(radio);
-
-  pktRadioManagerRelease(radio);
+  (void)pktRadioManagerRelease(radio);
   handler->state = PACKET_IDLE;
   return true;
 }
-
+#if 0
 /**
  * @brief   Hibernate a packet service on a radio.
  * @note    The option to manage multiple radios is not yet implemented.
@@ -331,7 +335,8 @@ bool pktServiceWakeup(const radio_unit_t radio) {
     return false;
   return false;
 }
-
+#endif
+#if 0
 /**
  * @brief   Opens a packet receive service.
  * @post    The packet service is initialized and ready to be started.
@@ -350,8 +355,8 @@ bool pktServiceWakeup(const radio_unit_t radio) {
  */
 msg_t pktOpenRadioReceive(const radio_unit_t radio,
                           const radio_mod_t encoding,
-                          const radio_freq_t frequency,
-                          const channel_hz_t ch_step,
+                          const radio_freq_hz_t frequency,
+                          const radio_chan_hz_t ch_step,
                           const sysinterval_t timeout) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
@@ -385,13 +390,15 @@ msg_t pktOpenRadioReceive(const radio_unit_t radio,
   /*
    * Open (init) the radio receive (via submit radio task).
    */
-  msg_t msg = pktSendRadioCommand(radio, &rt, timeout, NULL);
+  msg_t msg = pktQueueRadioCommand(radio, &rt, timeout, NULL);
 
   if(msg == MSG_OK)
     pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
   return msg;
 }
+#endif
 
+#if PKT_RTO_USE_SETTING != TRUE
 /**
  * @brief   Enable packet reception.
  * @pre     The packet service must have been opened.
@@ -431,6 +438,7 @@ msg_t pktEnableDataReception(const radio_unit_t radio,
     chThdSleep(TIME_MS2I(1));
   }
 
+  /* Set the packet received callback. */
   handler->usr_callback = cb;
 
   handler->radio_rx_config.channel = channel;
@@ -440,13 +448,40 @@ msg_t pktEnableDataReception(const radio_unit_t radio,
 
   rt.command = PKT_RADIO_RX_START;
 
-  msg_t msg = pktSendRadioCommand(radio, &rt, to, NULL);
+  msg_t msg = pktQueueRadioCommand(radio, &rt, to, NULL);
   if(msg == MSG_OK)
     pktAddEventFlags(handler, EVT_PKT_RECEIVE_START);
   return msg;
 }
+#endif
 
-#if 1
+#if PKT_RTO_USE_SETTING == TRUE
+/**
+ * TODO: Should not process this via the outer level callbacks.
+ * Should be handled inside RM initiated by a macro level directive.
+ * e.g. PKT_RADIO_RX_ENABLE
+ */
+static void pktReceiveStartCB(radio_task_object_t *rt) {
+  packet_svc_t *handler = rt->handler;
+  const radio_unit_t radio = handler->radio;
+
+  if(rt->result != MSG_OK) {
+    TRACE_ERROR("RAD  > Open of packet receive on radio %d failed (CB)", radio);
+    return;
+  }
+
+  msg_t msg = pktQueueRadioCommand(radio,
+                                  PKT_RADIO_RX_START,
+                                  &handler->radio_rx_config,
+                                  TIME_MS2I(100),
+                                  NULL);
+  if(msg == MSG_TIMEOUT) {
+    TRACE_ERROR("RAD  > Timeout attempting to start packet receive on radio %d (CB)", radio);
+    return;
+  }
+  TRACE_DEBUG("RAD  > Starting packet receive on radio %d (CB)", radio);
+}
+#else
 /**
  *
  */
@@ -462,19 +497,19 @@ static bool pktReceiveStartCB(radio_task_object_t *rt) {
    *  The radio is locked during receive start actions.
    */
   rt->command = PKT_RADIO_RX_START;
-  pktSubmitPriorityRadioTask(radio, rt, NULL);
-  TRACE_INFO("RAD  > Starting packet receive on radio %d (CB)", radio);
+  pktSubmitRadioTask(radio, rt, NULL);
+  TRACE_DEBUG("RAD  > Starting packet receive on radio %d (CB)", radio);
 
   /*
    *  Task object passed in has been re-posted.
-   *  Indicate not to be freed upon return from this callback.
+   *  Indicate not to be freed by RM upon return from this callback.
    */
   return true;
 }
-
+#endif
 
 /**
- * @brief   Request start of packet reception.
+ * @brief   Request start of packet reception service.
  * @pre     The packet receive service is opened if not already.
  * @notes   This function submits a request to the radio manager.
  * @notes   The request may fail in the radio manager.
@@ -498,10 +533,10 @@ static bool pktReceiveStartCB(radio_task_object_t *rt) {
  *
  * @api
  */
-msg_t pktStartDataReception(const radio_unit_t radio,
+msg_t pktOpenReceiveService(const radio_unit_t radio,
                             const radio_mod_t encoding,
-                            const radio_freq_t frequency,
-                            const channel_hz_t step,
+                            const radio_freq_hz_t frequency,
+                            const radio_chan_hz_t step,
                             const radio_ch_t channel,
                             const radio_squelch_t sq,
                             const pkt_buffer_cb_t cb,
@@ -529,17 +564,25 @@ msg_t pktStartDataReception(const radio_unit_t radio,
      *   It used to protect handler data integrity while there were FIFO packets out.
      *   But now the pool based packet buffers are independent.
      */
-    msg_t msg = chBSemWait(&handler->close_sem);
+    msg_t msg;
+#if 0
+    msg = chBSemWait(&handler->close_sem);
     if(msg != MSG_OK)
       return msg;
+#endif
+
+
 
     /* Set entire radio configuration. */
     handler->radio_rx_config.type = encoding;
     handler->radio_rx_config.base_frequency = frequency;
     handler->radio_rx_config.step_hz = step;
     handler->radio_rx_config.channel = channel;
+#if PKT_RTO_USE_SETTING == TRUE
+    handler->radio_rx_config.rssi = sq;
+#else
     handler->radio_rx_config.squelch = sq;
-
+#endif
     /* Set the packet callback. */
     handler->usr_callback = cb;
 
@@ -549,16 +592,23 @@ msg_t pktStartDataReception(const radio_unit_t radio,
     handler->valid_count = 0;
     handler->good_count = 0;
 
+#if PKT_RTO_USE_SETTING == TRUE
+    msg = pktQueueRadioCommand(radio,
+                              PKT_RADIO_RX_OPEN,
+                              &handler->radio_rx_config,
+                              to,
+                              pktReceiveStartCB);
+#else
     radio_task_object_t rt = handler->radio_rx_config;
-
     /* Set parameters for radio command. */
     rt.command = PKT_RADIO_RX_OPEN;
 
     /*
      * Open (init) the radio receive (via submit radio task).
      */
-    msg = pktSendRadioCommand(radio, &rt, to, pktReceiveStartCB);
+    msg = pktQueueRadioCommand(radio, &rt, to, pktReceiveStartCB);
 
+#endif
     if(msg == MSG_OK)
       pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
     return msg;
@@ -573,17 +623,28 @@ msg_t pktStartDataReception(const radio_unit_t radio,
 
     /* Update start parameters in radio configuration. */
     handler->radio_rx_config.channel = channel;
+#if PKT_RTO_USE_SETTING == TRUE
+    handler->radio_rx_config.rssi = sq;
+#else
     handler->radio_rx_config.squelch = sq;
+#endif
 
     /* TODO: Check other parameters match current values in rx_config.
      * Encoding, frequency, step... actually only encoding matters.
      */
-
+#if PKT_RTO_USE_SETTING == TRUE
+    msg_t msg = pktQueueRadioCommand(radio,
+                                    PKT_RADIO_RX_START,
+                                    &handler->radio_rx_config,
+                                    to,
+                                    pktReceiveStartCB);
+#else
     radio_task_object_t rt = handler->radio_rx_config;
 
     rt.command = PKT_RADIO_RX_START;
 
-    msg_t msg = pktSendRadioCommand(radio, &rt, to, NULL);
+    msg_t msg = pktQueueRadioCommand(radio, &rt, to, NULL);
+#endif
     if(msg == MSG_OK)
       pktAddEventFlags(handler, EVT_PKT_RECEIVE_START);
     return msg;
@@ -595,11 +656,11 @@ msg_t pktStartDataReception(const radio_unit_t radio,
   case PACKET_RX_ENABLED:
   case PACKET_RX_CLOSE:
   case PACKET_RX_INVALID:
+
     break;
   } /* End switch. */
   return MSG_ERROR;
 }
-#endif
 
 /**
  * @brief   Enables a packet decoder.
@@ -620,7 +681,7 @@ void pktStartDecoder(const radio_unit_t radio) {
     return;
   }
   /* Set state before starting decoder. */
-  handler->rx_state = PACKET_RX_ENABLED;
+  //handler->rx_state = PACKET_RX_ENABLED;
   event_listener_t el;
   event_source_t *esp;
 
@@ -670,6 +731,22 @@ void pktStartDecoder(const radio_unit_t radio) {
   pktUnregisterEventListener(esp, &el);
 }
 
+#if PKT_RTO_USE_SETTING != TRUE
+/**
+ *
+ */
+static bool pktReceiveDisableCB(radio_task_object_t *rt) {
+  (void)rt;
+  /*packet_svc_t *handler = rt->handler;
+
+  if(handler->rx_state == PACKET_RX_ENABLED) {
+    handler->rx_state = PACKET_RX_OPEN;
+    rt->result = MSG_OK;
+  }*/
+  /* Task object can be released. */
+  return false;
+}
+#endif
 /**
  * @brief   Stop reception.
  * @notes   Decoding is stopped.
@@ -681,8 +758,9 @@ void pktStartDecoder(const radio_unit_t radio) {
  *
  * @return              Status of the operation.
  * @retval MSG_OK       if the channel was stopped.
- * @retval MSG_RESET    if the channel was not in the correct state.
+ * @retval MSG_RESET    if the channel was reset (semaphore reset).
  * @retval MSG_TIMEOUT  if the channel could not be stopped or is invalid.
+ * @retval MSG_ERROR    if the channel was not in the correct state.
  *
  * @api
  */
@@ -692,24 +770,29 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   if(handler == NULL)
-    return MSG_RESET;
+    return MSG_ERROR;
 
-  if(handler->state != PACKET_READY)
-    return MSG_RESET;
+  if(!pktIsReceiveEnabled(radio))
+  /*if(handler->state != PACKET_READY || handler->rx_state != PACKET_RX_ENABLED)*/
+    return MSG_ERROR;
 
-  if(handler->rx_state != PACKET_RX_ENABLED)
-    return MSG_RESET;
-
+#if PKT_RTO_USE_SETTING == TRUE
+  /* Submit command. A timeout can occur waiting for a command queue object. */
+  msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_RX_STOP,
+                                  NULL, TIME_INFINITE, NULL);
+  if(msg != MSG_OK)
+    return msg;
+#else
   /* Stop the radio processing. */
 
   radio_task_object_t rt = handler->radio_rx_config;
-
   rt.command = PKT_RADIO_RX_STOP;
 
-  msg_t msg = pktSendRadioCommand(radio, &rt, TIME_INFINITE, NULL);
+  msg_t msg = pktQueueRadioCommand(radio, &rt, TIME_INFINITE,
+                                       pktReceiveDisableCB);
   if(msg != MSG_OK)
     return msg;
-
+#endif
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_STOP);
   return MSG_OK;
 }
@@ -774,7 +857,6 @@ void pktStopDecoder(radio_unit_t radio) {
     evt = chEvtGetAndClearFlags(&el);
   } while (evt != DEC_STOP_EXEC);
   pktUnregisterEventListener(esp, &el);
-  handler->rx_state = PACKET_RX_OPEN;
 }
 
 /**
@@ -801,7 +883,13 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
   chDbgCheck(handler->state == PACKET_READY);
   if(handler->state != PACKET_READY)
     return MSG_RESET;
-
+#if PKT_RTO_USE_SETTING == TRUE
+  /* Submit command. A timeout can occur waiting for a command queue object. */
+  msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_RX_CLOSE,
+                                  NULL, TIME_INFINITE, NULL);
+  if(msg != MSG_OK)
+    return msg;
+#else
   /* Set parameters for radio. */;
 
   radio_task_object_t rt = handler->radio_rx_config;
@@ -809,10 +897,10 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
   rt.command = PKT_RADIO_RX_CLOSE;
 
   /* Submit command. A timeout can occur waiting for a command queue object. */
-  msg_t msg = pktSendRadioCommand(radio, &rt, TIME_INFINITE, NULL);
+  msg_t msg = pktQueueRadioCommand(radio, &rt, TIME_INFINITE, NULL);
   if(msg != MSG_OK)
     return msg;
-
+#endif
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_CLOSE);
   return MSG_OK;
 }
@@ -1150,6 +1238,7 @@ void pktReleaseCommonPacketBuffer(packet_t pp) {
   chFactoryReleaseSemaphore(dyn_sem);
 }
 
+#if 0
 /*
  * Send shares a common pool of buffers.
  */
@@ -1171,7 +1260,7 @@ void pktReleaseBufferSemaphore(radio_unit_t radio) {
   (void)radio;
 /*#endif*/
 }
-
+#endif
 /**
  *
  */

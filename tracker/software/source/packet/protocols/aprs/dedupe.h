@@ -5,8 +5,8 @@
 #include "hal.h"
 
 void dedupe_init(sysinterval_t ttl);
-void dedupe_remember(packet_t pp, radio_freq_t freq);
-int dedupe_check(packet_t pp, radio_freq_t freq);
+void dedupe_remember(packet_t pp, radio_freq_hz_t freq);
+int dedupe_check(packet_t pp, radio_freq_hz_t freq);
 
 #endif
 

@@ -58,7 +58,7 @@ eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(PKT_DIAGNOSTIC_EVENT_CODE));
       TRACE_ERROR("PKT  > Invalid PWM in-band message");
     }
     if(flags & EVT_PWM_NO_DATA) {
-      TRACE_INFO("PKT  > RSSI validated but no PWM data from radio");
+      TRACE_INFO("PKT  > RSSI validated but PWM data from radio ceased");
     }
     if(flags & EVT_PKT_FAILED_CB_THD) {
       TRACE_ERROR("PKT  > Failed to create RX callback thread");

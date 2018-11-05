@@ -387,13 +387,25 @@ static void Si446x_setStandbyState(const radio_unit_t radio) {
 /**
  * Get temperature of chip.
  */
-void Si446x_getTemperature(const radio_unit_t radio) {
+static bool Si446x_getTemperature(const radio_unit_t radio) {
   const uint8_t txData[] = {Si446x_GET_ADC_READING, 0x10};
   uint8_t rxData[8];
-  Si446x_read(radio, txData, sizeof(txData), rxData, sizeof(rxData));
-  uint16_t adc = rxData[7] | ((rxData[6] & 0x7) << 8);
-  int16_t temp = (89900 * adc) / 4096 - 29300;
-  Si446x_getData(radio)->lastTemp = temp;
+  if(Si446x_read(radio, txData, sizeof(txData), rxData, sizeof(rxData))) {
+    uint16_t adc = rxData[7] | ((rxData[6] & 0x7) << 8);
+    int16_t temp = (89900 * adc) / 4096 - 29300;
+    Si446x_getData(radio)->lastTemp = temp;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Clear interrupt status of chip.
+ */
+static bool Si446x_clearInterruptStatus(const radio_unit_t radio) {
+  const uint8_t txData[] = {Si446x_GET_INT_STATUS, 0x00, 0x00, 0x00};
+  uint8_t rxData[9];
+  return Si446x_read(radio, txData, sizeof(txData), rxData, sizeof(rxData));
 }
 
 /**
@@ -401,7 +413,7 @@ void Si446x_getTemperature(const radio_unit_t radio) {
  */
 static bool Si446x_init(const radio_unit_t radio) {
 
-  TRACE_INFO("SI   > Initialize radio %d", radio);
+  TRACE_DEBUG("SI   > Initialize radio %d", radio);
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -414,7 +426,7 @@ static bool Si446x_init(const radio_unit_t radio) {
     return false;
   }
 
-  si446x_clock_t si_clock = Si446x_getData(radio)->radio_clock;
+  radio_clock_t si_clock = Si446x_getData(radio)->radio_clock;
 
   /* Calculate clock source parameters. */
   const uint8_t x3 = (si_clock >> 24) & 0x0FF;
@@ -450,7 +462,12 @@ static bool Si446x_init(const radio_unit_t radio) {
   Si446x_readBoot(radio, get_part, sizeof(get_part), (uint8_t *)&part_info,
               sizeof(part_info));
 
-  /* Save the part number and ROM revision. */
+  /* Save the part information and ROM revision. */
+  Si446x_getData(radio)->radio_part
+                           = (part_info.info[3] << 8) + part_info.info[4];
+  Si446x_getData(radio)->radio_rom_rev = part_info.info[9];
+  Si446x_getData(radio)->radio_patch = 0;
+
   handler->radio_part = (part_info.info[3] << 8) + part_info.info[4];
   handler->radio_rom_rev = part_info.info[9];
 
@@ -460,7 +477,7 @@ static bool Si446x_init(const radio_unit_t radio) {
    */
   if(is_Si4463_patch_required(handler->radio_part, handler->radio_rom_rev)) {
     /* Power cycle radio and apply patch. */
-    TRACE_INFO("SI   > Restart radio %d to apply patch", radio);
+    TRACE_DEBUG("SI   > Restart radio %d to apply patch", radio);
     Si446x_radioShutdown(radio);
     chThdSleep(TIME_MS2I(10));
     if(!Si446x_radioWakeUp(radio)) {
@@ -492,15 +509,21 @@ static bool Si446x_init(const radio_unit_t radio) {
   Si446x_readBoot(radio, get_func, sizeof(get_func), (uint8_t *)&func_info,
               sizeof(func_info));
 
+  /* Save the radio patch information. */
+  Si446x_getData(radio)->radio_patch
+                       = (func_info.info[5] << 8) + func_info.info[6];
   handler->radio_patch = (func_info.info[5] << 8) + func_info.info[6];
 
-  TRACE_INFO("SI   > Patch ID 0x%x applied to radio %d", handler->radio_patch,
-             radio);
+  TRACE_DEBUG("SI   > Patch ID 0x%x applied to radio %d",
+              Si446x_getData(radio)->radio_patch,
+              radio);
 
   /* Set the radio GPIOs to the basic configuration. */
   Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->init).gpio);
 
   /* TODO: We should clear interrupts here with a GET_INT_STATUS. */
+
+  (void)Si446x_clearInterruptStatus(radio);
 
   /* If Si446x is using its own xtal set the trim capacitor value. */
   #if !Si446x_CLK_TCXO_EN
@@ -610,9 +633,9 @@ bool Si446x_conditional_init(const radio_unit_t radio) {
  * TODO: Move temperature reading to???
  */
 static bool Si446x_setSynthParameters(const radio_unit_t radio,
-                              radio_freq_t freq,
-                              channel_hz_t step,
-                              deviation_hz_t dev) {
+                              radio_freq_hz_t freq,
+                              radio_chan_hz_t step,
+                              radio_dev_hz_t dev) {
 
   /* Check frequency is in range of chip. */
   if(freq < 144000000UL || freq > 900000000UL)
@@ -652,7 +675,7 @@ static bool Si446x_setSynthParameters(const radio_unit_t radio,
    *  3. Deviation converted to PLL shift factor.
    */
 
-  si446x_clock_t si_clock = Si446x_getData(radio)->radio_clock;
+  radio_clock_t si_clock = Si446x_getData(radio)->radio_clock;
   uint32_t pll_freq = Si446x_PRESCALER * si_clock;
   uint32_t pll_out = pll_freq / outdiv;
 
@@ -696,7 +719,7 @@ static bool Si446x_setSynthParameters(const radio_unit_t radio,
   /* TODO: Move NCO modulo and data rate setting into here? */
 
   /* Measure the chip temperature and update saved value.
-   * TODO: Make this accessible via a LLD and have collector read it.
+   * TODO: Make this accessible via a RTO LLD and have collector read it.
    */
   Si446x_getTemperature(radio);
   return true;
@@ -870,7 +893,7 @@ static void Si446x_setModemAFSK_TX(const radio_unit_t radio) {
   //Si446x_setModemCCAdetection(radio);
 
   // Setup the NCO modulo and oversampling mode
-  si446x_clock_t si_clock = Si446x_getData(radio)->radio_clock;
+  radio_clock_t si_clock = Si446x_getData(radio)->radio_clock;
   uint32_t s = si_clock / 10;
   uint8_t f3 = (s >> 24) & 0xFF;
   uint8_t f2 = (s >> 16) & 0xFF;
@@ -1057,7 +1080,7 @@ static void Si446x_setModem2FSK_TX(const radio_unit_t radio,
   //Si446x_setModemCCAdetection(radio);
 
   // Setup the NCO modulo and oversampling mode
-  si446x_clock_t si_clock = Si446x_getData(radio)->radio_clock;
+  radio_clock_t si_clock = Si446x_getData(radio)->radio_clock;
   uint32_t s = si_clock / 10;
   uint8_t f3 = (s >> 24) & 0xFF;
   uint8_t f2 = (s >> 16) & 0xFF;
@@ -1132,7 +1155,7 @@ static bool Si446x_getTXfreeFIFO(const radio_unit_t radio,
  *
  */
 void Si446x_radioStandby(const radio_unit_t radio) {
-  TRACE_INFO("SI   > Set radio %d to standby state", radio);
+  TRACE_DEBUG("SI   > Set radio %d to standby state", radio);
   Si446x_setStandbyState(radio);
 }
 
@@ -1147,7 +1170,7 @@ void Si446x_radioStandby(const radio_unit_t radio) {
  * The radio GPIOs can be reconfigured after radio init is complete.
  */
 bool Si446x_radioWakeUp(const radio_unit_t radio) {
-  TRACE_INFO("SI   > Wake up radio %i", radio);
+  TRACE_DEBUG("SI   > Wake up radio %i", radio);
 
   /*
    * Set MCU GPIO input for POR and CTS of radio from GPIO0 and GPIO1.
@@ -1182,7 +1205,7 @@ bool Si446x_radioWakeUp(const radio_unit_t radio) {
  * The radio is shutdown by setting SDN high.
  */
 void Si446x_radioShutdown(const radio_unit_t radio) {
-  TRACE_INFO("SI   > Disable radio %i", radio);
+  TRACE_DEBUG("SI   > Disable radio %i", radio);
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   palSetLine(Si446x_getConfig(radio)->sdn);
@@ -1265,8 +1288,8 @@ static void Si446x_terminateReceiveState(const radio_unit_t radio) {
  * Wait for a clear time slot and initiate packet transmission.
  */
 static bool Si446x_transmit(const radio_unit_t radio,
-                            const radio_freq_t freq,
-                            const channel_hz_t step,
+                            const radio_freq_hz_t freq,
+                            const radio_chan_hz_t step,
                             const radio_ch_t chan,
                             const radio_pwr_t power,
                             const radio_mod_t mod,
@@ -1275,7 +1298,7 @@ static bool Si446x_transmit(const radio_unit_t radio,
                             sysinterval_t cca_timeout) {
 
   /* Get an absolute operating frequency in Hz. */
-  radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
+  radio_freq_hz_t op_freq = pktComputeOperatingFrequency(radio, freq,
                                                       step, chan, RADIO_TX);
 
   if(op_freq == FREQ_INVALID) {
@@ -1323,7 +1346,7 @@ static bool Si446x_transmit(const radio_unit_t radio,
     }
 
     /* Try to get clear channel. */
-    TRACE_INFO( "SI   > Wait up to %.1f seconds on radio %d for CCA on"
+    TRACE_DEBUG( "SI   > Wait up to %.1f seconds on radio %d for CCA on"
         " %d.%03d MHz",
         (float32_t)(TIME_I2MS(cca_timeout) / 1000), radio,
         op_freq/1000000, (op_freq%1000000)/1000);
@@ -1338,11 +1361,11 @@ static bool Si446x_transmit(const radio_unit_t radio,
       chThdSleep(TIME_MS2I(1));
     }
     if(!chVTIsSystemTimeWithinX(t0, t1)) {
-      TRACE_INFO( "SI   > CCA timeout after %d milliseconds on radio %d",
+      TRACE_DEBUG( "SI   > CCA timeout after %d milliseconds on radio %d",
                   chTimeI2MS(cca_timeout), radio);
     } else {
     /* Clear channel timing. */
-    TRACE_INFO( "SI   > CCA attained in %d milliseconds on radio %d",
+    TRACE_DEBUG( "SI   > CCA attained in %d milliseconds on radio %d",
                 chTimeI2MS(chVTTimeElapsedSinceX(t0)), radio);
     }
 
@@ -1399,13 +1422,13 @@ static bool Si446x_transmit(const radio_unit_t radio,
  *
  */
 bool Si446x_receiveActivate(const radio_unit_t radio,
-                          radio_freq_t freq,
-                          channel_hz_t step,
+                          radio_freq_hz_t freq,
+                          radio_chan_hz_t step,
                           radio_ch_t channel,
                           radio_squelch_t rssi,
                           radio_mod_t mod) {
 
-  radio_freq_t op_freq = pktComputeOperatingFrequency(radio, freq,
+  radio_freq_hz_t op_freq = pktComputeOperatingFrequency(radio, freq,
                                                       step, channel,
                                                       RADIO_RX);
   if(op_freq == FREQ_INVALID) {
@@ -1484,14 +1507,14 @@ bool Si446x_receiveActivate(const radio_unit_t radio,
  * return false if RX was not enabled.
  */
 bool Si4464_enableReceive(const radio_unit_t radio,
-                          const radio_freq_t rx_frequency,
-                          const channel_hz_t rx_step,
+                          const radio_freq_hz_t rx_frequency,
+                          const radio_chan_hz_t rx_step,
                           const radio_ch_t rx_chan,
                           const radio_squelch_t rx_rssi,
                           const radio_mod_t rx_mod) {
 
   /* Get an absolute operating frequency in Hz. */
-  radio_freq_t op_freq = pktComputeOperatingFrequency(radio,
+  radio_freq_hz_t op_freq = pktComputeOperatingFrequency(radio,
                                                       rx_frequency,
                                                       rx_step,
                                                       rx_chan,
@@ -1504,7 +1527,7 @@ bool Si4464_enableReceive(const radio_unit_t radio,
   }
 
   TRACE_INFO( "SI   > Enable reception %d.%03d MHz (ch %d),"
-              " RSSI %d, %s on radio %d",
+              " RSSI 0x%x, %s on radio %d",
               op_freq/1000000, (op_freq % 1000000)/1000,
               rx_chan,
               rx_rssi, getModulation(rx_mod), radio);
@@ -1663,7 +1686,11 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   radio_unit_t radio = rto->handler->radio;
 
+#if PKT_RTO_USE_SETTING == TRUE
+  packet_t pp = rto->radio_dat.packet_out;
+#else
   packet_t pp = rto->packet_out;
+#endif
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
@@ -1694,9 +1721,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
 
   /* Wait for receive stream in progress. Terminate on timeout. */
+#if PKT_RTO_USE_SETTING == TRUE
+  pktSetReceiveInactive(radio, rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
+                        ? TIME_IMMEDIATE : TIME_MS2I(300));
+#else
   pktSetReceiveInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
                         ? TIME_IMMEDIATE : TIME_MS2I(300));
-
+#endif
   /*
    * Initialize radio before any commands.
    * It may have been put into standby or an XO change has been applied down.
@@ -1742,7 +1773,12 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
    * Use the specified CCA RSSI level.
    * CCA RSSI level will be set to blind send after first packet.
    */
+#if PKT_RTO_USE_SETTING == TRUE
+  radio_squelch_t rssi = rto->radio_dat.rssi;
+#else
   radio_squelch_t rssi = rto->squelch;
+#endif
+
 
   do {
 
@@ -1938,6 +1974,17 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 #define SI446X_AFSK_TX_TIMEOUT 10
     /* TODO: Timeout to be calculated from speed and data size. */
     /* Request start of transmission. */
+#if PKT_RTO_USE_SETTING == TRUE
+    if(Si446x_transmit(radio,
+                       rto->radio_dat.base_frequency,
+                       rto->radio_dat.step_hz,
+                       rto->radio_dat.channel,
+                       rto->radio_dat.tx_power,
+                       rto->radio_dat.type,
+                       all,
+                       rssi,
+                       TIME_S2I(SI446X_AFSK_TX_TIMEOUT / 2))) {
+#else
     if(Si446x_transmit(radio,
                        rto->base_frequency,
                        rto->step_hz,
@@ -1947,7 +1994,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                        all,
                        rssi,
                        TIME_S2I(SI446X_AFSK_TX_TIMEOUT / 2))) {
-
+#endif
       /*
        * Start/re-start transmission timeout timer for this packet.
        * If the 446x gets locked up we'll exit TX and release packet object(s).
@@ -2121,9 +2168,13 @@ bool Si446x_blocSendAFSK(radio_task_object_t *rt) {
 
     /* Create a send thread name which includes the sequence number. */
     char tx_thd_name[16];
+#if PKT_RTO_USE_SETTING == TRUE
     chsnprintf(tx_thd_name, sizeof(tx_thd_name),
-               "tx_afsk_%03i", rt->tx_seq_num);
-
+               "tx_afsk_%03i", rt->radio_dat.seq_num);
+#else
+    chsnprintf(tx_thd_name, sizeof(tx_thd_name),
+               "tx_afsk_%03i", rt->rt_seq);
+#endif
     afsk_feeder_thd = chThdCreateFromHeap(NULL,
                 THD_WORKING_AREA_SIZE(SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE),
                 tx_thd_name,
@@ -2150,9 +2201,11 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   radio_task_object_t *rto = arg;
 
   radio_unit_t radio = rto->handler->radio;
-
+#if PKT_RTO_USE_SETTING == TRUE
+  packet_t pp = rto->radio_dat.packet_out;
+#else
   packet_t pp = rto->packet_out;
-
+#endif
   chDbgAssert(pp != NULL, "no packet in radio task");
 #if Si446x_UNLOCK_FOR_ENCODE == FALSE
   msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
@@ -2178,9 +2231,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   }
 
   /* Stop packet system reception. */
+#if PKT_RTO_USE_SETTING == TRUE
+  pktSetReceiveInactive(radio, rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
+                        ? TIME_IMMEDIATE : TIME_MS2I(300));
+#else
   pktSetReceiveInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
                         ? TIME_IMMEDIATE : TIME_MS2I(300));
-
+#endif
   /* Initialize radio before any commands as it may have been powered down. */
   if(!Si446x_conditional_init(radio)) {
     /* Radio did not initialise. */
@@ -2221,8 +2278,11 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
    * This can be be blind send (PKT_SI446X_NO_CCA_RSSI).
    * In burst mode CCA will be set to blind send after first packet.
    */
+#if PKT_RTO_USE_SETTING == TRUE
+  radio_squelch_t rssi = rto->radio_dat.rssi;
+#else
   radio_squelch_t rssi = rto->squelch;
-
+#endif
   do {
     /*
      * Set NRZI encoding format.
@@ -2413,6 +2473,17 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 #define SI446X_2FSK_TX_TIMEOUT 10
     /* TODO: Timeout to be calculated from speed and data size. */
     /* Request start of transmission. */
+#if PKT_RTO_USE_SETTING == TRUE
+    if(Si446x_transmit(radio,
+                       rto->radio_dat.base_frequency,
+                       rto->radio_dat.step_hz,
+                       rto->radio_dat.channel,
+                       rto->radio_dat.tx_power,
+                       rto->radio_dat.type,
+                       all,
+                       rssi,
+                       TIME_S2I(SI446X_2FSK_TX_TIMEOUT / 2))) {
+#else
     if(Si446x_transmit(radio,
                        rto->base_frequency,
                        rto->step_hz,
@@ -2422,7 +2493,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                        all,
                        rssi,
                        TIME_S2I(SI446X_2FSK_TX_TIMEOUT / 2))) {
-
+#endif
       /*
        * Start/re-start transmission timeout timer for this packet.
        * If the 446x gets locked up we'll exit TX and release packet object(s).
@@ -2597,9 +2668,13 @@ bool Si446x_blocSend2FSK(radio_task_object_t *rt) {
 
   /* Create a send thread name which includes the sequence number. */
   char tx_thd_name[16];
+#if PKT_RTO_USE_SETTING == TRUE
   chsnprintf(tx_thd_name, sizeof(tx_thd_name),
-             "tx_2fsk_%03i", rt->tx_seq_num);
-
+             "tx_2fsk_%03i", rt->radio_dat.seq_num);
+#else
+  chsnprintf(tx_thd_name, sizeof(tx_thd_name),
+             "tx_2fsk_%03i", rt->rt_seq);
+#endif
   fsk_feeder_thd = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(SI_FSK_FIFO_FEEDER_WA_SIZE),
               tx_thd_name,
@@ -2628,7 +2703,7 @@ bool Si446x_blocSendCW(radio_task_object_t *rt) {
 /**
  * Used by collector to get radio temp data.
  */
-si446x_temp_t Si446x_getLastTemperature(const radio_unit_t radio) {
+radio_temp_t Si446x_getLastTemperature(const radio_unit_t radio) {
   return Si446x_getData(radio)->lastTemp;
 }
 
@@ -2726,9 +2801,9 @@ uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio,
 bool Si446x_updateClock(const radio_unit_t radio, xtal_osc_t freq) {
   if(freq == 0)
     return false;
-  si446x_clock_t xo = Si446x_getData(radio)->radio_clock;
-  if((si446x_clock_t)freq != xo) {
-    Si446x_getData(radio)->radio_clock = (si446x_clock_t)freq;
+  radio_clock_t xo = Si446x_getData(radio)->radio_clock;
+  if((radio_clock_t)freq != xo) {
+    Si446x_getData(radio)->radio_clock = (radio_clock_t)freq;
     if(!Si446x_init(radio)) {
       TRACE_ERROR("SI   > Init of radio %d failed when applying clock update",
                   radio);

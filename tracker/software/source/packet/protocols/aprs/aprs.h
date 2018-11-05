@@ -76,7 +76,7 @@ typedef struct APRSIdentity {
   aprs_sym_t        symbol;                  /**< @brief symbol.            */
   bcn_app_conf_t    *beacon;
   /* Radio parameters. */
-  radio_freq_t      freq;
+  radio_freq_hz_t      freq;
   radio_pwr_t       pwr;
   radio_mod_t       mod;
   radio_squelch_t   cca;
@@ -118,7 +118,7 @@ extern "C" {
                                    char packetType, uint8_t *data);
   packet_t  aprs_compose_aprsd_message(const char *callsign, const char *path,
                                    const char *receiver);
-  void      aprs_decode_packet(packet_t pp);
+  void      aprs_process_packet(packet_t pp);
   msg_t     aprs_transmit_telemetry_response(aprs_identity_t *id,
                                   int argc, char *argv[]);
   msg_t     aprs_send_aprsd_message(aprs_identity_t *id,

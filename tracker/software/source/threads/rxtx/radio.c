@@ -10,14 +10,14 @@
 #include "sleep.h"
 #include "threads.h"
 
-static void processPacket(uint8_t *buf, uint32_t len) {
-
+static void pktProcessReceivedPacket(ax25char_t *buf, size_t len,
+                                     radio_signal_t rssi) {
   if(len < 3) {
     /*
      *  Incoming packet was too short.
      *  Nothing to do.
      */
-    TRACE_INFO("RX    > Packet dropped due to data length < 2");
+    TRACE_MON("RX    > Packet dropped due to data length < 3");
     return;
   }
   /* Remove CRC from frame. */
@@ -27,42 +27,49 @@ static void processPacket(uint8_t *buf, uint32_t len) {
   packet_t pp = ax25_from_frame(buf, len);
 
   if(pp == NULL) {
-    TRACE_INFO("RX   > Error in packet - dropped");
+    TRACE_MON("RX   > Error in packet - dropped");
     return;
   }
   /* Continue packet analysis. */
   uint8_t *c;
   uint32_t ilen = ax25_get_info(pp, &c);
   if(ilen == 0) {
-    TRACE_INFO("RX   > Invalid packet structure - dropped");
+    TRACE_MON("RX   > Invalid packet structure - dropped");
     pktReleaseCommonPacketBuffer(pp);
     return;
   }
   /* Output packet as text. */
   char serial_buf[512];
   aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
-  TRACE_MON("RX   > %s", serial_buf);
-
-  if(pp->num_addr > 0) {
-    aprs_decode_packet(pp);
+  if(rssi != 0xFF) {
+    TRACE_MON("RX   > Packet opening RSSI 0x%x", rssi);
   }
   else {
-    TRACE_INFO("RX   > No addresses in packet - dropped");
+    TRACE_MON("RX   > Packet opening RSSI not captured");
+  }
+  TRACE_MON("RX   > %s", serial_buf);
+  if(pp->num_addr > 0) {
+    pp->rssi = rssi;
+    aprs_process_packet(pp);
+  }
+  else {
+    TRACE_MON("RX   > No addresses in packet - dropped");
   }
   pktReleaseCommonPacketBuffer(pp);
 }
 
-void mapCallback(pkt_data_object_t *pkt_buff) {
+void pktMapCallback(pkt_data_object_t *pkt_buff) {
   /* Packet buffer. */
   ax25char_t *frame_buffer = pkt_buff->buffer;
   ax25size_t frame_size = pkt_buff->packet_size;
   /* Report the RSSI. */
-  TRACE_INFO("RX   > Packet RSSI 0x%x", pkt_buff->rssi);
+
   if(pktGetAX25FrameStatus(pkt_buff)) {
     /* Perform the callback if CRC is good. */
-    processPacket(frame_buffer, frame_size);
+    pktProcessReceivedPacket(frame_buffer, frame_size, pkt_buff->rssi);
   } else {
-    TRACE_INFO("RX   > Frame has bad CRC - dropped");
+    TRACE_MON("RX   > Packet opening RSSI 0x%x", pkt_buff->rssi);
+    TRACE_MON("RX   > Frame has bad CRC - dropped");
   }
   /* The object and buffer are freed when the callback returns. */
 }
@@ -70,20 +77,20 @@ void mapCallback(pkt_data_object_t *pkt_buff) {
 /*
  *
  */
-bool transmitOnRadio(packet_t pp, const radio_freq_t base_freq,
-                     const channel_hz_t step, radio_ch_t chan,
+bool pktTransmitOnRadio(packet_t pp, const radio_freq_hz_t base_freq,
+                     const radio_chan_hz_t step, radio_ch_t chan,
                      const radio_pwr_t pwr, const radio_mod_t mod,
                      const radio_squelch_t cca) {
 
-  return transmitOnRadioWithCallback(pp,base_freq, step,
+  return pktTransmitOnRadioWithCallback(pp,base_freq, step,
                                      chan, pwr, mod, cca, NULL);
 }
 
 /*
  *
  */
-bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
-                     const channel_hz_t step, radio_ch_t chan,
+bool pktTransmitOnRadioWithCallback(packet_t pp, const radio_freq_hz_t base_freq,
+                     const radio_chan_hz_t step, radio_ch_t chan,
                      const radio_pwr_t pwr, const radio_mod_t mod,
                      const radio_squelch_t cca,
                      const radio_task_cb_t cb) {
@@ -109,7 +116,7 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
     return false;
   }
 
-  radio_freq_t op_freq = pktComputeOperatingFrequency(radio,
+  radio_freq_hz_t op_freq = pktComputeOperatingFrequency(radio,
                                                       base_freq,
                                                       step,
                                                       chan,
@@ -131,8 +138,8 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
   /* Check information size. */
   if(AX25_MIN_INFO_LEN < len && len <= AX25_MAX_INFO_LEN) {
 
-    TRACE_INFO( "RAD  > %s transmit on %d.%03d MHz (ch %d),"
-        " PWR %d, %s, CCA %d, data %d",
+    TRACE_MON( "RAD  > %s transmit on %d.%03d MHz (ch %d),"
+        " PWR %d, %s, CCA 0x%x, data %d",
         (pp->nextp != NULL) ? "Burst" : "Packet",
             op_freq/1000000, (op_freq%1000000)/1000,
             chan, pwr, getModulation(mod), cca, len
@@ -145,7 +152,27 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
 
     /* The service object. */
     packet_svc_t *handler = pktGetServiceObject(radio);
+#if PKT_RTO_USE_SETTING == TRUE
+    /* Get  the saved radio data for this new request. */
+    radio_params_t rp = handler->radio_tx_config;
 
+    rp.type = mod;
+    rp.base_frequency = op_freq;
+    rp.step_hz = step;
+    rp.channel = chan;
+    rp.tx_power = pwr;
+    rp.rssi = cca;
+    rp.packet_out = pp;
+
+    /* Serial number for this TX. */
+    rp.seq_num++;
+
+    /* Update the task mirror. */
+    handler->radio_tx_config = rp;
+
+    msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_TX_SEND,
+                                    &rp, TIME_S2I(10), cb);
+#else
     /* Get  the saved radio data for this new request. */
     radio_task_object_t rt = handler->radio_tx_config;
 
@@ -160,13 +187,13 @@ bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
     rt.packet_out = pp;
 
     /* Serial number for this TX. */
-    rt.tx_seq_num++;
+    rt.rt_seq++;
 
     /* Update the task mirror. */
     handler->radio_tx_config = rt;
 
-    msg_t msg = pktSendRadioCommand(radio, &rt, TIME_S2I(10),
-                                    (radio_task_cb_t)cb);
+    msg_t msg = pktQueueRadioCommand(radio, &rt, TIME_S2I(10), cb);
+#endif
     if(msg == MSG_TIMEOUT) {
       TRACE_ERROR("RAD  > Failed to post radio task");
       pktReleaseBufferChain(pp);
@@ -200,46 +227,19 @@ THD_FUNCTION(aprsThread, arg) {
       TRACE_ERROR("RX   > Cannot specify FREQ_RX_APRS for receive");
       break;
     }
-#if 0
-    /* Open packet radio receive service. */
-    TRACE_INFO("RX   > Opening receive on radio %d", PKT_RADIO_1);
-    msg_t omsg = pktOpenRadioReceive(radio,
-                         MOD_AFSK,
-                         conf->rx.radio_conf.freq,
-                         0, // Step is 0 for now. Get from radio record.
-                         TIME_S2I(5));
-
-    if(omsg != MSG_OK) {
-      TRACE_ERROR("RX   > Open of radio receive service failed with error %d",
-                  omsg);
-      time = waitForTrigger(time, conf->rx.svc_conf.cycle);
-      continue;
+    if(pktIsReceiveReady(radio)) {
+      TRACE_MON("RX   > Resuming receive on radio %d", radio);
     }
-
-    /* Start the decoder. */
-    msg_t smsg = pktEnableDataReception(radio,
-                           0, // Chan = 0 for now
-                           conf->rx.radio_conf.rssi,
-                           mapCallback,
-                           TIME_S2I(10));
-    if(smsg != MSG_OK) {
-      pktCloseRadioReceive(radio);
-      TRACE_ERROR("RX   > Start of radio %d packet reception failed with error %d",
-                  radio, smsg);
-      time = waitForTrigger(time, conf->rx.svc_conf.cycle);
-      continue;
+    else {
+      TRACE_MON("RX   > Opening receive on radio %d", radio);
     }
-    TRACE_INFO("RX   > Radio %d now active", radio);
-/*    if(conf->rx.svc_conf.cycle == CYCLE_CONTINUOUSLY)
-      break;*/
-#else
-    msg_t msg = pktStartDataReception(radio,
+    msg_t msg = pktOpenReceiveService(radio,
                                      MOD_AFSK,
                                      conf->rx.radio_conf.freq,
                                      0, // Step is 0 for now. Get from radio record.
                                      0, // Chan = 0 for now
                                      conf->rx.radio_conf.rssi,
-                                     mapCallback,
+                                     pktMapCallback,
                                      TIME_S2I(10));
     if(msg != MSG_OK) {
       TRACE_ERROR("RX   > Start of radio %d packet reception failed with error %d",
@@ -247,23 +247,19 @@ THD_FUNCTION(aprsThread, arg) {
       time = waitForTrigger(time, conf->rx.svc_conf.cycle);
       continue;
     }
-#endif
+
     /*
      * Check if there is a "listening" interval.
      * In that case turn the receive off after that time.
      */
     if(conf->rx.svc_conf.interval != TIME_IMMEDIATE) {
       chThdSleep(conf->rx.svc_conf.interval);
-      TRACE_INFO("RX   > Closing receive on radio %d", radio);
+      TRACE_MON("RX   > Pausing receive on radio %d", radio);
       msg = pktDisableDataReception(radio);
       if(msg != MSG_OK) {
-        pktCloseRadioReceive(radio);
-        TRACE_ERROR("RX   > Stop of radio packet reception failed");
-      }
-      msg = pktCloseRadioReceive(radio);
-      if(msg != MSG_OK) {
-        pktCloseRadioReceive(radio);
-        TRACE_ERROR("RX   > Close of radio packet reception failed");
+        TRACE_ERROR("RX   > Pause of radio packet reception failed");
+        time = waitForTrigger(time, conf->rx.svc_conf.cycle);
+        continue;
       }
     }
     /* Start reception at next run time (which may be immediately). */
@@ -282,7 +278,7 @@ THD_FUNCTION(aprsThread, arg) {
 /**
  * TODO: Start radio manager for each radio.
  */
-thread_t *start_aprs_threads(thd_aprs_conf_t *conf, const char *name) {
+thread_t *pktStartAPRSthreads(thd_aprs_conf_t *conf, const char *name) {
 
   thread_t *th = chThdCreateFromHeap(NULL,
                                THD_WORKING_AREA_SIZE(PKT_APRS_MAIN_WA_SIZE),

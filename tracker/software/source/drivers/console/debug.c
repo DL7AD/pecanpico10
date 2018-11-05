@@ -76,14 +76,14 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
 	/* TODO: Implement dynamic assignment of console driver output. */
 
 	if(isConsoleOutputAvailable()) {
-      if(TRACE_TIME) {
+      if(TRACE_SHOW_TIME) {
           chprintf((BaseSequentialStream*)trace, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000);
       }
       chprintf((BaseSequentialStream*)trace, "[%s]", type);
-      if(TRACE_FILE) {
+      if(TRACE_SHOW_FILE) {
           chprintf((BaseSequentialStream*)trace, "[%12s %04d]", filename, line);
       }
-      if(TRACE_THREAD && TRACE_TIME && TRACE_FILE) {
+      if(TRACE_SHOW_THREAD && TRACE_SHOW_TIME && TRACE_SHOW_FILE) {
           chprintf((BaseSequentialStream*)trace, "[0x%08x]", chThdGetSelfX());
       }
       chprintf((BaseSequentialStream*)trace, " ");
@@ -95,14 +95,14 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
 	}
 
 #if ENABLE_SERIAL_DEBUG == TRUE
-	if(TRACE_TIME) {
+	if(TRACE_SHOW_TIME) {
 		chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000);
 	}
 	chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, "[%s]", type);
-	if(TRACE_FILE) {
+	if(TRACE_SHOW_FILE) {
 		chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, "[%12s %04d]", filename, line);
 	}
-    if(TRACE_THREAD && TRACE_TIME && TRACE_FILE) {
+    if(TRACE_SHOW_THREAD && TRACE_SHOW_TIME && TRACE_SHOW_FILE) {
         chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, "[0x%08x]", chThdGetSelfX());
     }
     chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, " ");

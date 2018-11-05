@@ -38,8 +38,8 @@ const conf_t conf_flash_default = {
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = false,
-            .cycle = TIME_S2I(10), // Beacon interval
+            .active = true,
+            .cycle = TIME_S2I(45), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
         },
@@ -105,7 +105,7 @@ const conf_t conf_flash_default = {
         .quality = 4,
         .buf_size = 20 * 1024,
         .redundantTx = false,
-        .no_burst = false
+        .no_burst = true
     },
 
     // Log app
@@ -144,7 +144,7 @@ const conf_t conf_flash_default = {
                  .active = true,
                  .init_delay = TIME_S2I(20),
                  .cycle = TIME_S2I(60),
-                 .interval = TIME_INFINITE
+                 .interval = TIME_S2I(50)
              },
             // Receive radio configuration
             .radio_conf = {

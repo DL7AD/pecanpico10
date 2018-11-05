@@ -952,7 +952,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             continue; /* Decoder state switch. */
           } /* End case. */
 #endif
-#if PKT_USE_SINGLE_RSSI != TRUE
+#if PKT_USE_OPENING_RSSI != TRUE
           case PWM_INF_RADIO_RSSI: {
             myHandler->active_packet_object->rssi
                                 = myFIFO->decode_pwm_queue->rssi;
@@ -990,7 +990,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
         case FRAME_OPEN:
         case FRAME_DATA:
-#if PKT_USE_SINGLE_RSSI == TRUE
+#if PKT_USE_OPENING_RSSI == TRUE
           myHandler->active_packet_object->rssi = myFIFO->rssi;
 #endif
           pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);

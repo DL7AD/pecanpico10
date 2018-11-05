@@ -100,7 +100,11 @@ static void pktLLDradioStandby(const radio_unit_t radio) {
 static bool pktLLDradioSendPacket(radio_task_object_t *rto) {
   bool status;
   /* TODO: Implement VMT to functions per radio type. */
+#if PKT_RTO_USE_SETTING == TRUE
+  switch(rto->radio_dat.type) {
+#else
   switch(rto->type) {
+#endif
   case MOD_2FSK_300:
   case MOD_2FSK_9k6:
   case MOD_2FSK_19k2:
@@ -147,7 +151,16 @@ static bool pktLLDradioStartReceive(const radio_unit_t radio,
 
   if(handler == NULL)
     return false;
-
+#if PKT_RTO_USE_SETTING == TRUE
+  if(!Si4464_enableReceive(radio,
+                            rto->radio_dat.base_frequency,
+                            rto->radio_dat.step_hz,
+                            rto->radio_dat.channel,
+                            rto->radio_dat.rssi,
+                            rto->radio_dat.type)) {
+    return false;
+  }
+#else
   if(!Si4464_enableReceive(radio,
                             rto->base_frequency,
                             rto->step_hz,
@@ -156,6 +169,7 @@ static bool pktLLDradioStartReceive(const radio_unit_t radio,
                             rto->type)) {
     return false;
   }
+#endif
   return pktLLDradioAttachStream(radio);
 }
 
@@ -174,6 +188,8 @@ static void pktLLDradioStopReceive(const radio_unit_t radio) {
  * @notes   This is the API interface to the radio LLD.
  * @notes   Currently just map directly to 446x driver.
  * @notes   In future would implement a lookup and VMT to access radio methods.
+ * @post    The radio is active.
+ * @post    External feed of PWM for AFSK has to be resumed by caller.
  *
  * @param[in] radio radio unit ID.
  *
@@ -186,13 +202,16 @@ static void pktLLDradioStopReceive(const radio_unit_t radio) {
 static bool pktLLDradioResumeReceive(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  radio_freq_t freq = handler->radio_rx_config.base_frequency;
-  channel_hz_t step = handler->radio_rx_config.step_hz;
+  radio_freq_hz_t freq = handler->radio_rx_config.base_frequency;
+  radio_chan_hz_t step = handler->radio_rx_config.step_hz;
   radio_ch_t chan = handler->radio_rx_config.channel;
-  radio_squelch_t rssi = handler->radio_rx_config.squelch;
+#if PKT_RTO_USE_SETTING == TRUE
+  radio_squelch_t rssi = handler->radio_rx_config.rssi;
+#else
+    radio_squelch_t rssi = handler->radio_rx_config.squelch;
+#endif
   radio_mod_t mod = handler->radio_rx_config.type;
   bool result = Si4464_enableReceive(radio, freq, step, chan, rssi, mod);
-  //pktLLDradioAttachStream(radio);
   return result;
 }
 
@@ -231,6 +250,33 @@ bool pktLLDradioOscUpdate(const radio_unit_t radio, xtal_osc_t freq) {
   return Si446x_updateClock(radio, freq);
 }
 
+#if PKT_RTO_USE_SETTING == TRUE
+/**
+ * TODO: The stop/restart process should be handled as an internal RM task.
+ * The TCXO update request is an outer level command (even though the RM initiates it).
+ * Then the RM should handle the pause/resume as an internal sequence.
+ */
+static void pktReceiveOscUpdate(radio_task_object_t *rt) {
+  packet_svc_t *handler = rt->handler;
+  const radio_unit_t radio = handler->radio;
+  xtal_osc_t tcxo = pktGetCurrentTCXO();
+  /* We are in a callback and have the radio locked.
+   * Apply the oscillator update.
+   */
+  (void)pktLLDradioOscUpdate(radio, tcxo);
+  pktUnlockRadio(radio, RADIO_RX);
+  handler->xtal = tcxo;
+  rt->command = PKT_RADIO_RX_START_UNLOCK;
+  pktSubmitPriorityRadioTask(radio, rt, NULL);
+  TRACE_DEBUG("RAD  > Resuming receive on radio %d", radio);
+  /*
+   * The RTO is being re-used.
+   * It will be released after the RM task is done.
+   */
+  return true;
+}
+
+#else
 /**
  *
  */
@@ -247,11 +293,8 @@ static bool pktReceiveOscUpdate(radio_task_object_t *rt) {
      */
     (void)pktLLDradioOscUpdate(radio, tcxo);
     pktUnlockRadio(radio, RADIO_RX);
+    handler->xtal = tcxo;
   }
-  /*
-   * FIXME: The update will not re-try on failed lock.
-   * xtal was already updated in the RM thread.
-   */
 
   /*
    *  Now resume receive.
@@ -261,7 +304,7 @@ static bool pktReceiveOscUpdate(radio_task_object_t *rt) {
    */
   rt->command = PKT_RADIO_RX_START;
   pktSubmitPriorityRadioTask(radio, rt, NULL);
-  TRACE_INFO("RAD  > Resuming receive on radio %d", radio);
+  TRACE_DEBUG("RAD  > Resuming receive on radio %d", radio);
 
   /*
    *  Task object passed in has been re-posted.
@@ -269,7 +312,7 @@ static bool pktReceiveOscUpdate(radio_task_object_t *rt) {
    */
   return true;
 }
-
+#endif
 /**
  * @brief   Process radio task requests.
  * @notes   Task objects posted to the queue are processed per radio.
@@ -301,7 +344,8 @@ THD_FUNCTION(pktRadioManager, arg) {
 
   const radio_unit_t radio = handler->radio;
 
-  xtal_osc_t xtal = 0;
+  /* Clear the XO frequency. */
+  handler->xtal = 0;
 
   /* Take radio out of shutdown and initialize base registers. */
   bool init = pktLLDradioInit(radio);
@@ -315,7 +359,10 @@ THD_FUNCTION(pktRadioManager, arg) {
   }
   /* Tell initiator all is OK with radio init. */
   chMsgRelease(initiator, MSG_OK);
-  /* Run until close request and no outstanding TX tasks. */
+  /*
+   * Run unless error based close request.
+   * Otherwise process tasks until closed by command.
+   */
   while(!chThdShouldTerminateX()) {
     /* Check for task requests. */
     radio_task_object_t *task_object;
@@ -325,10 +372,12 @@ THD_FUNCTION(pktRadioManager, arg) {
       /*
        * Update the radio clock if TCXO has changed.
        */
-      xtal_osc_t tcxo = pktCheckUpdatedTCXO(xtal);
+      xtal_osc_t tcxo = pktCheckUpdatedTCXO(handler->xtal);
       if(tcxo != 0) {
-        TRACE_INFO("RAD  > Sending new TCXO %d Hz to radio %d", tcxo, radio);
+        TRACE_DEBUG("RAD  > Sending new TCXO %d Hz to radio %d", tcxo, radio);
+#if PKT_RTO_USE_SETTING != TRUE
         radio_task_object_t rt = handler->radio_rx_config;
+#endif
         if(pktIsReceiveEnabled(radio)) {
           /*
            * If the radio is receiving a packet then wait (go around loop).
@@ -339,31 +388,34 @@ THD_FUNCTION(pktRadioManager, arg) {
            * Handle clock update in callback.
            */
           if(pktIsReceiveInProgress(radio)) {
-            chThdSleep(TIME_MS2I(50));
             continue;
           }
-
+#if PKT_RTO_USE_SETTING == TRUE
+          msg = pktQueuePriorityRadioCommand(radio,
+                                             PKT_RADIO_TCXO_UPDATE,
+                                            &handler->radio_rx_config,
+                                            TIME_MS2I(100),
+                                            pktReceiveOscUpdate);
+#else
           /* RX stop will process after any packet being decoded is complete. */
           rt.command = PKT_RADIO_RX_STOP;
-          msg = pktSendPriorityRadioCommand(radio, &rt, TIME_MS2I(100),
+          msg = pktQueuePriorityRadioCommand(radio, &rt, TIME_MS2I(100),
                                     pktReceiveOscUpdate);
+#endif
           if(msg == MSG_TIMEOUT) {
             /* Try again (if TCXO is still changed). */
             continue;
           }
-          /* Let other threads in. */
-          chThdSleep(TIME_MS2I(5));
         } else {
-          /* Handle TX update immediately. */
-          msg = pktLockRadio(radio, RADIO_RX, TIME_MS2I(10));
+          /* Handle radio idle case immediately. */
+          msg = pktLockRadio(radio, RADIO_RX, TIME_IMMEDIATE);
           if(msg == MSG_TIMEOUT)
             /* Try again (if TCXO is still changed). */
             continue;
           (void)pktLLDradioOscUpdate(radio, tcxo);
           pktUnlockRadio(radio, RADIO_RX);
+          handler->xtal = tcxo;
         }
-        /* Update the local TCXO value. */
-        xtal = tcxo;
       }
       continue;
     }
@@ -373,7 +425,17 @@ THD_FUNCTION(pktRadioManager, arg) {
      */
 /*    TRACE_DEBUG("RAD  > Radio task object 0x%x (%d) processing on radio %d",
                 task_object, task_object->command, radio);*/
+    radio_mod_t mod_type = MOD_NONE;
+#if PKT_RTO_USE_SETTING == TRUE
+    mod_type = task_object->radio_dat.type;
+#else
+    mod_type = task_object->type;
+#endif
     switch(task_object->command) {
+
+    case PKT_RADIO_TCXO_UPDATE:
+      continue;
+
     /**
      * Close this radio manager
      */
@@ -385,20 +447,24 @@ THD_FUNCTION(pktRadioManager, arg) {
        * TODO: Refactor what buffers, FIFOs are closed here.
        */
       if(handler->tx_count == 0 && handler->rx_count == 0) {
-        msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_MS2I(100));
+        msg_t msg = pktLockRadio(radio, RADIO_RX, TIME_MS2I(100));
         if(msg == MSG_TIMEOUT) {
           /*
-           * The radio has been locked.
-           * Wait, repost task, let the FIFO be processed and check again.
+           * The radio has not been locked.
+           * Repost task, let the FIFO be processed and check again.
            */
-          chThdSleep(PKT_RADIO_TASK_RESUBMIT_WAIT);
-          pktSubmitPriorityRadioTask(radio, task_object, task_object->callback);
+#if PKT_RTO_USE_SETTING == TRUE
+          pktSubmitRadioTask(radio, task_object, NULL);
+#else
+          pktSubmitRadioTask(radio, task_object, task_object->user_cb);
+#endif
           continue;
         } /* Else MSG_OK or MSG_RESET */
         pktLLDradioShutdown(radio);
         chFactoryReleaseObjectsFIFO(handler->the_radio_fifo);
         if(msg != MSG_RESET)
-          pktUnlockRadio(radio, RADIO_TX);
+          /* If the radio semaphore was reset then we did not get lock. */
+          pktUnlockRadio(radio, RADIO_RX);
         chThdExit(MSG_OK);
         /* We never arrive here. */
       }
@@ -408,9 +474,13 @@ THD_FUNCTION(pktRadioManager, arg) {
        * TODO: RX open should also be handled in some way?
        */
       chThdSleep(PKT_RADIO_TASK_RESUBMIT_WAIT);
-      pktSubmitPriorityRadioTask(radio, task_object, task_object->callback);
+#if PKT_RTO_USE_SETTING == TRUE
+      pktSubmitRadioTask(radio, task_object, NULL);
+#else
+      pktSubmitRadioTask(radio, task_object, task_object->user_cb);
+#endif
       continue;
-    }
+    } /* End case PKT_RADIO_MGR_CLOSE */
 
     /**
      *
@@ -429,7 +499,7 @@ THD_FUNCTION(pktRadioManager, arg) {
        pktUnlockRadio(radio, RADIO_RX);
      }
      break;
-    }
+    } /* End case PKT_RADIO_RX_RSSI */
 
     /**
      * Open a receive session ready for reception. Receive is not started.
@@ -442,16 +512,15 @@ THD_FUNCTION(pktRadioManager, arg) {
         task_object->result = MSG_ERROR;
         break;
       }
-#else
-       task_object->result = MSG_OK;
 #endif
-
+      task_object->result = MSG_OK;
       /*
        * Initialize the outstanding callback count.
        */
       handler->rx_count = 0;
       /* Switch on modulation type. */
-      switch(task_object->type) {
+
+      switch(mod_type) {
         case MOD_AFSK: {
           /* TODO: abstract this into the LLD for the radio. */
           /* Create the AFSK decoder (includes PWM, filters, etc.). */
@@ -459,7 +528,6 @@ THD_FUNCTION(pktRadioManager, arg) {
 
           /*
            *  If AFSK start failed send event.
-           *  FIXME: release packet pool.
            */
           if(driver == NULL) {
             pktIncomingBufferPoolRelease(handler);
@@ -469,6 +537,7 @@ THD_FUNCTION(pktRadioManager, arg) {
             task_object->result = MSG_ERROR;
             break;
           }
+          /* Else AFSK receive decoder started. */
           handler->rx_link_control = driver;
           handler->rx_link_type = MOD_AFSK;
           handler->rx_state = PACKET_RX_OPEN;
@@ -498,34 +567,42 @@ THD_FUNCTION(pktRadioManager, arg) {
           break;
       } /* End switch on modulation type. */
       break;
-    } /* End case PKT_RADIO_OPEN. */
+    } /* End case PKT_RADIO_RX_OPEN. */
 
     /**
      * Start receive on an open session.
      */
+    case PKT_RADIO_RX_START_UNLOCK:
+      pktUnlockRadio(radio, RADIO_RX);
     case PKT_RADIO_RX_START: {
       /* TODO: The function should switch on mod type so no need for switch here. */
 
-      switch(task_object->type) {
+      switch(mod_type) {
+
       case MOD_AFSK: {
-        msg_t msg;
-        if((msg = pktStartRadioReceive(radio, task_object,
-                                       TIME_MS2I(500))) != MSG_OK) {
-          if(msg == MSG_TIMEOUT) {
-            /*
-             * Time out waiting to lock radio.
-             * Wait, repost task, let the FIFO be processed and check again.
-             */
-            chThdSleep(PKT_RADIO_TASK_RESUBMIT_WAIT);
-            pktSubmitPriorityRadioTask(radio, task_object,
-                                       task_object->callback);
-            continue;
-          }
-          task_object->result = msg;
-          break;
-          /* Receive start failed. */
+        msg_t msg = pktStartRadioReceive(radio, task_object, TIME_MS2I(10));
+        if(msg == MSG_TIMEOUT) {
+          /*
+           * Time out waiting to lock radio.
+           * Repost task, let the FIFO be processed and check again.
+           */
+#if PKT_RTO_USE_SETTING == TRUE
+          task_object->command = PKT_RADIO_RX_START;
+          pktSubmitRadioTask(radio, task_object, NULL);
+#else
+          pktSubmitRadioTask(radio, task_object,
+                                     task_object->user_cb);
+#endif
+          continue;
         }
-        task_object->result = MSG_OK;
+        /* Get here on MSG_OK or MSG_RESET. */
+        if(msg != MSG_OK) {
+          TRACE_DEBUG("RAD  > Radio receive start on radio %d failed (%d)",
+                          radio, msg);
+        } else {
+          pktUnlockRadio(radio, RADIO_RX);
+        }
+        task_object->result = msg;
         break;
       } /* End case MOD_AFSK. */
 
@@ -551,16 +628,41 @@ THD_FUNCTION(pktRadioManager, arg) {
         break;
       } /* End switch on task_object->type. */
       break;
-    } /* End case PKT_RADIO_RX. */
+    } /* End case PKT_RADIO_RX_START. */
 
     /**
      * Stop receive. The session is left open.
      */
-    case PKT_RADIO_RX_STOP: {
-      switch(task_object->type) {
+    case PKT_RADIO_RX_STOP_LOCK: {
+
+      switch(mod_type) {
+
         case MOD_AFSK: {
-          pktStopRadioReceive(radio, task_object);
-          task_object->result = MSG_OK;
+          /*
+           *  Stop the radio reception.
+           *  If no reset or timeout the radio is left locked.
+           */
+          msg_t msg = pktStopRadioReceive(radio, TIME_MS2I(10));
+          if(msg == MSG_TIMEOUT) {
+            /*
+             * Time out waiting to lock radio.
+             * Repost task, let the FIFO be processed and check again.
+             */
+
+#if PKT_RTO_USE_SETTING == TRUE
+          pktSubmitRadioTask(radio, task_object, NULL);
+#else
+          pktSubmitRadioTask(radio, task_object,
+                                     task_object->user_cb);
+#endif
+            continue;
+          }
+          /* Get here on MSG_OK or MSG_RESET. */
+          if(msg != MSG_OK) {
+            TRACE_DEBUG("RAD  > Radio receive stop on radio %d failed (%d)",
+                            radio, msg);
+          }
+          task_object->result = msg;
           break;
         } /* End case. */
 
@@ -580,7 +682,65 @@ THD_FUNCTION(pktRadioManager, arg) {
         case MOD_CW:
           task_object->result = MSG_ERROR;
           break;
-       } /* End switch. */
+       } /* End switch on modulation type. */
+      break;
+    } /* End case PKT_RADIO_RX_STOP_LOCK. */
+
+    /**
+     * Stop receive. The session is left open.
+     */
+    case PKT_RADIO_RX_STOP: {
+
+      switch(mod_type) {
+
+        case MOD_AFSK: {
+          /*
+           *  Stop the radio reception.
+           *  If no reset or timeout the radio is left locked.
+           */
+          msg_t msg = pktStopRadioReceive(radio, TIME_MS2I(10));
+          if(msg == MSG_TIMEOUT) {
+            /*
+             * Time out waiting to lock radio.
+             * Repost task, let the FIFO be processed and check again.
+             */
+
+#if PKT_RTO_USE_SETTING == TRUE
+          pktSubmitRadioTask(radio, task_object, NULL);
+#else
+          pktSubmitRadioTask(radio, task_object,
+                                     task_object->user_cb);
+#endif
+            continue;
+          }
+          /* Get here on MSG_OK or MSG_RESET. */
+          if(msg != MSG_OK) {
+            TRACE_DEBUG("RAD  > Radio receive stop on radio %d failed (%d)",
+                            radio, msg);
+          } else {
+            pktUnlockRadio(radio, RADIO_RX);
+          }
+          task_object->result = msg;
+          break;
+        } /* End case. */
+
+        case MOD_NONE:
+        case MOD_2FSK_300:
+        case MOD_2FSK_9k6:
+        case MOD_2FSK_19k2:
+        case MOD_2FSK_38k4:
+        case MOD_2FSK_57k6:
+        case MOD_2FSK_76k8:
+        case MOD_2FSK_96k:
+        case MOD_2FSK_115k2: {
+          task_object->result = MSG_ERROR;
+          break;
+        }
+
+        case MOD_CW:
+          task_object->result = MSG_ERROR;
+          break;
+       } /* End switch on modulation type. */
       break;
     } /* End case PKT_RADIO_RX_STOP. */
 
@@ -592,12 +752,15 @@ THD_FUNCTION(pktRadioManager, arg) {
       /*
        * Queue transmission.
        * This is non blocking as each radio send runs in a thread.
+       * The transmit task on the radio is responsible for pausing receive.
+       * This is done with pktSetReceiveInactive() once the TX task starts.
+       * The pause will wait for in-progress receive to complete or timeout.
        */
       if(pktLLDradioSendPacket(task_object)) {
 
         /*
          * Keep count of active sends.
-         * Shutdown or resume receive when all done.
+         * Shutdown or resume receive is handled in TX terminate when all done.
          */
         handler->tx_count++;
 
@@ -608,14 +771,22 @@ THD_FUNCTION(pktRadioManager, arg) {
         continue;
       }
       /*
-       *  Send queing failed so release send packet object(s) and task object.
+       *  Send queueing failed.
+       *  Release send packet object(s) and task object.
+       *  The callback (if set) will get the result in RTO->result.
+       *
        *  Actual result of transmit will be returned by radio.
+       *  TODO: Delineate between failed submit and failed TX.
        */
+#if PKT_RTO_USE_SETTING == TRUE
+      packet_t pp = task_object->radio_dat.packet_out;
+#else
       packet_t pp = task_object->packet_out;
+#endif
       pktReleaseBufferChain(pp);
       task_object->result = MSG_ERROR;
       break;
-    } /* End case PKT_RADIO_TX_SEND. */
+      } /* End case PKT_RADIO_TX_SEND. */
 
     /**
      * Close the receive session.
@@ -630,27 +801,60 @@ THD_FUNCTION(pktRadioManager, arg) {
          * Wait, repost task, let the FIFO be processed and check again.
          */
         chThdSleep(PKT_RADIO_TASK_RESUBMIT_WAIT);
-        pktSubmitPriorityRadioTask(radio, task_object, task_object->callback);
+#if PKT_RTO_USE_SETTING == TRUE
+          pktSubmitRadioTask(radio, task_object, NULL);
+#else
+          pktSubmitRadioTask(radio, task_object,
+                                     task_object->user_cb);
+#endif
         continue;
       }
 
-      switch(task_object->type) {
+      switch(mod_type) {
+
       case MOD_AFSK: {
         /* Stop receive. */
-        pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
-        pktLLDradioStopReceive(radio);
-        pktUnlockRadio(radio, RADIO_TX);
+        msg_t msg = pktLockRadio(radio, RADIO_RX, TIME_MS2I(100));
+        if(msg == MSG_TIMEOUT) {
+          /*
+           * Time out waiting to lock radio.
+           * Wait, repost task, let the FIFO be processed and check again.
+           */
+#if PKT_RTO_USE_SETTING == TRUE
+          pktSubmitRadioTask(radio, task_object, NULL);
+#else
+          pktSubmitRadioTask(radio, task_object,
+                                     task_object->user_cb);
+#endif
+          continue;
+        }
+
         /* TODO: This should be a function back in pktservice or rxafsk. */
         esp = pktGetEventSource((AFSKDemodDriver *)handler->rx_link_control);
         pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_CLOSE_EXEC);
         decoder = ((AFSKDemodDriver *)(handler->rx_link_control))->decoder_thd;
 
-        /* TODO: Check that decoder will release in WAIT state.
-         * Send event to release AFSK resources and terminate thread.
-         */
+        /* Send event to release AFSK resources and terminate thread. */
         chEvtSignal(decoder, DEC_COMMAND_CLOSE);
+
+        /* Wait for the decoder to stop. */
+        eventflags_t evt;
+        do {
+          chEvtWaitAny(USR_COMMAND_ACK);
+
+          /* Wait for correct event at source.
+           */
+          evt = chEvtGetAndClearFlags(&el);
+        } while (evt != DEC_CLOSE_EXEC);
+        pktUnregisterEventListener(esp, &el);
+
+        /*
+         *  Release decoder thread heap when it terminates.
+         */
+        chThdWait(decoder);
         task_object->result = MSG_OK;
-        /* Then release common services and thread heap. */
+        pktLLDradioStopReceive(radio);
+        pktUnlockRadio(radio, RADIO_RX);
         break;
         }
 
@@ -675,25 +879,10 @@ THD_FUNCTION(pktRadioManager, arg) {
         task_object->result = MSG_ERROR;
         break;
       } /* End switch on link_type. */
-      if(decoder == NULL)
-        /* No decoder processed. */
+
+      /* If an invalid mod type just get out. */
+      if(task_object->result == MSG_ERROR)
         break;
-
-      /* Wait for the decoder to stop. */
-      eventflags_t evt;
-      do {
-        chEvtWaitAny(USR_COMMAND_ACK);
-
-        /* Wait for correct event at source.
-         */
-        evt = chEvtGetAndClearFlags(&el);
-      } while (evt != DEC_CLOSE_EXEC);
-      pktUnregisterEventListener(esp, &el);
-
-      /*
-       *  Release decoder thread heap when it terminates.
-       */
-      chThdWait(decoder);
 #if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
       /*
        * Release packet services.
@@ -702,14 +891,15 @@ THD_FUNCTION(pktRadioManager, arg) {
       pktIncomingBufferPoolRelease(handler);
 #endif
       handler->rx_state = PACKET_RX_IDLE;
+#if 0
       /*
-       * Signal close completed for this session.
-       * Any new open queued for this radio object will be readied.
+       * Signal receive close completed for this session.
+       * Any new receive open queued for this radio object will be readied.
        */
       chBSemSignal(&handler->close_sem);
-      task_object->result = MSG_OK;
+#endif
       break;
-      } /*end case close. */
+      } /* End case PKT_RADIO_RX_CLOSE. */
 
     case PKT_RADIO_TX_DONE: {
       /* Get thread exit code and free memory. */
@@ -730,39 +920,72 @@ THD_FUNCTION(pktRadioManager, arg) {
           /*
            *  Reconfigure radio for packet receive.
            *  Resume packet stream capture.
+           *  TODO: Create new resume RX task that can be re-submitted
            */
           if(!pktLLDradioResumeReceive(radio)) {
             TRACE_ERROR("RAD  > Receive on radio %d failed to "
                 "resume after transmit", radio);
             break;
           }
-          /* Resume receive packet stream. */
-          pktEnableRadioStream(radio);
+          /*
+           * Resume receive packet stream.
+           * TODO: Switch on mod type here or in pktEnableRadioStream() */
+          if(mod_type == MOD_AFSK)
+            pktEnableRadioStream(radio);
         } else {
-          /* Enter standby state (low power). */
-          TRACE_INFO("RAD  > Radio %d entering standby", radio);
-          send_msg = pktLockRadio(radio, RADIO_TX, TIME_MS2I(100));
+          /*
+           * Enter standby state (low power).
+           * TOD: Create new standby task that can be re-submitted.
+           */
+          TRACE_DEBUG("RAD  > Radio %d entering standby", radio);
+          send_msg = pktLockRadio(radio, RADIO_RX, TIME_IMMEDIATE);
           if(send_msg != MSG_OK)
             break;
           pktLLDradioStandby(radio);
-          pktUnlockRadio(radio, RADIO_TX);
-        }
-      } /* Else more TX tasks outstanding so don't resume receive yet. */
+          pktUnlockRadio(radio, RADIO_RX);
+        } /* Receive is not enabled. */
+      } /* Else more TX tasks outstanding so don't check receive yet. */
       /* Execute any callback then release the RTO. */
       break;
     } /* End case PKT_RADIO_TX_DONE */
 
     } /* End switch on RTO command. */
 
+#if PKT_RTO_USE_SETTING == TRUE
+    /* Perform radio manager callback if specified. */
+    if(task_object->mgr_cb != NULL) {
+      /*
+       * Perform the callback.
+       * The callback should be brief and non-blocking (no spinning hard loops).
+       * The callback returns true if more internal RM processing is required.
+       * If so then continue with this RTO for internal processing.
+       */
+      if(task_object->mgr_cb(task_object))
+        /* Another RM callback has been set by the CB.
+         * Go around again.
+         */
+        continue;
+    }
     /* Perform radio task callback if specified. */
-    if(task_object->callback != NULL) {
+    if(task_object->user_cb != NULL) {
+      /*
+       * Perform the callback.
+       * The callback should be brief and non-blocking (no spinning hard loops).
+       */
+      task_object->user_cb(task_object);
+    }
+    /* Return task object to free list. */
+    chFifoReturnObject(radio_queue, (radio_task_object_t *)task_object);
+#else
+    /* Perform radio task callback if specified. */
+    if(task_object->user_cb != NULL) {
       /*
        * Perform the callback.
        * The callback should be brief and non-blocking (no spinning hard loops).
        * The callback returns true if it has re-used the RT object.
        * If not then the object is freed now.
        */
-      if(task_object->callback(task_object))
+      if(task_object->user_cb(task_object))
         /* Task object has been re-used.
          * Don't return radio task object to free list.
          */
@@ -772,10 +995,11 @@ THD_FUNCTION(pktRadioManager, arg) {
     chFifoReturnObject(radio_queue, (radio_task_object_t *)task_object);
 /*    TRACE_DEBUG("RAD  > Radio task object 0x%x (%d) freed on radio %d",
                 task_object, task_object->command, radio);*/
+#endif
   } /* End while. */
   /*
    *  The loop is terminated if the thread terminate request is set.
-   *  This method of termination is used for error conditions only.
+   *  This method of termination is used for init error conditions only.
    */
   chThdExit(MSG_ERROR);
 }
@@ -877,10 +1101,20 @@ msg_t pktRadioManagerRelease(const radio_unit_t radio) {
    * The radio manager thread will terminate.
    * The FIFO is released in the manager thread before terminating.
    */
+#if PKT_RTO_USE_SETTING == TRUE
+  msg_t msg = pktQueueRadioCommand(radio,
+                      PKT_RADIO_MGR_CLOSE,
+                      NULL,
+                      TIME_INFINITE,
+                      NULL);
+  if(msg != MSG_OK)
+    return msg;
+#else
   radio_task_object_t *rto = NULL;
   (void)pktGetRadioTaskObject(radio, TIME_INFINITE, &rto);
   rto->command = PKT_RADIO_MGR_CLOSE;
   pktSubmitRadioTask(radio, rto, NULL);
+#endif
   return chThdWait(handler->radio_manager);
 }
 
@@ -904,18 +1138,15 @@ msg_t pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto,
                           sysinterval_t timeout) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  /* Hold any transmit requests. */
+  /* Hold any radio requests. */
   msg_t msg;
-  if((msg = pktLockRadio(radio, RADIO_TX, timeout)) != MSG_OK) {
-    TRACE_WARN("RAD  > Timeout or reset waiting to lock radio %d for receive start",
-                radio);
+  if((msg = pktLockRadio(radio, RADIO_RX, timeout)) != MSG_OK) {
     return msg;
   }
 
   /* Configure receive. */
   if(!pktLLDradioStartReceive(radio, rto)) {
-    TRACE_ERROR("RAD  > Receive on radio %d failed to start", radio);
-    pktUnlockRadio(radio, RADIO_TX);
+    pktUnlockRadio(radio, RADIO_RX);
     return MSG_ERROR;
   }
 
@@ -927,16 +1158,18 @@ msg_t pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto,
 
   /* Unlock radio and allow transmit requests. */
   handler->rx_state = PACKET_RX_ENABLED;
-  pktUnlockRadio(radio, RADIO_TX);
+  //pktUnlockRadio(radio, RADIO_RX);
   return MSG_OK;
 }
 
 /**
  * @brief   Stop radio receive.
  * @pre     The packet service is open and with receive chain active.
+ * @post    If the radio was successfully locked it is left locked.
  *
  * @param[in]   radio   radio unit ID.
- * @param[in]   rto     pointer to radio task object
+ * @param[in]   timeout wait time for radio lock
+ * @param[in]   unlock  true if radio should be unlocked before returning
  *
  * @return  Status of operation
  * @retval  MSG_OK      if receive was stopped
@@ -946,18 +1179,16 @@ msg_t pktStartRadioReceive(const radio_unit_t radio, radio_task_object_t *rto,
  *
  * @api
  */
-msg_t pktStopRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
-  (void)rto;
+msg_t pktStopRadioReceive(const radio_unit_t radio,
+                          sysinterval_t timeout) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   /* Hold any transmit requests. */
-  msg_t msg;
-  if((msg = pktLockRadio(radio, RADIO_TX, TIME_INFINITE)) != MSG_OK) {
-    TRACE_ERROR("RAD  > Unable to lock radio %d prior to receive stop", radio);
+  msg_t msg = pktLockRadio(radio, RADIO_RX, timeout);
+  if(msg != MSG_OK)
     return msg;
-  }
   pktRadioStopDecoder(radio);
   handler->rx_state = PACKET_RX_OPEN;
-  pktUnlockRadio(radio, RADIO_TX);
+  //pktUnlockRadio(radio, RADIO_RX);
   return MSG_OK;
 }
 
@@ -976,6 +1207,9 @@ msg_t pktStopRadioReceive(const radio_unit_t radio, radio_task_object_t *rto) {
  * @iclass
  */
 msg_t pktGetRadioTaskObjectI(const radio_unit_t radio,
+#if PKT_RTO_USE_SETTING == TRUE
+                            const radio_params_t *set,
+#endif
                             radio_task_object_t **rt) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
@@ -992,8 +1226,15 @@ msg_t pktGetRadioTaskObjectI(const radio_unit_t radio,
     /* No object available. */
     return MSG_TIMEOUT;
   }
+  /* Clear the object then add base data. */
+  memset(*rt, 0, sizeof(radio_task_object_t));
   (*rt)->handler = handler;
   (*rt)->result = MSG_OK;
+#if PKT_RTO_USE_SETTING == TRUE
+  (*rt)->mgr_cb = NULL;
+  if(set != NULL)
+    (*rt)->radio_dat = *set;
+#endif
   return MSG_OK;
 }
 
@@ -1010,7 +1251,11 @@ msg_t pktGetRadioTaskObjectI(const radio_unit_t radio,
  */
 void pktSubmitPriorityRadioTaskI(const radio_unit_t radio,
                          radio_task_object_t *object,
+#if PKT_RTO_USE_SETTING == TRUE
+                         const radio_mgr_cb_t cb) {
+#else
                          const radio_task_cb_t cb) {
+#endif
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -1022,9 +1267,14 @@ void pktSubmitPriorityRadioTaskI(const radio_unit_t radio,
 
   /* Populate the object with information from request. */
 
-  object->handler = handler;
-  object->callback = cb;
 
+#if PKT_RTO_USE_SETTING == TRUE
+  object->mgr_cb = cb;
+  /* The user CB is set when the RTO is created. */
+#else
+  //object->handler = handler; // TODO: Deprecate
+  object->user_cb = cb;
+#endif
   /*
    * Submit the task to the queue.
    * The task thread will process the request.
@@ -1050,6 +1300,9 @@ void pktSubmitPriorityRadioTaskI(const radio_unit_t radio,
  */
 msg_t pktGetRadioTaskObject(const radio_unit_t radio,
                             const sysinterval_t timeout,
+#if PKT_RTO_USE_SETTING == TRUE
+                            const radio_params_t *rp,
+#endif
                             radio_task_object_t **rt) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
@@ -1072,15 +1325,23 @@ msg_t pktGetRadioTaskObject(const radio_unit_t radio,
 
   if(*rt == NULL) {
     /* Timeout waiting for object. */
-    /* Release find reference to the FIFO (decrease reference count). */
 #if 0
+    /* Release find reference to the FIFO (decrease reference count). */
     chFactoryReleaseObjectsFIFO(task_fifo);
 #endif
     return MSG_TIMEOUT;
   }
-  /* TODO: deprecate? */
+  /* Clear the object then add base data. */
+  memset(*rt, 0, sizeof(radio_task_object_t));
+  /* Set defaults in RT object. */
   (*rt)->handler = handler;
   (*rt)->result = MSG_OK;
+#if PKT_RTO_USE_SETTING == TRUE
+  (*rt)->mgr_cb = NULL;
+  if(rp != NULL)
+    (*rt)->radio_dat = *rp;
+#endif
+
   return MSG_OK;
 }
 
@@ -1096,7 +1357,11 @@ msg_t pktGetRadioTaskObject(const radio_unit_t radio,
  */
 void pktSubmitRadioTask(const radio_unit_t radio,
                          radio_task_object_t *object,
+#if PKT_RTO_USE_SETTING == TRUE
+                         const radio_mgr_cb_t cb) {
+#else
                          const radio_task_cb_t cb) {
+#endif
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -1108,14 +1373,18 @@ void pktSubmitRadioTask(const radio_unit_t radio,
 
   /* Update object information. */
 
-  object->handler = handler;
-  object->callback = cb;
-
+  //object->handler = handler; // TODO: Deprecate
+#if PKT_RTO_USE_SETTING == TRUE
+  object->mgr_cb = cb;
+#else
+  object->user_cb = cb;
+#endif
   /*
    * Submit the task to the queue.
    * The task thread will process the request.
    * If a callback is specified it is called.
-   * After callback the task object is returned to the free list if the callback is not re-posting.
+   * After callback the task object is re-used or returned to the free list.
+   * The callback returns true id the RTO is re-used and a new task is set.
    */
   chFifoSendObject(task_queue, object);
 }
@@ -1132,7 +1401,11 @@ void pktSubmitRadioTask(const radio_unit_t radio,
  */
 void pktSubmitPriorityRadioTask(const radio_unit_t radio,
                          radio_task_object_t *object,
+#if PKT_RTO_USE_SETTING == TRUE
+                         const radio_mgr_cb_t cb) {
+#else
                          const radio_task_cb_t cb) {
+#endif
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
@@ -1144,8 +1417,12 @@ void pktSubmitPriorityRadioTask(const radio_unit_t radio,
 
   /* Populate the object with information from request. */
 
-  object->handler = handler;
-  object->callback = cb;
+  //object->handler = handler; // TODO: Deprecate
+#if PKT_RTO_USE_SETTING == TRUE
+  object->mgr_cb = cb;
+#else
+  object->user_cb = cb;
+#endif
 
   /*
    * Submit the task to the head of the queue.
@@ -1160,7 +1437,7 @@ void pktSubmitPriorityRadioTask(const radio_unit_t radio,
  * @brief   Lock radio.
  * @notes   Used to lock radio when...
  * @notes   a) transmitting or
- * @notes   b) making changes where transmit should be blocked.
+ * @notes   b) making changes to radio configuration.
  * @pre     Receive should be paused by calling routine if it is active.
  *
  * @param[in] radio     radio unit ID.
@@ -1293,7 +1570,7 @@ uint8_t pktGetNumRadios(void) {
  *
  * @api
  */
-int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
+int pktDisplayFrequencyCode(const radio_freq_hz_t code, char *buf, size_t size) {
   char* str = NULL;
   switch(code) {
   case FREQ_INVALID:
@@ -1352,7 +1629,7 @@ int pktDisplayFrequencyCode(const radio_freq_t code, char *buf, size_t size) {
  *
  * @api
  */
-radio_freq_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
+radio_freq_hz_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
 
   /* Check the system default. */
   radio_band_t *band = pktCheckAllowedFrequency(radio, conf_sram.freq);
@@ -1390,9 +1667,9 @@ radio_freq_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
  *
  * @notapi
  */
-radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
+radio_freq_hz_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  radio_freq_t op_freq;
+  radio_freq_hz_t op_freq;
   if(pktIsReceiveEnabled(radio)) {
     if(handler->radio_rx_config.base_frequency < FREQ_CODES_END)
       /* Frequency code. */
@@ -1421,7 +1698,7 @@ radio_freq_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
  * @api
  */
 radio_band_t *pktCheckAllowedFrequency(const radio_unit_t radio,
-                                      const radio_freq_t freq) {
+                                      const radio_freq_hz_t freq) {
   /* Check validity. */
   uint8_t radios = pktGetNumRadios();
   const radio_config_t *list = pktGetRadioList();
@@ -1457,15 +1734,15 @@ radio_band_t *pktCheckAllowedFrequency(const radio_unit_t radio,
  *
  * @api
  */
-radio_unit_t pktSelectRadioForFrequency(const radio_freq_t freq,
-                                        const channel_hz_t step,
+radio_unit_t pktSelectRadioForFrequency(const radio_freq_hz_t freq,
+                                        const radio_chan_hz_t step,
                                         const radio_ch_t chan,
                                         const radio_mode_t mode) {
   /* Check for a radio able to operate on the resolved frequency. */
   const radio_config_t *radio_data = pktGetRadioList();
   while(radio_data->unit != PKT_RADIO_NONE) {
     /* Resolve any special codes. */
-    radio_freq_t op_freq = pktComputeOperatingFrequency(radio_data->unit,
+    radio_freq_hz_t op_freq = pktComputeOperatingFrequency(radio_data->unit,
                                                         freq,
                                                         step,
                                                         chan,
@@ -1535,6 +1812,7 @@ bool pktLookupModParameters(const radio_unit_t radio, mod_params_t *mp) {
  * @retval  MSG_OK          receive was not active.
  * @retval  MSG_TIMEOUT     receive completed during allowed timeout.
  * @retval  MSG_RESET       receive was stopped as it did not cease within t/o.
+ * @retval  MSG_ERROR       invalid receive modulation.
  *
  * @api
  */
@@ -1542,39 +1820,56 @@ msg_t pktSetReceiveInactive(const radio_unit_t radio, sysinterval_t timeout) {
   msg_t msg = MSG_OK;
   if(pktIsReceiveEnabled(radio)) {
     if(pktIsReceiveInProgress(radio)) {
-      if(timeout != TIME_IMMEDIATE) {
-        packet_svc_t *handler = pktGetServiceObject(radio);
-        event_source_t *esp = pktGetEventSource((packet_svc_t *)handler);
-        /* Register for EVT_PWM_STREAM_CLOSE event. */
-        event_listener_t el;
-        pktRegisterEventListener(esp, &el, GTE_RECEIVE_INACTIVE,
-                                 EVT_RAD_STREAM_CLOSE);
-        systime_t start = chVTGetSystemTime();
-        if(chEvtWaitAnyTimeout(GTE_RECEIVE_INACTIVE, timeout) == 0) {
-          msg = MSG_RESET;
-          TRACE_INFO("RAD  > Timed out in %d ms waiting for in progress receive",
-                     chTimeI2MS(timeout));
-        } else {
-          systime_t end = chVTGetSystemTime();
-          TRACE_INFO("RAD  > Waited %d ms for in progress receive",
-                     chTimeI2MS(end - start));
-          msg = MSG_TIMEOUT;
-        }
-        pktUnregisterEventListener(esp, &el);
-      } else {
-        msg = MSG_RESET;
-        TRACE_INFO("RAD  > Stopping in progress receive immediately");
-      }
-      /*
-       * Stop transport layer stream data.
-       * The decoder will process buffered data from the radio.
-       * If the frame is incomplete the decoder will see an in-stream stop message.
-       * In that case the packet is dropped and the decoder resets.
-       * Otherwise the decoder can continue processing a complete buffered packet.
-       */
-      pktDisableRadioStream(radio);
-    }
-  }
+      packet_svc_t *handler = pktGetServiceObject(radio);
+
+      /* TODO: Put below in a function. */
+      switch(handler->rx_link_type) {
+      case MOD_AFSK: {
+        if(timeout != TIME_IMMEDIATE) {
+          event_source_t *esp = pktGetEventSource((packet_svc_t *)handler);
+          /* Register for EVT_PWM_STREAM_CLOSE event. */
+          event_listener_t el;
+          pktRegisterEventListener(esp, &el, GTE_RECEIVE_INACTIVE,
+                                   EVT_RAD_STREAM_CLOSE);
+          systime_t start = chVTGetSystemTime();
+          if(chEvtWaitAnyTimeout(GTE_RECEIVE_INACTIVE, timeout) == 0) {
+            msg = MSG_RESET;
+            TRACE_DEBUG("RAD  > Timed out in %d ms waiting for in progress receive",
+                       chTimeI2MS(timeout));
+          } else {
+            systime_t end = chVTGetSystemTime();
+            TRACE_DEBUG("RAD  > Waited %d ms for in progress receive",
+                       chTimeI2MS(end - start));
+            msg = MSG_TIMEOUT;
+          }
+          pktUnregisterEventListener(esp, &el);
+        } /* End test on timeout. */
+        /*
+         * Stop transport layer stream data.
+         * The decoder will process buffered data from the radio.
+         * If the frame is incomplete the decoder will see an in-stream stop message.
+         * In that case the packet is dropped and the decoder resets.
+         * Otherwise the decoder can complete processing of a buffered packet.
+         */
+        pktDisableRadioStream(radio);
+        return msg;
+      } /* End case MOD_AFSK. */
+
+      case MOD_NONE:
+      case MOD_CW:
+      case MOD_2FSK_300:
+      case MOD_2FSK_9k6:
+      case MOD_2FSK_19k2:
+      case MOD_2FSK_38k4:
+      case MOD_2FSK_57k6:
+      case MOD_2FSK_76k8:
+      case MOD_2FSK_96k:
+      case MOD_2FSK_115k2:
+        msg = MSG_ERROR;
+        break;
+      } /* End switch on mod type. */
+    } /* End test on receive in progress. */
+  } /* End test of receive enabled. */
   return msg;
 }
 
@@ -1594,14 +1889,14 @@ msg_t pktSetReceiveInactive(const radio_unit_t radio, sysinterval_t timeout) {
  *
  * @api
  */
-radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
-                                          radio_freq_t base_freq,
-                                          channel_hz_t step,
+radio_freq_hz_t pktComputeOperatingFrequency(const radio_unit_t radio,
+                                          radio_freq_hz_t base_freq,
+                                          radio_chan_hz_t step,
                                           radio_ch_t chan,
                                           const radio_mode_t mode) {
 
   if((base_freq == FREQ_RX_APRS || base_freq == FREQ_SCAN)
-                   && (mode == RADIO_TX || mode == RADIO_ALL)) {
+                   && mode == RADIO_TX) {
     /* Get current RX frequency (or default) and use that. */
     step = 0;
     chan = 0;
@@ -1630,7 +1925,7 @@ radio_freq_t pktComputeOperatingFrequency(const radio_unit_t radio,
   }
 
   /* Calculate operating frequency. */
-  radio_freq_t op_freq = base_freq + (step * chan);
+  radio_freq_hz_t op_freq = base_freq + (step * chan);
 
   if(pktCheckAllowedFrequency(radio, op_freq) != NULL) {
     return op_freq;
@@ -1660,8 +1955,13 @@ void pktRadioSendComplete(radio_task_object_t *rto, thread_t *thread) {
    */
   rto->command = PKT_RADIO_TX_DONE;
   rto->thread = thread;
+#if  PKT_RTO_USE_SETTING == TRUE
   /* Submit guaranteed to succeed by design. */
-  pktSubmitPriorityRadioTask(radio, rto, rto->callback);
+  pktSubmitPriorityRadioTask(radio, rto, NULL);
+#else
+  /* Submit guaranteed to succeed by design. */
+  pktSubmitPriorityRadioTask(radio, rto, rto->user_cb);
+#endif
 }
 
 /**
@@ -1692,6 +1992,7 @@ void pktRadioStopDecoder(const radio_unit_t radio) {
    * - Then call VMT dispatcher inside radio driver.
    */
   pktStopDecoder(radio);
+  pktLLDradioStandby(radio);
 }
 
 /**

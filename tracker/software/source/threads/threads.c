@@ -51,7 +51,7 @@ void start_user_threads(void) {
     }
 
 	if(conf_sram.aprs.rx.svc_conf.active) {
-	  start_aprs_threads(&conf_sram.aprs, PKT_RCV_PRI_THD_NAME);
+	  pktStartAPRSthreads(&conf_sram.aprs, PKT_RCV_PRI_THD_NAME);
 	}
 }
 

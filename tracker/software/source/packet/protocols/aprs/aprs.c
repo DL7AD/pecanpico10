@@ -609,7 +609,7 @@ msg_t aprs_send_aprsd_message(aprs_identity_t *id,
     TRACE_WARN("TX   > APRSD: No free packet objects or badly formed message");
     return MSG_ERROR;
   }
-  if(!transmitOnRadio(pp,
+  if(!pktTransmitOnRadio(pp,
                   id->freq,
                   0,
                   0,
@@ -655,14 +655,14 @@ msg_t aprs_send_aprsh_message(aprs_identity_t *id,
                        "%s not heard", argv[0]);
     }
   }
-  TRACE_INFO("TX   > APRSH response: %s", buf);
+  TRACE_DEBUG("TX   > APRSH response: %s", buf);
   packet_t pp = aprs_format_transmit_message(id->call, id->path, id->src,
                                              buf, false);
   if(pp == NULL) {
     TRACE_WARN("TX   > APRSH: No free packet objects or badly formed message");
     return MSG_ERROR;
   }
-  if(!transmitOnRadio(pp,
+  if(!pktTransmitOnRadio(pp,
                   id->freq,
                   0,
                   0,
@@ -697,42 +697,42 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
 
   /* TODO: WIP to generalize by parsing out the port # and operation. */
   if(!strcmp(argv[0], "io1:1")) {
-    TRACE_INFO("PKT  > Message: GPIO set IO1 HIGH");
+    TRACE_MON("PKT  > Message: GPIO set IO1 HIGH");
     pktSetGPIOlineMode(LINE_IO1, PAL_MODE_OUTPUT_PUSHPULL);
     pktWriteGPIOline(LINE_IO1, PAL_HIGH);
     return MSG_OK;
   }
 
   if(!strcmp(argv[0], "io1:0")) {
-    TRACE_INFO("PKT  > Message: GPIO set IO1 LOW");
+    TRACE_MON("PKT  > Message: GPIO set IO1 LOW");
     pktSetGPIOlineMode(LINE_IO1, PAL_MODE_OUTPUT_PUSHPULL);
     pktWriteGPIOline(LINE_IO1, PAL_LOW);
     return MSG_OK;
   }
 
   if(!strcmp(argv[0], "io2:1")) {
-    TRACE_INFO("PKT  > Message: GPIO set IO2 HIGH");
+    TRACE_MON("PKT  > Message: GPIO set IO2 HIGH");
     pktSetGPIOlineMode(LINE_IO2, PAL_MODE_OUTPUT_PUSHPULL);
     pktWriteGPIOline(LINE_IO2, PAL_HIGH);
     return MSG_OK;
   }
 
   if(!strcmp(argv[0], "io2:0")) {
-    TRACE_INFO("PKT  > Message: GPIO set IO2 LOW");
+    TRACE_MON("PKT  > Message: GPIO set IO2 LOW");
     pktSetGPIOlineMode(LINE_IO2, PAL_MODE_OUTPUT_PUSHPULL);
     pktWriteGPIOline(LINE_IO2, PAL_LOW);
     return MSG_OK;
   }
 
   if(!strcmp(argv[0], "io3:1")) {
-    TRACE_INFO("PKT  > Message: GPIO set IO3 HIGH");
+    TRACE_MON("PKT  > Message: GPIO set IO3 HIGH");
     pktSetGPIOlineMode(LINE_IO3, PAL_MODE_OUTPUT_PUSHPULL);
     pktWriteGPIOline(LINE_IO3, PAL_HIGH);
     return MSG_OK;
   }
 
   if(!strcmp(argv[0], "io3:0")) {
-    TRACE_INFO("PKT  > Message: GPIO set IO3 LOW");
+    TRACE_MON("PKT  > Message: GPIO set IO3 LOW");
     pktSetGPIOlineMode(LINE_IO3, PAL_MODE_OUTPUT_PUSHPULL);
     pktWriteGPIOline(LINE_IO3, PAL_LOW);
     return MSG_OK;
@@ -740,14 +740,14 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
 
 
   if(!strcmp(argv[0], "io4:1")) {
-    TRACE_INFO("PKT  > Message: GPIO set IO4 HIGH");
+    TRACE_MON("PKT  > Message: GPIO set IO4 HIGH");
     pktSetGPIOlineMode(LINE_IO4, PAL_MODE_OUTPUT_PUSHPULL);
     pktWriteGPIOline(LINE_IO4, PAL_HIGH);
     return MSG_OK;
   }
 
   if(!strcmp(argv[0], "io4:0")) {
-    TRACE_INFO("PKT  > Message: GPIO set IO4 LOW");
+    TRACE_MON("PKT  > Message: GPIO set IO4 LOW");
     pktSetGPIOlineMode(LINE_IO4, PAL_MODE_OUTPUT_PUSHPULL);
     pktWriteGPIOline(LINE_IO4, PAL_LOW);
     return MSG_OK;
@@ -762,7 +762,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
       chsnprintf(buf, sizeof(buf),
                      "IO1 is %s ",
                      (pktReadGPIOline(LINE_IO1) == PAL_HIGH) ? "HIGH" : "LOW");
-      TRACE_INFO("PKT  > Message: GPIO query IO1 is %s",
+      TRACE_MON("PKT  > Message: GPIO query IO1 is %s",
                  (pktReadGPIOline(LINE_IO1) == PAL_HIGH) ? "HIGH" : "LOW");
       pp = aprs_format_transmit_message(id->call, id->path, id->src, buf, false);
       if(pp == NULL) {
@@ -778,7 +778,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
       chsnprintf(buf, sizeof(buf),
                      "IO2 is %s ",
                      (pktReadGPIOline(LINE_IO2) == PAL_HIGH) ? "HIGH" : "LOW");
-      TRACE_INFO("PKT  > Message: GPIO query IO2 is %s",
+      TRACE_MON("PKT  > Message: GPIO query IO2 is %s",
                  (pktReadGPIOline(LINE_IO2) == PAL_HIGH) ? "HIGH" : "LOW");
       pp = aprs_format_transmit_message(id->call, id->path, id->src, buf, false);
       if(pp == NULL) {
@@ -794,7 +794,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
       chsnprintf(buf, sizeof(buf),
                      "IO3 is %s ",
                      (pktReadGPIOline(LINE_IO3) == PAL_HIGH) ? "HIGH" : "LOW");
-      TRACE_INFO("PKT  > Message: GPIO query IO3 is %s",
+      TRACE_MON("PKT  > Message: GPIO query IO3 is %s",
                  (pktReadGPIOline(LINE_IO3) == PAL_HIGH) ? "HIGH" : "LOW");
       pp = aprs_format_transmit_message(id->call, id->path, id->src, buf, false);
       if(pp == NULL) {
@@ -810,7 +810,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
       chsnprintf(buf, sizeof(buf),
                      "IO4 is %s ",
                      (pktReadGPIOline(LINE_IO4) == PAL_HIGH) ? "HIGH" : "LOW");
-      TRACE_INFO("PKT  > Message: GPIO query IO4 is %s",
+      TRACE_MON("PKT  > Message: GPIO query IO4 is %s",
                  (pktReadGPIOline(LINE_IO4) == PAL_HIGH) ? "HIGH" : "LOW");
       pp = aprs_format_transmit_message(id->call, id->path, id->src, buf, false);
       if(pp == NULL) {
@@ -823,7 +823,7 @@ msg_t aprs_execute_gpio_command(aprs_identity_t *id,
     return MSG_ERROR;
 
   } while(true);
-  if(!transmitOnRadio(pp,
+  if(!pktTransmitOnRadio(pp,
               id->freq,
               0,
               0,
@@ -894,7 +894,7 @@ msg_t aprs_execute_system_reset(aprs_identity_t *id,
   if(argc != 0)
     return MSG_ERROR;
 
-  TRACE_INFO("PKT  > Message: System Reset");
+  TRACE_MON("PKT  > Message: System Reset");
   char buf[16];
   chsnprintf(buf, sizeof(buf), "ack%s", id->num);
   packet_t pp = aprs_format_transmit_message(id->call,
@@ -904,7 +904,7 @@ msg_t aprs_execute_system_reset(aprs_identity_t *id,
     TRACE_WARN("PKT  > No free packet objects");
     return MSG_ERROR;
   }
-  transmitOnRadio(pp,
+  pktTransmitOnRadio(pp,
                   id->freq,
                   0,
                   0,
@@ -942,8 +942,8 @@ msg_t aprs_execute_config_command(aprs_identity_t *id,
                 strlen(command_list[i].name))) {
 
       /* Parameter being changed is in argv[0], new value is in argv[1]. */
-      TRACE_INFO("PKT  > Message: Configuration Command");
-      TRACE_INFO("PKT  > %s => %s", argv[1], argv[1]);
+      TRACE_MON("PKT  > Message: Configuration Command");
+      TRACE_MON("PKT  > %s => %s", argv[1], argv[1]);
 
       if(command_list[i].type == TYPE_INT
           && command_list[i].size == 1) {
@@ -983,12 +983,12 @@ msg_t aprs_execute_config_save(aprs_identity_t *id,
   (void)argc;
   (void)argv;
 
-  TRACE_INFO("PKT  > Message: Config Save");
+  TRACE_MON("PKT  > Message: Config Save");
   conf_sram.magic = CONFIG_MAGIC_UPDATED;
   flashSectorBegin(flashSectorAt(0x08060000));
   flashErase(0x08060000, 0x20000);
   flashWrite(0x08060000, (char*)&conf_sram, sizeof(conf_t));
-  flashSectorEnd(flashSectorAt(0x08060000));
+  flashSectorNext(flashSectorAt(0x08060000));
   return MSG_OK;
 }
 
@@ -1021,17 +1021,17 @@ msg_t aprs_execute_img_command(aprs_identity_t *id,
         /* Decrease ref count. */
         chThdRelease(thd);
         if(msg == MSG_OK) {
-          TRACE_INFO("PKT  > Message: Image %d rejected on %s", img, threads[i]);
+          TRACE_MON("PKT  > Message: Image %d rejected on %s", img, threads[i]);
           return MSG_OK;
         }
       }
     }
-    TRACE_INFO("PKT  > Message: Image %d not active", img);
+    TRACE_MON("PKT  > Message: Image %d not active", img);
     return MSG_OK;
   }
 
   if(!strcmp(argv[0], "repeat")) {
-    TRACE_INFO("PKT  > Message: Image packet repeat request");
+    TRACE_MON("PKT  > Message: Image packet repeat request");
 
     /* Start at arg 2. */
     int c = 2;
@@ -1044,7 +1044,7 @@ msg_t aprs_execute_img_command(aprs_identity_t *id,
           packetRepeats[i].packet_id = req & 0xFFFF;
           packetRepeats[i].n_done = true;
 
-          TRACE_INFO("PKT  > ... Image %3d Packet %3d",
+          TRACE_MON("PKT  > ... Image %3d Packet %3d",
                      packetRepeats[i].image_id,
                      packetRepeats[i].packet_id);
           break;
@@ -1197,7 +1197,7 @@ static bool aprs_decode_message(packet_t pp) {
   char *astrng = strlwr((char*)&pinfo[11]);
 
   // Trace
-  TRACE_INFO("PKT  > Received message from %s (ID=%s): %s",
+  TRACE_MON("PKT  > Received message from %s (ID=%s): %s",
              src, msg_id_rx[0] == 0 ? "none" : msg_id_rx, astrng);
 
 
@@ -1229,7 +1229,7 @@ static bool aprs_decode_message(packet_t pp) {
   msg_t msg = aprs_cmd_exec(aprs_commands, cmd, &identity, n, args);
 
   if(msg == MSG_TIMEOUT) {
-    TRACE_INFO("PKT  > No command found in message");
+    TRACE_DEBUG("PKT  > No command found in message");
   }
 
   if(msg_id_rx[0]) {
@@ -1250,7 +1250,7 @@ static bool aprs_decode_message(packet_t pp) {
       TRACE_WARN("PKT  > No free packet objects");
       return false;
     }
-    transmitOnRadio(pp,
+    pktTransmitOnRadio(pp,
                     identity.freq,
                     0,
                     0,
@@ -1298,7 +1298,7 @@ static void aprs_digipeat(packet_t pp) {
    */
 
   /* If transmit fails the packet buffer is released. */
-  if(!transmitOnRadio(result,
+  if(!pktTransmitOnRadio(result,
                   conf_sram.aprs.tx.radio_conf.freq,
                   0,
                   0,
@@ -1336,9 +1336,10 @@ packet_t aprs_encode_telemetry_configuration(const char *originator,
 }
 
 /*
- * 
+ * Process an incoming packet.
+ * Digipeat if enabled.
  */
-void aprs_decode_packet(packet_t pp) {
+void aprs_process_packet(packet_t pp) {
   // Get heard callsign
   char call[AX25_MAX_ADDR_LEN];
   int8_t v = -1;

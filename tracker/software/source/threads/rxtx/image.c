@@ -831,6 +831,17 @@ ssdv_packet_t packetRepeats[16];
  * Callback used to throttle image send.
  * Next packet (or burst) is readied.
  */
+#if PKT_RTO_USE_SETTING == TRUE
+static void image_packet_send_complete(radio_task_object_t *rt) {
+  chSemSignal(&tx_complete);
+#if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
+  TRACE_DEBUG("IMG  > Released transmit semaphore TX sequence %d",
+              rt->tx_seq_num);
+#else
+  (void)rt;
+#endif
+}
+#else
 static bool image_packet_send_complete(radio_task_object_t *rt) {
   chSemSignal(&tx_complete);
 #if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
@@ -842,6 +853,7 @@ static bool image_packet_send_complete(radio_task_object_t *rt) {
   /* Indicate RTO should be freed. */
   return false;
 }
+#endif
 
 /**
  * @brief  Resend an image packet from a current in process image
@@ -900,14 +912,14 @@ static bool resend_image_packet(const uint8_t *image,
         return false;
       }
 
-      if(!transmitOnRadioWithCallback(packet,
+      if(!pktTransmitOnRadioWithCallback(packet,
                         conf->radio_conf.freq,
                         0,
                         0,
                         conf->radio_conf.pwr,
                         conf->radio_conf.mod,
                         conf->radio_conf.cca,
-                        (radio_task_cb_t) image_packet_send_complete)) {
+                        image_packet_send_complete)) {
 
         TRACE_ERROR("IMG  > Unable to send image packet on radio");
         chSemSignal(&tx_complete);
@@ -981,7 +993,7 @@ static bool send_image_packets(const uint8_t *image,
                           MAX_BUFFERS_FOR_BURST_SEND);
     uint8_t chain = (IS_FAST_2FSK(conf->radio_conf.mod) && !conf->no_burst
        && !conf->redundantTx) ? buffers : 1;
-    TRACE_INFO("IMG  > Encode APRS/SSDV packet%s",
+    TRACE_DEBUG("IMG  > Encode APRS/SSDV packet%s",
               (chain > 1 ? " burst" : ""));
 
     /* Packet linking control. */
@@ -1052,14 +1064,14 @@ static bool send_image_packets(const uint8_t *image,
     /* If we have some image packet(s) to transmit then do it. */
     if(head != NULL) {
 
-      if(!transmitOnRadioWithCallback(head,
+      if(!pktTransmitOnRadioWithCallback(head,
                                       conf->radio_conf.freq,
                                       0,
                                       0,
                                       conf->radio_conf.pwr,
                                       conf->radio_conf.mod,
                                       conf->radio_conf.cca,
-                                      (radio_task_cb_t) image_packet_send_complete)) {
+                                      image_packet_send_complete)) {
         TRACE_ERROR("IMG  > Unable to send image on radio");
         /*
          *  Transmit on radio will release the packet chain.
@@ -1110,14 +1122,14 @@ static bool send_image_packets(const uint8_t *image,
         chSemSignal(&tx_complete);
         return false;
       } else {
-        if(!transmitOnRadioWithCallback(packet,
+        if(!pktTransmitOnRadioWithCallback(packet,
                             conf->radio_conf.freq,
                             0,
                             0,
                             conf->radio_conf.pwr,
                             conf->radio_conf.mod,
                             conf->radio_conf.cca,
-                            (radio_task_cb_t) image_packet_send_complete)) {
+                            image_packet_send_complete)) {
           /* Packet has been released by transmit. */
           TRACE_ERROR("IMG  > Unable to send redundant image on radio");
           chSemSignal(&tx_complete);
@@ -1215,14 +1227,14 @@ uint32_t takePicture(uint8_t* buffer, size_t size,
 	camera_mtx_init = true;
 
 	/* Lock camera. */
-    TRACE_INFO("IMG  > Waiting to lock camera");
+	TRACE_DEBUG("IMG  > Waiting to lock camera");
 	chMtxLock(&camera_mtx);
-    TRACE_INFO("IMG  > Locked camera");
+	TRACE_DEBUG("IMG  > Locked camera");
     msg_t result = MSG_RESET;
 	/* Check camera is available. */
 	if(OV5640_isAvailable()) {
 	    /* Camera responded and ID was correct. */
-		TRACE_INFO("IMG  > OV5640 found");
+	  TRACE_DEBUG("IMG  > OV5640 found");
 #define PKT_IMAGE_CAPTURE_RETRIES 5
         int8_t cntr = PKT_IMAGE_CAPTURE_RETRIES;
 
@@ -1246,9 +1258,9 @@ uint32_t takePicture(uint8_t* buffer, size_t size,
 			/* Validate JPEG image. */
 			if(!enableJpegValidation)
 			  break;
-            TRACE_INFO("CAM  > Validate integrity of JPEG");
+			TRACE_DEBUG("CAM  > Validate integrity of JPEG");
             result = analyze_image(buffer, *size_sampled);
-            TRACE_INFO("CAM  > JPEG image %s at retry %d, size %d",
+            TRACE_DEBUG("CAM  > JPEG image %s at retry %d, size %d",
                        (result == MSG_OK) ? "valid" : "invalid",
                            (PKT_IMAGE_CAPTURE_RETRIES - cntr),
                            *size_sampled);
@@ -1264,7 +1276,7 @@ uint32_t takePicture(uint8_t* buffer, size_t size,
         camInitialized = false;
     }
 	/* Unlock camera. */
-	TRACE_INFO("IMG  > Unlock camera");
+    TRACE_DEBUG("IMG  > Unlock camera");
 	chMtxUnlock(&camera_mtx);
 
 	return result;
@@ -1335,7 +1347,7 @@ THD_FUNCTION(imgThread, arg) {
       /* Return the buffer to the heap. */
       chHeapFree(buffer);
       if(msg == MSG_RESET) {
-        TRACE_INFO("IMG  > Encode/Transmit SSDV (camera error) ID=%d",
+        TRACE_ERROR("IMG  > Encode/Transmit SSDV (camera error) ID=%d",
                    (uint16_t)my_image_id);
         if(!send_image_packets(noCameraFound, sizeof(noCameraFound),
                                    conf, my_image_id)) {
@@ -1366,12 +1378,12 @@ THD_FUNCTION(imgThread, arg) {
       if(buffer[soi] == 0xFF && buffer[soi + 1] == 0xD8) {
         /* Found an SOI. */
         soi_found = true;
-        TRACE_INFO("IMG  > SOI at index %i of buffer", soi);
+        TRACE_DEBUG("IMG  > SOI at index %i of buffer", soi);
         /* Write to SD if present. */
         if(initSD()) {
           char filename[32];
           // Write picture to SD card
-          TRACE_INFO("IMG  > Save image to SD card");
+          TRACE_DEBUG("IMG  > Save image to SD card");
 
           chsnprintf(filename, sizeof(filename), "r%02xi%04x.jpg",
                      getLastDataPoint()->reset % 0xFF,
@@ -1389,7 +1401,7 @@ THD_FUNCTION(imgThread, arg) {
         }
 
         /* Encode and transmit picture. */
-        TRACE_INFO("IMG  > Encode/Transmit SSDV ID=%d", (uint16_t)my_image_id);
+        TRACE_DEBUG("IMG  > Encode/Transmit SSDV ID=%d", (uint16_t)my_image_id);
         if(!send_image_packets(buffer, size_sampled, conf,
                                    my_image_id)) {
           TRACE_ERROR("IMG  > Error in encode/transmit of image"
@@ -1400,7 +1412,7 @@ THD_FUNCTION(imgThread, arg) {
       soi++;
     } /* End while soi < size_sampled - 1. */
     if(!soi_found) { /* No SOI found. */
-      TRACE_INFO("IMG  > No SOI found in image");
+      TRACE_DEBUG("IMG  > No SOI found in image");
     }
     /* Return the image buffer to the heap. */
     chHeapFree(buffer);
@@ -1417,7 +1429,7 @@ THD_FUNCTION(imgThread, arg) {
 void start_image_thread(img_app_conf_t *conf, const char *name)
 {
 	thread_t *th = chThdCreateFromHeap(NULL,
-	                                   THD_WORKING_AREA_SIZE(11 * 1024),
+	                                   THD_WORKING_AREA_SIZE(9 * 1024),
 	                                   name, LOWPRIO, imgThread, conf);
 	if(!th) {
       // Print startup error, do not start watchdog for this thread

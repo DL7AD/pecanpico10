@@ -58,7 +58,7 @@ THD_FUNCTION(bcnThread, arg) {
     systime_t time = chVTGetSystemTime();
     char code_s[100];
     pktDisplayFrequencyCode(conf.radio_conf.freq, code_s, sizeof(code_s));
-    TRACE_INFO("POS  > Do module BEACON cycle for %s on %s%s",
+    TRACE_DEBUG("POS  > Do module BEACON cycle for %s on %s%s",
                conf.call, code_s, conf.run_once ? " (?aprsp response)" : "");
 
     /*
@@ -73,7 +73,7 @@ THD_FUNCTION(bcnThread, arg) {
 
       // Telemetry encoding parameter transmissions
       if(conf_sram.tel_enc_cycle != 0 &&  time > next_conf_transmission) {
-        TRACE_INFO("BCN  > Transmit telemetry configuration");
+        TRACE_MON("BCN  > Transmit telemetry configuration");
 
         /* Encode and transmit telemetry configuration data. */
         uint8_t type = 0;
@@ -87,7 +87,7 @@ THD_FUNCTION(bcnThread, arg) {
             TRACE_WARN("BCN  > No free packet objects for"
                 " telemetry config transmission %d", type);
           } else {
-            if(!transmitOnRadio(packet,
+            if(!pktTransmitOnRadio(packet,
                                 conf.radio_conf.freq,
                                 0,
                                 0,
@@ -104,7 +104,7 @@ THD_FUNCTION(bcnThread, arg) {
         next_conf_transmission = chTimeAddX(time, conf_sram.tel_enc_cycle);
       }
 
-      TRACE_INFO("BCN  > Transmit position and telemetry");
+      TRACE_MON("BCN  > Transmit position and telemetry");
 
       // Encode/Transmit position packet
       packet_t packet = aprs_encode_position_and_telemetry(conf.call,
@@ -115,7 +115,7 @@ THD_FUNCTION(bcnThread, arg) {
         TRACE_ERROR("BCN  > No free packet objects"
             " for position transmission");
       } else {
-        if(!transmitOnRadio(packet,
+        if(!pktTransmitOnRadio(packet,
                             conf.radio_conf.freq,
                             0,
                             0,
@@ -134,7 +134,7 @@ THD_FUNCTION(bcnThread, arg) {
 
       chThdSleep(TIME_S2I(5));
       /* Send direct list. */
-      TRACE_INFO("BCN  > Transmit recently heard direct");
+      TRACE_MON("BCN  > Transmit recently heard direct");
       /*
        * Encode/Transmit APRSD packet.
        * This is a tracker originated message (not a reply to a request).
@@ -155,7 +155,7 @@ THD_FUNCTION(bcnThread, arg) {
         TRACE_ERROR("BCN  > No free packet objects "
             "or badly formed APRSD message");
       } else {
-        if(!transmitOnRadio(packet,
+        if(!pktTransmitOnRadio(packet,
                             conf.radio_conf.freq,
                             0,
                             0,

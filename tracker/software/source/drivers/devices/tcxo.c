@@ -114,9 +114,9 @@ THD_FUNCTION(tcxo_thd, arg) {
     if(f != 0) {
       if(f != tcxo_active) {
         tcxo_active = f;
-        TRACE_INFO("TCXO > Update to %d Hz", f);
+        TRACE_DEBUG("TCXO > Update to %d Hz", f);
       } else {
-        TRACE_INFO("TCXO > Unchanged at %d Hz", f);
+        TRACE_DEBUG("TCXO > Unchanged at %d Hz", f);
       }
     } else
       TRACE_WARN("TCXO > No update available");

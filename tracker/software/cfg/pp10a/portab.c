@@ -80,11 +80,7 @@ const si446x_mcucfg_t radio1_cfg = {
     .cfg     = {
        ICU_INPUT_ACTIVE_HIGH,
        PWM_ICU_COUNT_FREQUENCY,   /**< ICU clock frequency. */
-     #if LINE_PWM_MIRROR != PAL_NOLINE
        pktRadioICUWidth,         /**< ICU width callback. */
-     #else
-       NULL,                     /**< ICU width callback. */
-     #endif
        pktRadioICUPeriod,        /**< ICU period callback. */
        pktRadioICUOverflow,      /**< ICU overflow callback. */
        ICU_CHANNEL_1,            /**< Timer channel. */
@@ -141,10 +137,10 @@ const si446x_mcucfg_t radio1_cfg = {
 /* Variable data for a radio. */
 si446x_data_t radio1_dat = {
         .lastTemp = 0x7FFF,
-        .radio_clock = Si446x_CLK + Si446x_CLK_ERROR
-        /* TODO: Move part and func structs into here
-         * Add functions to set/get values
-         */
+        .radio_clock = Si446x_CLK + Si446x_CLK_ERROR,
+        .radio_part = 0,
+        .radio_rom_rev = 0,
+        .radio_patch = 0
 };
 
 /* List of bands in this radio. */

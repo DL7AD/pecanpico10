@@ -20,7 +20,7 @@ dataPoint_t* flash_getLogBuffer(uint16_t id)
   */
 static dataPoint_t* flash_getNextFreeLogAddress(void) {
   dataPoint_t* tp;
-  for(uint32_t i=0; (tp = flash_getLogBuffer(i)) != NULL; i++) {
+  for(uint32_t i = 0; (tp = flash_getLogBuffer(i)) != NULL; i++) {
     if(LOG_IS_EMPTY(tp))
       return tp;
   }
@@ -89,7 +89,7 @@ static void flash_eraseOldestLogData(void)
 	if(last_tp) {
 		last_tp = (last_tp / LOG_SECTOR_SIZE) * LOG_SECTOR_SIZE; // Get start address of sector
 
-		TRACE_INFO("LOG  > Erase flash %08x", last_tp);
+		TRACE_DEBUG("LOG  > Erase flash %08x", last_tp);
 		flashErase(last_tp, LOG_SECTOR_SIZE);
 	}
 }
@@ -110,14 +110,14 @@ void flash_writeLogDataPoint(dataPoint_t* tp)
 	}
 
 	// Write data into flash
-	TRACE_INFO("LOG  > Flash write (ADDR=%08x)", address);
+	TRACE_DEBUG("LOG  > Flash write (ADDR=%08x)", address);
 	flashSectorBegin(flashSectorAt((uint32_t)address));
 	flashWrite((uint32_t)address, (char*)tp, sizeof(dataPoint_t));
-	flashSectorEnd(flashSectorAt((uint32_t)address));
+	flashSectorNext(flashSectorAt((uint32_t)address));
 
 	// Verify
 	if(flashCompare((uint32_t)address, (char*)tp, sizeof(dataPoint_t))) {
-		TRACE_INFO("LOG  > Flash write OK");
+	  TRACE_DEBUG("LOG  > Flash write OK");
 	} else {
 		TRACE_ERROR("LOG  > Flash write failed");
 	}

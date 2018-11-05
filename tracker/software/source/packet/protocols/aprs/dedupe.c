@@ -143,7 +143,7 @@ static struct {
 					/* source, destination, and information. */
 					/* it is not used anywhere else. */
 
-	radio_freq_t xmit_channel;		/* Radio channel number. */
+	radio_freq_hz_t xmit_channel;		/* Radio channel number. */
 
 } history[HISTORY_MAX];
 
@@ -191,7 +191,7 @@ void dedupe_init (sysinterval_t ttl) {
  *		
  *------------------------------------------------------------------------------*/
 
-void dedupe_remember (packet_t pp, radio_freq_t freq) {
+void dedupe_remember (packet_t pp, radio_freq_hz_t freq) {
 	history[insert_next].time_stamp = chVTGetSystemTime();
 	history[insert_next].checksum = ax25_dedupe_crc(pp);
 	history[insert_next].xmit_channel = freq;
@@ -222,7 +222,7 @@ void dedupe_remember (packet_t pp, radio_freq_t freq) {
  *		
  *------------------------------------------------------------------------------*/
 
-int dedupe_check (packet_t pp, radio_freq_t freq) {
+int dedupe_check (packet_t pp, radio_freq_hz_t freq) {
 	unsigned short crc = ax25_dedupe_crc(pp);
 	int j;
 

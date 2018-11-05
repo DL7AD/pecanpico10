@@ -84,7 +84,7 @@ typedef enum {
 
 typedef struct {
   radio_pwr_t       pwr;
-  radio_freq_t      freq;
+  radio_freq_hz_t      freq;
   radio_mod_t       mod;
   union {
     radio_squelch_t   cca;
@@ -94,7 +94,7 @@ typedef struct {
 
 typedef struct {
   radio_pwr_t       pwr;
-  radio_freq_t      freq;
+  radio_freq_hz_t      freq;
   radio_mod_t       mod;
   link_speed_t      speed;
   radio_squelch_t   cca;
@@ -103,7 +103,7 @@ typedef struct {
 } radio_tx_conf_t; // Radio / Modulation
 
 typedef struct {
-  radio_freq_t      freq;
+  radio_freq_hz_t      freq;
   radio_mod_t       mod;
   link_speed_t      speed;
   radio_squelch_t   rssi;
@@ -224,7 +224,7 @@ typedef struct {
 
   //APRS global
   sysinterval_t     tel_enc_cycle;          // Cycle for sending of telemetry config headers
-  radio_freq_t      freq;                   // Default APRS frequency if geolocation not available
+  radio_freq_hz_t      freq;                   // Default APRS frequency if geolocation not available
   // Base station call sign for receipt of tracker initiated sends
   // These are sends by the tracker which are not in response to a query.
   thd_base_conf_t   base;
