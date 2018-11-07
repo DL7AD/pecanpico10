@@ -358,8 +358,8 @@ THD_FUNCTION(pktConsole, arg) {
        * If the channel disconnected go to IDLE else resume TRACE
        */
       if(CON_DEBUG_TRACE)
-        TRACE_DEBUG("CON  > Terminating shell thread %x with events %x & flags %x"
-                          " in state %s",
+        TRACE_DEBUG("CON  > Terminating shell thread %x with events"
+                          " %x & flags %x in state %s",
                   shelltp, evt, evtf, console_state_name(console_state));
       if(shelltp != NULL) {
         chEvtUnregister(&shell_terminated, &shell_el);

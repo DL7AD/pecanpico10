@@ -151,7 +151,7 @@ void pktDetachRadio(const radio_unit_t radio) {
 }
 
 /**
- * @brief   Enables PWM stream from radio.
+ * @brief   Enables PWM stream from radio for DSP.
  * @post    The ICU is configured and started.
  * @post    The ports and timers for CCA input are configured.
  *
@@ -163,46 +163,66 @@ void pktEnableRadioStream(const radio_unit_t radio) {
 
   packet_svc_t *myHandler = pktGetServiceObject(radio);
 
-  /* Is the AFSK decoder active? */
-  if(myHandler->rx_state != PACKET_RX_ENABLED)
+  /*
+   *  Is the AFSK decoder active?
+   *  TODO: Need to rationalise the tests.
+   *  This should be AFSK or other DSP based modulation only.
+   */
+
+  switch(myHandler->rx_link_type) {
+
+  case MOD_AFSK: {
+    AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
+    chDbgAssert(myDemod != NULL, "no link controller");
+    chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
+
+    switch(myDemod->icustate) {
+    case PKT_PWM_INIT: {
+      /* Enable CCA callback. */
+      const ICUConfig *icucfg = pktLLDradioStreamEnable(radio,
+                                      (palcallback_t)pktRadioCCAInput);
+
+      /* Start ICU and start capture. */
+      icuStart(myDemod->icudriver, icucfg);
+      icuStartCapture(myDemod->icudriver);
+      myDemod->icustate = PKT_PWM_READY;
+      return;
+    } /* End case PKT_PWM_INIT. */
+
+    case PKT_PWM_STOP: {
+      /* Enable CCA callback. */
+      (void)pktLLDradioStreamEnable(radio, (palcallback_t)pktRadioCCAInput);
+
+      /* Start ICU capture. */
+      icuStartCapture(myDemod->icudriver);
+      myDemod->icustate = PKT_PWM_READY;
+      return;
+    } /* End case PKT_PWM_STOP. */
+
+    case PKT_PWM_READY:
+      return;
+
+    case PKT_PWM_WAITING:
+    case PKT_PWM_ACTIVE: {
+      chDbgAssert(false, "wrong PWM state");
+      return;
+    } /* End case PKT_PWM_WAITING or PKT_PWM_ACTIVE. */
+    } /* End switch on ICU state. */
+  } /* End case MOD_AFSK. */
+
+  case MOD_NONE:
+  case MOD_CW:
+  case MOD_2FSK_300:
+  case MOD_2FSK_9k6:
+  case MOD_2FSK_19k2:
+  case MOD_2FSK_38k4:
+  case MOD_2FSK_57k6:
+  case MOD_2FSK_76k8:
+  case MOD_2FSK_96k:
+  case MOD_2FSK_115k2: {
     return;
-
-  AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
-  chDbgAssert(myDemod != NULL, "no link controller");
-  chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
-
-  switch(myDemod->icustate) {
-  case PKT_PWM_INIT: {
-    /* Enable CCA callback. */
-    const ICUConfig *icucfg = pktLLDradioStreamEnable(radio,
-                         (palcallback_t)pktRadioCCAInput);
-
-    /* Start ICU and start capture. */
-    icuStart(myDemod->icudriver, icucfg);
-    icuStartCapture(myDemod->icudriver);
-    myDemod->icustate = PKT_PWM_READY;
-    return;
-
   }
-  case PKT_PWM_STOP: {
-    /* Enable CCA callback. */
-    pktLLDradioStreamEnable(radio, (palcallback_t)pktRadioCCAInput);
-
-    /* Start ICU capture. */
-    icuStartCapture(myDemod->icudriver);
-    myDemod->icustate = PKT_PWM_READY;
-    return;
   }
-
-  case PKT_PWM_READY:
-    return;
-
-  case PKT_PWM_WAITING:
-  case PKT_PWM_ACTIVE: {
-    chDbgAssert(false, "wrong PWM state");
-    return;
-  }
-  } /* End switch. */
 }
 
 /**
@@ -228,17 +248,16 @@ void pktDisableRadioStream(const radio_unit_t radio) {
   /* Is the receiver active? */
   if(!pktIsReceiveEnabled(radio))
     return;
-/*  if(myHandler->rx_state != PACKET_RX_ENABLED)
-    return;*/
-  AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
-  chDbgAssert(myDemod != NULL, "no link controller");
-  chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
   /* Process under locked. */
   chSysLock();
   switch(myHandler->rx_link_type) {
 
   case MOD_AFSK: {
+
+    AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
+    chDbgAssert(myDemod != NULL, "no link controller");
+    chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
     switch(myDemod->icustate) {
     case PKT_PWM_WAITING:
@@ -262,7 +281,6 @@ void pktDisableRadioStream(const radio_unit_t radio) {
       pktClosePWMchannelI(myDemod->icudriver, EVT_NONE, PWM_TERM_PWM_STOP);
 
       myDemod->icustate = PKT_PWM_STOP;
-
       /*
        * Reschedule to avoid a "priority order violation".
        */
@@ -297,6 +315,7 @@ void pktDisableRadioStream(const radio_unit_t radio) {
       /* Stop ICU capture. */
       icuStopCaptureI(myDemod->icudriver);
       myDemod->icustate = PKT_PWM_STOP;
+
       chSysUnlock();
       return;
     } /* End case PKT_PWM_READY. */
@@ -360,7 +379,8 @@ void pktRadioJammingReset(ICUDriver *myICU) {
  *
  * @api
  */
-void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt, pwm_code_t reason) {
+void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt,
+                         pwm_code_t reason) {
   /* Stop posting data and write end marker. */
   AFSKDemodDriver *myDemod = myICU->link;
   packet_svc_t *myHandler = myDemod->packet_handler;
@@ -783,64 +803,45 @@ void pktRadioCCAInput(ICUDriver *myICU) {
   return;
 }
 
+#if PKT_RTO_USE_SETTING == TRUE
+/**
+ * Callback after radio manager gets RSSI from radio
+ */
+static void pktRadioRSSIreadCB(radio_task_object_t *rt) {
+  AFSKDemodDriver *myDemod = rt->handler->rx_link_control;
+
+  radio_pwm_fifo_t *myFIFO = myDemod->active_radio_stream;
+  if(myFIFO == NULL)
+    return false;
+  /*
+   * Is the callback still good for current RX sequence?
+   * Can be out of sync if the radio manager is delayed or PWM is jittery.
+   */
+  if(myFIFO->seq_num == rt->radio_dat.rt_seq)
+    /* Set the RSSI or flag unable to read. */
+    myFIFO->rssi = (rt->result == MSG_OK) ? rt->rssi : 0xFF;
+}
+#else
 /**
  * Callback after radio manager gets RSSI from radio
  */
 static bool pktRadioRSSIreadCB(radio_task_object_t *rt) {
   AFSKDemodDriver *myDemod = rt->handler->rx_link_control;
 
-#if PKT_USE_OPENING_RSSI == TRUE
-    radio_pwm_fifo_t *myFIFO = myDemod->active_radio_stream;
-    if(myFIFO != NULL) {
-      /*
-       * Is the callback still good for current RX sequence?
-       * Can be out of sync if the radio manager is delayed or PWM is jittery.
-       */
-#if PKT_RTO_USE_SETTING == TRUE
-      if(myFIFO->seq_num == rt->radio_dat.seq_num) {
-#else
-      if(myFIFO->seq_num == rt->rt_seq) {
-#endif
-        /* Set the RSSI or flag unable to read. */
-        myFIFO->rssi = (rt->result == MSG_OK) ? rt->rssi : 0xFF;
-      }
-  }
+  radio_pwm_fifo_t *myFIFO = myDemod->active_radio_stream;
+  if(myFIFO == NULL)
+    return false;
+  /*
+   * Is the callback still good for current RX sequence?
+   * Can be out of sync if the radio manager is delayed or PWM is jittery.
+   */
+  if(myFIFO->seq_num == rt->rt_seq)
+    /* Set the RSSI or flag unable to read. */
+    myFIFO->rssi = (rt->result == MSG_OK) ? rt->rssi : 0xFF;
   return false;
-#else
-    /* Get the current PWM queue object. */
-    radio_pwm_object_t *myObject =
-        myDemod->active_radio_stream->radio_pwm_queue;
-    if(myObject == NULL)
-      return false;
-
-    /*
-     *  Write the RSSI captured in-band message to the current queue object.
-     *  When the decoder encounters this in-band it fetches the RSSI from the stream FIFO object.
-     *  TODO: It would be possible to have an averaged RSSI.
-     *  Currently only the opening period RSSI is captured.
-     *  RSSI could be captured at intervals throughout the PWM stream.
-     */
-
-#if USE_12_BIT_PWM == TRUE
-    byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INF_RADIO_RSSI, 0}};
-#else
-    byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INF_RADIO_RSSI}};
-#endif
-    //return false;
-    chSysLock();
-    /* Write the RSSI message to the PWM queue. */
-    msg_t qs = pktWritePWMQueueI(&myObject->queue, pack);
-    if(qs == MSG_OK) {
-      myObject->rssi = (radio_signal_t)rt->result;
-    } else {
-      myObject->rssi = 0;
-    }
-    chSysUnlock();
-  }
-  /* Indicate this RTO can be released. */
-  return false;
-#endif
 }
+#endif
+
 
 /**
  * @brief   Width callback from ICU driver.
@@ -883,7 +884,7 @@ void pktRadioICUWidth(ICUDriver *myICU) {
     msg_t msg = pktQueuePriorityRadioCommandI(radio,
                                              PKT_RADIO_RX_RSSI,
                                              &rp,
-                                             (radio_task_cb_t)pktRadioRSSIreadCB);
+                                             pktRadioRSSIreadCB);
 #else
     radio_task_object_t rt = myDemod->packet_handler->radio_rx_config;
 

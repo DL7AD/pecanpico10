@@ -47,6 +47,7 @@
 
 /* Extend standard OS result codes. */
 #define MSG_ERROR           (msg_t)-3   /**< @brief Error condition.  */
+#define MSG_LOCKED          (msg_t)-4   /**< @brief Resource locked. */
 
 /* General event definitions. */
 #define EVT_NONE                    0
@@ -261,7 +262,9 @@ static inline int8_t pktReadGPIOline(ioline_t line) {
  * @param[in]   radio   radio unit ID.
  * @param[in]   task    pointer to the task descriptor.
  *                      this is usually a persistent descriptor in the handler.
- * @param[in]           timeout to wait for a radio object to be available.
+ * @param[in]   cmd     the radio task to be queued
+ * @param[in]   cfg     pointer to radio configuration
+ * @param[in]   timeout expressed in sysinterval units.
  * @param[in]   cb      function to call with result (can be NULL).
  *
  * @return      status of operation
@@ -279,7 +282,10 @@ static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
 #endif
                                         const sysinterval_t timeout,
                                         const radio_task_cb_t cb) {
-
+#if PKT_RTO_USE_SETTING == TRUE
+  if(cmd > PKT_RADIO_TASK_MAX)
+    return MSG_ERROR;
+#endif
   radio_task_object_t *rt = NULL;
 #if PKT_RTO_USE_SETTING != TRUE
   msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
@@ -306,7 +312,13 @@ static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
  * @param[in]   radio   radio unit ID.
  * @param[in]   task    pointer to the task descriptor.
  *                      this is usually a persistent descriptor in the handler.
+ * @param[in]   cmd     the radio task to be queued
+ * @param[in]   cfg     pointer to radio configuration
  * @param[in]   cb      function to call with result (can be NULL).
+ *
+ * @return      status of operation
+ * @retval      MSG_OK      Command has been queued.
+ * @retval      MSG_TIMEOUT No task object available.
  *
  * @api
  */
@@ -318,6 +330,10 @@ static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
                                         const radio_params_t *cfg,
 #endif
                                         const radio_task_cb_t cb) {
+#if PKT_RTO_USE_SETTING == TRUE
+  if(cmd > PKT_RADIO_TASK_MAX)
+    return MSG_ERROR;
+#endif
   radio_task_object_t *rt = NULL;
 #if PKT_RTO_USE_SETTING != TRUE
   msg_t msg = pktGetRadioTaskObjectI(radio, &rt);
@@ -344,8 +360,15 @@ static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
  * @param[in]   radio   radio unit ID.
  * @param[in]   task    pointer to the task descriptor.
  *                      this is usually a persistent descriptor in the handler.
- * @param[in]           timeout
+ * @param[in]   cmd     the radio task to be queued
+ * @param[in]   cfg     pointer to radio configuration
+ * @param[in]   timeout expressed in sysinterval units.
  * @param[in]   cb      function to call with result (can be NULL).
+ *
+ * @return      status of operation
+ * @retval      MSG_OK      Command has been queued.
+ * @retval      MSG_TIMEOUT No task object available.
+ * @retval      MSG_ERROR   Command is invalid from outer level.
  *
  * @api
  */
@@ -358,6 +381,10 @@ static inline msg_t pktQueuePriorityRadioCommand(const radio_unit_t radio,
 #endif
                                         const sysinterval_t timeout,
                                         const radio_task_cb_t cb) {
+#if PKT_RTO_USE_SETTING == TRUE
+  if(cmd > PKT_RADIO_TASK_MAX)
+    return MSG_ERROR;
+#endif
   radio_task_object_t *rt = NULL;
 #if PKT_RTO_USE_SETTING != TRUE
   msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);

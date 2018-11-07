@@ -1722,10 +1722,10 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   /* Wait for receive stream in progress. Terminate on timeout. */
 #if PKT_RTO_USE_SETTING == TRUE
-  pktSetReceiveInactive(radio, rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
+  pktSetReceiveStreamInactive(radio, rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
                         ? TIME_IMMEDIATE : TIME_MS2I(300));
 #else
-  pktSetReceiveInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
+  pktSetReceiveStreamInactive(radio, rto, rto->squelch == PKT_SI446X_NO_CCA_RSSI
                         ? TIME_IMMEDIATE : TIME_MS2I(300));
 #endif
   /*
@@ -1855,7 +1855,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     }
 
     /* Wait for receive stream in progress. Terminate on timeout. */
-    (void)pktSetReceiveInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
+    (void)pktSetReceiveStreamInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
                           ? TIME_IMMEDIATE : TIME_MS2I(300));
 
     /*
@@ -2232,10 +2232,10 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
   /* Stop packet system reception. */
 #if PKT_RTO_USE_SETTING == TRUE
-  pktSetReceiveInactive(radio, rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
+  pktSetReceiveStreamInactive(radio, rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
                         ? TIME_IMMEDIATE : TIME_MS2I(300));
 #else
-  pktSetReceiveInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
+  pktSetReceiveStreamInactive(radio, rto, rto->squelch == PKT_SI446X_NO_CCA_RSSI
                         ? TIME_IMMEDIATE : TIME_MS2I(300));
 #endif
   /* Initialize radio before any commands as it may have been powered down. */
@@ -2354,7 +2354,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     }
 
     /* Wait for receive stream in progress. Terminate on timeout. */
-    (void)pktSetReceiveInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
+    (void)pktSetReceiveStreamInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
                                 ? TIME_IMMEDIATE : TIME_MS2I(300));
 
     /*

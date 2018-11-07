@@ -852,7 +852,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           switch(stream.pwm.valley) {
           case PWM_TERM_PWM_STOP: {
             /*
-             *  The PWM stream has been aborted by a stop request.
+             *  This may not be found if HDLC closing flag happened already.
+             *  If found the PWM stream has been aborted by a stop request.
              *  Can be TX or a service stop as part of closing a service.
              *  PWM stop places an in-band message in the PWM stream if open.
              *  The decoder will then (eventually) process the in-band message.

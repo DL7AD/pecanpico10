@@ -105,6 +105,7 @@ typedef struct packetHandlerData {
   radio_unit_t              radio;
 
   xtal_osc_t                xtal;      /**< XO frequency of main clock.   */
+  bool                      xo_update; /**< XO update in progress.   */
 
   /**
    * @brief Radio part number.
@@ -252,11 +253,11 @@ extern "C" {
   bool                  pktSystemDeinit(void);
   bool                  pktServiceCreate(const radio_unit_t radio);
   bool                  pktServiceRelease(const radio_unit_t radio);
-  msg_t                 pktOpenRadioReceive(const radio_unit_t radio,
+/*  msg_t                 pktOpenRadioReceive(const radio_unit_t radio,
                             const radio_mod_t encoding,
                             const radio_freq_hz_t frequency,
                             const radio_chan_hz_t ch_step,
-                            const sysinterval_t timeout);
+                            const sysinterval_t timeout);*/
 #if PKT_RTO_USE_SETTING == TRUE
   msg_t                 pktEnableDataReception(const radio_unit_t radio,
                                const radio_ch_t channel,
@@ -272,10 +273,10 @@ extern "C" {
                               const radio_squelch_t sq,
                               const pkt_buffer_cb_t cb,
                               const sysinterval_t to);
-  void                  pktStartDecoder(const radio_unit_t radio);
+  msg_t                 pktStartDecoder(const radio_unit_t radio);
   msg_t                 pktDisableDataReception(const radio_unit_t radio);
   void                  pktStopDecoder(const radio_unit_t radio);
-  msg_t                 pktCloseRadioReceive(const radio_unit_t radio);
+  //msg_t                 pktCloseRadioReceive(const radio_unit_t radio);
   bool                  pktStoreReceiveData(pkt_data_object_t *buffer,
                                             ax25char_t data);
   eventflags_t          pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer);

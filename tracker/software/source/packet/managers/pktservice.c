@@ -553,6 +553,11 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
   if(handler->state != PACKET_READY || cb == NULL)
     return MSG_ERROR;
 
+  /*
+   * TODO: Move state checks into radio manager.
+   * Use RM internal callbacks to transition between states.
+   */
+
   switch(handler->rx_state) {
   /**
    *
@@ -631,6 +636,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
 
     /* TODO: Check other parameters match current values in rx_config.
      * Encoding, frequency, step... actually only encoding matters.
+     * In that case close the channel and re-open with new encoding.
      */
 #if PKT_RTO_USE_SETTING == TRUE
     msg_t msg = pktQueueRadioCommand(radio,
@@ -662,74 +668,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
   return MSG_ERROR;
 }
 
-/**
- * @brief   Enables a packet decoder.
- * @pre     The packet channel must have been opened.
- * @post    The packet decoder is running.
- *
- * @param[in]   radio unit ID.
- *
- * @api
- */
-void pktStartDecoder(const radio_unit_t radio) {
 
-  packet_svc_t *handler = pktGetServiceObject(radio);
-
-  if(!pktIsReceiveReady(radio)) {
-    /* Wrong state. */
-    chDbgAssert(false, "wrong state for decoder start");
-    return;
-  }
-  /* Set state before starting decoder. */
-  //handler->rx_state = PACKET_RX_ENABLED;
-  event_listener_t el;
-  event_source_t *esp;
-
-  switch(handler->radio_rx_config.type) {
-    case MOD_AFSK: {
-
-      esp = pktGetEventSource((AFSKDemodDriver *)handler->rx_link_control);
-
-      pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_START_EXEC);
-
-      thread_t *the_decoder =
-          ((AFSKDemodDriver *)handler->rx_link_control)->decoder_thd;
-      chEvtSignal(the_decoder, DEC_COMMAND_START);
-      break;
-    } /* End case. */
-
-    case MOD_2FSK_9k6:
-    case MOD_2FSK_19k2:
-    case MOD_2FSK_38k4:
-    case MOD_2FSK_57k6:
-    case MOD_2FSK_76k8:
-    case MOD_2FSK_96k:
-    case MOD_2FSK_115k2: {
-      return;
-    }
-
-    case MOD_CW: {
-      return;
-    }
-
-    default:
-      return;
-  } /* End switch. */
-
-  /* Wait for the decoder to start. */
-  eventflags_t evt;
-  do {
-    /* In reality this is redundant as the only masked event is START. */
-    chEvtWaitAny(USR_COMMAND_ACK);
-
-    /*
-     *  Wait for correct event at source.
-     *  The decoder has attached the stream and started.
-     */
-    evt = chEvtGetAndClearFlags(&el);
-  } while (evt != DEC_START_EXEC);
-  pktUnregisterEventListener(esp, &el);
-}
 
 #if PKT_RTO_USE_SETTING != TRUE
 /**
@@ -797,68 +736,7 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
   return MSG_OK;
 }
 
-/**
- * @brief   Disables a packet decoder.
- * @pre     The packet channel must be running.
- * @post    The packet decoder is stopped.
- *
- * @param[in]   radio unit ID.
- *
- * @api
- */
-void pktStopDecoder(radio_unit_t radio) {
-
-  packet_svc_t *handler = pktGetServiceObject(radio);
-
-  if(!pktIsReceiveEnabled(radio)) {
-    /* Wrong state. */
-    chDbgAssert(false, "wrong state for decoder stop");
-    return;
-  }
-  event_listener_t el;
-  event_source_t *esp;
-
-  switch(handler->radio_rx_config.type) {
-    case MOD_AFSK: {
-      esp = pktGetEventSource((AFSKDemodDriver *)handler->rx_link_control);
-
-      pktRegisterEventListener(esp, &el, USR_COMMAND_ACK, DEC_STOP_EXEC);
-
-      thread_t *the_decoder =
-          ((AFSKDemodDriver *)handler->rx_link_control)->decoder_thd;
-      chEvtSignal(the_decoder, DEC_COMMAND_STOP);
-      break;
-    } /* End case. */
-
-    case MOD_2FSK_9k6:
-    case MOD_2FSK_19k2:
-    case MOD_2FSK_38k4:
-    case MOD_2FSK_57k6:
-    case MOD_2FSK_76k8:
-    case MOD_2FSK_96k:
-    case MOD_2FSK_115k2: {
-      return;
-    }
-
-    case MOD_CW:
-      return;
-
-    default:
-      return;
-  } /* End switch. */
-
-  /* Wait for the decoder to stop. */
-  eventflags_t evt;
-  do {
-    chEvtWaitAny(USR_COMMAND_ACK);
-
-    /* Wait for correct event at source.
-     */
-    evt = chEvtGetAndClearFlags(&el);
-  } while (evt != DEC_STOP_EXEC);
-  pktUnregisterEventListener(esp, &el);
-}
-
+#if 0
 /**
  * @brief   Closes a packet receive service.
  * @pre     The packet service must have been stopped.
@@ -904,7 +782,7 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_CLOSE);
   return MSG_OK;
 }
-
+#endif
 /**
  * @brief   Stores receive data in a packet channel buffer.
  * @post    The character is stored and the internal buffer index is updated.
@@ -1082,7 +960,21 @@ THD_FUNCTION(pktCallback, arg) {
 }
 
 /*
+ * This function was originally a factory FIFO used in a packet RX mailbox posting system.
+ * RX packets were posted to the FIFO and a consumer thread polled the mailbox.
  *
+ * Now all packets are dispatched exclusively via a callback mechanism.
+ * The packet control objects and linked AX25 buffers are taken directly from heap.
+ * This is unthrottled but seeing as packet RX is serial it isn't a risk.
+ * Only opportunity for excess memory use would be if callbacks don't release.
+ * In that case there would be a lot of callback threads running as well consuming memory.
+ *
+ * If implementing a fixed size RX buffer pool (non factory) to limit max RX packets outstanding this could be reworked.
+ * It would also be possible to simply check the rx_count variable and reject a new packet creation.
+ * That would be a whole lot simpler....
+ *
+ * An alternative would be to have a common pool of buffer control objects created when the service is created.
+ * Then each radio would get packet buffers and use an object from the buffer control object pool.
  */
 dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 
@@ -1114,6 +1006,9 @@ dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 
   /* Save the factory FIFO reference. */
   handler->the_packet_fifo = dyn_fifo;
+  /* Initialize packet buffer pointer. */
+  handler->active_packet_object = NULL;
+  return dyn_fifo;
 #else
   dyn_objects_fifo_t *dyn_fifo = NULL;
 #endif
