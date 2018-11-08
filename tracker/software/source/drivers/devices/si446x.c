@@ -1694,6 +1694,17 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
+  /* Create thread name for this instance. */
+  char tx_thd_name[PKT_THREAD_NAME_MAX];
+#if PKT_RTO_USE_SETTING == TRUE
+  chsnprintf(tx_thd_name, sizeof(tx_thd_name),
+             "tx_afsk_%03i", rto->radio_dat.seq_num);
+#else
+  chsnprintf(tx_thd_name, sizeof(tx_thd_name),
+             "tx_afsk_%03i", rto->rt_seq);
+#endif
+  chRegSetThreadName(tx_thd_name);
+
 #if Si446x_UNLOCK_FOR_ENCODE == FALSE
   /* Request radio lock. */
   msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
@@ -1722,8 +1733,9 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   /* Wait for receive stream in progress. Terminate on timeout. */
 #if PKT_RTO_USE_SETTING == TRUE
-  pktSetReceiveStreamInactive(radio, rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
-                        ? TIME_IMMEDIATE : TIME_MS2I(300));
+  pktSetReceiveStreamInactive(radio, rto,
+                              rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
+                              ? TIME_IMMEDIATE : TIME_MS2I(300));
 #else
   pktSetReceiveStreamInactive(radio, rto, rto->squelch == PKT_SI446X_NO_CCA_RSSI
                         ? TIME_IMMEDIATE : TIME_MS2I(300));
@@ -2166,7 +2178,12 @@ bool Si446x_blocSendAFSK(radio_task_object_t *rt) {
 
     thread_t *afsk_feeder_thd = NULL;
 
-    /* Create a send thread name which includes the sequence number. */
+    /*
+     *  Create a send thread name which includes the sequence number.
+     *  TODO: The TX thread should create and hold its name.
+     *  Once we return from here the thread name memory is invalid.
+     */
+#if 0
     char tx_thd_name[16];
 #if PKT_RTO_USE_SETTING == TRUE
     chsnprintf(tx_thd_name, sizeof(tx_thd_name),
@@ -2175,9 +2192,10 @@ bool Si446x_blocSendAFSK(radio_task_object_t *rt) {
     chsnprintf(tx_thd_name, sizeof(tx_thd_name),
                "tx_afsk_%03i", rt->rt_seq);
 #endif
+#endif
     afsk_feeder_thd = chThdCreateFromHeap(NULL,
                 THD_WORKING_AREA_SIZE(SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE),
-                tx_thd_name,
+                "tx_afsk_queue",
                 NORMALPRIO - 10,
                 bloc_si_fifo_feeder_afsk,
                 rt);
@@ -2207,6 +2225,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   packet_t pp = rto->packet_out;
 #endif
   chDbgAssert(pp != NULL, "no packet in radio task");
+
+  /* Create thread name for this instance. */
+  char tx_thd_name[PKT_THREAD_NAME_MAX];
+#if PKT_RTO_USE_SETTING == TRUE
+  chsnprintf(tx_thd_name, sizeof(tx_thd_name),
+             "tx_2fsk_%03i", rto->radio_dat.seq_num);
+#else
+  chsnprintf(tx_thd_name, sizeof(tx_thd_name),
+             "tx_2fsk_%03i", rto->rt_seq);
+#endif
+  chRegSetThreadName(tx_thd_name);
+
 #if Si446x_UNLOCK_FOR_ENCODE == FALSE
   msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
   if(msg == MSG_RESET || msg == MSG_TIMEOUT) {
@@ -2232,8 +2262,9 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
   /* Stop packet system reception. */
 #if PKT_RTO_USE_SETTING == TRUE
-  pktSetReceiveStreamInactive(radio, rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
-                        ? TIME_IMMEDIATE : TIME_MS2I(300));
+  pktSetReceiveStreamInactive(radio, rto,
+                              rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
+                              ? TIME_IMMEDIATE : TIME_MS2I(300));
 #else
   pktSetReceiveStreamInactive(radio, rto, rto->squelch == PKT_SI446X_NO_CCA_RSSI
                         ? TIME_IMMEDIATE : TIME_MS2I(300));
@@ -2667,6 +2698,7 @@ bool Si446x_blocSend2FSK(radio_task_object_t *rt) {
   thread_t *fsk_feeder_thd = NULL;
 
   /* Create a send thread name which includes the sequence number. */
+#if 0
   char tx_thd_name[16];
 #if PKT_RTO_USE_SETTING == TRUE
   chsnprintf(tx_thd_name, sizeof(tx_thd_name),
@@ -2675,9 +2707,10 @@ bool Si446x_blocSend2FSK(radio_task_object_t *rt) {
   chsnprintf(tx_thd_name, sizeof(tx_thd_name),
              "tx_2fsk_%03i", rt->rt_seq);
 #endif
+#endif
   fsk_feeder_thd = chThdCreateFromHeap(NULL,
               THD_WORKING_AREA_SIZE(SI_FSK_FIFO_FEEDER_WA_SIZE),
-              tx_thd_name,
+              "tx_2fsk_queue",
               NORMALPRIO - 10,
               bloc_si_fifo_feeder_fsk,
               rt);

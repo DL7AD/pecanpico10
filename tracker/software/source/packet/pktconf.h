@@ -161,7 +161,7 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #define TRACE_ERROR(format, args...) dbgPrintf(DBG_ERROR, format, ##args)
 #endif
 
-#define PKT_THREAD_NAME_MAX     12
+#define PKT_THREAD_NAME_MAX     20
 
 /* Extra GPIO value used in local GPIO set/clear/toggle functions. */
 #define PAL_TOGGLE              2U
@@ -270,6 +270,8 @@ static inline int8_t pktReadGPIOline(ioline_t line) {
  * @return      status of operation
  * @retval      MSG_OK      if command queued successfully
  * @retval      MSG_TIMEOUT if a task object could not be obtained
+ * @retval      MSG_RESET   the radio manager is closing.
+ * @retval      MSG_ERROR   Command is invalid from outer level.
  *
  * @api
  */
@@ -288,15 +290,15 @@ static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
 #endif
   radio_task_object_t *rt = NULL;
 #if PKT_RTO_USE_SETTING != TRUE
-  msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
-  if(msg == MSG_TIMEOUT)
-    return MSG_TIMEOUT;
+  msg_t msg = pktGetRadioTaskObjectX(radio, timeout, &rt);
+  if(msg != MSG_OK)
+    return msg;
   *rt = *task;
   pktSubmitRadioTask(radio, rt, cb);
 #else
-  msg_t msg = pktGetRadioTaskObject(radio, timeout, cfg, &rt);
-  if(msg == MSG_TIMEOUT)
-    return MSG_TIMEOUT;
+  msg_t msg = pktGetRadioTaskObjectX(radio, timeout, cfg, &rt);
+  if(msg != MSG_OK)
+    return msg;
   rt->user_cb = cb;
   rt->command = cmd;
   pktSubmitRadioTask(radio, rt, NULL);
@@ -368,6 +370,7 @@ static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
  * @return      status of operation
  * @retval      MSG_OK      Command has been queued.
  * @retval      MSG_TIMEOUT No task object available.
+ * @retval      MSG_RESET   the radio manager is closing.
  * @retval      MSG_ERROR   Command is invalid from outer level.
  *
  * @api
@@ -387,15 +390,15 @@ static inline msg_t pktQueuePriorityRadioCommand(const radio_unit_t radio,
 #endif
   radio_task_object_t *rt = NULL;
 #if PKT_RTO_USE_SETTING != TRUE
-  msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
-  if(msg == MSG_TIMEOUT)
-    return MSG_TIMEOUT;
+  msg_t msg = pktGetRadioTaskObjectX(radio, timeout, &rt);
+  if(msg != MSG_OK)
+    return msg;
   *rt = *task;
   pktSubmitPriorityRadioTask(radio, rt, cb);
 #else
-  msg_t msg = pktGetRadioTaskObject(radio, timeout, cfg, &rt);
-  if(msg == MSG_TIMEOUT)
-    return MSG_TIMEOUT;
+  msg_t msg = pktGetRadioTaskObjectX(radio, timeout, cfg, &rt);
+  if(msg != MSG_OK)
+    return msg;
   rt->user_cb = cb;
   rt->command = cmd;
   pktSubmitPriorityRadioTask(radio, rt, NULL);

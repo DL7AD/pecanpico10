@@ -229,18 +229,12 @@ bool pktServiceCreate(const radio_unit_t radio) {
   /* Set flags and radio ID. */
   handler->radio_init = false;
   handler->radio = radio;
-#if 0
-  /* Set service semaphore to idle state. */
+  /* Set service semaphore to available state. */
   chBSemObjectInit(&handler->close_sem, false);
-#endif
-#if PKT_USE_RADIO_MUTEX == TRUE
-  chMtxObjectInit(&handler->radio_mtx);
-#else
   /* Set radio semaphore to free state. */
   chBSemObjectInit(&handler->radio_sem, false);
-#endif
 
-#if USE_HEAP_RX_BUFFER_OBJECTS == TRUE && USE_POOL_RX_BUFFER_OBJECTS == TRUE
+#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
   /* Initialise guarded pool of receive packet buffer control objects. */
   chGuardedPoolObjectInitAligned(handler->rx_packet_pool,
                                  sizeof(pkt_data_object_t),
@@ -643,7 +637,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
                                     PKT_RADIO_RX_START,
                                     &handler->radio_rx_config,
                                     to,
-                                    pktReceiveStartCB);
+                                    NULL);
 #else
     radio_task_object_t rt = handler->radio_rx_config;
 
@@ -688,6 +682,7 @@ static bool pktReceiveDisableCB(radio_task_object_t *rt) {
 #endif
 /**
  * @brief   Stop reception.
+ * @notes   Called from an application level.
  * @notes   Decoding is stopped.
  * @notes   Any packets out for processing remain in effect.
  * @pre     The packet channel must be running.
@@ -717,8 +712,9 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
 
 #if PKT_RTO_USE_SETTING == TRUE
   /* Submit command. A timeout can occur waiting for a command queue object. */
+  radio_params_t rp = handler->radio_rx_config;
   msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_RX_STOP,
-                                  NULL, TIME_INFINITE, NULL);
+                                  &rp, TIME_INFINITE, NULL);
   if(msg != MSG_OK)
     return msg;
 #else
@@ -839,42 +835,37 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *pkt_object) {
         calc_crc16(pkt_object->buffer, 0,
                    pkt_object->packet_size);
     if(magicCRC == CRC_INCLUSIVE_CONSTANT)
-        handler->good_count++;
+      handler->good_count++;
     flags |= (magicCRC == CRC_INCLUSIVE_CONSTANT)
-                ? STA_PKT_FRAME_RDY
-                : STA_PKT_CRC_ERROR;
+                    ? STA_PKT_FRAME_RDY
+                        : STA_PKT_CRC_ERROR;
   } else {
     flags |= STA_PKT_INVALID_FRAME;
   }
 
   /* Update status in packet buffer object. */
   pkt_object->status |= flags;
-#if  USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-  objects_fifo_t *pkt_fifo = chFactoryGetObjectsFIFO(pkt_object->pkt_factory);
 
-  chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
-
-  chDbgAssert(pkt_object->cb_func != NULL, "no packet callback specified");
-#endif
-  /* Schedule a callback. */
+  /* Schedule a callback thread. */
   thread_t *cb_thd = pktCreateReceiveCallback(pkt_object);
 
-  if(cb_thd == NULL) {
-#if USE_CCM_HEAP_RX_BUFFERS == TRUE
-    /* Release the packet buffer. */
-    chHeapFree(pkt_object->buffer);
-#endif
-    /* Failed to create CB thread. Release buffer. Broadcast event. */
-#if  USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-    chFifoReturnObject(pkt_fifo, pkt_object);
+  if(cb_thd != NULL)
+    return flags;
+
+  /*
+   * Callback thread create failed.
+   * Release the packet buffer and management object.
+   * Broadcast event.
+   */
+  chHeapFree(pkt_object->buffer);
+
+#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
+
 #else
-    chHeapFree(pkt_object);
+  /* Release the buffer management object. */
+  chHeapFree(pkt_object);
 #endif
-    pktAddEventFlags(handler, EVT_PKT_FAILED_CB_THD);
-  } else {
-    /* Increase outstanding callback count. */
-    handler->rx_count++;
-  }
+  pktAddEventFlags(handler, EVT_PKT_FAILED_CB_THD);
   return flags;
 }
 
@@ -899,7 +890,7 @@ thread_t *pktCreateReceiveCallback(pkt_data_object_t *pkt_object) {
   chDbgAssert(pkt_object != NULL, "invalid packet buffer");
 
   /* Create a callback thread name which is the address of the buffer. */
-  /* TODO: Create a more meaningful but still unique thread name. */
+  /* TODO: Have thread create name using seq_num. */
   chsnprintf(pkt_object->cb_thd_name, sizeof(pkt_object->cb_thd_name),
              PKT_CALLBACK_THD_PREFIX"%x", pkt_object);
 
@@ -911,6 +902,10 @@ thread_t *pktCreateReceiveCallback(pkt_data_object_t *pkt_object) {
               pktCallback,
               pkt_object);
 
+  if(cb_thd != NULL) {
+    /* This callback holds a reference to the service object. */
+    pkt_object->handler->rxcb_ref_count++;
+  }
   return cb_thd;
 }
 
@@ -921,11 +916,9 @@ thread_t *pktCreateReceiveCallback(pkt_data_object_t *pkt_object) {
  * @notes   After callback completes the thread is scheduled for release.
  *
  * @post    Call back has been executed (for however long it takes).
- * @post    Callback thread release is completed in the terminator thread.
+ * @post    Callback thread release is handled in the terminator (idle) thread.
  *
  * @param[in] arg pointer to a @p packet buffer object.
- *
- * @return  status (MSG_OK).
  *
  * @notapi
  */
@@ -936,25 +929,23 @@ THD_FUNCTION(pktCallback, arg) {
   pkt_data_object_t *pkt_object = arg;
 
   chDbgAssert(pkt_object->cb_func != NULL, "no callback set");
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-  dyn_objects_fifo_t *pkt_factory = pkt_object->pkt_factory;
-  chDbgAssert(pkt_factory != NULL, "invalid packet factory reference");
+#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
 
-  objects_fifo_t *pkt_fifo = chFactoryGetObjectsFIFO(pkt_factory);
-  chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
 #endif
   /* Save thread pointer. */
-  pkt_object->cb_thread = chThdGetSelfX();
+/*  pkt_object->cb_thread = chThdGetSelfX();*/
 
   /* Perform the callback. */
   pkt_object->cb_func(pkt_object);
 
   /*
-   * Upon return the buffer control object is queued for release.
-   * This tread is scheduled for destruction in pktReleaseDataBuffer(...).
-   * .i.e pktReleaseDataBuffer does not return.
+   * Upon return the buffer control object is released.
+   * The callback thread is scheduled for destruction.
    */
+  packet_svc_t *handler = pkt_object->handler;
   pktReleaseDataBuffer(pkt_object);
+  /* The callback no longer holds a reference to the service object. */
+  handler->rxcb_ref_count--;
   extern void pktThdTerminateSelf(void);
   pktThdTerminateSelf();
 }
@@ -979,36 +970,7 @@ THD_FUNCTION(pktCallback, arg) {
 dyn_objects_fifo_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-  /* Create the packet buffer name for this radio. */
-  chsnprintf(handler->pbuff_name, sizeof(handler->pbuff_name),
-             "%s%02i", PKT_FRAME_QUEUE_PREFIX, radio);
-
-  /* Check if the packet buffer factory is still in existence.
-   * If so we get a pointer to it.
-   */
-  dyn_objects_fifo_t *dyn_fifo =
-      chFactoryFindObjectsFIFO(handler->pbuff_name);
-
-  if(dyn_fifo == NULL) {
-    /* Create the dynamic objects FIFO for the packet data queue. */
-    dyn_fifo = chFactoryCreateObjectsFIFO(handler->pbuff_name,
-        sizeof(pkt_data_object_t),
-        NUMBER_RX_PKT_BUFFERS, sizeof(msg_t));
-
-    chDbgAssert(dyn_fifo != NULL, "failed to create receive PKT objects FIFO");
-
-    if(dyn_fifo == NULL) {
-      /* TODO: Close decoder on fail. */
-      return NULL;
-    }
-  }
-
-  /* Save the factory FIFO reference. */
-  handler->the_packet_fifo = dyn_fifo;
-  /* Initialize packet buffer pointer. */
-  handler->active_packet_object = NULL;
-  return dyn_fifo;
+#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
 #else
   dyn_objects_fifo_t *dyn_fifo = NULL;
 #endif
@@ -1133,38 +1095,13 @@ void pktReleaseCommonPacketBuffer(packet_t pp) {
   chFactoryReleaseSemaphore(dyn_sem);
 }
 
-#if 0
-/*
- * Send shares a common pool of buffers.
- */
-void pktReleaseBufferSemaphore(radio_unit_t radio) {
-/*
-#if USE_CCM_FOR_PKT_POOL != TRUE
-  packet_svc_t *handler = pktGetServiceObject(radio);
-
-  chDbgAssert(handler != NULL, "invalid radio ID");
-
-
-   *  Release Semaphore.
-   *  If this is the last radio using the semaphore it is released.
-
-  chFactoryReleaseSemaphore(handler->tx_packet_sem);
-  handler->tx_packet_sem = NULL;
-#else
-*/
-  (void)radio;
-/*#endif*/
-}
-#endif
 /**
  *
  */
 void pktIncomingBufferPoolRelease(packet_svc_t *handler) {
 
   /* Release the dynamic objects FIFO for the incoming packet data queue. */
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-  chFactoryReleaseObjectsFIFO(handler->the_packet_fifo);
-  handler->the_packet_fifo = NULL;
+#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
 #else
   (void)handler;
 #endif
@@ -1199,7 +1136,6 @@ packet_svc_t *pktGetServiceObject(radio_unit_t radio) {
   return handler;
 }
 
-
 /**
  * @brief   Gets an sets up a packet management object.
  * @notes   Allocates a management object.
@@ -1218,38 +1154,18 @@ packet_svc_t *pktGetServiceObject(radio_unit_t radio) {
  */
 pkt_data_object_t* pktAssignReceivePacketObject(packet_svc_t *handler,
                                                     sysinterval_t timeout) {
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-  /*
-   * Get a reference to the packet management FIFO.
-   * The factory reference count is increased when found.
-   */
-  dyn_objects_fifo_t *pkt_fifo =
-      chFactoryFindObjectsFIFO(handler->pbuff_name);
-  chDbgAssert(pkt_fifo != NULL, "unable to find packet fifo");
+#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
 
-  /*
-   * Packet management FIFO found.
-   * Now get reference to inner FIFO allocator.
-   */
-  objects_fifo_t *pkt_object_pool = chFactoryGetObjectsFIFO(pkt_fifo);
-  chDbgAssert(pkt_object_pool != NULL, "no packet fifo list");
-
-  /* Get a management object from the FIFO pool. */
-  pkt_data_object_t *pkt_object = chFifoTakeObjectTimeout(pkt_object_pool,
-                                                          timeout);
-  if(pkt_object == NULL) {
-    /* Decrease ref count on packet management object FIFO. */
-    chFactoryReleaseObjectsFIFO(pkt_fifo);
-    return NULL;
-  }
 #else
   (void)timeout;
-  pkt_data_object_t *pkt_object = chHeapAlloc(NULL, sizeof(pkt_data_object_t));
+  extern memory_heap_t *ccm_heap;
+  pkt_data_object_t *pkt_object =
+      chHeapAlloc(USE_CCM_HEAP_RX_BUFFERS ? ccm_heap
+                                          : NULL,
+                                            sizeof(pkt_data_object_t));
   if(pkt_object == NULL)
     return NULL;
 #endif
-  if(pkt_object == NULL)
-    return NULL;
   handler->active_packet_object = pkt_object;
   /*
    * Packet management object available.
@@ -1260,26 +1176,23 @@ pkt_data_object_t* pktAssignReceivePacketObject(packet_svc_t *handler,
   pkt_object->packet_size = 0;
   pkt_object->buffer_size = PKT_RX_BUFFER_SIZE;
   pkt_object->cb_func = handler->usr_callback;
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-  /* Save the pointer to the object factory for use when releasing object. */
-  pkt_object->pkt_factory = handler->the_packet_fifo;
-#endif
-#if USE_CCM_HEAP_RX_BUFFERS == TRUE
   extern memory_heap_t *ccm_heap;
-  pkt_object->buffer = chHeapAlloc(ccm_heap, PKT_RX_BUFFER_SIZE);
+  pkt_object->buffer =
+      chHeapAlloc(USE_CCM_HEAP_RX_BUFFERS ? ccm_heap
+                                          : NULL,
+                                            PKT_RX_BUFFER_SIZE);
   if(pkt_object->buffer != NULL)
     return pkt_object;
-  /* No heap available for data buffer. */
-  /* Release management object. */
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-  chFifoReturnObject(pkt_object_pool, (pkt_data_object_t *)pkt_object);
+  /*
+   * No heap available for data buffer.
+   * Release management object.
+   */
+#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
 
-  /* Decrease ref count on packet management object FIFO. */
-  chFactoryReleaseObjectsFIFO(pkt_fifo);
 #else
   chHeapFree(pkt_object);
-#endif /* USE_HEAP_RX_BUFFER_OBJECTS == FALSE */
-#endif /* USE_CCM_HEAP_RX_BUFFERS == TRUE */
+  handler->active_packet_object = NULL;
+#endif /* USE_POOL_RX_BUFFER_OBJECTS == TRUE */
   return NULL;
 }
 
@@ -1287,38 +1200,24 @@ pkt_data_object_t* pktAssignReceivePacketObject(packet_svc_t *handler,
  * @brief   Returns a receive buffer to the packet buffer free pool.
  * @details This function is called from thread level to free a buffer.
  * @post    The packet receive object and buffer are released.
- * @post    The outstanding receive packet object count is updated.
  *
  * @param[in]   object      pointer to a @p receive packet object.
  *
  * @api
  */
 void pktReleaseDataBuffer(pkt_data_object_t *object) {
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-  dyn_objects_fifo_t *pkt_factory = object->pkt_factory;
-  chDbgAssert(pkt_factory != NULL, "no packet factory");
-
-  objects_fifo_t *pkt_fifo = chFactoryGetObjectsFIFO(pkt_factory);
-  chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
-
-  chDbgAssert(object->cb_func != NULL, "no user callback set");
-#endif
-#if USE_CCM_HEAP_RX_BUFFERS == TRUE
-  /* Free the packet buffer in the heap now. */
+  /* Free the linked packet buffer. */
   chHeapFree(object->buffer);
-#endif
 
   /*
-   * Free the object.
+   * Decrease the outstanding buffer count.
+   * Free the buffer control object.
    * Decrease the factory reference count.
-   * If the service is closed and all buffers freed then the FIFO is destroyed.
-   * Terminate this thread and have idle thread sweeper clean up memory.
+   * Decrease the outstanding receive packet count.
    */
-  object->handler->rx_count--;
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-  chFifoReturnObject(pkt_fifo, object);
-  chFactoryReleaseObjectsFIFO(pkt_factory);
-#else
+#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
+
+#else /* USE_POOL_RX_BUFFER_OBJECTS != TRUE */
   chHeapFree(object);
 #endif
 }

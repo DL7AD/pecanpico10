@@ -103,8 +103,8 @@ bool            OV5640_isAvailable(void);
 void            OV5640_setLightIntensity(void);
 uint32_t        OV5640_getLastLightIntensity(void);
 pdcmi_error_t   OV5640_hasError(void);
-msg_t           OV5640_LockPDCMI(sysinterval_t timeout);
-void            OV5640_UnlockPDCMI(void);
+msg_t           OV5640_PDCMIlock(sysinterval_t timeout);
+void            OV5640_PDCMIunlock(void);
 bool            OV5640_GetPDCMILockStateI(void);
 
 #ifdef __cplusplus

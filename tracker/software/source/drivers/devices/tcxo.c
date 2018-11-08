@@ -18,7 +18,7 @@
 BSEMAPHORE_DECL(tcxo_busy, false);
 
 xtal_osc_t tcxo_period;
-xtal_osc_t tcxo_active = PKT_TCXO_TIMER_CLOCK + PKT_TCXO_DEFAULT_ERROR;
+xtal_osc_t tcxo_active = PKT_TCXO_DEFAULT_CLOCK;
 volatile tcxo_state_t  tcxo_state;
 
 /*===========================================================================*/
@@ -136,7 +136,7 @@ void pktInitTCXO()  {
   pktSetGPIOlineMode(LINE_GPS_TIMEPULSE, PAL_MODE_INPUT | PAL_MODE_ALTERNATE(9));
   icuObjectInit(&PKT_TCXO_TIMER);
   /* TODO: Get last known good from flash. */
-  tcxo_active = STM32_HSECLK + PKT_TCXO_DEFAULT_ERROR;
+  tcxo_active = PKT_TCXO_DEFAULT_CLOCK;
   TRACE_INFO("TCXO > Start TCXO continuous measurement");
   chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(512), "TCXO", LOWPRIO,
                       tcxo_thd, NULL);
@@ -147,7 +147,9 @@ void pktInitTCXO()  {
  *
  */
 inline xtal_osc_t pktGetCurrentTCXO()  {
-  return tcxo_active;
+  if(tcxo_active >= PKT_TCXO_CLOCK_MIN && PKT_TCXO_CLOCK_MAX >= tcxo_active)
+    return tcxo_active;
+  return PKT_TCXO_DEFAULT_CLOCK;
 }
 
 /**
@@ -155,7 +157,7 @@ inline xtal_osc_t pktGetCurrentTCXO()  {
  */
 xtal_osc_t pktCheckUpdatedTCXO(xtal_osc_t current)  {
   if(current != tcxo_active)
-    return tcxo_active;
+    return pktGetCurrentTCXO();
   return 0;
 }
 

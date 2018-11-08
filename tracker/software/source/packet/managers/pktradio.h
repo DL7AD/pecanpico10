@@ -35,7 +35,7 @@
 /* Set TRUE to use mutex instead of bsem. */
 #define PKT_USE_RADIO_MUTEX             FALSE
 
-#define PKT_RTO_USE_SETTING             FALSE
+#define PKT_RTO_USE_SETTING             TRUE
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
@@ -86,17 +86,17 @@ typedef enum radioCommand {
   PKT_RADIO_RX_STOP,
   PKT_RADIO_TX_SEND,
   PKT_RADIO_RX_CLOSE,
-  PKT_RADIO_TX_DONE,
   PKT_RADIO_MGR_CLOSE,
-  /* Internal RM tasks only. */
-  PKT_RADIO_RX_DECODE,
+  PKT_RADIO_TCXO_UPDATE,
   PKT_RADIO_RX_RSSI,
+  /* Internal or function API accessed RM tasks only. */
+  PKT_RADIO_TX_DONE,
+  PKT_RADIO_RX_DECODE,
   PKT_RADIO_RX_START_UNLOCK,
-  PKT_RADIO_RX_STOP_LOCK,
-  PKT_RADIO_TCXO_UPDATE
+  PKT_RADIO_RX_STOP_LOCK
 } radio_command_t;
 
-#define PKT_RADIO_TASK_MAX  PKT_RADIO_MGR_CLOSE
+#define PKT_RADIO_TASK_MAX  PKT_RADIO_RX_RSSI
 /**
  * Forward declare structure types.
  */
@@ -202,15 +202,15 @@ extern "C" {
   thread_t  		*pktRadioManagerCreate(const radio_unit_t radio);
   msg_t      		pktRadioManagerRelease(const radio_unit_t radio);
   void      		pktRadioManager(void *arg);
-  msg_t     		pktGetRadioTaskObject(const radio_unit_t radio,
+  msg_t     		pktGetRadioTaskObjectX(const radio_unit_t radio,
                               const sysinterval_t timeout,
 #if PKT_RTO_USE_SETTING == TRUE
-                              const radio_params_t *set,
+                              const radio_params_t *cfg,
 #endif
                               radio_task_object_t **rt);
   msg_t             pktGetRadioTaskObjectI(const radio_unit_t radio,
 #if PKT_RTO_USE_SETTING == TRUE
-                            const radio_params_t *set,
+                            const radio_params_t *cfg,
 #endif
                               radio_task_object_t **rt);
   void      		pktSubmitRadioTask(const radio_unit_t radio,
@@ -242,6 +242,8 @@ extern "C" {
             		                const sysinterval_t timeout);
   void      		pktUnlockRadio(const radio_unit_t radio,
                                    const radio_mode_t mode);
+  void              pktResetRadioLock(const radio_unit_t radio,
+                                      const bool taken);
   const radio_config_t *pktGetRadioList(void);
   uint8_t           pktGetNumRadios(void);
   radio_band_t 		*pktCheckAllowedFrequency(const radio_unit_t radio,

@@ -9,7 +9,10 @@
 #include "radio.h"
 #include "sleep.h"
 #include "threads.h"
-
+/**
+ * TODO: Rework so that packet object is passed in.
+ * - Then extract further information from object as required.
+ */
 static void pktProcessReceivedPacket(ax25char_t *buf, size_t len,
                                      radio_signal_t rssi) {
   if(len < 3) {
@@ -257,7 +260,8 @@ THD_FUNCTION(aprsThread, arg) {
       TRACE_MON("RX   > Pausing receive on radio %d", radio);
       msg = pktDisableDataReception(radio);
       if(msg != MSG_OK) {
-        TRACE_ERROR("RX   > Pause of radio packet reception failed");
+        TRACE_ERROR("RX   > Pause of radio %d packet reception failed (%d)",
+                    radio, msg);
         time = waitForTrigger(time, conf->rx.svc_conf.cycle);
         continue;
       }

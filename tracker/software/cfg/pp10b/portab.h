@@ -146,11 +146,12 @@
 #define PKT_TCXO_TIMER              ICUD12
 #define PKT_TCXO_TIMER_CLOCK        STM32_TIMCLK1
 #define PKT_TCXO_TIMER_CHANNEL      ICU_CHANNEL_2
-#define PKT_TCXO_DEFAULT_ERROR      712                     /**< Error in Hz */
+#define PKT_TCXO_CLOCK              STM32_HSECLK
+#define PKT_TCXO_DEFAULT_ERROR_HZ   712      /**< Manual error adjust in Hz  */
 
 /* Si446x clock setup. */
 #define Si446x_CLK                  STM32_HSECLK            /* Clock in Hz */
-#define Si446x_CLK_ERROR            PKT_TCXO_DEFAULT_ERROR  /* Error in Hz */
+#define Si446x_CLK_ERROR            PKT_TCXO_DEFAULT_ERROR_HZ  /* Error in Hz */
 #define Si446x_CLK_TCXO_EN          true                    /* Xtal or external. */
 #define Si446x_XO_TUNE              0x40                    /* Xtal trim. */
 
@@ -247,7 +248,7 @@
 
 /* Number of frame receive buffers per radio. */
 #define NUMBER_RX_PKT_BUFFERS       5U
-#define USE_HEAP_RX_BUFFER_OBJECTS  TRUE
+//#define USE_HEAP_RX_BUFFER_OBJECTS  TRUE
 #define USE_POOL_RX_BUFFER_OBJECTS  FALSE
 #define USE_CCM_HEAP_RX_BUFFERS     TRUE
 

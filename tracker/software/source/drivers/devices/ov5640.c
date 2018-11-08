@@ -1087,14 +1087,14 @@ void mode3_vsync_cb(void *arg) {
  *
  * Other services can lock the PDCMI to prevent resource conflicts.
  */
-msg_t OV5640_LockPDCMI(sysinterval_t timeout) {
+msg_t OV5640_PDCMIlock(sysinterval_t timeout) {
   return chBSemWaitTimeout(&pdcmi_sem, timeout);
 }
 
 /*
  *
  */
-void OV5640_UnlockPDCMI(void) {
+void OV5640_PDCMIunlock(void) {
   chBSemSignal(&pdcmi_sem);
   return;
 }
@@ -1152,7 +1152,7 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
 	 */
 #define PDCMI_LOCK_TIMEOUT  TIME_S2I(5)
     /* Stop other processes gaining DCMI. */
-	if(OV5640_LockPDCMI(PDCMI_LOCK_TIMEOUT) != MSG_OK) {
+	if(OV5640_PDCMIlock(PDCMI_LOCK_TIMEOUT) != MSG_OK) {
       TRACE_WARN("CAM  > PDCMI failed to lock within timeout of %d seconds",
                  chTimeI2S(PDCMI_LOCK_TIMEOUT));
 	  /* Unable to lock resources. */
@@ -1184,7 +1184,7 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
 	/* Set stream, IRQ priority, IRQ handler & parameter. */
 	if(dmaStreamAllocate(dma_control.dmastp, PDCMI_DMA_IRQ_PRIO,
 	                  (stm32_dmaisr_t)dma_interrupt, &dma_control)) {
-	    OV5640_UnlockPDCMI();
+	    OV5640_PDCMIunlock();
         TRACE_ERROR("CAM  > DMA could not allocate stream");
         return PDCMI_DMA_STREAM_ERR;
 	}
@@ -1276,7 +1276,7 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
     i2cReleaseBus(&PKT_CAM_I2C);
 
     /* Let other processes lock PDCMI. */
-    OV5640_UnlockPDCMI();
+    OV5640_PDCMIunlock();
 
     switch(state) {
     case PDCMI_DMA_ERROR: {

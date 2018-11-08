@@ -70,21 +70,17 @@ typedef void (*pkt_buffer_cb_t)(pkt_data_object_t *pkt_object);
 typedef struct packetBufferObject {
   struct pool_header        link; /* For safety keep clear - where pool stores its free link. */
   packet_svc_t              *handler;
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-  dyn_objects_fifo_t        *pkt_factory;
+#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
+
 #endif
-  thread_t                  *cb_thread;
+  //thread_t                  *cb_thread;
   char                      cb_thd_name[PKT_THREAD_NAME_MAX];
   pkt_buffer_cb_t           cb_func;
   volatile eventflags_t     status;
   radio_signal_t            rssi;
   size_t                    buffer_size;
   size_t                    packet_size;
-#if USE_CCM_HEAP_RX_BUFFERS == TRUE
-  ax25char_t                *buffer;
-#else
-  ax25char_t                buffer[PKT_RX_BUFFER_SIZE];
-#endif
+  ax25char_t               *buffer;
 } pkt_data_object_t;
 
 
@@ -104,41 +100,30 @@ typedef struct packetHandlerData {
    */
   radio_unit_t              radio;
 
-  xtal_osc_t                xtal;      /**< XO frequency of main clock.   */
-  bool                      xo_update; /**< XO update in progress.   */
+  xtal_osc_t                xtal;      /**< XO frequency of main clock.     */
+  bool                      xo_update; /**< XO update in progress.          */
 
   /**
    * @brief Radio part number.
    */
-  radio_part_t              radio_part;
+  radio_part_t              radio_part; // to be deprecated
 
   /**
    * @brief Radio revision level.
    */
-  radio_rev_t               radio_rom_rev;
+  radio_rev_t               radio_rom_rev; // to be deprecated
 
   /**
    * @brief Radio patch ID.
    */
-  radio_patch_t             radio_patch;
+  radio_patch_t             radio_patch; // to be deprecated
 
   /**
    * @brief Radio initialization flag.
    */
-  bool                      radio_init;
+  bool                      radio_init; /**< Radio has been initialised     */
 
-#if PKT_USE_RADIO_MUTEX != TRUE
-  /**
-   * @brief Radio locked access semaphore.
-   */
-  binary_semaphore_t        radio_sem;
-#else
-
-  /**
-   * @brief Radio locked access semaphore.
-   */
-  mutex_t                   radio_mtx;
-#endif
+  binary_semaphore_t        radio_sem;  /**< Radio lock semaphore.          */
 
 #if PKT_RTO_USE_SETTING != TRUE
   /**
@@ -158,7 +143,7 @@ typedef struct packetHandlerData {
   /**
    * @brief Counter for active transmit threads.
    */
-  uint8_t                   tx_count;
+  uint8_t                   txrto_ref_count;
 
   /**
    * @brief Pointer to link level protocol data.
@@ -182,19 +167,14 @@ typedef struct packetHandlerData {
    *  @brief Packet system service threads.
    */
   thread_t                  *radio_manager;
-  thread_t                  *cb_terminator;
+  //thread_t                  *cb_terminator;
 
   /**
    * @brief Radio task guarded FIFO.
    */
   dyn_objects_fifo_t        *the_radio_fifo;
 
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-  /**
-   * @brief AX25 packet guarded FIFO for receive.
-   */
-  dyn_objects_fifo_t        *the_packet_fifo;
-#else
+#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
   /**
    * @brief AX25 receive packet objects guarded pool.
    */
@@ -215,12 +195,12 @@ typedef struct packetHandlerData {
    * @brief Counter for active callback threads.
    * TODO: type should be of a generic counter?
    */
-  uint8_t                   rx_count;
+  uint8_t                   rxcb_ref_count;
 
   /**
    * @brief Event source object.
    */
-  //binary_semaphore_t        close_sem;
+  binary_semaphore_t        close_sem;
 
   /**
    * @brief Event source object.
@@ -410,38 +390,6 @@ extern "C" {
 static inline void pktResetDataCount(pkt_data_object_t *object) {
   object->packet_size = 0;
 }
-
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
-/**
- * @brief   Waits for a buffer to be posted to the FIFO and gets it.
- * @details This function is called from thread level to get a posted buffer.
- *
- * @param[in] handler   pointer to a @p packet handler object.
- * @param[in] object    pointer to the fetched object reference.
- * @param[in] timeout   the number of ticks before the operation times out.
- *                      the following special values are allowed:
- *                      - @a TIME_IMMEDIATE immediate timeout.
- *                      - @a TIME_INFINITE no timeout.
- *
- * @return              The operation status.
- * @retval MSG_OK       if an object has been correctly fetched.
- * @retval MSG_TIMEOUT  if the operation has timed out.
- *
- * @api
- */
-static inline msg_t pktReceiveDataBufferTimeout(packet_svc_t *handler,
-                                                 pkt_data_object_t **object,
-                                                 sysinterval_t timeout) {
-
-  objects_fifo_t *pkt_fifo = chFactoryGetObjectsFIFO(handler->the_packet_fifo);
-
-  chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
-
-  msg_t fifo_msg = chFifoReceiveObjectTimeout(pkt_fifo,
-                                              (void *)object, timeout);
-  return fifo_msg;
-}
-#endif
 
 /**
  * @brief   Checks if a buffer meets minimum AX25 validity.

@@ -773,6 +773,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /* If no management object or data buffer is available get NULL. */
         if(myPktBuffer == NULL) {
           pktAddEventFlags(myHandler, EVT_PKT_NO_BUFFER);
+          /*
+           * TODO: The STA_PKT_NO_BUFFER status is not checked anywhere.
+           * When RESET runs the STA_AFSK_DECODE_RESET status is set.
+           * This causes PWM to abort the current session.
+           */
           myDriver->active_demod_stream->status |= STA_PKT_NO_BUFFER;
           myDriver->decoder_state = DECODER_RESET;
           break;
@@ -1071,22 +1076,17 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
                            myHandler->active_packet_object->packet_size,
                            AX25_DUMP_RAW);
 #endif
-#if USE_CCM_HEAP_RX_BUFFERS == TRUE
           /* Free the data buffer referenced in the packet object. */
+          chDbgAssert(myHandler->active_packet_object->buffer != NULL,
+                      "no packet buffer");
           chHeapFree(myHandler->active_packet_object->buffer);
-#endif
-#if USE_HEAP_RX_BUFFER_OBJECTS == FALSE
+#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
           /* Release the receive packet buffer management object. */
-          objects_fifo_t *pkt_fifo =
-              chFactoryGetObjectsFIFO(myHandler->active_packet_object->pkt_factory);
 
-          chDbgAssert(pkt_fifo != NULL, "no packet FIFO");
-
-          chFifoReturnObject(pkt_fifo, myHandler->active_packet_object);
 #else
           chHeapFree(myHandler->active_packet_object);
 #endif
-          /* Forget the AX25 buffer management object. */
+          /* Forget the receive packet buffer management object. */
           myHandler->active_packet_object = NULL;
         }
 

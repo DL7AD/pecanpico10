@@ -812,12 +812,12 @@ static void pktRadioRSSIreadCB(radio_task_object_t *rt) {
 
   radio_pwm_fifo_t *myFIFO = myDemod->active_radio_stream;
   if(myFIFO == NULL)
-    return false;
+    return;
   /*
    * Is the callback still good for current RX sequence?
    * Can be out of sync if the radio manager is delayed or PWM is jittery.
    */
-  if(myFIFO->seq_num == rt->radio_dat.rt_seq)
+  if(myFIFO->seq_num == rt->radio_dat.seq_num)
     /* Set the RSSI or flag unable to read. */
     myFIFO->rssi = (rt->result == MSG_OK) ? rt->rssi : 0xFF;
 }
@@ -932,34 +932,6 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 
 #if LINE_PWM_MIRROR != PAL_NOLINE
   pktWriteGPIOline(LINE_PWM_MIRROR, PAL_HIGH);
-#endif
-#if 0
-  if(myDemod->icustate == PKT_PWM_WAITING) {
-    /*
-     * On period clear the ICU activity watchdog timer.
-     * i.e. Once radio data appears a "no data" timeout is invalidated.
-     * Request RSSI read.
-     */
-    chVTResetI(&myICU->pwm_timer);
-#if PKT_RSSI_CAPTURE == TRUE
-    radio_task_object_t rt = myDemod->packet_handler->radio_rx_config;
-    radio_unit_t radio = myDemod->packet_handler->radio;
-
-    /* Set command and clear RSSI (no value). */
-    rt.command = PKT_RADIO_RX_RSSI;
-    rt.rssi = 0;
-
-    /* Sequence stamp the PWM FIFO object. */
-    rt.tx_seq = myDemod->packet_handler->radio_rx_config.tx_seq;
-
-    msg_t msg = pktQueuePriorityRadioCommandI(radio, &rt,
-                                        (radio_task_cb_t)pktRadioRSSIreadCB);
-    if(msg != MSG_OK) {
-      myDemod->active_radio_stream->rssi = 0xFF;
-    }
-#endif
-    myDemod->icustate = PKT_PWM_ACTIVE;
-  }
 #endif
   if(myDemod->active_radio_stream == NULL) {
     /*
