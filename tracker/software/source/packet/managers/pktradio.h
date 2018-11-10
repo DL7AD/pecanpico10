@@ -91,9 +91,7 @@ typedef enum radioCommand {
   PKT_RADIO_RX_RSSI,
   /* Internal or function API accessed RM tasks only. */
   PKT_RADIO_TX_DONE,
-  PKT_RADIO_RX_DECODE,
-  PKT_RADIO_RX_START_UNLOCK,
-  PKT_RADIO_RX_STOP_LOCK
+  PKT_RADIO_RX_DECODE
 } radio_command_t;
 
 #define PKT_RADIO_TASK_MAX  PKT_RADIO_RX_RSSI
@@ -202,7 +200,7 @@ extern "C" {
   thread_t  		*pktRadioManagerCreate(const radio_unit_t radio);
   msg_t      		pktRadioManagerRelease(const radio_unit_t radio);
   void      		pktRadioManager(void *arg);
-  msg_t     		pktGetRadioTaskObjectX(const radio_unit_t radio,
+  msg_t     		pktGetRadioTaskObject(const radio_unit_t radio,
                               const sysinterval_t timeout,
 #if PKT_RTO_USE_SETTING == TRUE
                               const radio_params_t *cfg,
@@ -260,13 +258,15 @@ extern "C" {
   msg_t             pktSetReceiveStreamInactive(const radio_unit_t radio,
                                           const radio_task_object_t *rto,
                                           const sysinterval_t timeout);
-  void      		pktRadioSendComplete(radio_task_object_t *rto,
-                                          thread_t *thread);
+  void      		pktRadioSendComplete(radio_task_object_t *const rto,
+                                          thread_t *const thread);
   ICUDriver         *pktLLDradioAttachStream(const radio_unit_t radio);
   void              pktLLDradioDetachStream(const radio_unit_t radio);
   const ICUConfig   *pktLLDradioStreamEnable(const radio_unit_t radio,
-                                             palcallback_t cb);
-  void              pktLLDradioStreamDisableI(const radio_unit_t radio);
+                                             const radio_mod_t mod,
+                                             const palcallback_t cb);
+  void              pktLLDradioStreamDisableI(const radio_unit_t radio,
+                                              const radio_mod_t mod);
   bool              pktRadioGetInProgress(const radio_unit_t radio);
   int       	 	pktDisplayFrequencyCode(radio_freq_hz_t code, char *buf,
             	 	                        size_t size);

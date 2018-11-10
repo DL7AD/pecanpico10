@@ -47,7 +47,7 @@
 
 /* Extend standard OS result codes. */
 #define MSG_ERROR           (msg_t)-3   /**< @brief Error condition.  */
-#define MSG_LOCKED          (msg_t)-4   /**< @brief Resource locked. */
+#define MSG_IDLE            (msg_t)-4   /**< @brief Idle condition. */
 
 /* General event definitions. */
 #define EVT_NONE                    0
@@ -284,19 +284,22 @@ static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
 #endif
                                         const sysinterval_t timeout,
                                         const radio_task_cb_t cb) {
+
 #if PKT_RTO_USE_SETTING == TRUE
-  if(cmd > PKT_RADIO_TASK_MAX)
+  if(cmd > PKT_RADIO_TASK_MAX) {
+    chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
+  }
 #endif
   radio_task_object_t *rt = NULL;
 #if PKT_RTO_USE_SETTING != TRUE
-  msg_t msg = pktGetRadioTaskObjectX(radio, timeout, &rt);
+  msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
   if(msg != MSG_OK)
     return msg;
   *rt = *task;
   pktSubmitRadioTask(radio, rt, cb);
 #else
-  msg_t msg = pktGetRadioTaskObjectX(radio, timeout, cfg, &rt);
+  msg_t msg = pktGetRadioTaskObject(radio, timeout, cfg, &rt);
   if(msg != MSG_OK)
     return msg;
   rt->user_cb = cb;
@@ -332,9 +335,12 @@ static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
                                         const radio_params_t *cfg,
 #endif
                                         const radio_task_cb_t cb) {
+
 #if PKT_RTO_USE_SETTING == TRUE
-  if(cmd > PKT_RADIO_TASK_MAX)
+  if(cmd > PKT_RADIO_TASK_MAX) {
+    chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
+  }
 #endif
   radio_task_object_t *rt = NULL;
 #if PKT_RTO_USE_SETTING != TRUE
@@ -384,19 +390,22 @@ static inline msg_t pktQueuePriorityRadioCommand(const radio_unit_t radio,
 #endif
                                         const sysinterval_t timeout,
                                         const radio_task_cb_t cb) {
+
 #if PKT_RTO_USE_SETTING == TRUE
-  if(cmd > PKT_RADIO_TASK_MAX)
+  if(cmd > PKT_RADIO_TASK_MAX) {
+    chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
+  }
 #endif
   radio_task_object_t *rt = NULL;
 #if PKT_RTO_USE_SETTING != TRUE
-  msg_t msg = pktGetRadioTaskObjectX(radio, timeout, &rt);
+  msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
   if(msg != MSG_OK)
     return msg;
   *rt = *task;
   pktSubmitPriorityRadioTask(radio, rt, cb);
 #else
-  msg_t msg = pktGetRadioTaskObjectX(radio, timeout, cfg, &rt);
+  msg_t msg = pktGetRadioTaskObject(radio, timeout, cfg, &rt);
   if(msg != MSG_OK)
     return msg;
   rt->user_cb = cb;

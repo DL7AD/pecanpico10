@@ -386,8 +386,11 @@ extern "C" {
   radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
   ICUDriver *Si446x_attachPWM(const radio_unit_t radio);
   bool Si446x_detachPWM(const radio_unit_t radio);
-  const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio, palcallback_t cb);
-  void Si446x_disablePWMeventsI(const radio_unit_t radio);
+  const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio,
+                                          const radio_mod_t mod,
+                                          const palcallback_t cb);
+  void Si446x_disablePWMeventsI(const radio_unit_t radio,
+                                const radio_mod_t mod);
   uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio, radio_mod_t mod);
   bool Si446x_waitTransmitEnd(const radio_unit_t radio, sysinterval_t timeout);
   bool Si446x_updateClock(const radio_unit_t, xtal_osc_t freq);

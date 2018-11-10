@@ -150,8 +150,8 @@
 #define PKT_TCXO_DEFAULT_ERROR_HZ   712      /**< Manual error adjust in Hz  */
 
 /* Si446x clock setup. */
-#define Si446x_CLK                  STM32_HSECLK            /* Clock in Hz */
-#define Si446x_CLK_ERROR            PKT_TCXO_DEFAULT_ERROR_HZ  /* Error in Hz */
+#define Si446x_CLK                  PKT_TCXO_CLOCK            /* Clock in Hz */
+#define Si446x_CLK_ERROR            PKT_TCXO_DEFAULT_ERROR_HZ /* Error in Hz */
 #define Si446x_CLK_TCXO_EN          true                    /* Xtal or external. */
 #define Si446x_XO_TUNE              0x40                    /* Xtal trim. */
 
@@ -235,7 +235,7 @@
 #if USE_HEAP_PWM_BUFFER == TRUE
 /* Use factory FIFO as stream control with separate chained PWM buffers. */
 #define NUMBER_PWM_FIFOS                5U
-/* Number of PWM data entries per queue object. */
+/* Number of PWM data entries (stream symbols) per queue object. */
 #define PWM_DATA_SLOTS                  200
 /* Number of PWM queue objects in total. */
 #define PWM_DATA_BUFFERS                30
@@ -248,8 +248,7 @@
 
 /* Number of frame receive buffers per radio. */
 #define NUMBER_RX_PKT_BUFFERS       5U
-//#define USE_HEAP_RX_BUFFER_OBJECTS  TRUE
-#define USE_POOL_RX_BUFFER_OBJECTS  FALSE
+#define USE_POOL_RX_BUFFER_OBJECTS  TRUE
 #define USE_CCM_HEAP_RX_BUFFERS     TRUE
 
 /* Set TRUE to use the idle thread sweeper to release terminated threads. */

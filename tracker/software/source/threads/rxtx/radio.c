@@ -61,12 +61,12 @@ static void pktProcessReceivedPacket(ax25char_t *buf, size_t len,
   pktReleaseCommonPacketBuffer(pp);
 }
 
-void pktMapCallback(pkt_data_object_t *pkt_buff) {
+void pktMapCallback(pkt_data_object_t *const pkt_buff) {
   /* Packet buffer. */
   ax25char_t *frame_buffer = pkt_buff->buffer;
   ax25size_t frame_size = pkt_buff->packet_size;
-  /* Report the RSSI. */
 
+  /* Report the RSSI. */
   if(pktGetAX25FrameStatus(pkt_buff)) {
     /* Perform the callback if CRC is good. */
     pktProcessReceivedPacket(frame_buffer, frame_size, pkt_buff->rssi);

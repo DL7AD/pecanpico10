@@ -353,8 +353,9 @@ extern packet_t ax25_dup (packet_t copy_from);
 extern void ax25_delete (packet_t pp);
 
 
-extern msg_t pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
-extern void pktReleaseCommonPacketBuffer(packet_t pp);
+extern msg_t pktGetCommonPacketBuffer(packet_t *pp,
+                                      const sysinterval_t timeout);
+extern void pktReleaseCommonPacketBuffer(const packet_t pp);
 
 #endif
 

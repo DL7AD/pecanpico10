@@ -588,9 +588,6 @@ static bool Si446x_init(const radio_unit_t radio) {
   Si446x_setProperty8(radio, Si446x_MODEM_ANT_DIV_CONTROL, 0x80);
 
   /* RSSI value compensation. */
-/*  if(is_part_Si4463(handler->radio_part))
-    Si446x_setProperty8(radio, Si446x_MODEM_RSSI_COMP, 0x40);
-  else*/
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_COMP, 0x40);
 
   /*
@@ -1418,6 +1415,7 @@ static bool Si446x_transmit(const radio_unit_t radio,
   return true;
 }
 
+#if 0
 /*
  *
  */
@@ -1499,7 +1497,7 @@ bool Si446x_receiveActivate(const radio_unit_t radio,
   }
   return timeout != 0;
 }
-
+#endif
 /*
  * Start or restore reception.
  *
@@ -1582,7 +1580,7 @@ bool Si4464_enableReceive(const radio_unit_t radio,
                 getModulation(rx_mod));
     TRACE_ERROR("SI   > Abort reception on radio %d", radio);
     return false;
-  }
+  } /* End switch on mod type. */
 
   TRACE_INFO("SI   > Tune radio %d to %d.%03d MHz (RX)",
              radio, op_freq/1000000, (op_freq%1000000)/1000);
@@ -1593,6 +1591,9 @@ bool Si4464_enableReceive(const radio_unit_t radio,
 
   /* Set squelch level. */
   Si446x_setProperty8(radio, Si446x_MODEM_RSSI_THRESH, rx_rssi);
+
+  /* Clear any pending interrupts. */
+  Si446x_clearInterruptStatus(radio);
 
   /* Start the receiver. */
   Si446x_startRXState(radio, rx_chan);
@@ -1733,11 +1734,11 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   /* Wait for receive stream in progress. Terminate on timeout. */
 #if PKT_RTO_USE_SETTING == TRUE
-  pktSetReceiveStreamInactive(radio, rto,
+  (void)pktSetReceiveStreamInactive(radio, rto,
                               rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
                               ? TIME_IMMEDIATE : TIME_MS2I(300));
 #else
-  pktSetReceiveStreamInactive(radio, rto, rto->squelch == PKT_SI446X_NO_CCA_RSSI
+  (void)pktSetReceiveStreamInactive(radio, rto, rto->squelch == PKT_SI446X_NO_CCA_RSSI
                         ? TIME_IMMEDIATE : TIME_MS2I(300));
 #endif
   /*
@@ -2262,11 +2263,11 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
   /* Stop packet system reception. */
 #if PKT_RTO_USE_SETTING == TRUE
-  pktSetReceiveStreamInactive(radio, rto,
+  (void)pktSetReceiveStreamInactive(radio, rto,
                               rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
                               ? TIME_IMMEDIATE : TIME_MS2I(300));
 #else
-  pktSetReceiveStreamInactive(radio, rto, rto->squelch == PKT_SI446X_NO_CCA_RSSI
+  (void)pktSetReceiveStreamInactive(radio, rto, rto->squelch == PKT_SI446X_NO_CCA_RSSI
                         ? TIME_IMMEDIATE : TIME_MS2I(300));
 #endif
   /* Initialize radio before any commands as it may have been powered down. */
@@ -2775,10 +2776,17 @@ bool Si446x_detachPWM(const radio_unit_t radio) {
 }
 
 /**
+ * Enable the GPIO for CCA used in PWM mode of operation.
+ * Set a callback and enable event on both edges.
+ * The RX_DATA GPIO is configured in Si446x_attachPWM().
+ * It is not de-configured in Si446x_disablePWMeventsI().
+ * TODO:  Switch on mod type.
  * TODO: The radio GPIO mapping needs to be considered.
  */
 const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio,
-                          palcallback_t cb) {
+                                        const radio_mod_t mod,
+                                        const palcallback_t cb) {
+ (void)mod;
   /* Set callback for squelch events. */
   palSetLineCallback(*Si446x_getConfig(radio)->rafsk.cca.line, cb,
                      Si446x_getConfig(radio)->rafsk.icu);
@@ -2791,9 +2799,10 @@ const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio,
 }
 
 /**
- *
+ * TODO: Switch on mod type
  */
-void Si446x_disablePWMeventsI(radio_unit_t radio) {
+void Si446x_disablePWMeventsI(const radio_unit_t radio, radio_mod_t mod) {
+  (void)mod;
   palDisableLineEventI(*Si446x_getConfig(radio)->rafsk.cca.line);
 }
 

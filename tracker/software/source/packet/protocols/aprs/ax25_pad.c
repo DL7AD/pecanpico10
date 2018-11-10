@@ -376,7 +376,7 @@ packet_t ax25_from_text (char *monitor, int strict) {
 
 	packet_t this_p;
 	/* Wait up to 10 seconds for a packet buffer. */
-	msg_t msg = pktGetPacketBuffer(&this_p, TIME_S2I(10));
+	msg_t msg = pktGetCommonPacketBuffer(&this_p, TIME_S2I(10));
 	/* If the semaphore is reset, timeout or no packet buffer then exit. */
 	if(msg == MSG_RESET || msg == MSG_TIMEOUT || this_p == NULL) {
       TRACE_ERROR("PKT  > No packet buffer available");
@@ -616,7 +616,7 @@ packet_t ax25_from_frame (unsigned char *fbuf, uint16_t flen)
 	}
 
     /* Wait up to 10 seconds for a packet buffer. */
-    msg_t msg = pktGetPacketBuffer(&this_p, TIME_S2I(10));
+    msg_t msg = pktGetCommonPacketBuffer(&this_p, TIME_S2I(10));
     /* If the semaphore is reset then exit. */
     if(msg == MSG_RESET || msg == MSG_TIMEOUT || this_p == NULL) {
       TRACE_ERROR("PKT  > No packet buffer available");
@@ -677,7 +677,7 @@ packet_t ax25_dup (packet_t copy_from)
 	packet_t this_p;
 
 	/* Wait up to 10 seconds for a packet buffer. */
-	msg_t msg = pktGetPacketBuffer(&this_p, TIME_S2I(10));
+	msg_t msg = pktGetCommonPacketBuffer(&this_p, TIME_S2I(10));
     /* If the semaphore is reset then exit. */
     if(msg == MSG_RESET || msg == MSG_TIMEOUT || this_p == NULL) {
       TRACE_ERROR("PKT  > No packet buffer available");

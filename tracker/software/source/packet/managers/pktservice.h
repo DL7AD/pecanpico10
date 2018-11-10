@@ -49,7 +49,7 @@ typedef enum handlerRxStates {
 typedef enum HDLCFrameStates {
   FRAME_SEARCH,
   FRAME_OPEN,
-  FRAME_DATA,
+  //FRAME_DATA,
   FRAME_CLOSE,
   FRAME_RESET
 } frame_state_t;
@@ -65,22 +65,23 @@ typedef enum HDLCFrameStates {
 typedef struct packetBufferObject pkt_data_object_t;
 
 /* Receive packet buffer callback. */
-typedef void (*pkt_buffer_cb_t)(pkt_data_object_t *pkt_object);
+typedef void (*pkt_buffer_cb_t)(pkt_data_object_t *const pkt_object);
 
 typedef struct packetBufferObject {
   struct pool_header        link; /* For safety keep clear - where pool stores its free link. */
   packet_svc_t              *handler;
 #if USE_POOL_RX_BUFFER_OBJECTS == TRUE
-
+  ax25char_t                buffer[PKT_RX_BUFFER_SIZE];
+#else
+  ax25char_t               *buffer;
 #endif
-  //thread_t                  *cb_thread;
   char                      cb_thd_name[PKT_THREAD_NAME_MAX];
   pkt_buffer_cb_t           cb_func;
   volatile eventflags_t     status;
   radio_signal_t            rssi;
   size_t                    buffer_size;
   size_t                    packet_size;
-  ax25char_t               *buffer;
+
 } pkt_data_object_t;
 
 
@@ -178,7 +179,8 @@ typedef struct packetHandlerData {
   /**
    * @brief AX25 receive packet objects guarded pool.
    */
-  guarded_memory_pool_t     *rx_packet_pool;
+  guarded_memory_pool_t     rx_packet_pool;
+  pkt_data_object_t         *packet_heap;
 #endif
 
   /**
@@ -257,25 +259,26 @@ extern "C" {
   msg_t                 pktDisableDataReception(const radio_unit_t radio);
   void                  pktStopDecoder(const radio_unit_t radio);
   //msg_t                 pktCloseRadioReceive(const radio_unit_t radio);
-  bool                  pktStoreReceiveData(pkt_data_object_t *buffer,
-                                            ax25char_t data);
-  eventflags_t          pktDispatchReceivedBuffer(pkt_data_object_t *pkt_buffer);
-  thread_t*             pktCreateReceiveCallback(pkt_data_object_t *pkt_buffer);
+  bool                  pktStoreReceiveData(pkt_data_object_t *const buffer,
+                                            const ax25char_t data);
+  eventflags_t          pktDispatchReceivedBuffer(pkt_data_object_t *const pkt_buffer);
+  thread_t*             pktCreateReceiveCallback(pkt_data_object_t *const pkt_buffer);
   void                  pktCallback(void *arg);
-  void                  pktCompletion(void *arg);
-  dyn_objects_fifo_t*   pktIncomingBufferPoolCreate(const radio_unit_t radio);
-  void                  pktIncomingBufferPoolRelease(packet_svc_t *handler);
+  //void                  pktCompletion(void *arg);
+  pkt_data_object_t*    pktIncomingBufferPoolCreate(const radio_unit_t radio);
+  void                  pktIncomingBufferPoolRelease(packet_svc_t *const handler);
   dyn_objects_fifo_t*   pktCommonBufferPoolCreate(const radio_unit_t radio);
   void                  pktCommonBufferPoolRelease(const radio_unit_t radio);
   void                  pktReleaseBufferSemaphore(const radio_unit_t radio);
-  msg_t                 pktGetPacketBuffer(packet_t *pp, sysinterval_t timeout);
+  msg_t                 pktGetCommonPacketBuffer(packet_t *const pp,
+                                           const sysinterval_t timeout);
   void                  pktReleaseCommonPacketBuffer(packet_t pp);
   dyn_semaphore_t*      pktInitBufferControl(void);
   void                  pktDeinitBufferControl(void);
-  packet_svc_t*         pktGetServiceObject(radio_unit_t radio);
-  pkt_data_object_t*    pktAssignReceivePacketObject(packet_svc_t *handler,
-                                                      sysinterval_t timeout);
-  void                  pktReleaseDataBuffer(pkt_data_object_t *object);
+  packet_svc_t*         pktGetServiceObject(const radio_unit_t radio);
+  pkt_data_object_t*    pktAssignReceivePacketObject(packet_svc_t *const handler,
+                                                     const sysinterval_t timeout);
+  void                  pktReleaseDataBuffer(pkt_data_object_t *const object);
 #ifdef __cplusplus
 }
 #endif
@@ -387,7 +390,7 @@ extern "C" {
  *
  * @api
  */
-static inline void pktResetDataCount(pkt_data_object_t *object) {
+static inline void pktResetDataCount(pkt_data_object_t *const object) {
   object->packet_size = 0;
 }
 
@@ -425,7 +428,7 @@ static inline bool pktIsBufferValidAX25Frame(pkt_data_object_t *object) {
  *
  * @api
  */
-static inline bool pktGetAX25FrameStatus(pkt_data_object_t *object) {
+static inline bool pktGetAX25FrameStatus(const pkt_data_object_t *object) {
   chDbgAssert(object != NULL, "no pointer to packet object buffer");
   return (object->status & (STA_PKT_INVALID_FRAME | STA_PKT_CRC_ERROR)) == 0;
 }
@@ -439,7 +442,7 @@ static inline bool pktGetAX25FrameStatus(pkt_data_object_t *object) {
  *
  * @api
  */
-static inline pkt_svc_state_t pktGetServiceState(radio_unit_t radio) {
+static inline pkt_svc_state_t pktGetServiceState(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   return handler->state;
@@ -456,7 +459,7 @@ static inline pkt_svc_state_t pktGetServiceState(radio_unit_t radio) {
  *
  * @api
  */
-static inline bool pktIsTransmitAvailable(radio_unit_t radio) {
+static inline bool pktIsTransmitAvailable(const radio_unit_t radio) {
   pkt_svc_state_t state = pktGetServiceState(radio);
   return state == PACKET_READY;
 }
@@ -472,7 +475,7 @@ static inline bool pktIsTransmitAvailable(radio_unit_t radio) {
  *
  * @api
  */
-static inline bool pktIsReceiveEnabled(radio_unit_t radio) {
+static inline bool pktIsReceiveEnabled(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   return (handler->state == PACKET_READY
       && handler->rx_state == PACKET_RX_ENABLED);
@@ -504,7 +507,7 @@ static inline bool pktIsReceiveEnabled(radio_unit_t radio) {
  *
  * @api
  */
-static inline bool pktIsReceiveReady(radio_unit_t radio) {
+static inline bool pktIsReceiveReady(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   return (handler->rx_state == PACKET_RX_OPEN);
 }

@@ -68,7 +68,7 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
         pktResetDataCount(myHandler->active_packet_object);
         myDriver->bit_index = 0;
         return true;
-      } /* End case. */
+      } /* End case HDLC_FLAG. */
 
       case HDLC_RESET: {
         /*
@@ -87,7 +87,7 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
         /* Else let the decoder determine what to do. */
         myDriver->frame_state = FRAME_RESET;
         return true;
-      } /* End case. */
+      } /* End case HDLC_RESET. */
 
       default: {
        /* Check for RLL encoding inserted ("stuffed") bit in the bit stream. */
@@ -147,7 +147,7 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
        */
       }
       return true;
-    }
+    } /* End case FRAME_SEARCH. */
 
   default:
     return true;

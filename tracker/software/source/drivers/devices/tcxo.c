@@ -45,6 +45,13 @@ ICUConfig tcxo_cfg = {
 /**
  *
  */
+static bool pktPPMcheckTCXO(xtal_osc_t f) {
+  return (f >= PKT_TCXO_CLOCK_MIN && PKT_TCXO_CLOCK_MAX >= f);
+}
+
+/**
+ *
+ */
 static void pktCBPeriodTCXO(ICUDriver *icup) {
   if(tcxo_state == TCXO_CAPTURE) {
     chSysLockFromISR();
@@ -75,6 +82,7 @@ static void pktCBOverflowTCXO(ICUDriver *icup) {
 static xtal_osc_t pktMeasureTCXO(sysinterval_t timeout) {
   if(timeout == TIME_INFINITE)
     return 0;
+  /* TODO: The correct test is if GPS is active and locked. */
   if(!hasGPSacquiredLock(getLastDataPoint()))
     return 0;
   msg_t msg = chBSemWait(&tcxo_busy);
@@ -110,8 +118,11 @@ THD_FUNCTION(tcxo_thd, arg) {
   (void)arg;
 
   while(true) {
-    uint32_t f = pktMeasureTCXO(TIME_S2I(30));
+    uint32_t f = pktMeasureTCXO(TIME_S2I(5));
     if(f != 0) {
+      if(!pktPPMcheckTCXO(f)) {
+        TRACE_WARN("TCXO > Measured frequency %d Hz is outside PPM bounds", f);
+      }
       if(f != tcxo_active) {
         tcxo_active = f;
         TRACE_DEBUG("TCXO > Update to %d Hz", f);
@@ -147,7 +158,7 @@ void pktInitTCXO()  {
  *
  */
 inline xtal_osc_t pktGetCurrentTCXO()  {
-  if(tcxo_active >= PKT_TCXO_CLOCK_MIN && PKT_TCXO_CLOCK_MAX >= tcxo_active)
+  if(pktPPMcheckTCXO(tcxo_active))
     return tcxo_active;
   return PKT_TCXO_DEFAULT_CLOCK;
 }

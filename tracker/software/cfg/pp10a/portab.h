@@ -238,7 +238,7 @@
 #if USE_HEAP_PWM_BUFFER == TRUE
 /* Use factory FIFO as stream control with separate chained PWM buffers. */
 #define NUMBER_PWM_FIFOS            5U
-/* Number of PWM data entries per queue object. */
+/* Number of PWM data entries (stream symbols) per queue object. */
 #define PWM_DATA_SLOTS              200
 /* Number of PWM queue objects in total. */
 #define PWM_DATA_BUFFERS            30
@@ -250,8 +250,7 @@
 
 /* Number of frame receive buffers. */
 #define NUMBER_RX_PKT_BUFFERS       5U
-//#define USE_HEAP_RX_BUFFER_OBJECTS  FALSE
-#define USE_POOL_RX_BUFFER_OBJECTS  FALSE
+#define USE_POOL_RX_BUFFER_OBJECTS  TRUE
 #define USE_CCM_HEAP_RX_BUFFERS     TRUE
 
 /*

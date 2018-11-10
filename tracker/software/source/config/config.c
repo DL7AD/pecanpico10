@@ -14,7 +14,7 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(5),
             .fixed = false, // Add lat, lon alt fields when enabling fixed
@@ -39,7 +39,7 @@ const conf_t conf_flash_default = {
     .pos_sec = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(45), // Beacon interval
+            .cycle = TIME_S2I(60), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
         },
@@ -144,7 +144,7 @@ const conf_t conf_flash_default = {
                  .active = true,
                  .init_delay = TIME_S2I(20),
                  .cycle = TIME_S2I(60),
-                 .interval = TIME_S2I(50)
+                 .interval = TIME_INFINITE
              },
             // Receive radio configuration
             .radio_conf = {

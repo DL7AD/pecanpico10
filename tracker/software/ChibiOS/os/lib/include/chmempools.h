@@ -364,6 +364,36 @@ static inline void chGuardedPoolAddS(guarded_memory_pool_t *gmp, void *objp) {
 
   chGuardedPoolFreeS(gmp, objp);
 }
+
+/**
+ * @brief   Gets the count of objects in a guarded memory pool.
+ * @pre     The guarded memory pool must be already been initialized.
+ *
+ * @param[in] gmp       pointer to a @p guarded_memory_pool_t structure
+ *
+ * @iclass
+ */
+static inline cnt_t chGuardedPoolGetCounterI(guarded_memory_pool_t *gmp) {
+
+  return chSemGetCounterI(&gmp->sem);
+}
+
+/**
+ * @brief   Resets the guarded memory pool.
+ * @pre     The guarded memory pool must be already been initialized.
+ * @post    Any threads waiting on the pool receive the MSG_RESET.
+ * @post    The pool counter is set to the supplied value.
+ *
+ * @param[in] gmp       pointer to a @p guarded_memory_pool_t structure
+ * @param[in] n         the new value of the pool counter. The value must
+ *                      be non-negative.
+ * @iclass
+ */
+static inline void chGuardedPoolResetI(guarded_memory_pool_t *gmp, cnt_t n) {
+
+  chSemResetI(&gmp->sem, n);
+}
+
 #endif /* CH_CFG_USE_SEMAPHORES == TRUE */
 
 #endif /* CH_CFG_USE_MEMPOOLS == TRUE */

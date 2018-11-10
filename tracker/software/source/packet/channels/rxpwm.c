@@ -169,7 +169,9 @@ void pktEnableRadioStream(const radio_unit_t radio) {
    *  This should be AFSK or other DSP based modulation only.
    */
 
-  switch(myHandler->rx_link_type) {
+  radio_mod_t mod = myHandler->rx_link_type;
+
+  switch(mod) {
 
   case MOD_AFSK: {
     AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
@@ -179,7 +181,7 @@ void pktEnableRadioStream(const radio_unit_t radio) {
     switch(myDemod->icustate) {
     case PKT_PWM_INIT: {
       /* Enable CCA callback. */
-      const ICUConfig *icucfg = pktLLDradioStreamEnable(radio,
+      const ICUConfig *icucfg = pktLLDradioStreamEnable(radio, mod,
                                       (palcallback_t)pktRadioCCAInput);
 
       /* Start ICU and start capture. */
@@ -191,7 +193,8 @@ void pktEnableRadioStream(const radio_unit_t radio) {
 
     case PKT_PWM_STOP: {
       /* Enable CCA callback. */
-      (void)pktLLDradioStreamEnable(radio, (palcallback_t)pktRadioCCAInput);
+      (void)pktLLDradioStreamEnable(radio, mod,
+                                    (palcallback_t)pktRadioCCAInput);
 
       /* Start ICU capture. */
       icuStartCapture(myDemod->icudriver);
@@ -251,7 +254,9 @@ void pktDisableRadioStream(const radio_unit_t radio) {
 
   /* Process under locked. */
   chSysLock();
-  switch(myHandler->rx_link_type) {
+  radio_mod_t mod = myHandler->rx_link_type;
+
+  switch(mod) {
 
   case MOD_AFSK: {
 
@@ -266,7 +271,7 @@ void pktDisableRadioStream(const radio_unit_t radio) {
 
 
       /* Disable CCA line event. */
-      pktLLDradioStreamDisableI(radio);
+      pktLLDradioStreamDisableI(radio, mod);
 
       /* Stop any timeouts in ICU PWM handling. */
       pktStopAllICUtimersI(myDemod->icudriver);
@@ -307,7 +312,7 @@ void pktDisableRadioStream(const radio_unit_t radio) {
        *  Capture and notifications are not enabled.
        */
       /* Disable CCA line event. */
-      pktLLDradioStreamDisableI(radio);
+      pktLLDradioStreamDisableI(radio, mod);
 
       /* Stop any timeouts in ICU PWM handling. */
       pktStopAllICUtimersI(myDemod->icudriver);
@@ -609,19 +614,13 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
   icuEnableNotificationsI(myICU);
   pktAddEventFlagsI(myHandler, evt);
 
-#if PKT_RTO_USE_SETTING == TRUE
-  myHandler->radio_rx_config.seq_num++;
-#else
-  /* Increment PWM session sequence number. */
-  myHandler->radio_rx_config.rt_seq++;
-#endif
   /* Sequence stamp of PWM FIFO happens when ICU is active. */
   myFIFO->seq_num = 0;
 
   /* Clear PWM session status bits. */
   myFIFO->status = 0;
 
-#if PKT_RSSI_CAPTURE == TRUE && PKT_USE_OPENING_RSSI == TRUE
+#if PKT_RSSI_CAPTURE == TRUE
   myFIFO->rssi = 0;
 #endif
 #if LINE_PWM_MIRROR != PAL_NOLINE
@@ -855,6 +854,9 @@ void pktRadioICUWidth(ICUDriver *myICU) {
   AFSKDemodDriver *myDemod = myICU->link;
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
+  packet_svc_t *myHandler = myDemod->packet_handler;
+  chDbgAssert(myHandler != NULL, "no packet handler");
+
   chSysLockFromISR();
 #if LINE_PWM_MIRROR != PAL_NOLINE
   pktWriteGPIOline(LINE_PWM_MIRROR, PAL_LOW);
@@ -867,10 +869,13 @@ void pktRadioICUWidth(ICUDriver *myICU) {
      */
     chVTResetI(&myICU->pwm_timer);
 
+    /* Increment receive session count. */
+    myHandler->radio_rx_config.seq_num++;
+
 #if PKT_RSSI_CAPTURE == TRUE
     /* Setup a radio task object. */
 #if PKT_RTO_USE_SETTING == TRUE
-    radio_params_t rp = myDemod->packet_handler->radio_rx_config;
+    radio_params_t rp = myHandler->radio_rx_config;
 
     /* Clear RSSI (no value). */
     rp.rssi = 0;
@@ -880,12 +885,11 @@ void pktRadioICUWidth(ICUDriver *myICU) {
     myDemod->active_radio_stream->seq_num = rp.seq_num;
 
     /* Send the radio task. */
-    radio_unit_t radio = myDemod->packet_handler->radio;
-    msg_t msg = pktQueuePriorityRadioCommandI(radio,
+    msg_t msg = pktQueuePriorityRadioCommandI(myHandler->radio,
                                              PKT_RADIO_RX_RSSI,
                                              &rp,
                                              pktRadioRSSIreadCB);
-#else
+#else /* PKT_RTO_USE_SETTING == FALSE */
     radio_task_object_t rt = myDemod->packet_handler->radio_rx_config;
 
     /* Set command and clear RSSI (no value). */
@@ -893,17 +897,18 @@ void pktRadioICUWidth(ICUDriver *myICU) {
     rt.rssi = 0;
 
     /* Sequence stamp the RT and PWM FIFO objects. */
-    rt.rt_seq = myDemod->packet_handler->radio_rx_config.rt_seq;
+    rt.rt_seq = myHandler->radio_rx_config.rt_seq;
     myDemod->active_radio_stream->seq_num = rt.rt_seq;
 
     /* Send the radio task. */
-    radio_unit_t radio = myDemod->packet_handler->radio;
-    msg_t msg = pktQueuePriorityRadioCommandI(radio, &rt, pktRadioRSSIreadCB);
-#endif
+    msg_t msg = pktQueuePriorityRadioCommandI(myHandler->radio,
+                                              &rt,
+                                              pktRadioRSSIreadCB);
+#endif /* PKT_RTO_USE_SETTING == TRUE */
     if(msg != MSG_OK) {
       myDemod->active_radio_stream->rssi = 0xFF;
     }
-#endif
+#endif /* PKT_RSSI_CAPTURE == TRUE */
     myDemod->icustate = PKT_PWM_ACTIVE;
   }
   chSysUnlockFromISR();

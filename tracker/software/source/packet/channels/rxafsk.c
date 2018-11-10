@@ -212,6 +212,7 @@ static bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver) {
     default:
       chDbgAssert(myDriver != NULL, "Invalid AFSK decoder specified");
   } /* End switch. */
+
   /* After tone detection generate an HDLC bit. */
   return pktExtractHDLCfromAFSK(myDriver);
 } /* End function. */
@@ -228,7 +229,8 @@ static bool pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver) {
  *
  * @api
  */
-static bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[]) {
+static bool pktProcessAFSK(AFSKDemodDriver *myDriver,
+                           min_pwmcnt_t current_tone[]) {
   /* Start working on new input data now. */
   uint8_t i = 0;
   for(i = 0; i < (sizeof(min_pwm_counts_t) / sizeof(min_pwmcnt_t)); i++) {
@@ -237,7 +239,7 @@ static bool pktProcessAFSK(AFSKDemodDriver *myDriver, min_pwmcnt_t current_tone[
 
       /*
        *  The decoder will process a converted binary sample.
-       *  The PWM binary is converted to a q31 +/- sample value.
+       *  The PWM binary is converted to a +/- sample value.
        *  The sample is passed to pre-filtering (i.e. BPF) as its next input.
        */
       (void)pktAddAFSKFilterSample(myDriver, !(i & 1));
@@ -768,20 +770,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
         /* Check if prior packet buffer released. */
         chDbgCheck(myHandler->active_packet_object == NULL);
-        pkt_data_object_t *myPktBuffer =
-            pktAssignReceivePacketObject(myHandler, TIME_MS2I(100));
-        /* If no management object or data buffer is available get NULL. */
-        if(myPktBuffer == NULL) {
-          pktAddEventFlags(myHandler, EVT_PKT_NO_BUFFER);
-          /*
-           * TODO: The STA_PKT_NO_BUFFER status is not checked anywhere.
-           * When RESET runs the STA_AFSK_DECODE_RESET status is set.
-           * This causes PWM to abort the current session.
-           */
-          myDriver->active_demod_stream->status |= STA_PKT_NO_BUFFER;
-          myDriver->decoder_state = DECODER_RESET;
-          break;
-        }
+
 #if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
           char buf[80];
           int out = chsnprintf(buf, sizeof(buf),
@@ -994,14 +983,34 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         case FRAME_SEARCH:
           continue;
 
-        case FRAME_OPEN:
+        case FRAME_OPEN: {
+          if(myHandler->active_packet_object != NULL)
+            /* Buffer management object and packet buffer assigned. */
+            continue;
+          /* Allocate management object and packet buffer. */
+          myHandler->active_packet_object =
+              pktAssignReceivePacketObject(myHandler, TIME_MS2I(100));
+          /* If no management object or data buffer is available get NULL. */
+          if(myHandler->active_packet_object == NULL) {
+            pktAddEventFlags(myHandler, EVT_PKT_NO_BUFFER);
+            /*
+             * TODO: The STA_PKT_NO_BUFFER status is not checked anywhere.
+             * When RESET runs the STA_AFSK_DECODE_RESET status is set.
+             * This causes PWM to abort the current session.
+             */
+            myDriver->active_demod_stream->status |= STA_PKT_NO_BUFFER;
+            myDriver->decoder_state = DECODER_RESET;
+          } else {
+            pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
+          }
+          continue;
+        }
+
+#if 0
         case FRAME_DATA:
-#if PKT_USE_OPENING_RSSI == TRUE
-          myHandler->active_packet_object->rssi = myFIFO->rssi;
-#endif
           pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
           continue;
-
+#endif
         /* HDLC reset after frame open and minimum valid data received. */
         case FRAME_RESET:
           pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_LOW);
@@ -1010,32 +1019,37 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           continue;
 
         case FRAME_CLOSE: {
+#if PKT_RSSI_CAPTURE == TRUE
+          /* Transfer the RSSI reading. */
+            myHandler->active_packet_object->rssi = myFIFO->rssi;
+#endif
           myDriver->decoder_state = DECODER_DISPATCH;
           continue; /* From this case. */
+
           }
         } /* End switch on frame_state. */
         break; /* Keep GCC 7 happy. */
       } /* End case DECODER_ACTIVE. */
 
       case DECODER_DISPATCH: {
-        if(myHandler->active_packet_object != NULL) {
+/*        if(myHandler->active_packet_object != NULL) {*/
+        chDbgAssert(myHandler->active_packet_object != NULL, "No packet buffer in dispatch");
+        /*
+         * Indicate AFSK decode done.
+         * PWM handler will terminate capture session if still active.
+         */
+        myDriver->active_demod_stream->status |= STA_AFSK_DECODE_DONE;
 
-          /*
-           * Indicate AFSK decode done.
-           * PWM handler will terminate capture session if still active.
-           */
-          myDriver->active_demod_stream->status |= STA_AFSK_DECODE_DONE;
+        /* Copy latest status into packet buffer object. */
+        myHandler->active_packet_object->status =
+            myDriver->active_demod_stream->status;
 
-          /* Copy latest status into packet buffer object. */
-          myHandler->active_packet_object->status =
-              myDriver->active_demod_stream->status;
+        /* Set AX25 status and dispatch the packet buffer object. */
+        (void)pktDispatchReceivedBuffer(myHandler->active_packet_object);
 
-          /* Set AX25 status and dispatch the packet buffer object. */
-          pktDispatchReceivedBuffer(myHandler->active_packet_object);
-
-          /* Packet object has been handed over. Remove our reference. */
-          myHandler->active_packet_object = NULL;
-        } /* Active packet object != NULL. */
+        /* Packet object has been handed over. Remove our reference. */
+        myHandler->active_packet_object = NULL;
+        //} /* Active packet object != NULL. */
         /* Release PWM buffers and reset decoder in RESET state. */
         myDriver->decoder_state = DECODER_RESET;
         break;
@@ -1062,7 +1076,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           pktWrite( (uint8_t *)buf, out);
         }
 #endif
-        /* If there is a packet buffer object then handle it. */
+        /* There won't be a demod object if the decoder is just being reset. */
         if(myHandler->active_packet_object != NULL) {
 #if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
           char buf[80];
@@ -1079,13 +1093,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /* Free the data buffer referenced in the packet object. */
           chDbgAssert(myHandler->active_packet_object->buffer != NULL,
                       "no packet buffer");
-          chHeapFree(myHandler->active_packet_object->buffer);
-#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
-          /* Release the receive packet buffer management object. */
+          pktReleaseDataBuffer(myHandler->active_packet_object);
 
-#else
-          chHeapFree(myHandler->active_packet_object);
-#endif
           /* Forget the receive packet buffer management object. */
           myHandler->active_packet_object = NULL;
         }

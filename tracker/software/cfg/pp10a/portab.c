@@ -53,7 +53,7 @@ const si446x_mcucfg_t radio1_cfg = {
      .gpio1 = 00,          /**< DONOTHING. */
      .gpio2 = 0x21,        /**< RX_STATE. */
      .gpio3 = 0x20,        /**< TX_STATE. */
-     .nirq  = 00,          /**< DONOTHING. */
+     .nirq  = 02,          /**< DRIVE0. */
      .sdo   = 00,          /**< DONOTHING. */
      .cfg   = 00           /**< HIGH DRIVE. */
     }
