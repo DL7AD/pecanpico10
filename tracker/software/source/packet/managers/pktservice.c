@@ -833,8 +833,8 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *const pkt_object) {
     if(magicCRC == CRC_INCLUSIVE_CONSTANT)
       handler->good_count++;
     flags |= (magicCRC == CRC_INCLUSIVE_CONSTANT)
-                    ? STA_PKT_FRAME_RDY
-                        : STA_PKT_CRC_ERROR;
+                                ? STA_PKT_FRAME_RDY
+                                : STA_PKT_CRC_ERROR;
   } else {
     flags |= STA_PKT_INVALID_FRAME;
   }

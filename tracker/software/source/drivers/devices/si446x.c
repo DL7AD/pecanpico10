@@ -625,7 +625,13 @@ bool Si446x_conditional_init(const radio_unit_t radio) {
 }
 
 /*
- * Set radio NCO registers for frequency.
+ * Set radio frequency control parameters.
+ * Values are calculated using the current XO frequency.
+ * The base frequency and step size are set using current XO.
+ * TX frequency and deviation are set using current XO.
+ * RX IF frequency is set using current.
+ * This is supplied by the TCXO service via Si446x_updateClock().
+ *
  * This function also collects the chip temperature data at the moment.
  * TODO: Move temperature reading to???
  */
@@ -702,6 +708,18 @@ static bool Si446x_setSynthParameters(const radio_unit_t radio,
   Si446x_write(radio, set_frequency_property_command,
                sizeof(set_frequency_property_command));
 
+  /* Calculate and set RX fixed IF. */
+  Si446x_setProperty8(radio, Si446x_MODEM_IF_CONTROL, 0x08);
+  uint32_t rif = si_clock / 64;
+  int32_t i = -((scaled_outdiv * rif) / pll_freq);
+  uint8_t i2 = (i >> 16) & 0x03;
+  uint8_t i1 = (i >> 8) & 0xFF;
+  uint8_t i0 = i & 0xFF;
+
+  uint8_t set_modem_if[] = {Si446x_SET_PROPERTY, 0x20, 0x03, 0x01b, i2, i1, i0};
+  Si446x_write(radio, set_modem_if, sizeof(set_modem_if));
+
+  /* Calculate and set TX deviation. */
   if(dev != 0) {
     /* Set TX deviation. */
     uint32_t x = (scaled_outdiv * dev) / pll_freq;
@@ -968,10 +986,12 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
   Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
   Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x02, 0x50);
-  Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0xC0); // 0x80
+  /*  0x80 -> 0x40 (AFC_PKT, ENABLE_AFC_COR_PLL) */
+  Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0x40);
 
   /* RX AGC control. */
-  Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0); // 0xE2 (bit 1 not used in 4464. It is used in 4463.)
+  /* 0xE2 -> xE0 (bit 1 not used in 4464. It is used in 4463.) */
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0);
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
@@ -984,9 +1004,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   Si446x_setProperty8(radio, Si446x_MODEM_BCR_GEAR, 0x00);
   Si446x_setProperty8(radio, Si446x_MODEM_BCR_MISC1, 0xC2);
 
-  /* RX IF controls. */
-  Si446x_setProperty8(radio, Si446x_MODEM_IF_CONTROL, 0x08);
-  Si446x_setProperty24(radio, Si446x_MODEM_IF_FREQ, 0x02, 0x80, 0x00);
+  /* RX IF controls are set in setSynthParameters() */
 
   /* RX IF filter decimation controls. */
   Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x70);
@@ -2840,16 +2858,12 @@ uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio,
 /**
  * return true if clock change was applied else false.
  */
-bool Si446x_updateClock(const radio_unit_t radio, xtal_osc_t freq) {
+bool Si446x_updateClock(const radio_unit_t radio, const xtal_osc_t freq) {
   if(freq == 0)
     return false;
   radio_clock_t xo = Si446x_getData(radio)->radio_clock;
   if((radio_clock_t)freq != xo) {
     Si446x_getData(radio)->radio_clock = (radio_clock_t)freq;
-    if(!Si446x_init(radio)) {
-      TRACE_ERROR("SI   > Init of radio %d failed when applying clock update",
-                  radio);
-    }
     return true;
   }
   return false;

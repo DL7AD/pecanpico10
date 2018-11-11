@@ -78,5 +78,10 @@ eventmask_t evt = chEvtGetAndClearEvents(EVENT_MASK(PKT_DIAGNOSTIC_EVENT_CODE));
     if(flags & EVT_PKT_CBK_MGR_FAIL) {
       TRACE_ERROR("PKT  > Unable to start packet RX callback manager");
     }
+    if(flags & EVT_HDLC_RESET_RCVD) {
+      TRACE_DEBUG("PKT  > HDLC Reset during frame reception");
+    }
+
+
   }
 }

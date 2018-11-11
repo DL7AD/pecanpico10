@@ -74,17 +74,15 @@ bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
         /*
          *  Can be a real HDLC reset or most likely incorrect bit sync.
          */
-
-        //myDriver->active_demod_object->status |= STA_HDLC_RESET_RCVD;
-        pktAddEventFlags(myHandler, EVT_HDLC_RESET_RCVD);
         if(myHandler->active_packet_object->packet_size < PKT_MIN_FRAME) {
-          /* No data payload stored yet so go back to sync search. */
+          /*Payload below minimum. Go back to sync search. */
           myHandler->active_packet_object->packet_size = 0;
           myDriver->frame_state = FRAME_SEARCH;
           myHandler->sync_count--;
           break;
         }
         /* Else let the decoder determine what to do. */
+        pktAddEventFlags(myHandler, EVT_HDLC_RESET_RCVD);
         myDriver->frame_state = FRAME_RESET;
         return true;
       } /* End case HDLC_RESET. */

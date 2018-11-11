@@ -17,21 +17,23 @@
 
 BSEMAPHORE_DECL(tcxo_busy, false);
 
-xtal_osc_t tcxo_period;
-xtal_osc_t tcxo_active = PKT_TCXO_DEFAULT_CLOCK;
+xtal_osc_t  tcxo_period;
+xtal_osc_t  tcxo_active = PKT_TCXO_DEFAULT_CLOCK;
 volatile tcxo_state_t  tcxo_state;
+cnt_t       samples;
 
 /*===========================================================================*/
 /* Module local structures.                                                  */
 /*===========================================================================*/
 
+static void pktCBWidthTCXO(ICUDriver *icup);
 static void pktCBPeriodTCXO(ICUDriver *icup);
 static void pktCBOverflowTCXO(ICUDriver *icup);
 
 ICUConfig tcxo_cfg = {
   ICU_INPUT_ACTIVE_HIGH,
   PKT_TCXO_TIMER_CLOCK,    /**< ICU clock frequency. */
-  NULL,                    /**< ICU width callback. */
+  pktCBWidthTCXO,          /**< ICU width callback. */
   pktCBPeriodTCXO,         /**< ICU period callback. */
   pktCBOverflowTCXO,       /**< ICU overflow callback. */
   PKT_TCXO_TIMER_CHANNEL,  /**< Timer channel. */
@@ -47,6 +49,14 @@ ICUConfig tcxo_cfg = {
  */
 static bool pktPPMcheckTCXO(xtal_osc_t f) {
   return (f >= PKT_TCXO_CLOCK_MIN && PKT_TCXO_CLOCK_MAX >= f);
+}
+
+/**
+ *
+ */
+static void pktCBWidthTCXO(ICUDriver *icup) {
+  (void)icup;
+  return;
 }
 
 /**
@@ -90,6 +100,7 @@ static xtal_osc_t pktMeasureTCXO(sysinterval_t timeout) {
     return 0;
 
   /* Start ICU and start capture. */
+  samples = TCXO_SAMPLES_AVERAGE;
   icuStart(&PKT_TCXO_TIMER, &tcxo_cfg);
   icuStartCapture(&PKT_TCXO_TIMER);
   icuEnableNotifications(&PKT_TCXO_TIMER);
@@ -118,7 +129,7 @@ THD_FUNCTION(tcxo_thd, arg) {
   (void)arg;
 
   while(true) {
-    uint32_t f = pktMeasureTCXO(TIME_S2I(5));
+    uint32_t f = pktMeasureTCXO(TIME_S2I(8));
     if(f != 0) {
       if(!pktPPMcheckTCXO(f)) {
         TRACE_WARN("TCXO > Measured frequency %d Hz is outside PPM bounds", f);

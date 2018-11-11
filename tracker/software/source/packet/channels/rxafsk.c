@@ -1011,7 +1011,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
           continue;
 #endif
-        /* HDLC reset after frame open and minimum valid data received. */
+        /* HDLC reset after frame open and > minimum valid data received. */
         case FRAME_RESET:
           pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_LOW);
           myFIFO->status |= STA_AFSK_FRAME_RESET;
@@ -1021,7 +1021,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         case FRAME_CLOSE: {
 #if PKT_RSSI_CAPTURE == TRUE
           /* Transfer the RSSI reading. */
-            myHandler->active_packet_object->rssi = myFIFO->rssi;
+          myHandler->active_packet_object->rssi = myFIFO->rssi;
 #endif
           myDriver->decoder_state = DECODER_DISPATCH;
           continue; /* From this case. */

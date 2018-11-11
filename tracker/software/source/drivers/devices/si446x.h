@@ -393,7 +393,7 @@ extern "C" {
                                 const radio_mod_t mod);
   uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio, radio_mod_t mod);
   bool Si446x_waitTransmitEnd(const radio_unit_t radio, sysinterval_t timeout);
-  bool Si446x_updateClock(const radio_unit_t, xtal_osc_t freq);
+  bool Si446x_updateClock(const radio_unit_t, const xtal_osc_t freq);
 #ifdef __cplusplus
 }
 #endif

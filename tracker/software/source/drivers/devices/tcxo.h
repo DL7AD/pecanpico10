@@ -15,7 +15,7 @@
 /*===========================================================================*/
 
 /* The wrap around count for the TCXO ICU timer. */
-#define TCXO_OVERFLOW_COUNT 0x10000
+#define TCXO_OVERFLOW_COUNT     0x10000
 
 #define PKT_TCXO_MAX_PPM_ERROR      40       /**< Max ppm drift from default */
 #define PKT_TCXO_DEFAULT_CLOCK      (PKT_TCXO_CLOCK + PKT_TCXO_DEFAULT_ERROR_HZ)
