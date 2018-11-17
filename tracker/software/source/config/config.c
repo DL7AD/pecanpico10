@@ -14,10 +14,10 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 5),
+            .active = true,
+            .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(5),
-            .fixed = false, // Add lat, lon alt fields when enabling fixed
+            .fixed = true, // Add lat, lon alt fields when enabling fixed
             .lat = -337331175, // Degrees (expressed in 1e-7 form)
             .lon = 1511143478, // Degrees (expressed in 1e-7 form)
             .alt = 144 // Altitude in metres
@@ -32,14 +32,14 @@ const conf_t conf_flash_default = {
         .call = "VK2GJ-5",
         .path = "WIDE1-1",
         .symbol = SYM_DIGIPEATER,
-        .aprs_msg = false, // Enable APRS message reception on this app
+        .aprs_msg = true, // Enable APRS message reception on this app
     },
 
     // Secondary position app
     .pos_sec = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 30), // Beacon interval
+            .cycle = TIME_S2I(60 * 5), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
         },
@@ -53,7 +53,7 @@ const conf_t conf_flash_default = {
         .call = "VK2GJ-2",
         .path = "WIDE2-1",
         .symbol = SYM_ANTENNA,
-        .aprs_msg = false, // Enable APRS message reception on this app
+        .aprs_msg = true, // Enable APRS message reception on this app
     },
 
     // Primary image app
@@ -157,7 +157,7 @@ const conf_t conf_flash_default = {
             .symbol = SYM_ANTENNA
         },
         .aprs_msg = true, // Set true to enable messages to be accepted on RX call sign
-        .digi = false,
+        .digi = true,
         .tx = {
            // Transmit radio configuration
            .radio_conf = {

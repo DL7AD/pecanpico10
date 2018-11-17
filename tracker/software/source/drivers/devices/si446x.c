@@ -988,11 +988,15 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   /* Packet handler disabled in RX. */
   Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x40);
 
-  if(is_part_Si4463(handler->radio_part))
+  if(is_part_Si4463(handler->radio_part)) {
     /* To run 4463 in 4464 compatibility mode (set SEARCH2 to zero). */
     /* 0xBC (SCH_FROZEN = 1 {Freeze min-max on gear switch, SCHPRD_HI = 6 SCHPRD_LO = 4 {SEARCH_4TB, SEARCH_8TB}) */
+#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
+    Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0x00);
+#else
     Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0xBC);
-
+#endif
+  }
   /*
    * MODEM_RAW_CONTROL
    *  UNSTDPK[7] = 1 (raw mode for no-standard packet reception)
@@ -1020,7 +1024,11 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    *  OOK_LIMIT_DISCHG[5] = 1 Peak detector discharge is disabled when the detected peak is lower than the input signal for low input levels.
    */
   if(is_part_Si4463(handler->radio_part))
+#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
+    Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
+#else
     Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
+#endif
   else
     Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
 
@@ -1039,8 +1047,13 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    *  SHWAIT[7:4] This specifies the wait period per PLL AFC correction cycle before gear switching has occurred.
    *  LGWAIT [3:0] This specifies the wait period per PLL AFC correction cycle after gear switching has occurred.
    */
+
   if(is_part_Si4463(handler->radio_part))
+#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
+    Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x23);
+#else
     Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
+#endif
   else
     Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x23);
 
@@ -1066,7 +1079,11 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   /* RX AGC control. */
   /* 0xE2 -> xE0 (ADC_GAIN_CORR_EN[1] not used in 4464. It is used in 4463.) */
   if(is_part_Si4463(handler->radio_part))
+#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
+    Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0);
+#else
     Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE2);
+#endif
   else
     Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0);
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
@@ -1104,8 +1121,9 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
      * NDEC2AGC[2] = 1 enable AGC control of 2nd stage CIC
      * NDEC2GAIN[4:3] = 1 2nd stage CIC gain is 12dB
      */
+#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
     Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x0C);
-
+#endif
   /* RSSI controls. */
   /*
    * LATCH[2:0] = 0 disabled.
@@ -1113,9 +1131,11 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    */
   Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL, 0x00);
   if(is_part_Si4463(handler->radio_part)) {
+#if Si446x_4463_USE_446X_COMPATABILITY != TRUE
     /* RSSI jump control (ENRSSIJMP[3] 1 -> 0 to disable. */
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL2, 0x18);
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_JUMP_THRESH, 0x06);
+#endif
   }
 
   /* RX IF filter coefficients. */
@@ -1161,6 +1181,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
 
   /* Unused Si4463 features for AFSK RX. */
   if(is_part_Si4463(handler->radio_part)) {
+#if Si446x_4463_USE_446X_COMPATABILITY != TRUE
    /* DSA is not enabled. */
    Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL1, 0x40); // 0xA0
    Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL2, 0x04); // 0x04
@@ -1170,6 +1191,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    Si446x_setProperty8(radio, Si446x_MODEM_DSA_RSSI, 0x78); // 0x78
    Si446x_setProperty8(radio, Si446x_MODEM_RSSI_MUTE, 0x00);
    Si446x_setProperty8(radio, Si446x_MODEM_DSA_MISC, 0x20); // 0x20
+#endif
   }
 }
 

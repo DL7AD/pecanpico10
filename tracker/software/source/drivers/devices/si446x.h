@@ -17,8 +17,9 @@
 
 #define SI446X_EVT_TX_TIMEOUT                   EVENT_MASK(0)
 
-#define Si446x_LOCK_BY_SEMAPHORE                TRUE
+//#define Si446x_LOCK_BY_SEMAPHORE                TRUE
 #define Si446x_UNLOCK_FOR_ENCODE                FALSE
+#define Si446x_4463_USE_446X_COMPATABILITY      TRUE
 
 /* Si4464 States. */
 #define Si446x_STATE_REMAIN                     0

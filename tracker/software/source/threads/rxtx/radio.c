@@ -50,6 +50,7 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
   uint8_t n = 1;
   if(pktGetAX25FrameStatus(pkt_buff))
     n = 0;
+  /* TODO: Check aprs_debug_getPacket(...) for buffer overrun bug. */
   aprs_debug_getPacket(pp, &serial_buf[n], sizeof(serial_buf) - n);
   if(rssi != 0xFF) {
     TRACE_MON("RX   > Packet opening RSSI 0x%x", rssi);

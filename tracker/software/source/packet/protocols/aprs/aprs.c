@@ -275,7 +275,7 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 
     // Print decoded packet
     uint32_t out = chsnprintf(buf, len, "%s", rec);
-    for(uint32_t i = 0; pinfo[i]; i++) {
+    for(uint32_t i = 0; pinfo[i] && (len > out); i++) {
         if(pinfo[i] < 32 || pinfo[i] > 126) {
             out += chsnprintf(&buf[out], len - out, "<0x%02x>", pinfo[i]);
         } else {
