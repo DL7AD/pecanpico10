@@ -189,6 +189,16 @@ const SerialConfig debug_config = {
   0
 };
 
+/**
+ * Stream serial port setting.
+ */
+const SerialConfig stream_config = {
+  230400,
+  0,
+  0,
+  0
+};
+
 /*===========================================================================*/
 /* Module local types.                                                       */
 /*===========================================================================*/
@@ -233,29 +243,31 @@ void pktSerialStart(void) {
   pktConfigSerialDiag();
   sdStart(&SERIAL_CFG_DEBUG_DRIVER, &debug_config);
 #endif
+#if ENABLE_SERIAL_STREAM == TRUE
   /* Setup diagnostic resource access semaphore. */
-  //extern binary_semaphore_t debug_out_sem;
-  //chBSemObjectInit(&debug_out_sem, false);
+  extern binary_semaphore_t stream_out_sem;
+  chBSemObjectInit(&stream_out_sem, false);
+#endif
 }
 
-void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len) {
+void strmWrite(uint8_t level, uint8_t *buf, uint32_t len) {
   (void)level;
 #if ENABLE_SERIAL_DEBUG == TRUE
-  chnWrite((BaseSequentialStream*)&SERIAL_CFG_DEBUG_DRIVER, buf, len);
+  chnWrite((BaseSequentialStream*)&SERIAL_STREAM_DRIVER, buf, len);
 #else
   (void)buf;
   (void)len;
 #endif
 }
 
-int dbgPrintf(uint8_t level, const char *format, ...) {
+int strmPrintf(uint8_t level, const char *format, ...) {
   (void)level;
 #if ENABLE_SERIAL_DEBUG == TRUE
   va_list arg;
   int done;
 
   va_start(arg, format);
-  done = chvprintf((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, format, arg);
+  done = chvprintf((BaseSequentialStream*)SERIAL_STREAM_DRIVER, format, arg);
   va_end(arg);
 
   return done;

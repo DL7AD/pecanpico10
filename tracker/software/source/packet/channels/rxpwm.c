@@ -207,7 +207,8 @@ void pktEnableRadioStream(const radio_unit_t radio) {
 
     case PKT_PWM_WAITING:
     case PKT_PWM_ACTIVE: {
-      chDbgAssert(false, "wrong PWM state");
+      /* TODO: This was asserting... for now just let it go. */
+      //chDbgAssert(false, "wrong PWM state");
       return;
     } /* End case PKT_PWM_WAITING or PKT_PWM_ACTIVE. */
     } /* End switch on ICU state. */
@@ -248,12 +249,13 @@ void pktDisableRadioStream(const radio_unit_t radio) {
 
   packet_svc_t *myHandler = pktGetServiceObject(radio);
 
-  /* Is the receiver active? */
-  if(!pktIsReceiveEnabled(radio))
-    return;
-
   /* Process under locked. */
   chSysLock();
+  /* Is the receiver active? */
+  if(!pktIsReceiveEnabled(radio)) {
+    chSysUnlock();
+    return;
+  }
   radio_mod_t mod = myHandler->rx_link_type;
 
   switch(mod) {
@@ -283,7 +285,7 @@ void pktDisableRadioStream(const radio_unit_t radio) {
        *  Post in-band PWM message.
        *
        */
-      pktClosePWMchannelI(myDemod->icudriver, EVT_NONE, PWM_TERM_PWM_STOP);
+      pktClosePWMStreamI(myDemod->icudriver, EVT_NONE, PWM_TERM_PWM_STOP);
 
       myDemod->icustate = PKT_PWM_STOP;
       /*
@@ -384,7 +386,7 @@ void pktRadioJammingReset(ICUDriver *myICU) {
  *
  * @api
  */
-void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt,
+void pktClosePWMStreamI(ICUDriver *myICU, eventflags_t evt,
                          pwm_code_t reason) {
   /* Stop posting data and write end marker. */
   AFSKDemodDriver *myDemod = myICU->link;
@@ -453,10 +455,9 @@ void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt,
 #endif
     /* Remove object reference. */
     myDemod->active_radio_stream = NULL;
-  } else {
-    /* No object. Just send event broadcast. */
-    pktAddEventFlagsI(myHandler, (evt | EVT_RAD_STREAM_CLOSE));
   }
+  /* Send event broadcast. */
+  pktAddEventFlagsI(myHandler, (evt | EVT_RAD_STREAM_CLOSE));
   /* Return to ready state (inactive). */
   myDemod->icustate = PKT_PWM_READY;
 }
@@ -475,7 +476,7 @@ void pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt,
  *
  * @api
  */
-void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
+void pktOpenPWMStreamI(ICUDriver *myICU, eventflags_t evt) {
   AFSKDemodDriver *myDemod = myICU->link;
   packet_svc_t *myHandler = myDemod->packet_handler;
   radio_unit_t radio = myHandler->radio;
@@ -488,7 +489,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
      * Shouldn't happen unless CCA has not triggered an EXTI trailing edge.
      * For now just flag that an error condition happened.
      */
-    pktClosePWMchannelI(myICU, PWM_FIFO_ORDER, PWM_TERM_QUEUE_ERR);
+    pktClosePWMStreamI(myICU, PWM_FIFO_ORDER, PWM_TERM_QUEUE_ERR);
     return;
   }
   /* Normal CCA handling.
@@ -548,6 +549,7 @@ void pktOpenPWMChannelI(ICUDriver *myICU, eventflags_t evt) {
     /*
      * Failed to get a PWM buffer object.
      * Post an event and disable ICU.
+     * The jamming timer should have been set in ICU period so no need here.
      */
     chFifoReturnObjectI(myDemod->pwm_fifo_pool, myFIFO);
     myDemod->active_radio_stream = NULL;
@@ -644,8 +646,27 @@ void pktStopAllICUtimersI(ICUDriver *myICU) {
 }
 
 /**
+ * @brief   Timer callback when PWM data stops after stream is open.
+ * @post    The PWM stream will be closed
+ *
+ * @param[in]   myICU   pointer to a @p ICUDriver structure
+ *
+ * @api
+ */
+void pktPWMActivityTimeout(ICUDriver *myICU) {
+  /* Timeout when PWM stops from radio. */
+  chSysLockFromISR();
+  AFSKDemodDriver *myDemod = myICU->link;
+  if(myDemod->active_radio_stream != NULL
+      && myDemod->icustate == PKT_PWM_ACTIVE) {
+    pktClosePWMStreamI(myICU, EVT_PWM_RADIO_TIMEOUT, PWM_TERM_PWM_TIMEOUT);
+  }
+  chSysUnlockFromISR();
+}
+
+/**
  * @brief   Timer callback when no PWM data arises from a CCA open.
- * @post    The PWM channel will be closed
+ * @post    The PWM stream will be closed
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
  *
@@ -657,7 +678,7 @@ void pktPWMInactivityTimeout(ICUDriver *myICU) {
   AFSKDemodDriver *myDemod = myICU->link;
   if(myDemod->active_radio_stream != NULL
       && myDemod->icustate == PKT_PWM_WAITING) {
-    pktClosePWMchannelI(myICU, EVT_PWM_NO_DATA, PWM_TERM_NO_DATA);
+    pktClosePWMStreamI(myICU, EVT_PWM_NO_DATA, PWM_TERM_NO_DATA);
   }
   chSysUnlockFromISR();
 }
@@ -683,17 +704,16 @@ void pktRadioCCALeadTimer(ICUDriver *myICU) {
   uint8_t cca = pktLLDradioReadCCAlineI(myHandler->radio);
   /* CCA de-glitch timer expired. */
   switch(cca) {
+    /* CAA has dropped so it is a spike which is ignored. */
     case PAL_LOW: {
-        /*
-         * CAA has dropped so it is a spike which is ignored.
-         */
       pktAddEventFlagsI(myHandler, EVT_RADIO_CCA_SPIKE);
       break;
       }
 
-    /* CCA still high so start PWM stream now CCA is validated. */
+    /* CCA still high. Start stream if not already open. */
     case PAL_HIGH: {
-      pktOpenPWMChannelI(myICU, EVT_RAD_STREAM_OPEN);
+      if(myDemod->active_radio_stream == NULL)
+        pktOpenPWMStreamI(myICU, EVT_RAD_STREAM_OPEN);
       break;
     }
   }
@@ -726,20 +746,17 @@ void pktRadioCCATrailTimer(ICUDriver *myICU) {
   switch(cca) {
     case PAL_LOW: {
       /*
-       * The decoder operates asynchronously to and usually slower than PWM.
-       * Hence the decoder is responsible for releasing the PWM FIFO object.
-       * Prior to releasing the FIFO the decoder waits on the FIFO semaphore.
-       * Closing PWM from here sets the FIFO management semaphore.
-       * This caters for the case where the decoder terminates stream processing first.
-       * This may happen if noise produces a long string of data.
+       * CCA has dropped. The trailing edge is de-glitched by a VT.
+       * Arrive here when the VT expires.
+       * If CCA is still low close the PWM.
        */
-      pktClosePWMchannelI(myICU, EVT_NONE, PWM_TERM_CCA_CLOSE);
+      pktClosePWMStreamI(myICU, EVT_RADIO_CCA_DROP, PWM_TERM_CCA_CLOSE);
       break;
       }
 
     case PAL_HIGH: {
       /* CCA is active again so leave PWM open. */
-      pktAddEventFlagsI(myHandler, EVT_RADIO_CCA_GLITCH);
+      //pktAddEventFlagsI(myHandler, EVT_RADIO_CCA_GLITCH);
       break;
     }
   }
@@ -766,13 +783,34 @@ void pktRadioCCAInput(ICUDriver *myICU) {
     return;
   }
   packet_svc_t *myHandler = myDemod->packet_handler;
+
   uint8_t cca = pktLLDradioReadCCAlineI(myHandler->radio);
+
   /* CCA changed. */
   switch(cca) {
+
+#if PKT_USE_CCA_LEADING_ONLY == TRUE
+  case PAL_HIGH: {
+    if(myDemod->active_radio_stream == NULL)
+      pktOpenPWMStreamI(myICU, EVT_RAD_STREAM_OPEN);
+    break;
+  }
+#else
     case PAL_LOW: {
-      if(myDemod->icustate == PKT_PWM_ACTIVE
-          || myDemod->icustate == PKT_PWM_WAITING) {
+      if(myDemod->icustate == PKT_PWM_ACTIVE && !chVTIsArmedI(&myICU->pwm_timer)) {
         /* CCA trailing edge glitch handling.
+         * The ICU is active
+         * Start timer and check if CCA remains low before closing PWM.
+         *
+         * De-glitch for 100 AFSK bit times.
+         */
+        chVTSetI(&myICU->cca_timer, TIME_US2I(833 * 100),
+                 (vtfunc_t)pktRadioCCATrailTimer, myICU);
+        break;
+      }
+      if(myDemod->icustate == PKT_PWM_WAITING) {
+        /* CCA trailing edge glitch handling.
+         * ICU has not received any PWM yet.
          * Start timer and check if CCA remains low before closing PWM.
          *
          * De-glitch for 8 AFSK bit times.
@@ -780,7 +818,7 @@ void pktRadioCCAInput(ICUDriver *myICU) {
         chVTSetI(&myICU->cca_timer, TIME_US2I(833 * 8),
                  (vtfunc_t)pktRadioCCATrailTimer, myICU);
       }
-      /* Idle state. */
+      /* other state. */
       break;
     } /* End case PAL_LOW. */
 
@@ -792,17 +830,17 @@ void pktRadioCCAInput(ICUDriver *myICU) {
       }
       /* Else this is a leading edge of CCA for a new packet. */
       /* De-glitch for 16 AFSK bit times. */
-      chVTSetI(&myICU->cca_timer,
-               TIME_US2I(833 * 16),
+      chVTSetI(&myICU->cca_timer, 1/*TIME_US2I(833 * 16)*/,
                (vtfunc_t)pktRadioCCALeadTimer, myICU);
       break;
     }
+#endif
   } /* End switch. */
   chSysUnlockFromISR();
   return;
 }
 
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
 /**
  * Callback after radio manager gets RSSI from radio
  */
@@ -861,20 +899,16 @@ void pktRadioICUWidth(ICUDriver *myICU) {
 #if LINE_PWM_MIRROR != PAL_NOLINE
   pktWriteGPIOline(LINE_PWM_MIRROR, PAL_LOW);
 #endif
+
   if(myDemod->icustate == PKT_PWM_WAITING) {
-    /*
-     * On first width clear the ICU activity watchdog timer.
-     * i.e. Once radio data appears a "no data" timeout is invalidated.
-     * Then request RSSI read.
-     */
-    chVTResetI(&myICU->pwm_timer);
+    /* On first width request RSSI read. */
 
     /* Increment receive session count. */
     myHandler->radio_rx_config.seq_num++;
 
 #if PKT_RSSI_CAPTURE == TRUE
     /* Setup a radio task object. */
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
     radio_params_t rp = myHandler->radio_rx_config;
 
     /* Clear RSSI (no value). */
@@ -886,9 +920,9 @@ void pktRadioICUWidth(ICUDriver *myICU) {
 
     /* Send the radio task. */
     msg_t msg = pktQueuePriorityRadioCommandI(myHandler->radio,
-                                             PKT_RADIO_RX_RSSI,
-                                             &rp,
-                                             pktRadioRSSIreadCB);
+                                              PKT_RADIO_RX_RSSI,
+                                              &rp,
+                                              pktRadioRSSIreadCB);
 #else /* PKT_RTO_USE_SETTING == FALSE */
     radio_task_object_t rt = myDemod->packet_handler->radio_rx_config;
 
@@ -905,11 +939,10 @@ void pktRadioICUWidth(ICUDriver *myICU) {
                                               &rt,
                                               pktRadioRSSIreadCB);
 #endif /* PKT_RTO_USE_SETTING == TRUE */
-    if(msg != MSG_OK) {
+    if(msg == MSG_TIMEOUT) {
       myDemod->active_radio_stream->rssi = 0xFF;
     }
 #endif /* PKT_RSSI_CAPTURE == TRUE */
-    myDemod->icustate = PKT_PWM_ACTIVE;
   }
   chSysUnlockFromISR();
 }
@@ -932,16 +965,18 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 
   AFSKDemodDriver *myDemod = myICU->link;
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
-
+  packet_svc_t *myHandler = myDemod->packet_handler;
   chSysLockFromISR();
 
 #if LINE_PWM_MIRROR != PAL_NOLINE
   pktWriteGPIOline(LINE_PWM_MIRROR, PAL_HIGH);
 #endif
-  if(myDemod->active_radio_stream == NULL) {
+  if(myDemod->active_radio_stream == NULL ||
+                 !(myDemod->icustate == PKT_PWM_WAITING
+                   ||  myDemod->icustate == PKT_PWM_ACTIVE)) {
     /*
-     * Arrive here when we are running but not buffering.
-     * The ICU has been stopped and PWM aborted.
+     * Arrive here if ICU is running but not buffering.
+     * The ICU has been stopped and PWM is not active.
      */
     chSysUnlockFromISR();
     return;
@@ -955,7 +990,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    *
    */
   if((myDemod->active_radio_stream->status & STA_AFSK_DECODE_DONE) != 0) {
-    pktClosePWMchannelI(myICU, EVT_NONE, PWM_ACK_DECODE_END);
+    pktClosePWMStreamI(myICU, EVT_NONE, PWM_ACK_DECODE_END);
     chSysUnlockFromISR();
     return;
   }
@@ -966,7 +1001,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    * Close the PWM stream and wait for next radio CCA.
    */
   if((myDemod->active_radio_stream->status & STA_AFSK_DECODE_RESET) != 0) {
-    pktClosePWMchannelI(myICU, EVT_NONE, PWM_ACK_DECODE_ERROR);
+    pktClosePWMStreamI(myICU, EVT_NONE, PWM_ACK_DECODE_ERROR);
     chSysUnlockFromISR();
     return;
   }
@@ -975,7 +1010,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
    * Check if impulse ICU value is zero and thus invalid.
    */
   if(icuGetWidthX(myICU) == 0) {
-    pktClosePWMchannelI(myICU, EVT_NONE, PWM_TERM_ICU_ZERO);
+    pktClosePWMStreamI(myICU, EVT_NONE, PWM_TERM_ICU_ZERO);
     chSysUnlockFromISR();
     return;
   }
@@ -987,6 +1022,25 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
   switch(qs) {
   case MSG_OK: {
     /* PWM write OK. */
+    if(myDemod->icustate == PKT_PWM_WAITING) {
+
+#if PKT_USE_CCA_LEADING_ONLY != TRUE
+      /* Cancel the PWM inactivity timer. */
+      chVTResetI(&myICU->pwm_timer);
+#endif
+      pktAddEventFlagsI(myHandler, EVT_PWM_ACTIVE);
+      myDemod->icustate = PKT_PWM_ACTIVE;
+    }
+#if PKT_USE_CCA_LEADING_ONLY == TRUE
+    /*
+     * The PWM timer now looks for activity.
+     * If it times out the stream is closed.
+     * The timer is stopped in pktClosePWMStreamI(...).
+     */
+
+    chVTSetI(&myICU->pwm_timer, TIME_US2I(833 * PKT_TRAILING_SYMBOL_TIMEOUT),
+             (vtfunc_t)pktPWMActivityTimeout, myICU);
+#endif
     chSysUnlockFromISR();
     return;
   }
@@ -1038,6 +1092,15 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
       /* Write the PWM data to the new buffer. */
       qs = pktQueuePWMDataI(myICU);
       chDbgAssert(qs == MSG_OK, "PWM initial write to empty buffer failed");
+#if PKT_USE_CCA_LEADING_ONLY == TRUE
+    /*
+     * The PWM timer is checking activity.
+     * If it times out the stream is closed.
+     * The timer is stopped in pktClosePWMStreamI(...).
+     */
+    chVTSetI(&myICU->pwm_timer, TIME_US2I(833 * PKT_TRAILING_SYMBOL_TIMEOUT),
+             (vtfunc_t)pktPWMActivityTimeout, myICU);
+#endif
       chSysUnlockFromISR();
       return;
     } /* End pwm_object != NULL. */
@@ -1051,7 +1114,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
     radio_unit_t radio = myDemod->packet_handler->radio;
 
     pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_OVERFLOW, PAL_HIGH);
-    pktClosePWMchannelI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);
+    pktClosePWMStreamI(myICU, EVT_PWM_QUEUE_FULL, PWM_TERM_QUEUE_FULL);
     /*
      * This looks like noise/jamming.
      * Wait for a timeout before allowing new CAA detection.
@@ -1065,7 +1128,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 
   case MSG_TIMEOUT: {
     chDbgAssert(qs != MSG_OK, "PWM queue unexpectedly full");
-    pktClosePWMchannelI(myICU, EVT_PWM_QUEUE_ERROR, PWM_TERM_QUEUE_ERROR);
+    pktClosePWMStreamI(myICU, EVT_PWM_QUEUE_ERROR, PWM_TERM_QUEUE_ERROR);
     chSysUnlockFromISR();
     return;
   } /* End case. */
@@ -1091,6 +1154,9 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
  * @api
  */
 void pktRadioICUOverflow(ICUDriver *myICU) {
+#if PKT_CATCH_ICU_OVERFLOW != TRUE
+  return;
+#endif
   chSysLockFromISR();
   AFSKDemodDriver *myDemod = myICU->link;
   /* Is the ICU active? */
@@ -1102,7 +1168,7 @@ void pktRadioICUOverflow(ICUDriver *myICU) {
   /* Is there a stream attached? */
   if(myDemod->active_radio_stream != NULL) {
     /* Close the channel and stop ICU notifications. */
-    pktClosePWMchannelI(myICU, EVT_NONE, PWM_TERM_ICU_OVERFLOW);
+    pktClosePWMStreamI(myICU, EVT_NONE, PWM_TERM_ICU_OVERFLOW);
   } else {
     /* Just stop the ICU notification. */
     icuDisableNotificationsI(myICU);

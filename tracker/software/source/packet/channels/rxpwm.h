@@ -23,8 +23,10 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-#define PKT_RSSI_CAPTURE        TRUE
-#define PKT_USE_OPENING_RSSI    TRUE
+#define PKT_RSSI_CAPTURE            TRUE
+#define PKT_USE_CCA_LEADING_ONLY    FALSE
+#define PKT_CATCH_ICU_OVERFLOW      FALSE
+#define PKT_TRAILING_SYMBOL_TIMEOUT 20
 
 /* Limit of ICU and PWM count for packed format. */
 
@@ -51,9 +53,7 @@
 #define PWM_INFO_QUEUE_SWAP     8
 #define PWM_ACK_DECODE_ERROR    9
 #define PWM_TERM_QUEUE_ERROR    10
-#if PKT_USE_OPENING_RSSI != TRUE
-#define PWM_INF_RADIO_RSSI      11
-#endif
+#define PWM_TERM_PWM_TIMEOUT    11
 
 /* If all PWM buffers are consumed assume jamming and wait this timeout. */
 #define PWM_JAMMING_TIMEOUT     10
@@ -133,9 +133,6 @@ typedef struct PWMobject radio_pwm_object_t;
 
 typedef struct PWMobject {
   radio_pwm_buffer_t        buffer;
-#if PKT_USE_OPENING_RSSI != TRUE
-  radio_signal_t            rssi;
-#endif
   /* In linked mode the reference to the next PWM queue is saved here.
    * The decoder will continue to process linked PWM queues until completion.
    */
@@ -274,7 +271,7 @@ extern "C" {
   void      pktStopAllICUtimersI(ICUDriver *myICU);
   void      pktSleepICUI(ICUDriver *myICU);
   msg_t     pktQueuePWMDataI(ICUDriver *myICU);
-  void      pktClosePWMchannelI(ICUDriver *myICU, eventflags_t evt,
+  void      pktClosePWMStreamI(ICUDriver *myICU, eventflags_t evt,
                            pwm_code_t reason);
   void      pktPWMInactivityTimeout(ICUDriver *myICU);
   msg_t     pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack);

@@ -146,7 +146,7 @@ bool pktSystemInit(void) {
       chThdSleep(TIME_S2I(10));
     }
 
-    pktEnableEventTrace(PKT_RADIO_1);
+    pktEnableServiceEventTrace(PKT_RADIO_1);
     TRACE_INFO("MAIN > Started packet radio service for radio %d",
                PKT_RADIO_1);
 
@@ -221,7 +221,7 @@ bool pktServiceCreate(const radio_unit_t radio) {
 
   memset(&handler->radio_rx_config, 0, sizeof(radio_task_object_t));
   memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
-#if PKT_RTO_USE_SETTING != TRUE
+#if PKT_RTO_HAS_INNER_CB != TRUE
   handler->radio_rx_config.handler = handler;
   handler->radio_tx_config.handler = handler;
 #endif
@@ -386,7 +386,7 @@ msg_t pktOpenRadioReceive(const radio_unit_t radio,
 }
 #endif
 
-#if PKT_RTO_USE_SETTING != TRUE
+#if PKT_RTO_HAS_INNER_CB != TRUE
 /**
  * @brief   Enable packet reception.
  * @pre     The packet service must have been opened.
@@ -443,7 +443,7 @@ msg_t pktEnableDataReception(const radio_unit_t radio,
 }
 #endif
 
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
 /**
  * TODO: Should not process this via the outer level callbacks.
  * Should be handled inside RM initiated by a macro level directive.
@@ -571,7 +571,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
     handler->radio_rx_config.base_frequency = frequency;
     handler->radio_rx_config.step_hz = step;
     handler->radio_rx_config.channel = channel;
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
     handler->radio_rx_config.rssi = sq;
 #else
     handler->radio_rx_config.squelch = sq;
@@ -585,7 +585,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
     handler->valid_count = 0;
     handler->good_count = 0;
 
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
     msg = pktQueueRadioCommand(radio,
                               PKT_RADIO_RX_OPEN,
                               &handler->radio_rx_config,
@@ -602,8 +602,10 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
     msg = pktQueueRadioCommand(radio, &rt, to, pktReceiveStartCB);
 
 #endif
-    if(msg == MSG_OK)
+    if(msg == MSG_OK) {
       pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
+      //pktEnableDecoderEventTrace(radio);
+    }
     return msg;
   }
   /**
@@ -616,7 +618,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
 
     /* Update start parameters in radio configuration. */
     handler->radio_rx_config.channel = channel;
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
     handler->radio_rx_config.rssi = sq;
 #else
     handler->radio_rx_config.squelch = sq;
@@ -626,7 +628,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
      * Encoding, frequency, step... actually only encoding matters.
      * In that case close the channel and re-open with new encoding.
      */
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
     msg_t msg = pktQueueRadioCommand(radio,
                                     PKT_RADIO_RX_START,
                                     &handler->radio_rx_config,
@@ -658,7 +660,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
 
 
 
-#if PKT_RTO_USE_SETTING != TRUE
+#if PKT_RTO_HAS_INNER_CB != TRUE
 /**
  *
  */
@@ -704,7 +706,7 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
   /*if(handler->state != PACKET_READY || handler->rx_state != PACKET_RX_ENABLED)*/
     return MSG_ERROR;
 
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
   /* Submit command. A timeout can occur waiting for a command queue object. */
   radio_params_t rp = handler->radio_rx_config;
   msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_RX_STOP,
@@ -726,7 +728,6 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
   return MSG_OK;
 }
 
-#if 0
 /**
  * @brief   Closes a packet receive service.
  * @pre     The packet service must have been stopped.
@@ -751,7 +752,7 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
   chDbgCheck(handler->state == PACKET_READY);
   if(handler->state != PACKET_READY)
     return MSG_RESET;
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
   /* Submit command. A timeout can occur waiting for a command queue object. */
   msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_RX_CLOSE,
                                   NULL, TIME_INFINITE, NULL);
@@ -769,10 +770,11 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
   if(msg != MSG_OK)
     return msg;
 #endif
+  //pktDisableDecoderEventTrace(radio);
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_CLOSE);
   return MSG_OK;
 }
-#endif
+
 /**
  * @brief   Stores receive data in a packet channel buffer.
  * @post    The character is stored and the internal buffer index is updated.

@@ -179,6 +179,9 @@
 /* To use IO_TXD/IO_RXD for UART debug channel. */
 #define ENABLE_SERIAL_DEBUG         FALSE
 
+/* To use SDU1 for serial stream (diagnostic) channel. */
+#define ENABLE_SERIAL_STREAM        FALSE
+
 #if ENABLE_EXTERNAL_I2C == TRUE && ENABLE_SERIAL_DEBUG == TRUE
 #error "Cannot enable serial debug and external I2C together"
 #elif ENABLE_EXTERNAL_I2C == FALSE && ENABLE_SERIAL_DEBUG == TRUE
@@ -309,8 +312,8 @@ extern "C" {
   ioline_t  pktSetLineModeRadioGPIO1(const radio_unit_t radio);
   ioline_t  pktSetLineModeRadioGPIO0(const radio_unit_t radio);
   void      pktSerialStart(void);
-  void      dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
-  int       dbgPrintf(uint8_t level, const char *format, ...);
+  void      strmWrite(uint8_t level, uint8_t *buf, uint32_t len);
+  int       strmPrintf(uint8_t level, const char *format, ...);
   void      pktWrite(uint8_t *buf, uint32_t len);
   uint8_t   pktReadIOlines(void);
   void      pktRadioICUWidth(ICUDriver *icup);

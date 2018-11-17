@@ -96,6 +96,7 @@
 #define Si446x_MODEM_DATA_RATE                  0x2003
 #define Si446x_MODEM_TX_NCO_MODE                0x2006
 #define Si446x_MODEM_FREQ_DEV                   0x200A
+#define Si446x_MODEM_TX_FILTER_COEFF_8          0x200F
 #define Si446x_MODEM_TX_RAMP_DELAY              0x2018
 #define Si446x_MODEM_MDM_CTRL                   0x2019
 #define Si446x_MODEM_IF_CONTROL                 0x201A
@@ -108,7 +109,9 @@
 #define Si446x_MODEM_BCR_NCO_OFFSET             0x2024
 #define Si446x_MODEM_BCR_GAIN                   0x2027
 #define Si446x_MODEM_BCR_GEAR                   0x2029
+#define Si446x_MODEM_BCR_MISC                   0x202A
 #define Si446x_MODEM_BCR_MISC1                  0x202A
+#define Si446x_MODEM_BCR_MISC0                  0x202B
 #define Si446x_MODEM_AFC_GEAR                   0x202C
 #define Si446x_MODEM_AFC_WAIT                   0x202D
 #define Si446x_MODEM_AFC_GAIN                   0x202E

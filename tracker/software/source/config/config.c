@@ -39,7 +39,7 @@ const conf_t conf_flash_default = {
     .pos_sec = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 5), // Beacon interval
+            .cycle = TIME_S2I(60 * 30), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
         },
@@ -150,7 +150,7 @@ const conf_t conf_flash_default = {
             .radio_conf = {
                 .freq = FREQ_APRS_AUSTRALIA,
                 .mod = MOD_AFSK,
-                .rssi = 0x3F
+                .rssi = 0x3E
             },
             // APRS identity used in message responses if digipeat is not enabled
             .call = "VK2GJ-4",

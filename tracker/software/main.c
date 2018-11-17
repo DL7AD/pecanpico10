@@ -32,8 +32,8 @@ int main(void) {
 #endif
 	while(true) {
 	  /* Trace events from packet decoder system. */
-      pktTraceEvents();
-      chThdSleep(TIME_MS2I(200));
+      pktTraceServiceEvents();
+      chThdSleep(TIME_MS2I(10));
 	}
 }
 

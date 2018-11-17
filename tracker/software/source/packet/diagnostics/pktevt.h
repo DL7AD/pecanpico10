@@ -24,9 +24,12 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-void pktTraceEvents(void);
-void pktEnableEventTrace(radio_unit_t radio);
-void pktDisableEventTrace(radio_unit_t radio);
+void pktTraceServiceEvents(void);
+void pktEnableServiceEventTrace(radio_unit_t radio);
+void pktDisableServiceEventTrace(radio_unit_t radio);
+void pktTraceDecoderEvents(void);
+void pktEnableDecoderEventTrace(radio_unit_t radio);
+void pktDisableDecoderEventTrace(radio_unit_t radio);
 #ifdef __cplusplus
 }
 #endif

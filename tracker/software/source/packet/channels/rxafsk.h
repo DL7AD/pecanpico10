@@ -40,7 +40,7 @@
 #define AFSK_DSP_QCORR_DECODE       1
 #define AFSK_DSP_FCORR_DECODE       2 /* Currently under test. */
 
-#define AFSK_DECODE_TYPE            AFSK_DSP_QCORR_DECODE
+#define AFSK_DECODE_TYPE            AFSK_DSP_FCORR_DECODE
 #if !defined(AFSK_DECODE_TYPE)
 #error "AFSK decoder not specified"
 #endif
@@ -141,7 +141,7 @@
 #define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
 
 /* Thread working area size. */
-#define PKT_AFSK_DECODER_WA_SIZE    (1024 * 1)
+#define PKT_AFSK_DECODER_WA_SIZE    (1024 * 2)
 
 #endif
 
@@ -188,6 +188,7 @@ typedef float32_t   pwm_accum_t;
 typedef int16_t     dsp_phase_t;
 
 #include "rxpwm.h"
+#include "rxhdlc.h"
 #include "pktservice.h"
 /**
  * @brief   Structure representing an AFSK demod driver.
@@ -211,18 +212,10 @@ typedef struct AFSK_data {
    */
   thread_t                  *decoder_thd;
 
-  /**
-   * @brief Frame byte being built.
-   */
-  ax25char_t                current_byte;
+  pkt_hdlc_decode_t         rx_hdlc; /*<< HDLC decoder control object. */
 
   /**
-   * @brief HDLC bit count.
-   */
-  uint8_t                   bit_index;
-
-  /**
-   * @brief AFSK decoder states. TODO: non volatile?
+   * @brief AFSK decoder states.
    */
   afskdemodstate_t          decoder_state;
 
@@ -284,12 +277,12 @@ typedef struct AFSK_data {
   /**
    * @brief current symbol frequency.
    */
-  tone_t                    tone_freq;
+  //tone_t                    tone_freq;
 
   /**
    * @brief Prior symbol frequency.
    */
-  tone_t                    prior_freq;
+  //tone_t                    prior_freq;
 
   /**
    * @brief     Pointer to a decoder data structure.
@@ -306,7 +299,7 @@ typedef struct AFSK_data {
   /**
    * @brief Opening HDLC flag sequence found.
    */
-  frame_state_t             frame_state;
+  //frame_state_t             frame_state;
 
   /**
    * @brief Thread reference of initiating thread.
@@ -322,11 +315,13 @@ typedef struct AFSK_data {
 /* Module inline functions.                                                  */
 /*===========================================================================*/
 
+#if 0
 static inline void pktResyncAFSKDecoder(AFSKDemodDriver *myDriver) {
   packet_svc_t *myHandler = myDriver->packet_handler;
   myDriver->frame_state = FRAME_OPEN;
   myHandler->active_packet_object->packet_size = 0;
 }
+#endif
 
 /*===========================================================================*/
 /* External declarations.                                                    */
@@ -336,8 +331,6 @@ extern float32_t pre_filter_coeff_f32[];
 extern float32_t mag_filter_coeff_f32[];
 extern struct AFSK_data AFSKD1;
 extern struct qCorrFilter QCORR1;
-//extern struct QFIRFilter QMAGM1;
-//extern struct QFIRFilter QMAGS1;
 
 #ifdef __cplusplus
 extern "C" {

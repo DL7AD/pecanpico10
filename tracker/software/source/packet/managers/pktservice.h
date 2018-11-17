@@ -45,19 +45,9 @@ typedef enum handlerRxStates {
   PACKET_RX_INVALID
 } pkt_rx_state_t;
 
-/* HDLC frame states. */
-typedef enum HDLCFrameStates {
-  FRAME_SEARCH,
-  FRAME_OPEN,
-  //FRAME_DATA,
-  FRAME_CLOSE,
-  FRAME_RESET
-} frame_state_t;
-
 #include "types.h"
 
 /* Link level encoding type. */
-//typedef radio_mod_t encoding_type_t;
 
 #include "pktradio.h"
 
@@ -89,7 +79,7 @@ typedef struct packetHandlerData {
   /**
    * @brief State of the packet handler.
    */
-  pkt_svc_state_t            state;
+  pkt_svc_state_t           state;
 
   /**
    * @brief State of the packet handler.
@@ -126,7 +116,7 @@ typedef struct packetHandlerData {
 
   binary_semaphore_t        radio_sem;  /**< Radio lock semaphore.          */
 
-#if PKT_RTO_USE_SETTING != TRUE
+#if PKT_RTO_HAS_INNER_CB != TRUE
   /**
    * @brief Radio receiver operating parameters.
    */
@@ -240,7 +230,7 @@ extern "C" {
                             const radio_freq_hz_t frequency,
                             const radio_chan_hz_t ch_step,
                             const sysinterval_t timeout);*/
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
   msg_t                 pktEnableDataReception(const radio_unit_t radio,
                                const radio_ch_t channel,
                                const radio_squelch_t sq,

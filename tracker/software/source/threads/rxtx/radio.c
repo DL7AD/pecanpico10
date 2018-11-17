@@ -9,18 +9,22 @@
 #include "radio.h"
 #include "sleep.h"
 #include "threads.h"
+
 /**
- * TODO: Rework so that packet object is passed in.
- * - Then extract further information from object as required.
+ * Packet object is passed in.
+ * - Extract information from object as required.
  */
-static void pktProcessReceivedPacket(ax25char_t *buf, size_t len,
-                                     radio_signal_t rssi) {
+static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
+  ax25char_t *buf = pkt_buff->buffer;
+  radio_signal_t rssi = pkt_buff->rssi;
+  size_t len = pkt_buff->packet_size;
+
   if(len < 3) {
     /*
      *  Incoming packet was too short.
      *  Nothing to do.
      */
-    TRACE_MON("RX    > Packet dropped due to data length < 3");
+    TRACE_MON("RX   > Packet dropped due to data length < 3");
     return;
   }
   /* Remove CRC from frame. */
@@ -42,14 +46,18 @@ static void pktProcessReceivedPacket(ax25char_t *buf, size_t len,
     return;
   }
   /* Output packet as text. */
-  char serial_buf[512];
-  aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
+  char serial_buf[512] = {'*'};
+  uint8_t n = 1;
+  if(pktGetAX25FrameStatus(pkt_buff))
+    n = 0;
+  aprs_debug_getPacket(pp, &serial_buf[n], sizeof(serial_buf) - n);
   if(rssi != 0xFF) {
     TRACE_MON("RX   > Packet opening RSSI 0x%x", rssi);
   }
   else {
     TRACE_MON("RX   > Packet opening RSSI not captured");
   }
+
   TRACE_MON("RX   > %s", serial_buf);
   if(pp->num_addr > 0) {
     pp->rssi = rssi;
@@ -62,18 +70,19 @@ static void pktProcessReceivedPacket(ax25char_t *buf, size_t len,
 }
 
 void pktMapCallback(pkt_data_object_t *const pkt_buff) {
-  /* Packet buffer. */
-  ax25char_t *frame_buffer = pkt_buff->buffer;
-  ax25size_t frame_size = pkt_buff->packet_size;
 
+#if PKT_DUMP_BAD_PACKETS == TRUE
+  pktProcessReceivedPacket(pkt_buff);
+#else
   /* Report the RSSI. */
   if(pktGetAX25FrameStatus(pkt_buff)) {
     /* Perform the callback if CRC is good. */
-    pktProcessReceivedPacket(frame_buffer, frame_size, pkt_buff->rssi);
+    pktProcessReceivedPacket(pkt_buff);
   } else {
     TRACE_MON("RX   > Packet opening RSSI 0x%x", pkt_buff->rssi);
     TRACE_MON("RX   > Frame has bad CRC - dropped");
   }
+#endif
   /* The object and buffer are freed when the callback returns. */
 }
 
@@ -155,7 +164,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp, const radio_freq_hz_t base_freq
 
     /* The service object. */
     packet_svc_t *handler = pktGetServiceObject(radio);
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
     /* Get  the saved radio data for this new request. */
     radio_params_t rp = handler->radio_tx_config;
 

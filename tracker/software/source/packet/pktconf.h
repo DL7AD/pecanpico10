@@ -55,22 +55,23 @@
 
 /* Event diagnostics events. */
 #define PKT_DIAGNOSTIC_EVENT_CODE    0
+#define AFSK_DIAGNOSTIC_EVENT_CODE   1
 /*
  * Decoder global system event masks.
  * The packet channel object holds the global events.
  * Events are broadcast to any listeners.
  */
-//#define STA_AX25_FRAME_RDY      EVENT_MASK(EVT_PRIORITY_BASE +  0)
-#define EVT_PKT_BUFFER_FULL    EVENT_MASK(EVT_PRIORITY_BASE +  1)
-//#define STA_AX25_CRC_ERROR      EVENT_MASK(EVT_PRIORITY_BASE +  2)
-#define EVT_PKT_NO_BUFFER      EVENT_MASK(EVT_PRIORITY_BASE +  3)
+#define EVT_RADIO_CCA_DROP      EVENT_MASK(EVT_PRIORITY_BASE +  0)
+#define EVT_PKT_BUFFER_FULL     EVENT_MASK(EVT_PRIORITY_BASE +  1)
+#define EVT_PWM_ACTIVE          EVENT_MASK(EVT_PRIORITY_BASE +  2)
+#define EVT_PKT_NO_BUFFER       EVENT_MASK(EVT_PRIORITY_BASE +  3)
 
-//#define EVT_AFSK_TERMINATED     EVENT_MASK(EVT_PRIORITY_BASE +  4)
+#define EVT_PWM_CCA_CLOSE       EVENT_MASK(EVT_PRIORITY_BASE +  4)
 #define EVT_AFSK_START_FAIL     EVENT_MASK(EVT_PRIORITY_BASE +  5)
-//#define STA_AFSK_DECODE_RESET   EVENT_MASK(EVT_PRIORITY_BASE +  6)
+#define EVT_PWM_ICU_ZERO        EVENT_MASK(EVT_PRIORITY_BASE +  6)
 #define EVT_PWM_INVALID_SWAP    EVENT_MASK(EVT_PRIORITY_BASE +  7)
 
-/* TODO: Create an AKSK event field in decoder for the PWM & radio events? */
+/* TODO: Move events for the PWM & radio events to AFSK event object */
 #define EVT_PWM_NO_DATA         EVENT_MASK(EVT_PRIORITY_BASE +  8)
 #define EVT_PWM_INVALID_INBAND  EVENT_MASK(EVT_PRIORITY_BASE +  9)
 #define EVT_PWM_FIFO_EMPTY      EVENT_MASK(EVT_PRIORITY_BASE + 10)
@@ -84,7 +85,7 @@
 #define EVT_RAD_STREAM_OPEN     EVENT_MASK(EVT_PRIORITY_BASE + 16)
 #define PWM_FIFO_ORDER          EVENT_MASK(EVT_PRIORITY_BASE + 17)
 #define EVT_RAD_STREAM_CLOSE    EVENT_MASK(EVT_PRIORITY_BASE + 18)
-//#define STA_PKT_INVALID_FRAME   EVENT_MASK(EVT_PRIORITY_BASE + 19)
+#define EVT_AFSK_PWM_STOP       EVENT_MASK(EVT_PRIORITY_BASE + 19)
 
 #define EVT_PKT_FAILED_CB_THD   EVENT_MASK(EVT_PRIORITY_BASE + 20)
 #define EVT_PKT_BUFFER_MGR_FAIL EVENT_MASK(EVT_PRIORITY_BASE + 21)
@@ -94,25 +95,32 @@
 #define EVT_PKT_CHANNEL_STOP    EVENT_MASK(EVT_PRIORITY_BASE + 24)
 #define EVT_PKT_CHANNEL_CLOSE   EVENT_MASK(EVT_PRIORITY_BASE + 25)
 #define EVT_PKT_CHANNEL_OPEN    EVENT_MASK(EVT_PRIORITY_BASE + 26)
-#define EVT_RADIO_CCA_GLITCH    EVENT_MASK(EVT_PRIORITY_BASE + 27)
+//#define EVT_RADIO_CCA_GLITCH    EVENT_MASK(EVT_PRIORITY_BASE + 27)
+#define EVT_PWM_RADIO_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 27)
 
 #define EVT_RADIO_CCA_SPIKE     EVENT_MASK(EVT_PRIORITY_BASE + 28)
-//#define EVT_ICU_SLEEP_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 29)
+#define EVT_PWM_ICU_OVERFLOW    EVENT_MASK(EVT_PRIORITY_BASE + 29)
 #define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 30)
-//#define EVT_HDLC_OPENING_FLAG   EVENT_MASK(EVT_PRIORITY_BASE + 31)
+#define EVT_HDLC_OPENING_FLAG   EVENT_MASK(EVT_PRIORITY_BASE + 31)
 
-/* Decoder thread event masks (sent from initiator to decoder). */
+/* Decoder thread event masks (sent from initiator to a decoder). */
 #define DEC_COMMAND_START       EVENT_MASK(EVT_PRIORITY_BASE + 0)
 #define DEC_COMMAND_STOP        EVENT_MASK(EVT_PRIORITY_BASE + 1)
 #define DEC_COMMAND_CLOSE       EVENT_MASK(EVT_PRIORITY_BASE + 2)
-#define DEC_DIAG_OUT_END        EVENT_MASK(EVT_PRIORITY_BASE + 3)
 
-/* Decoder response thread event masks (from decoder to initiator). */
-#define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 15)
-#define DEC_START_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 16)
-#define DEC_STOP_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 17)
-#define DEC_CLOSE_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 18)
-#define USR_COMMAND_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 19)
+/* Common decoder command event masks (from decoder to initiator). */
+#define DEC_OPEN_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 16)
+#define DEC_START_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 17)
+#define DEC_STOP_EXEC           EVENT_MASK(EVT_PRIORITY_BASE + 18)
+#define DEC_CLOSE_EXEC          EVENT_MASK(EVT_PRIORITY_BASE + 19)
+#define USR_COMMAND_ACK         EVENT_MASK(EVT_PRIORITY_BASE + 20)
+
+/* AFSK functional event masks (error or other application events). */
+#define EVT_AFSK_PWM_START      EVENT_MASK(EVT_PRIORITY_BASE + 21)
+#define EVT_PWM_2               EVENT_MASK(EVT_PRIORITY_BASE + 22)
+#define EVT_PWM_3               EVENT_MASK(EVT_PRIORITY_BASE + 23)
+#define EVT_PWM_4               EVENT_MASK(EVT_PRIORITY_BASE + 24)
+#define EVT_PWM_5               EVENT_MASK(EVT_PRIORITY_BASE + 25)
 
 /* Console thread event masks. */
 #define CONSOLE_CHANNEL_EVT     EVENT_MASK(EVT_PRIORITY_BASE + 0)
@@ -138,28 +146,34 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #define STA_PKT_CRC_ERROR           STATUS_MASK(1)
 #define STA_PKT_INVALID_FRAME       STATUS_MASK(2)
 #define STA_AFSK_DECODE_RESET       STATUS_MASK(3)
+
 #define STA_AFSK_DECODE_DONE        STATUS_MASK(4)
 #define STA_PWM_STREAM_CLOSED       STATUS_MASK(5)
 #define STA_AFSK_FRAME_RESET        STATUS_MASK(6)
 #define STA_PKT_BUFFER_FULL         STATUS_MASK(7)
+
 #define STA_AFSK_INVALID_INBAND     STATUS_MASK(8)
 #define STA_AFSK_INVALID_SWAP       STATUS_MASK(9)
 #define STA_PWM_STREAM_TIMEOUT      STATUS_MASK(10)
 #define STA_PKT_NO_BUFFER           STATUS_MASK(11)
+
 #define STA_PWM_QUEUE_ERROR         STATUS_MASK(12)
+#define STA_PWM_BUFFER_FULL         STATUS_MASK(13)
+#define STA_PWM_ICU_OVERFLOW        STATUS_MASK(14)
+#define STA_PWM_ICU_ZERO            STATUS_MASK(15)
+
+#define STA_AFSK_PWM_STOPPED        STATUS_MASK(16)
+#define STA_AFSK_PWM_NO_DATA        STATUS_MASK(17)
+#define STA_AFSK_UNEXPECTED_INBAND  STATUS_MASK(18)
+#define STA_AFSK_PWM_TIMEOUT        STATUS_MASK(19)
+
+#define STA_AFSK_FRAME_SYNC         STATUS_MASK(20)
+#define STA_AFSK_FRAME_DATA         STATUS_MASK(21)
 
 /**
  * Use this attribute to put variables in CCM.
  */
 #define useCCM  __attribute__((section(".ram4")))
-
-#ifdef PKT_IS_TEST_PROJECT
-/* Define macro replacements for TRACE. */
-#define TRACE_DEBUG(format, args...) dbgPrintf(DBG_DEBUG, format, ##args)
-#define TRACE_INFO(format, args...) dbgPrintf(DBG_INFO, format, ##args)
-#define TRACE_WARN(format, args...) dbgPrintf(DBG_WARN, format, ##args)
-#define TRACE_ERROR(format, args...) dbgPrintf(DBG_ERROR, format, ##args)
-#endif
 
 #define PKT_THREAD_NAME_MAX     20
 
@@ -176,7 +190,7 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #include "rxax25.h"
 #include "pktservice.h"
 #include "pktradio.h"
-#include "dbguart.h"
+#include "diagstrm.h"
 #include "dsp.h"
 #include "crc_calc.h"
 #include "rxpwm.h"
@@ -276,7 +290,7 @@ static inline int8_t pktReadGPIOline(ioline_t line) {
  * @api
  */
 static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
-#if PKT_RTO_USE_SETTING != TRUE
+#if PKT_RTO_HAS_INNER_CB != TRUE
                                         const radio_task_object_t *task,
 #else
                                         const radio_command_t cmd,
@@ -285,14 +299,14 @@ static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
                                         const sysinterval_t timeout,
                                         const radio_task_cb_t cb) {
 
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
   if(cmd > PKT_RADIO_TASK_MAX) {
     chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
   }
 #endif
   radio_task_object_t *rt = NULL;
-#if PKT_RTO_USE_SETTING != TRUE
+#if PKT_RTO_HAS_INNER_CB != TRUE
   msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
   if(msg != MSG_OK)
     return msg;
@@ -328,7 +342,7 @@ static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
  * @api
  */
 static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
-#if PKT_RTO_USE_SETTING != TRUE
+#if PKT_RTO_HAS_INNER_CB != TRUE
                                         const radio_task_object_t *task,
 #else
                                         const radio_command_t cmd,
@@ -336,14 +350,14 @@ static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
 #endif
                                         const radio_task_cb_t cb) {
 
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
   if(cmd > PKT_RADIO_TASK_MAX) {
     chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
   }
 #endif
   radio_task_object_t *rt = NULL;
-#if PKT_RTO_USE_SETTING != TRUE
+#if PKT_RTO_HAS_INNER_CB != TRUE
   msg_t msg = pktGetRadioTaskObjectI(radio, &rt);
   if(msg == MSG_TIMEOUT)
     return MSG_TIMEOUT;
@@ -382,7 +396,7 @@ static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
  * @api
  */
 static inline msg_t pktQueuePriorityRadioCommand(const radio_unit_t radio,
-#if PKT_RTO_USE_SETTING != TRUE
+#if PKT_RTO_HAS_INNER_CB != TRUE
                                         const radio_task_object_t *task,
 #else
                                         const radio_command_t cmd,
@@ -391,14 +405,14 @@ static inline msg_t pktQueuePriorityRadioCommand(const radio_unit_t radio,
                                         const sysinterval_t timeout,
                                         const radio_task_cb_t cb) {
 
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
   if(cmd > PKT_RADIO_TASK_MAX) {
     chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
   }
 #endif
   radio_task_object_t *rt = NULL;
-#if PKT_RTO_USE_SETTING != TRUE
+#if PKT_RTO_HAS_INNER_CB != TRUE
   msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
   if(msg != MSG_OK)
     return msg;

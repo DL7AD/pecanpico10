@@ -100,7 +100,6 @@ static xtal_osc_t pktMeasureTCXO(sysinterval_t timeout) {
     return 0;
 
   /* Start ICU and start capture. */
-  samples = TCXO_SAMPLES_AVERAGE;
   icuStart(&PKT_TCXO_TIMER, &tcxo_cfg);
   icuStartCapture(&PKT_TCXO_TIMER);
   icuEnableNotifications(&PKT_TCXO_TIMER);

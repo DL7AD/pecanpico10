@@ -21,6 +21,8 @@
 #define APRS_FREQ_ARGENTINA			144930000
 #define APRS_FREQ_BRAZIL			145575000
 
+#define PKT_DUMP_BAD_PACKETS        TRUE
+
 thread_t *pktStartAPRSthreads(thd_aprs_conf_t *conf, const char *name);
 bool pktTransmitOnRadio(packet_t pp, radio_freq_hz_t freq, radio_chan_hz_t step,
                      radio_ch_t chan, radio_pwr_t pwr, radio_mod_t mod,

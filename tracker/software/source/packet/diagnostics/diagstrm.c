@@ -11,18 +11,18 @@
 /*===========================================================================*/
 
 #include "pktconf.h"
-#include "dbguart.h"
+#include "diagstrm.h"
 
 /**
- * @file    dbguart.c
- * @brief   Serial channels for debug.
+ * @file    diagstrm.c
+ * @brief   Serial channel for stream diagnostic.
  *
  * @addtogroup IODevices
  * @{
  */
+#if ENABLE_SERIAL_STREAM == TRUE
+binary_semaphore_t stream_out_sem;
 
-//binary_semaphore_t debug_out_sem;
-
-//BaseSequentialStream* pkt_out = (BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER;
-
+//BaseSequentialStream* pkt_out = (BaseSequentialStream*)SERIAL_STREAM_DRIVER;
+#endif
 /** @} */

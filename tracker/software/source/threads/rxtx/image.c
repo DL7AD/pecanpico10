@@ -831,7 +831,7 @@ ssdv_packet_t packetRepeats[16];
  * Callback used to throttle image send.
  * Next packet (or burst) is readied.
  */
-#if PKT_RTO_USE_SETTING == TRUE
+#if PKT_RTO_HAS_INNER_CB == TRUE
 static void image_packet_send_complete(radio_task_object_t *rt) {
   chSemSignal(&tx_complete);
 #if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
