@@ -24,7 +24,7 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
      *  Incoming packet was too short.
      *  Nothing to do.
      */
-    TRACE_MON("RX   > Packet dropped due to data length < 3");
+    TRACE_MON("RX   > Packet data length < 3 - dropped");
     return;
   }
   /* Remove CRC from frame. */
@@ -48,24 +48,26 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
   /* Output packet as text. */
   char serial_buf[512] = {'*'};
   uint8_t n = 1;
-  if(pktGetAX25FrameStatus(pkt_buff))
+  bool crc_OK;
+  if((crc_OK = pktGetAX25FrameStatus(pkt_buff)))
     n = 0;
   /* TODO: Check aprs_debug_getPacket(...) for buffer overrun bug. */
   aprs_debug_getPacket(pp, &serial_buf[n], sizeof(serial_buf) - n);
   if(rssi != 0xFF) {
-    TRACE_MON("RX   > Packet opening RSSI 0x%x", rssi);
+    TRACE_MON("RX   > Packet opening RSSI 0x%x (%d dBm)",
+              rssi, (rssi / 2) - Si446x_MODEM_RSSI_COMP_VALUE - 70);
   }
   else {
     TRACE_MON("RX   > Packet opening RSSI not captured");
   }
 
   TRACE_MON("RX   > %s", serial_buf);
-  if(pp->num_addr > 0) {
+  if(pp->num_addr > 0 && crc_OK) {
     pp->rssi = rssi;
     aprs_process_packet(pp);
   }
   else {
-    TRACE_MON("RX   > No addresses in packet - dropped");
+    TRACE_MON("RX   > Bad packet - dropped");
   }
   pktReleaseCommonPacketBuffer(pp);
 }
@@ -80,8 +82,9 @@ void pktMapCallback(pkt_data_object_t *const pkt_buff) {
     /* Perform the callback if CRC is good. */
     pktProcessReceivedPacket(pkt_buff);
   } else {
-    TRACE_MON("RX   > Packet opening RSSI 0x%x", pkt_buff->rssi);
-    TRACE_MON("RX   > Frame has bad CRC - dropped");
+    TRACE_MON("RX   > Packet opening RSSI 0x%x (%d dBm)",
+              rssi, (rssi / 2) - Si446x_MODEM_RSSI_COMP_VALUE - 70);
+    TRACE_MON("RX   > Bad packet - dropped");
   }
 #endif
   /* The object and buffer are freed when the callback returns. */
@@ -90,8 +93,9 @@ void pktMapCallback(pkt_data_object_t *const pkt_buff) {
 /*
  *
  */
-bool pktTransmitOnRadio(packet_t pp, const radio_freq_hz_t base_freq,
-                     const radio_chan_hz_t step, radio_ch_t chan,
+bool pktTransmitOnRadio(packet_t pp,
+                     const radio_freq_hz_t base_freq,
+                     const radio_chan_hz_t step, const radio_ch_t chan,
                      const radio_pwr_t pwr, const radio_mod_t mod,
                      const radio_squelch_t cca) {
 
@@ -100,10 +104,11 @@ bool pktTransmitOnRadio(packet_t pp, const radio_freq_hz_t base_freq,
 }
 
 /*
- *
+ * TODO: Add timeout setting (#define or parameter).
  */
-bool pktTransmitOnRadioWithCallback(packet_t pp, const radio_freq_hz_t base_freq,
-                     const radio_chan_hz_t step, radio_ch_t chan,
+bool pktTransmitOnRadioWithCallback(packet_t pp,
+                     const radio_freq_hz_t base_freq,
+                     const radio_chan_hz_t step, const radio_ch_t chan,
                      const radio_pwr_t pwr, const radio_mod_t mod,
                      const radio_squelch_t cca,
                      const radio_task_cb_t cb) {
@@ -129,10 +134,17 @@ bool pktTransmitOnRadioWithCallback(packet_t pp, const radio_freq_hz_t base_freq
     return false;
   }
 
+  radio_ch_t tx_chan = chan;
+
+  /* Channel is only used with absolute base frequencies. */
+  if(base_freq < FREQ_CODES_END) {
+    tx_chan = 0;
+  }
+
   radio_freq_hz_t op_freq = pktComputeOperatingFrequency(radio,
                                                       base_freq,
                                                       step,
-                                                      chan,
+                                                      tx_chan,
                                                       RADIO_TX);
   if(op_freq == FREQ_INVALID) {
     TRACE_ERROR("RAD  > Transmit operating frequency of %d.%03d MHz is invalid",
@@ -141,10 +153,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp, const radio_freq_hz_t base_freq
       return false;
   }
 
-  /* Channel is only used with absolute base frequencies. */
-  if(base_freq < FREQ_CODES_END) {
-    chan = 0;
-  }
+
 
   uint16_t len = ax25_get_info(pp, NULL);
 
@@ -155,7 +164,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp, const radio_freq_hz_t base_freq
         " PWR %d, %s, CCA 0x%x, data %d",
         (pp->nextp != NULL) ? "Burst" : "Packet",
             op_freq/1000000, (op_freq%1000000)/1000,
-            chan, pwr, getModulation(mod), cca, len
+            tx_chan, pwr, getModulation(mod), cca, len
     );
 
     /* TODO: Check size of buf. */
@@ -172,8 +181,9 @@ bool pktTransmitOnRadioWithCallback(packet_t pp, const radio_freq_hz_t base_freq
     rp.type = mod;
     rp.base_frequency = op_freq;
     rp.step_hz = step;
-    rp.channel = chan;
+    rp.channel = tx_chan;
     rp.tx_power = pwr;
+    rp.tto = TIME_S2I(5);
     rp.rssi = cca;
     rp.packet_out = pp;
 
@@ -194,8 +204,9 @@ bool pktTransmitOnRadioWithCallback(packet_t pp, const radio_freq_hz_t base_freq
     rt.type = mod;
     rt.base_frequency = op_freq;
     rt.step_hz = step;
-    rt.channel = chan;
+    rt.channel = tx_chan;
     rt.tx_power = pwr;
+    rt.tto = TIME_S2I(5);
     rt.squelch = cca;
     rt.packet_out = pp;
 

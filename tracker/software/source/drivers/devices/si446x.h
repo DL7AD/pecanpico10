@@ -20,6 +20,10 @@
 //#define Si446x_LOCK_BY_SEMAPHORE                TRUE
 #define Si446x_UNLOCK_FOR_ENCODE                FALSE
 #define Si446x_4463_USE_446X_COMPATABILITY      TRUE
+#define Si446x_USE_AFSK_LCM_DATA_RATE           FALSE
+#define Si446x_USE_NB_RECEIVE_FILTER            TRUE
+
+#define Si446x_MODEM_RSSI_COMP_VALUE            0x40
 
 /* Si4464 States. */
 #define Si446x_STATE_REMAIN                     0
@@ -341,11 +345,11 @@ typedef struct {
 
 /* Data associated with a specific radio. */
 typedef struct Si446x_DAT {
-  radio_temp_t      lastTemp;
-  radio_clock_t     radio_clock;
   radio_part_t      radio_part;
   radio_rev_t       radio_rom_rev;
   radio_patch_t     radio_patch;
+  radio_temp_t      lastTemp;
+  radio_clock_t     radio_clock;
 } si446x_data_t;
 
 /* External. */

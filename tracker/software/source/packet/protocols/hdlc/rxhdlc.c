@@ -32,7 +32,7 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
      * The stuffed bit is discarded.
      * We just wait for next HDLC bit.
      */
-    return HDLC_TOK_RLL;
+    return (myHDLC->last_token = HDLC_TOK_RLL);
   }
 
   /* Shift the prior AX25 bits and add the new bit. */
@@ -67,9 +67,9 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
          * Contiguous HDLC flags in the preamble will be handled in SYNC state.
          */
         myHDLC->frame_state = HDLC_FRAME_SYNC;
-        return HDLC_TOK_SYNC;
+        return (myHDLC->last_token = HDLC_TOK_SYNC);
       }
-      return HDLC_TOK_FEED;
+      return (myHDLC->last_token = HDLC_TOK_FEED);
     } /* End case FRAME_SEARCH. */
 
     /* A frame opening sync pattern has been detected. */
@@ -79,7 +79,7 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
         /*
          * Another preamble HDLC flag. Continue waiting for data.
          */
-        return HDLC_TOK_FEED;
+        return (myHDLC->last_token = HDLC_TOK_FEED);
       } /* End case HDLC_FLAG. */
 
       case HDLC_RESET: {
@@ -89,14 +89,14 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
          *  No data has been captured.
          */
         myHDLC->frame_state = HDLC_FRAME_SEARCH;
-        return HDLC_TOK_RESET;
+        return (myHDLC->last_token = HDLC_TOK_RESET);
       } /* End case HDLC_FRAME_SYNC. */
 
       default:
         /* If not an HDLC pattern then transition to open state. */
         myHDLC->frame_state = HDLC_FRAME_OPEN;
         /* A data byte is available. */
-        return HDLC_TOK_DATA;
+        return (myHDLC->last_token = HDLC_TOK_DATA);
       } /* End switch on HDLC code. */
     } /* End case HDLC_FRAME_SYNC. */
 
@@ -114,7 +114,7 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
 
         /* Reset HDLC processor data bit/byte index. */
         myHDLC->bit_index = 0;
-        return HDLC_TOK_FLAG;
+        return (myHDLC->last_token = HDLC_TOK_FLAG);
       } /* End case HDLC_FRAME_OPEN. */
 
       case HDLC_RESET: {
@@ -128,17 +128,17 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
         /* Reset HDLC processor data bit/byte index. */
         myHDLC->bit_index = 0;
 
-        return HDLC_TOK_RESET;
+        return (myHDLC->last_token = HDLC_TOK_RESET);
       } /* End case HDLC_RESET. */
 
       default:
         /* Otherwise indicate there is a data byte. */
-        return HDLC_TOK_DATA;
+        return (myHDLC->last_token = HDLC_TOK_DATA);
       } /* End switch on HDLC code. */
     } /* End case HDLC_FRAME_OPEN. */
     } /* End switch on decoder state. */
   } /* End if byte. */
-  return HDLC_TOK_FEED;
+  return (myHDLC->last_token = HDLC_TOK_FEED);
 }
 
 /** @} */

@@ -427,7 +427,7 @@ static bool Si446x_init(const radio_unit_t radio) {
   }
 
   /*
-   * The uncorrected XO frequqncy could be used here.
+   * The uncorrected XO frequency could be used here.
    * This XO setting is only for boot up and not used in any PLL calcs.
    */
   radio_clock_t si_clock = Si446x_getData(radio)->radio_clock;
@@ -583,7 +583,8 @@ static bool Si446x_init(const radio_unit_t radio) {
   Si446x_setProperty8(radio, Si446x_MODEM_ANT_DIV_CONTROL, 0x80);
 
   /* RSSI value compensation. */
-    Si446x_setProperty8(radio, Si446x_MODEM_RSSI_COMP, 0x40);
+    Si446x_setProperty8(radio, Si446x_MODEM_RSSI_COMP,
+                        Si446x_MODEM_RSSI_COMP_VALUE);
 
   /*
    * TODO: Preamble configuration should be set in each mode.
@@ -804,15 +805,25 @@ static void Si446x_setModemCCA_Detection(const radio_unit_t radio) {
   }
   Si446x_setProperty8(radio, Si446x_MODEM_RAW_CONTROL, 0x8F);
   Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH, 0xD6);
-  Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
+  if(is_part_Si4463(handler->radio_part))
+    Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x76);
+  else
+    Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
 
   /*
    * OOK_MISC settings include parameters related to asynchronous mode.
    * Asynchronous mode is used for AFSK reception passed to DSP decode.
    */
-  Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x2A);
+  /* SQUELCH[1:0] = 1 (don't toggle RX data if no signal received). */
   Si446x_setProperty8(radio, Si446x_MODEM_OOK_CNT1, 0x85);
-  Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
+  Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x2A);
+  if(is_part_Si4463(handler->radio_part)) {
+    Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
+  }
+  else {
+    Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
+  }
+
 
   /* RX AFC control. */
   Si446x_setProperty8(radio, Si446x_MODEM_AFC_GEAR, 0x54);
@@ -964,20 +975,40 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-/*
-# BatchName Si4464
-# Crys_freq(Hz): 26000000    Crys_tol(ppm): 20    IF_mode: 2
-# High_perf_Ch_Fil: 1    OSRtune: 0    Ch_Fil_Bw_AFC: 0
-# ANT_DIV: 0    PM_pattern: 15
-# MOD_type: 2    Rsymb(sps): 1200    Fdev(Hz): 500    RXBW(Hz): 150000
-# Manchester: 0    AFC_en: 0    Rsymb_error: 0.0    Chip-Version: 3
-# RF Freq.(MHz): 144    API_TC: 29    fhst: 12500    inputBW: 0
-# BERT: 0    RAW_dout: 0    D_source: 1    Hi_pfm_div: 1
+/* Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+#BatchName Si4464
+#Crys_freq(Hz): 26000000    Crys_tol(ppm): 20    IF_mode: 2    High_perf_Ch_Fil: 1    OSRtune: 0    Ch_Fil_Bw_AFC: 0    ANT_DIV: 0    PM_pattern: 15
+#MOD_type: 2    Rsymb(sps): 26400    Fdev(Hz): 2000    RXBW(Hz): 8400    Manchester: 0    AFC_en: 0    Rsymb_error: 0.0    Chip-Version: 3
+#RF Freq.(MHz): 144    API_TC: 29    fhst: 12500    inputBW: 1    BERT: 0    RAW_dout: 0    D_source: 1    Hi_pfm_div: 1
 #
 # RX IF frequency is  -406250 Hz
-# WB filter 2 (BW =  14.89 kHz);  NB-filter 2 (BW = 14.89 kHz)
+# WB filter 15 (BW =  14.99 kHz);  NB-filter 15 (BW = 14.99 kHz)
 #
-# Modulation index: 0.833
+# Modulation index: 0.152
+ */
+
+/* Si446x_USE_AFSK_LCM_DATA_RATE != TRUE && Si446x_USE_NB_RECEIVE_FILTER == TRUE
+#BatchName Si4464
+#Crys_freq(Hz): 26000000    Crys_tol(ppm): 20    IF_mode: 2    High_perf_Ch_Fil: 1    OSRtune: 0    Ch_Fil_Bw_AFC: 0    ANT_DIV: 0    PM_pattern: 15
+#MOD_type: 2    Rsymb(sps): 1200    Fdev(Hz): 2000    RXBW(Hz): 8400    Manchester: 0    AFC_en: 0    Rsymb_error: 0.0    Chip-Version: 3
+#RF Freq.(MHz): 144    API_TC: 29    fhst: 12500    inputBW: 1    BERT: 0    RAW_dout: 0    D_source: 1    Hi_pfm_div: 1
+#
+# RX IF frequency is  -406250 Hz
+# WB filter 1 (BW =   8.27 kHz);  NB-filter 1 (BW = 8.27 kHz)
+#
+# Modulation index: 3.333
+ */
+
+/* Si446x_USE_AFSK_LCM_DATA_RATE != TRUE && Si446x_USE_NB_RECEIVE_FILTER != TRUE
+#BatchName Si4464
+#Crys_freq(Hz): 26000000    Crys_tol(ppm): 20    IF_mode: 2    High_perf_Ch_Fil: 1    OSRtune: 0    Ch_Fil_Bw_AFC: 0    ANT_DIV: 0    PM_pattern: 15
+#MOD_type: 2    Rsymb(sps): 1200    Fdev(Hz): 2000    RXBW(Hz): 8400    Manchester: 0    AFC_en: 0    Rsymb_error: 0.0    Chip-Version: 3
+#RF Freq.(MHz): 144    API_TC: 29    fhst: 12500    inputBW: 0    BERT: 0    RAW_dout: 0    D_source: 1    Hi_pfm_div: 1
+#
+# RX IF frequency is  -406250 Hz
+# WB filter 1 (BW =  16.53 kHz);  NB-filter 1 (BW = 16.53 kHz)
+#
+# Modulation index: 3.333
 */
   /* Configure radio GPIOs. */
   Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->rafsk).gpio);
@@ -999,22 +1030,50 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   }
   /*
    * MODEM_RAW_CONTROL
-   *  UNSTDPK[7] = 1 (raw mode for no-standard packet reception)
+   *  UNSTDPK[7] = 1 (raw mode for non-standard packet reception)
+   *  CONSCHK_BYP[6] = 1 (don't stop mean value being updated by consecutive 1s or 0s)
+   *   This is a change from the WDS output.
+   * PM_PATTERN[3:2] = 3 preamble pattern is random
+   * RAWGAIN[0] = 3  gain is 1
    */
-  Si446x_setProperty8(radio, Si446x_MODEM_RAW_CONTROL, 0x8F);
-  /* 0xD6 (SCHPRD_HI = 1 SCHPRD_LO = 2 {SEARCH_4TB, SEARCH_8TB}) */
-  /* When MODEM_RAW_SEARCH2 is non zero MODEM_RAW_SEARCH is ignored. */
+  Si446x_setProperty8(radio, Si446x_MODEM_RAW_CONTROL, 0xCF);
+
+  /*
+   * Note: When MODEM_RAW_SEARCH2 is non zero MODEM_RAW_SEARCH settings are ignored.
+   * SCH_FRZEN [7]  = 1 Freeze MA or min-max (mean) slicing on gear switch
+   * SCH_FRZTH [6:5] = 5 consecutive search periods within frequency error threshold enabling gear switch
+   * SCHPRD_HI[3:2] = 1 MA/min-max search period window length in bits for slicing threshold prior to gear switch
+   * SCHPRD_LO[1:0] = 2 MA/min-max search period window length in bits for slicing threshold after gear switch
+  */
   Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH, 0xD6);
   /* MODEM_RAW_EYE[0,10:8][1,7:0] */
-  Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x76);
-
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+  Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
+#else
+#if Si446x_USE_NB_RECEIVE_FILTER == TRUE
+  Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x01, 0x8F);
+#else
+  Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0xC8);
+#endif
+#endif
   /*
    * OOK_MISC settings include parameters related to asynchronous mode.
    * Asynchronous mode is used for AFSK reception passed to DSP decode.
+   * ATTACK[6:4]
+   * DECAY[3:0]
    */
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+  Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x28);
+#else
+#if Si446x_USE_NB_RECEIVE_FILTER == TRUE
+  Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x29);
+#else
   Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x2A);
+#endif
+#endif
   /*
    * SQUELCH[1:0] = 1 When no signal is received, there is no toggling of RX data output.
+   * This is a change from the WDS output.
    */
   Si446x_setProperty8(radio, Si446x_MODEM_OOK_CNT1, 0x85);
   /*
@@ -1024,11 +1083,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    *  OOK_LIMIT_DISCHG[5] = 1 Peak detector discharge is disabled when the detected peak is lower than the input signal for low input levels.
    */
   if(is_part_Si4463(handler->radio_part))
-#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
-    Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
-#else
     Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
-#endif
   else
     Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
 
@@ -1047,55 +1102,89 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    *  SHWAIT[7:4] This specifies the wait period per PLL AFC correction cycle before gear switching has occurred.
    *  LGWAIT [3:0] This specifies the wait period per PLL AFC correction cycle after gear switching has occurred.
    */
-
-  if(is_part_Si4463(handler->radio_part))
-#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
-    Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x23);
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+  Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
 #else
-    Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
+#if Si446x_USE_NB_RECEIVE_FILTER == TRUE
+  Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
+#else
+  Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
 #endif
-  else
-    Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x23);
-
+#endif
   /*
    * AFC_GAIN
    *  ENAFC[0,7] Set to enable frequency error estimation and correction.
    *  AFCBD[0,6] Set to enable adaptive RX bandwidth (RX1_COEFF & RX2_COEFF)
    *  MODEM_AFC_GAIN[0,12:8 1,7:0] base gain scaled by AFC_GEAR (AFC_FAST & AFC_SLOW)
    */
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+  Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x82, 0xAA);
+#else
+#if Si446x_USE_NB_RECEIVE_FILTER == TRUE
+  Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0x55);
+#else
   Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
-
+#endif
+#endif
   /*
    * MODEM_AFC_LIMITER
    *  TODO: Ask Si about the calculation of AFC limiter values.
    */
-  Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x02, 0x50);
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+  Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x00, 0x95);
+#else
+#if Si446x_USE_NB_RECEIVE_FILTER == TRUE
+  Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x01, 0xF2);
+#else
+  Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x01, 0xE6);
+#endif
+#endif
+
   /*
    * ENAFCFRZ[7] = 1 gear switched but we don't switch,
    * NON_FRZEN[1] = 0 -> 1 (always enabled regardless of 1,0 string)
-   *  */
+   */
   Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0x82);
 
   /* RX AGC control. */
-  /* 0xE2 -> xE0 (ADC_GAIN_CORR_EN[1] not used in 4464. It is used in 4463.) */
+  /* 0xE2 -> xE0 (ADC_GAIN_CORR_EN[1] exists in 4463.) */
   if(is_part_Si4463(handler->radio_part))
-#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
-    Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0);
-#else
     Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE2);
-#endif
   else
     Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0);
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x12);
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x12);
+#else
+#if Si446x_USE_NB_RECEIVE_FILTER == TRUE
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x31);
+  Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x31);
+#else
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
+#endif
+#endif
 
   /* RX Bit clock recovery control. */
   Si446x_setProperty8(radio, Si446x_MODEM_MDM_CTRL, 0x80);
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+  Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x00, 0x52);
+  Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x06, 0x3D, 0x10);
+  Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x03, 0x1F);
+#else
+#if Si446x_USE_NB_RECEIVE_FILTER == TRUE
+  Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x00, 0xE2);
+  Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x02, 0x44, 0xC0);
+  Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x01, 0x22);
+#else
   Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x01, 0xC3);
   Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x01, 0x22, 0x60);
   Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x00, 0x91);
+#endif
+#endif
   Si446x_setProperty8(radio, Si446x_MODEM_BCR_GEAR, 0x00);
+
   /*
    * BCR_MISC1
    *  BCRFBBYP[7] = 1 Feedback of the compensation term to the BCR tracking loop is bypassed (disabled).
@@ -1114,14 +1203,30 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   /* RX IF frequency controls are set in setSynthParameters() */
 
   /* RX IF CIC filter decimation controls. */
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+  Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x20);
+  Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
+#else
+#if Si446x_USE_NB_RECEIVE_FILTER == TRUE
+  Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0xB0);
+  Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
+#else
   Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x70);
   Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
+#endif
+#endif
   if(is_part_Si4463(handler->radio_part))
+#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
     /*
      * NDEC2AGC[2] = 1 enable AGC control of 2nd stage CIC
      * NDEC2GAIN[4:3] = 1 2nd stage CIC gain is 12dB
      */
-#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
+    Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x00);
+#else
+    /*
+     * NDEC2AGC[2] = 1 enable AGC control of 2nd stage CIC
+     * NDEC2GAIN[4:3] = 1 2nd stage CIC gain is 12dB
+     */
     Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x0C);
 #endif
   /* RSSI controls. */
@@ -1131,67 +1236,144 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    */
   Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL, 0x00);
   if(is_part_Si4463(handler->radio_part)) {
-#if Si446x_4463_USE_446X_COMPATABILITY != TRUE
     /* RSSI jump control (ENRSSIJMP[3] 1 -> 0 to disable. */
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL2, 0x18);
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_JUMP_THRESH, 0x06);
-#endif
   }
 
   /* RX IF filter coefficients. */
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xC4);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x30);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x7F);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0x5F);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xB5);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xB8);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xDE);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x05);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x17);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x16);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x0C);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0x03);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0x00);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xA2);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xA0);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x97);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x8A);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0x79);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0x66);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0x52);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0x3F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x2E);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x1F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x14);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x0B);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0x06);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0x02);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0x00);
   Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
   Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x00);
 
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xA2);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xA0);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x97);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x8A);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0x79);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0x66);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0x52);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0x3F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x2E);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x1F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x14);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x0B);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0x06);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0x02);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
+#else
+#if Si446x_USE_NB_RECEIVE_FILTER == TRUE
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xBA);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x0F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x51);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0xCF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xA9);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xC9);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xFC);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x1B);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x1E);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x0F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x01);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0xFC);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0xFD);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x0F);
+
   Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xC4);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x30);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x7F);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0x5F);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xB5);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xB8);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xDE);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x05);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x17);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x16);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x0C);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0x03);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xBA);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x0F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x51);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0xCF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xA9);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xC9);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xFC);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x1B);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x1E);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x0F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x01);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0xFC);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0xFD);
   Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
   Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
   Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
-  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x0F);
+#else
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xBA);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x0F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x51);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0xCF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xA9);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xC9);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xFC);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x1B);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x1E);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x0F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x01);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0xFC);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0xFD);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x0F);
 
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xBA);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x0F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x51);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0xCF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xA9);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xC9);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xFC);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x1B);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x1E);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x0F);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x01);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0xFC);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0xFD);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
+  Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x0F);
+#endif
+#endif
+
+  /* TODO: Not used in UNSTD mode. */
   Si446x_setProperty8(radio, Si446x_PREAMBLE_CONFIG, 0x21);
 
   /* Unused Si4463 features for AFSK RX. */
   if(is_part_Si4463(handler->radio_part)) {
-#if Si446x_4463_USE_446X_COMPATABILITY != TRUE
-   /* DSA is not enabled. */
-   Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL1, 0x40); // 0xA0
-   Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL2, 0x04); // 0x04
-   Si446x_setProperty8(radio, Si446x_MODEM_SPIKE_DET, 0x03); // 0x03
-   Si446x_setProperty8(radio, Si446x_MODEM_ONE_SHOT_AFC, 0x07); // 0x07
-   Si446x_setProperty8(radio, Si446x_MODEM_DSA_QUAL, 0x06); // 0x06
-   Si446x_setProperty8(radio, Si446x_MODEM_DSA_RSSI, 0x78); // 0x78
+   /* DSA[5] is not enabled. */
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL1, 0x40);
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL2, 0x04);
+   Si446x_setProperty8(radio, Si446x_MODEM_SPIKE_DET, 0x03);
+   Si446x_setProperty8(radio, Si446x_MODEM_ONE_SHOT_AFC, 0x07);
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_QUAL, 0x06);
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_RSSI, 0x78);
    Si446x_setProperty8(radio, Si446x_MODEM_RSSI_MUTE, 0x00);
-   Si446x_setProperty8(radio, Si446x_MODEM_DSA_MISC, 0x20); // 0x20
-#endif
+   Si446x_setProperty8(radio, Si446x_MODEM_DSA_MISC, 0x20);
   }
 }
 
@@ -1849,7 +2031,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
 #if Si446x_UNLOCK_FOR_ENCODE == FALSE
   /* Request radio lock. */
-  msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
+  msg_t msg = pktLockRadio(radio, RADIO_TX, rto->radio_dat.tto);
 
   if(msg == MSG_RESET || msg == MSG_TIMEOUT) {
     TRACE_ERROR("SI   > AFSK TX reset or timeout from radio %d acquisition",
@@ -1859,7 +2041,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
      * TODO: Radio manager should use rto->result versus thread terminate.
      * Then use idle level thread terminator for TX.
      */
-    rto->result = MSG_ERROR;
+    rto->result = msg;
 
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
@@ -1867,8 +2049,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     /* Schedule thread and task object memory release. */
     pktRadioSendComplete(rto, chThdGetSelfX());
 
-    /* Exit thread. The radio manager reads status and releases thread WA. */
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
+    /* Exit thread. */
     chThdExit(MSG_RESET);
+#else
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
+#endif
     /* We never arrive here. */
   }
 
@@ -1876,11 +2063,11 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   /* Wait for receive stream in progress. Terminate on timeout. */
 #if PKT_RTO_HAS_INNER_CB == TRUE
   (void)pktSetReceiveStreamInactive(radio, rto,
-                              rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
-                              ? TIME_IMMEDIATE : TIME_MS2I(300));
+                                    rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
+                                    ? TIME_IMMEDIATE : TIME_MS2I(300));
 #else
   (void)pktSetReceiveStreamInactive(radio, rto, rto->squelch == PKT_SI446X_NO_CCA_RSSI
-                        ? TIME_IMMEDIATE : TIME_MS2I(300));
+                                    ? TIME_IMMEDIATE : TIME_MS2I(300));
 #endif
   /*
    * Initialize radio before any commands.
@@ -1906,8 +2093,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     /* Unlock radio. */
     pktUnlockRadio(radio, RADIO_TX);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
     /* Exit thread. */
-    chThdExit(MSG_ERROR);
+    chThdExit(MSG_RESET);
+#else
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
+#endif
     /* We never arrive here. */
   }
 #endif
@@ -1969,8 +2161,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 #endif
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
       /* Exit thread. */
-      chThdExit(MSG_ERROR);
+      chThdExit(MSG_RESET);
+#else
+      extern void pktThdTerminateSelf(void);
+      pktThdTerminateSelf();
+#endif
       /* We never arrive here. */
     }
     /* Allocate buffer and perform NRZI encoding. */
@@ -2010,7 +2207,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
     /* Wait for receive stream in progress. Terminate on timeout. */
     (void)pktSetReceiveStreamInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
-                          ? TIME_IMMEDIATE : TIME_MS2I(300));
+                                      ? TIME_IMMEDIATE : TIME_MS2I(300));
 
     /*
      * Initialize radio before any commands.
@@ -2036,8 +2233,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
       /* Exit thread. */
-      chThdExit(MSG_ERROR);
+      chThdExit(MSG_RESET);
+#else
+      extern void pktThdTerminateSelf(void);
+      pktThdTerminateSelf();
+#endif
       /* We never arrive here. */
     }
 
@@ -2049,7 +2251,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 #endif
 
     /* Reset TX FIFO in case some remnant unsent data is left there. */
-/*    const uint8_t reset_fifo[] = {0x15, 0x01};
+    /*    const uint8_t reset_fifo[] = {0x15, 0x01};
     Si446x_write(radio, reset_fifo, 2);*/
 
     up_sampler_t upsampler = {0};
@@ -2080,8 +2282,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
       /* Exit thread. */
-      chThdExit(MSG_ERROR);
+      chThdExit(MSG_RESET);
+#else
+      extern void pktThdTerminateSelf(void);
+      pktThdTerminateSelf();
+#endif
       /* We never arrive here. */
     }
     /* Allocate buffer. */
@@ -2119,8 +2326,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
       /* Exit thread. */
-      chThdExit(MSG_ERROR);
+      chThdExit(MSG_RESET);
+#else
+      extern void pktThdTerminateSelf(void);
+      pktThdTerminateSelf();
+#endif
       /* We never arrive here. */
     }
 
@@ -2139,66 +2351,28 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                        rssi,
                        TIME_S2I(SI446X_AFSK_TX_TIMEOUT / 2))) {
 #else
-    if(Si446x_transmit(radio,
-                       rto->base_frequency,
-                       rto->step_hz,
-                       rto->channel,
-                       rto->tx_power,
-                       rto->type,
-                       all,
-                       rssi,
-                       TIME_S2I(SI446X_AFSK_TX_TIMEOUT / 2))) {
+      if(Si446x_transmit(radio,
+                         rto->base_frequency,
+                         rto->step_hz,
+                         rto->channel,
+                         rto->tx_power,
+                         rto->type,
+                         all,
+                         rssi,
+                         TIME_S2I(SI446X_AFSK_TX_TIMEOUT / 2))) {
 #endif
-      /*
-       * Start/re-start transmission timeout timer for this packet.
-       * If the 446x gets locked up we'll exit TX and release packet object(s).
-       */
-      chVTSet(&send_timer, TIME_S2I(SI446X_AFSK_TX_TIMEOUT),
-              (vtfunc_t)Si446x_transmitTimeoutI, chThdGetSelfX());
+        /*
+         * Start/re-start transmission timeout timer for this packet.
+         * If the 446x gets locked up we'll exit TX and release packet object(s).
+         */
+        chVTSet(&send_timer, TIME_S2I(SI446X_AFSK_TX_TIMEOUT),
+                (vtfunc_t)Si446x_transmitTimeoutI, chThdGetSelfX());
 
-      /* Feed the FIFO while data remains to be sent. */
-      while((all - c) > 0) {
-        /* Get TX FIFO free count. */
-        uint8_t more;
-        if(!Si446x_getTXfreeFIFO(radio, 0x00, &more)) {
-          /* Something failed so set radio ready to clear it. */
-          Si446x_setReadyState(radio);
-
-          /* Radio did not initialise. */
-          TRACE_ERROR("SI   > Radio %d write to FIFO failed for AFSK TX", radio);
-
-          /* Free packet object memory. */
-          pktReleaseBufferChain(pp);
-
-          /*
-           * TODO: Radio manager should use rto->result versus thread terminate.
-           * Then use idle level thread terminator for TX.
-           */
-          rto->result = MSG_ERROR;
-
-          /* Schedule thread and task object memory release. */
-          pktRadioSendComplete(rto, chThdGetSelfX());
-
-          /* Unlock radio. */
-          pktUnlockRadio(radio, RADIO_TX);
-
-          /* Exit thread. */
-          chThdExit(MSG_ERROR);
-          /* We never arrive here. */
-        }
-        if(more != 0) {
-          /* Update the FIFO free high water mark. */
-          tide = (more > tide) ? more : tide;
-
-          /* If there is more free than we need use remainder only. */
-          more = (more > (all - c)) ? (all - c) : more;
-
-          /* Load the FIFO. */
-          for(uint16_t i = 0; i < more; i++)
-            localBuffer[i] = Si446x_getUpsampledNRZIbits(&upsampler, layer0);
-
-          if(!Si446x_writeFIFO(radio, localBuffer, more)) {
-
+        /* Feed the FIFO while data remains to be sent. */
+        while((all - c) > 0) {
+          /* Get TX FIFO free count. */
+          uint8_t more;
+          if(!Si446x_getTXfreeFIFO(radio, 0x00, &more)) {
             /* Something failed so set radio ready to clear it. */
             Si446x_setReadyState(radio);
 
@@ -2220,98 +2394,152 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
             /* Unlock radio. */
             pktUnlockRadio(radio, RADIO_TX);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
             /* Exit thread. */
-            chThdExit(MSG_ERROR);
+            chThdExit(MSG_RESET);
+#else
+            extern void pktThdTerminateSelf(void);
+            pktThdTerminateSelf();
+#endif
             /* We never arrive here. */
           }
-        }
-        /* Update count of sent bytes. */
-        c += more;
+          if(more != 0) {
+            /* Update the FIFO free high water mark. */
+            tide = (more > tide) ? more : tide;
 
-        /*
-         * Wait for a timeout event during NRZI send.
-         * Time delay allows ~SAMPLES_PER_BAUD bytes to be consumed from FIFO.
-         * If no timeout event go back and load more data to FIFO.
-         * TODO: Use interrupt to trigger FIFO fill.
-         */
-/*        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
+            /* If there is more free than we need use remainder only. */
+            more = (more > (all - c)) ? (all - c) : more;
+
+            /* Load the FIFO. */
+            for(uint16_t i = 0; i < more; i++)
+              localBuffer[i] = Si446x_getUpsampledNRZIbits(&upsampler, layer0);
+
+            if(!Si446x_writeFIFO(radio, localBuffer, more)) {
+
+              /* Something failed so set radio ready to clear it. */
+              Si446x_setReadyState(radio);
+
+              /* Radio did not initialise. */
+              TRACE_ERROR("SI   > Radio %d write to FIFO failed for AFSK TX", radio);
+
+              /* Free packet object memory. */
+              pktReleaseBufferChain(pp);
+
+              /*
+               * TODO: Radio manager should use rto->result versus thread terminate.
+               * Then use idle level thread terminator for TX.
+               */
+              rto->result = MSG_ERROR;
+
+              /* Schedule thread and task object memory release. */
+              pktRadioSendComplete(rto, chThdGetSelfX());
+
+              /* Unlock radio. */
+              pktUnlockRadio(radio, RADIO_TX);
+
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
+              /* Exit thread. */
+              chThdExit(MSG_RESET);
+#else
+              extern void pktThdTerminateSelf(void);
+              pktThdTerminateSelf();
+#endif
+              /* We never arrive here. */
+            }
+          }
+          /* Update count of sent bytes. */
+          c += more;
+
+          /*
+           * Wait for a timeout event during NRZI send.
+           * Time delay allows ~SAMPLES_PER_BAUD bytes to be consumed from FIFO.
+           * If no timeout event go back and load more data to FIFO.
+           * TODO: Use interrupt to trigger FIFO fill.
+           */
+          /*        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
                                               chTimeUS2I(833 * 8));*/
-        eventmask_t evt = chEvtGetAndClearEvents(SI446X_EVT_TX_TIMEOUT);
-        if(evt) {
-          exit_msg = MSG_TIMEOUT;
-          break;
-        }
-        /* FIXME: Let lower, peer and higher priority threads run. */
-        chThdYield();
-      } /* End while(). */
-    } else {
-      /* Transmit start failed. */
-      TRACE_ERROR("SI   > AFSK transmit start failed on radio %d", radio);
-      exit_msg = MSG_ERROR;
-    } /* End transmit. */
-    chVTReset(&send_timer);
+          eventmask_t evt = chEvtGetAndClearEvents(SI446X_EVT_TX_TIMEOUT);
+          if(evt) {
+            exit_msg = MSG_TIMEOUT;
+            break;
+          }
+          /* FIXME: Let lower, peer and higher priority threads run. */
+          chThdYield();
+        } /* End while(). */
+      } else {
+        /* Transmit start failed. */
+        TRACE_ERROR("SI   > AFSK transmit start failed on radio %d", radio);
+        exit_msg = MSG_ERROR;
+      } /* End transmit. */
+      chVTReset(&send_timer);
+
+      /*
+       * If nothing went wrong wait for TX to finish.
+       * Else don't wait.
+       * TODO: Use bool Si446x_waitTransmitEnd(const radio_unit_t radio, sysinterval_t timeout)
+       */
+      while(Si446x_getState(radio) == Si446x_STATE_TX && exit_msg == MSG_OK) {
+        /* TODO: Add an absolute timeout on this. */
+        /* Sleep for an AFSK byte time. */
+        chThdSleep(chTimeUS2I(833 * 8));
+        continue;
+      }
+
+      /* No CCA on subsequent packets of burst send. */
+      rssi = PKT_SI446X_NO_CCA_RSSI;
+
+      /* Get the next linked packet to send. */
+      packet_t np = pp->nextp;
+      if(exit_msg == MSG_OK) {
+        /* Send was OK. Release the just completed packet. */
+        pktReleaseBufferObject(pp);
+      } else {
+        /* Send failed so release any queue and terminate. */
+        pktReleaseBufferChain(pp);
+        np = NULL;
+        /* Force 446x out of TX state. */
+        Si446x_setReadyState(radio);
+      }
+#if Si446x_UNLOCK_FOR_ENCODE == TRUE
+      /* Unlock radio. */
+      pktUnlockRadio(radio, RADIO_TX);
+#endif
+
+      if(tide > (free / 2)) {
+        /* Warn when free level is > 50% of FIFO size. */
+        TRACE_WARN("SI   > AFSK TX FIFO free of %i exceeded safe level %i on radio %d",
+                   tide, free / 2, radio);
+      }
+
+      /* Process next packet. */
+      pp = np;
+    } while(pp != NULL);
+
+    /* Save status in case a callback requires it. */
+    rto->result = exit_msg;
 
     /*
-     * If nothing went wrong wait for TX to finish.
-     * Else don't wait.
-     * TODO: Use bool Si446x_waitTransmitEnd(const radio_unit_t radio, sysinterval_t timeout)
+     * Finished send so schedule thread memory and task object release.
+     * The radio manager will resume RX or put the radio in standby if RX not enabled.
      */
-    while(Si446x_getState(radio) == Si446x_STATE_TX && exit_msg == MSG_OK) {
-      /* TODO: Add an absolute timeout on this. */
-      /* Sleep for an AFSK byte time. */
-      chThdSleep(chTimeUS2I(833 * 8));
-      continue;
-    }
-
-    /* No CCA on subsequent packets of burst send. */
-    rssi = PKT_SI446X_NO_CCA_RSSI;
-
-    /* Get the next linked packet to send. */
-    packet_t np = pp->nextp;
-    if(exit_msg == MSG_OK) {
-      /* Send was OK. Release the just completed packet. */
-      pktReleaseBufferObject(pp);
-    } else {
-      /* Send failed so release any queue and terminate. */
-      pktReleaseBufferChain(pp);
-      np = NULL;
-      /* Force 446x out of TX state. */
-      Si446x_setReadyState(radio);
-    }
-#if Si446x_UNLOCK_FOR_ENCODE == TRUE
+    pktRadioSendComplete(rto, chThdGetSelfX());
+#if Si446x_UNLOCK_FOR_ENCODE == FALSE
     /* Unlock radio. */
     pktUnlockRadio(radio, RADIO_TX);
 #endif
-
-    if(tide > (free / 2)) {
-      /* Warn when free level is > 50% of FIFO size. */
-      TRACE_WARN("SI   > AFSK TX FIFO free of %i exceeded safe level %i on radio %d",
-                 tide, free / 2, radio);
+    if(exit_msg == MSG_ERROR) {
+      TRACE_ERROR("SI   > Transmit start failed on radio %d", radio);
     }
 
-    /* Process next packet. */
-    pp = np;
-  } while(pp != NULL);
-
-  /* Save status in case a callback requires it. */
-  rto->result = exit_msg;
-
-  /*
-   * Finished send so schedule thread memory and task object release.
-   * The radio manager will resume RX or put the radio in standby if RX not enabled.
-   */
-  pktRadioSendComplete(rto, chThdGetSelfX());
-#if Si446x_UNLOCK_FOR_ENCODE == FALSE
-  /* Unlock radio. */
-  pktUnlockRadio(radio, RADIO_TX);
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
+#else
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
-  if(exit_msg == MSG_ERROR) {
-  TRACE_ERROR("SI   > Transmit start failed on radio %d", radio);
+    /* We never arrive here. */
   }
-
-  /* Exit thread. */
-  chThdExit(exit_msg);
-}
 
 /*
  *
@@ -2380,7 +2608,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   chRegSetThreadName(tx_thd_name);
 
 #if Si446x_UNLOCK_FOR_ENCODE == FALSE
-  msg_t msg = pktLockRadio(radio, RADIO_TX, TIME_INFINITE);
+  msg_t msg = pktLockRadio(radio, RADIO_TX, rto->radio_dat.tto);
   if(msg == MSG_RESET || msg == MSG_TIMEOUT) {
     TRACE_ERROR("SI   > AFSK TX reset or timeout at radio %d acquisition",
                 radio);
@@ -2389,27 +2617,31 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
      * TODO: Radio manager should use rto->result versus thread terminate.
      * Then use idle level thread terminator for TX.
      */
-    rto->result = MSG_ERROR;
+    rto->result = msg;
 
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
 
     /* Schedule thread and task object memory release. */
     pktRadioSendComplete(rto, chThdGetSelfX());
-
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
     /* Exit thread. */
     chThdExit(MSG_RESET);
+#else
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
+#endif
     /* We never arrive here. */
   }
 
   /* Stop packet system reception. */
 #if PKT_RTO_HAS_INNER_CB == TRUE
   (void)pktSetReceiveStreamInactive(radio, rto,
-                              rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
-                              ? TIME_IMMEDIATE : TIME_MS2I(300));
+                                    rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
+                                    ? TIME_IMMEDIATE : TIME_MS2I(300));
 #else
   (void)pktSetReceiveStreamInactive(radio, rto, rto->squelch == PKT_SI446X_NO_CCA_RSSI
-                        ? TIME_IMMEDIATE : TIME_MS2I(300));
+                                    ? TIME_IMMEDIATE : TIME_MS2I(300));
 #endif
   /* Initialize radio before any commands as it may have been powered down. */
   if(!Si446x_conditional_init(radio)) {
@@ -2431,8 +2663,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     /* Unlock radio. */
     pktUnlockRadio(radio, RADIO_TX);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
     /* Exit thread. */
-    chThdExit(MSG_ERROR);
+    chThdExit(MSG_RESET);
+#else
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
+#endif
     /* We never arrive here. */
   }
 #endif
@@ -2492,8 +2729,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       pktUnlockRadio(radio, RADIO_TX);
 #endif
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
       /* Exit thread. */
-      chThdExit(MSG_ERROR);
+      chThdExit(MSG_RESET);
+#else
+      extern void pktThdTerminateSelf(void);
+      pktThdTerminateSelf();
+#endif
       /* We never arrive here. */
     }
     /* Allocate buffer and perform NRZI encoding. */
@@ -2521,14 +2763,19 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       /* Schedule thread and task object memory release. */
       pktRadioSendComplete(rto, chThdGetSelfX());
 
-      /* Exit thread. The radio manager reads status and releases thread WA. */
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
+      /* Exit thread. */
       chThdExit(MSG_RESET);
+#else
+      extern void pktThdTerminateSelf(void);
+      pktThdTerminateSelf();
+#endif
       /* We never arrive here. */
     }
 
     /* Wait for receive stream in progress. Terminate on timeout. */
     (void)pktSetReceiveStreamInactive(radio, rto->squelch == PKT_SI446X_NO_CCA_RSSI
-                                ? TIME_IMMEDIATE : TIME_MS2I(300));
+                                      ? TIME_IMMEDIATE : TIME_MS2I(300));
 
     /*
      * Initialize radio before any commands.
@@ -2554,8 +2801,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
       /* Exit thread. */
-      chThdExit(MSG_ERROR);
+      chThdExit(MSG_RESET);
+#else
+      extern void pktThdTerminateSelf(void);
+      pktThdTerminateSelf();
+#endif
       /* We never arrive here. */
     }
 
@@ -2596,8 +2848,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
       /* Exit thread. */
-      chThdExit(MSG_ERROR);
+      chThdExit(MSG_RESET);
+#else
+      extern void pktThdTerminateSelf(void);
+      pktThdTerminateSelf();
+#endif
       /* We never arrive here. */
     }
     /* Calculate initial FIFO fill. */
@@ -2632,8 +2889,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
       /* Exit thread. */
-      chThdExit(MSG_ERROR);
+      chThdExit(MSG_RESET);
+#else
+      extern void pktThdTerminateSelf(void);
+      pktThdTerminateSelf();
+#endif
       /* We never arrive here. */
     }
 
@@ -2657,62 +2919,28 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                        rssi,
                        TIME_S2I(SI446X_2FSK_TX_TIMEOUT / 2))) {
 #else
-    if(Si446x_transmit(radio,
-                       rto->base_frequency,
-                       rto->step_hz,
-                       rto->channel,
-                       rto->tx_power,
-                       rto->type,
-                       all,
-                       rssi,
-                       TIME_S2I(SI446X_2FSK_TX_TIMEOUT / 2))) {
+      if(Si446x_transmit(radio,
+                         rto->base_frequency,
+                         rto->step_hz,
+                         rto->channel,
+                         rto->tx_power,
+                         rto->type,
+                         all,
+                         rssi,
+                         TIME_S2I(SI446X_2FSK_TX_TIMEOUT / 2))) {
 #endif
-      /*
-       * Start/re-start transmission timeout timer for this packet.
-       * If the 446x gets locked up we'll exit TX and release packet object(s).
-       */
-      chVTSet(&send_timer, TIME_S2I(SI446X_2FSK_TX_TIMEOUT),
-              (vtfunc_t)Si446x_transmitTimeoutI, chThdGetSelfX());
+        /*
+         * Start/re-start transmission timeout timer for this packet.
+         * If the 446x gets locked up we'll exit TX and release packet object(s).
+         */
+        chVTSet(&send_timer, TIME_S2I(SI446X_2FSK_TX_TIMEOUT),
+                (vtfunc_t)Si446x_transmitTimeoutI, chThdGetSelfX());
 
-      /* Feed the FIFO while data remains to be sent. */
-      while((all - c) > 0) {
-        /* Get TX FIFO free count. */
-        uint8_t more;
-        if(!Si446x_getTXfreeFIFO(radio, 0x00, &more)) {
-          /* Something failed so set radio ready to clear it. */
-          Si446x_setReadyState(radio);
-
-          /* Radio did not initialise. */
-          TRACE_ERROR("SI   > Radio %d write to FIFO failed for 2FSK TX", radio);
-
-          /* Free packet object memory. */
-          pktReleaseBufferChain(pp);
-
-          /*
-           * TODO: Radio manager should use rto->result versus thread terminate.
-           * Then use idle level thread terminator for TX.
-           */
-          rto->result = MSG_ERROR;
-
-          /* Schedule thread and task object memory release. */
-          pktRadioSendComplete(rto, chThdGetSelfX());
-
-          /* Unlock radio. */
-          pktUnlockRadio(radio, RADIO_TX);
-
-          /* Exit thread. */
-          chThdExit(MSG_ERROR);
-          /* We never arrive here. */
-        }
-        if(more != 0) {
-          /* Update the FIFO free high water mark. */
-          tide = (more > tide) ? more : tide;
-
-          /* If there is more free than we need for send use remainder only. */
-          more = (more > (all - c)) ? (all - c) : more;
-
-          /* Load the FIFO. */
-          if(!Si446x_writeFIFO(radio, bufp, more)) {
+        /* Feed the FIFO while data remains to be sent. */
+        while((all - c) > 0) {
+          /* Get TX FIFO free count. */
+          uint8_t more;
+          if(!Si446x_getTXfreeFIFO(radio, 0x00, &more)) {
             /* Something failed so set radio ready to clear it. */
             Si446x_setReadyState(radio);
 
@@ -2734,101 +2962,151 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
             /* Unlock radio. */
             pktUnlockRadio(radio, RADIO_TX);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
             /* Exit thread. */
-            chThdExit(MSG_ERROR);
+            chThdExit(MSG_RESET);
+#else
+            extern void pktThdTerminateSelf(void);
+            pktThdTerminateSelf();
+#endif
             /* We never arrive here. */
           }
-        }
-        /* Update buffer index. */
-        bufp += more;
-        c += more;
+          if(more != 0) {
+            /* Update the FIFO free high water mark. */
+            tide = (more > tide) ? more : tide;
 
-        /*
-         * Wait for a timeout event during NRZI send.
-         * Time delay allows ~10 bytes to be consumed from FIFO.
-         * If no timeout event go back and load more data to FIFO.
-         * TODO: Use interrupt to trigger FIFO fill.
-         */
-        /*        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
+            /* If there is more free than we need for send use remainder only. */
+            more = (more > (all - c)) ? (all - c) : more;
+
+            /* Load the FIFO. */
+            if(!Si446x_writeFIFO(radio, bufp, more)) {
+              /* Something failed so set radio ready to clear it. */
+              Si446x_setReadyState(radio);
+
+              /* Radio did not initialise. */
+              TRACE_ERROR("SI   > Radio %d write to FIFO failed for 2FSK TX", radio);
+
+              /* Free packet object memory. */
+              pktReleaseBufferChain(pp);
+
+              /*
+               * TODO: Radio manager should use rto->result versus thread terminate.
+               * Then use idle level thread terminator for TX.
+               */
+              rto->result = MSG_ERROR;
+
+              /* Schedule thread and task object memory release. */
+              pktRadioSendComplete(rto, chThdGetSelfX());
+
+              /* Unlock radio. */
+              pktUnlockRadio(radio, RADIO_TX);
+
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
+              /* Exit thread. */
+              chThdExit(MSG_RESET);
+#else
+              extern void pktThdTerminateSelf(void);
+              pktThdTerminateSelf();
+#endif
+              /* We never arrive here. */
+            }
+          }
+          /* Update buffer index. */
+          bufp += more;
+          c += more;
+
+          /*
+           * Wait for a timeout event during NRZI send.
+           * Time delay allows ~10 bytes to be consumed from FIFO.
+           * If no timeout event go back and load more data to FIFO.
+           * TODO: Use interrupt to trigger FIFO fill.
+           */
+          /*        eventmask_t evt = chEvtWaitAnyTimeout(SI446X_EVT_TX_TIMEOUT,
                                               chTimeUS2I(104 * 8 * 10));*/
-        eventmask_t evt = chEvtGetAndClearEvents(SI446X_EVT_TX_TIMEOUT);
-        if(evt) {
-          exit_msg = MSG_TIMEOUT;
-          break;
-        }
-        /* TODO: Let lower, peer and higher priority threads run. */
-        chThdYield();
-      } /* End while(). */
-    } else {
-      /* Transmit start failed. */
-      exit_msg = MSG_ERROR;
-    }
-    chVTReset(&send_timer);
+          eventmask_t evt = chEvtGetAndClearEvents(SI446X_EVT_TX_TIMEOUT);
+          if(evt) {
+            exit_msg = MSG_TIMEOUT;
+            break;
+          }
+          /* TODO: Let lower, peer and higher priority threads run. */
+          chThdYield();
+        } /* End while(). */
+      } else {
+        /* Transmit start failed. */
+        exit_msg = MSG_ERROR;
+      }
+      chVTReset(&send_timer);
+
+      /*
+       * If nothing went wrong wait for TX to finish.
+       * Else don't wait.
+       * TODO: Use bool Si446x_waitTransmitEnd(const radio_unit_t radio, sysinterval_t timeout)
+       */
+      while(Si446x_getState(radio) == Si446x_STATE_TX && exit_msg == MSG_OK) {
+        /* TODO: Add an absolute timeout on this. */
+        /* Sleep for a 2FSK byte time. */
+        chThdSleep(chTimeUS2I(104 * 8 * 10));
+        continue;
+      }
+
+      /* No CCA on subsequent packet sends. */
+      rssi = PKT_SI446X_NO_CCA_RSSI;
+
+      /* Get the next linked packet to send. */
+      packet_t np = pp->nextp;
+      if(exit_msg == MSG_OK) {
+
+        /* Send was OK. Release the just completed packet. */
+        pktReleaseBufferObject(pp);
+      } else {
+        /* Send failed so release any queue and terminate. */
+        pktReleaseBufferChain(pp);
+        np = NULL;
+        /* Force 446x out of TX state. */
+        Si446x_setReadyState(radio);
+      }
+#if Si446x_UNLOCK_FOR_ENCODE == TRUE
+      /* Unlock radio. */
+      pktUnlockRadio(radio, RADIO_TX);
+#endif
+
+      if(tide > (free / 2)) {
+        /* Warn when free level is > 50% of FIFO size. */
+        TRACE_WARN("SI   > 2FSK TX FIFO free at %i exceeded safe level of %i on radio %d",
+                   tide, free / 2, radio);
+      }
+
+      /* Process next packet. */
+      pp = np;
+    } while(pp != NULL);
+
+    /* Save status in case a callback requires it. */
+    rto->result = exit_msg;
 
     /*
-     * If nothing went wrong wait for TX to finish.
-     * Else don't wait.
-     * TODO: Use bool Si446x_waitTransmitEnd(const radio_unit_t radio, sysinterval_t timeout)
+     * Finished send so schedule thread memory and task object release.
+     * The radio manager will resume RX or put the radio in standby if RX not enabled.
      */
-    while(Si446x_getState(radio) == Si446x_STATE_TX && exit_msg == MSG_OK) {
-      /* TODO: Add an absolute timeout on this. */
-      /* Sleep for a 2FSK byte time. */
-      chThdSleep(chTimeUS2I(104 * 8 * 10));
-      continue;
-    }
+    pktRadioSendComplete(rto, chThdGetSelfX());
 
-    /* No CCA on subsequent packet sends. */
-    rssi = PKT_SI446X_NO_CCA_RSSI;
-
-    /* Get the next linked packet to send. */
-    packet_t np = pp->nextp;
-    if(exit_msg == MSG_OK) {
-
-      /* Send was OK. Release the just completed packet. */
-      pktReleaseBufferObject(pp);
-    } else {
-      /* Send failed so release any queue and terminate. */
-      pktReleaseBufferChain(pp);
-      np = NULL;
-      /* Force 446x out of TX state. */
-      Si446x_setReadyState(radio);
-    }
-#if Si446x_UNLOCK_FOR_ENCODE == TRUE
+#if Si446x_UNLOCK_FOR_ENCODE == FALSE
     /* Unlock radio. */
     pktUnlockRadio(radio, RADIO_TX);
 #endif
 
-    if(tide > (free / 2)) {
-      /* Warn when free level is > 50% of FIFO size. */
-      TRACE_WARN("SI   > 2FSK TX FIFO free at %i exceeded safe level of %i on radio %d",
-                 tide, free / 2, radio);
+    if(exit_msg == MSG_ERROR) {
+      TRACE_ERROR("SI   > 2FSK transmit start failed on radio %d", radio);
     }
 
-    /* Process next packet. */
-    pp = np;
-  } while(pp != NULL);
-
-  /* Save status in case a callback requires it. */
-  rto->result = exit_msg;
-
-  /*
-   * Finished send so schedule thread memory and task object release.
-   * The radio manager will resume RX or put the radio in standby if RX not enabled.
-   */
-  pktRadioSendComplete(rto, chThdGetSelfX());
-
-#if Si446x_UNLOCK_FOR_ENCODE == FALSE
-  /* Unlock radio. */
-  pktUnlockRadio(radio, RADIO_TX);
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
+#else
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
-
-  if(exit_msg == MSG_ERROR) {
-    TRACE_ERROR("SI   > 2FSK transmit start failed on radio %d", radio);
+    /* We never arrive here. */
   }
-
-  /* Exit thread. */
-  chThdExit(exit_msg);
-}
 
 /*
  * Return true on send successfully enqueued.

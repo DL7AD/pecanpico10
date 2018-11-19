@@ -223,8 +223,8 @@ static hdlc_token_t pktDecodeAFSKSymbol(AFSKDemodDriver *myDriver) {
  * @param[in]   myDriver   pointer to a @p AFSKDemodDriver structure
  *
  * @return  status of operations.
- * @retval  true    no error occurred so decimation can continue at next data.
- * @retval  false   an error occurred and decimation should be aborted.
+ * @retval  MSG_OK      no error occurred so decimation can continue at next data.
+ * @retval  MSG_ERROR   an error occurred and decimation should be aborted.
  *
  * @api
  */
@@ -375,6 +375,7 @@ static msg_t pktProcessAFSK(AFSKDemodDriver *myDriver,
           default:
             /* Unknown HDLC state machine token. */
             chDbgAssert(false, "Unknown HDLC token");
+            myFIFO->status |= STA_AFSK_HDLC_ERROR;
             return MSG_ERROR;
           } /* End switch on HDLC decoder token. */
         } /* End if(pktCheckAFSKSymbolTime(myDriver)). */
@@ -997,11 +998,12 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
              * Decoder has set an end or error flag while PWM is still running.
              * The radio side closes the PWM stream.
              * It writes an in-band message in the open stream.
-             * Although we should never see that in-band.
+             * However we should never see that in-band.
              * The decoder has already moved out of ACTIVE state and is no longer processing PWM.
              * TODO: Deprecate these cases after confirming they never happen.
              */
-            TRACE_DEBUG("AFSK > PWM stream error on radio %d", radio);
+            chDbgAssert(false, "unexpected in-band");
+            TRACE_DEBUG("AFSK > unexpected in-band on radio %d", radio);
             pktAddEventFlags(myHandler, EVT_PWM_INVALID_INBAND);
             myFIFO->status |= STA_AFSK_UNEXPECTED_INBAND;
             myDriver->decoder_state = DECODER_RESET;
@@ -1070,7 +1072,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
              */
           case PWM_TERM_QUEUE_FULL: {
             /* Transit to RESET state where all buffers/objects are released. */
-            myFIFO->status |= STA_PWM_BUFFER_FULL;
+            //myFIFO->status |= STA_PWM_BUFFER_FULL;
             myDriver->decoder_state = DECODER_RESET;
             continue; /* Decoder state switch. */
           } /* End case PWM_TERM_QUEUE_FULL and fall through cases above it. */
@@ -1200,12 +1202,13 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         radio_pwm_fifo_t *myFIFO = myDriver->active_demod_stream;
         /* There won't be a demod object if the decoder is just being reset. */
         if(myFIFO != NULL) {
-          TRACE_DEBUG("AFSK > Decode end on radio %d with flags 0x%x",
-                      radio, myDriver->active_demod_stream->status);
+          TRACE_DEBUG("AFSK > Decode end on radio %d with flags 0x%08x and HDLC token %d",
+                      radio, myDriver->active_demod_stream->status,
+                      myDriver->rx_hdlc.last_token);
           /*
            * Lock the PWM queue to stop any further radio data being written.
            * This caters for the situation where the radio is still writing PWM.
-           * Can happen with long trailing HDLC flag sequence.
+           * Possible with with long trailing HDLC flag sequence and fast decode.
            */
           myDriver->active_demod_stream->status |= STA_AFSK_DECODE_RESET;
 

@@ -1257,17 +1257,22 @@ THD_FUNCTION(pktRadioManager, arg) {
 
     case PKT_RADIO_TX_DONE: {
       /* Get thread exit code and free memory. */
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
       msg_t msg = chThdWait(task_object->thread);
       task_object->result = MSG_ERROR;
+#else
+      msg_t msg = task_object->result;
+#endif
       if(msg == MSG_TIMEOUT) {
         TRACE_ERROR("RAD  > Transmit timeout on radio %d", radio);
       }
       if(msg == MSG_RESET) {
         TRACE_ERROR("RAD  > Transmit failed to start on radio %d", radio);
       }
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
       /* Set status WRT TX. */
       task_object->result = MSG_OK;
-
+#endif
       /* If no transmissions pending then enable RX or enter standby. */
       if(--handler->txrto_ref_count == 0) {
 #if PKT_RTO_HAS_INNER_CB == TRUE

@@ -61,7 +61,11 @@ const si446x_mcucfg_t radio1_cfg = {
   .rafsk    = {
     .gpio       = {
       .gpio0 = 00,          /**< DONOTHING. */
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+      .gpio1 = 0x14,        /**< RX_DATA. */
+#else
       .gpio1 = 0x15,        /**< RAW_RX_DATA. */
+#endif
       .gpio2 = 00,          /**< DONOTHING. */
       .gpio3 = 00,          /**< DONOTHING. */
       .nirq  = 0x1B,        /**< CCA. */
@@ -136,11 +140,11 @@ const si446x_mcucfg_t radio1_cfg = {
 
 /* Variable data for a radio. */
 si446x_data_t radio1_dat = {
-        .lastTemp = 0x7FFF,
-        .radio_clock = Si446x_CLK + Si446x_CLK_ERROR,
         .radio_part = 0,
         .radio_rom_rev = 0,
-        .radio_patch = 0
+        .radio_patch = 0,
+        .lastTemp = 0x7FFF,
+        .radio_clock = Si446x_CLK + Si446x_CLK_ERROR
 };
 
 

@@ -97,17 +97,17 @@ typedef struct packetHandlerData {
   /**
    * @brief Radio part number.
    */
-  radio_part_t              radio_part; // to be deprecated
+  radio_part_t              radio_part; // to be put into struct of radio data
 
   /**
    * @brief Radio revision level.
    */
-  radio_rev_t               radio_rom_rev; // to be deprecated
+  radio_rev_t               radio_rom_rev; // to be put into struct of radio data
 
   /**
    * @brief Radio patch ID.
    */
-  radio_patch_t             radio_patch; // to be deprecated
+  radio_patch_t             radio_patch; // to be put into struct radio data
 
   /**
    * @brief Radio initialization flag.

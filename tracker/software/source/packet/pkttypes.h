@@ -48,6 +48,12 @@ typedef uint16_t    radio_part_t;       /**< Radio part number.             */
 typedef uint8_t     radio_rev_t;        /**< Radio part revision.           */
 typedef uint16_t    radio_patch_t;      /**< Radio patch ID.                */
 
+typedef struct radioData {
+  radio_part_t  radio_part;
+  radio_rev_t   radio_rom_rev;
+  radio_patch_t radio_patch;
+} radio_data_t;
+
 /*
  * Specify radio family.
  * Specific radio in family is identified dynamically.
@@ -81,7 +87,7 @@ typedef struct radioConfig {
   packet_svc_t      *pkt;
   AFSKDemodDriver   *afsk;
   void              *cfg;
-  void              *dat;
+  void              *dat;           /**< TODO: Make this struct a common minimum of radio data. */
   radio_freq_hz_t   def_aprs;       /**< A frequency in one of the bands. */
   radio_band_t      **bands;
   indicator_io_t    *ind_set;
@@ -100,5 +106,7 @@ typedef uint32_t link_speed_t;
 typedef uint16_t volt_level_t;
 
 typedef uint32_t xtal_osc_t;
+
+typedef uint32_t statusflags_t;
 
 #endif /* PKT_PKTTYPES_H_ */

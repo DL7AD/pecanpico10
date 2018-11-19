@@ -32,6 +32,8 @@
 /* New RTM implementation supports outer and inner level callbacks in the RTO. */
 #define PKT_RTO_HAS_INNER_CB             TRUE
 
+/* Temporary switch while testing TX thread self terminate (versus RTM termination). */
+#define PKT_TRANSMIT_TASK_SELF_TERMINATE TRUE
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
@@ -128,6 +130,7 @@ typedef struct radioParams {
   radio_ch_t                channel;
   radio_signal_t            rssi;
   radio_pwr_t               tx_power;
+  sysinterval_t             tto;
   packet_t                  packet_out;
   uint8_t                   seq_num;
 } radio_params_t;

@@ -61,7 +61,11 @@ const si446x_mcucfg_t radio1_cfg = {
   .rafsk    = {
     .gpio       = {
       .gpio0 = 00,          /**< DONOTHING. */
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+      .gpio1 = 0x14,        /**< RX_DATA. */
+#else
       .gpio1 = 0x15,        /**< RAW_RX_DATA. */
+#endif
       .gpio2 = 00,          /**< DONOTHING. */
       .gpio3 = 00,          /**< DONOTHING. */
       .nirq  = 0x1B,        /**< CCA. */

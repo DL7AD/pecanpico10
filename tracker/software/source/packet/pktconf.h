@@ -141,8 +141,10 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
  */
 #define STATUS_MASK(sid) ((statusmask_t)1 << (statusmask_t)(sid))
 
+#define STA_NONE                    0
+
 /* TODO: Classify status by PKT, AFSK and 2FSK types. */
-#define STA_PKT_FRAME_RDY           STATUS_MASK(0)
+#define STA_PKT_FRAME_RDY           STATUS_MASK(0) // These should go in RPKTDx
 #define STA_PKT_CRC_ERROR           STATUS_MASK(1)
 #define STA_PKT_INVALID_FRAME       STATUS_MASK(2)
 #define STA_AFSK_DECODE_RESET       STATUS_MASK(3)
@@ -169,6 +171,15 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 
 #define STA_AFSK_FRAME_SYNC         STATUS_MASK(20)
 #define STA_AFSK_FRAME_DATA         STATUS_MASK(21)
+#define STA_PWM_STREAM_DISABLE      STATUS_MASK(22)
+#define STA_PWM_RADIO_STOP          STATUS_MASK(23)
+
+#define STA_PWM_RADIO_NONE          STATUS_MASK(24)
+#define STA_CCA_RADIO_DROP          STATUS_MASK(25)
+#define STA_PWM_DECODE_RESET        STATUS_MASK(26)
+#define STA_AFSK_HDLC_ERROR         STATUS_MASK(27)
+
+#define STA_PWM_DECODE_DONE         STATUS_MASK(28)
 
 /**
  * Use this attribute to put variables in CCM.
