@@ -25,6 +25,7 @@
 
 #define PKT_RSSI_CAPTURE            TRUE
 #define PKT_USE_CCA_LEADING_ONLY    FALSE
+#define PKT_USE_CCA_DEGLITCH        FALSE
 #define PKT_CATCH_ICU_OVERFLOW      FALSE
 #define PKT_TRAILING_SYMBOL_TIMEOUT 20
 
@@ -42,7 +43,7 @@
 #define PWM_IN_BAND_PREFIX      0
 
 /* PWM stream terminate in-band reason codes. */
-#define PWM_TERM_CCA_CLOSE      0
+#define PWM_TERM_STREAM_CLOSE   0
 #define PWM_TERM_QUEUE_FULL     1
 #define PWM_TERM_ICU_OVERFLOW   2
 #define PWM_TERM_QUEUE_ERR      3
@@ -187,7 +188,7 @@ typedef struct {
   binary_semaphore_t        sem;
   volatile eventflags_t     status;
   radio_signal_t            rssi;
-  uint8_t                   seq_num;
+  cnt_t                     seq_num;
 } radio_pwm_fifo_t;
 
 /*===========================================================================*/

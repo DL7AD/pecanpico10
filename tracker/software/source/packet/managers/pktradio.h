@@ -132,7 +132,7 @@ typedef struct radioParams {
   radio_pwr_t               tx_power;
   sysinterval_t             tto;
   packet_t                  packet_out;
-  uint8_t                   seq_num;
+  cnt_t                     seq_num;
 } radio_params_t;
 
 /**

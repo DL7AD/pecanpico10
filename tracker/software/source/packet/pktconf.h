@@ -180,6 +180,8 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #define STA_AFSK_HDLC_ERROR         STATUS_MASK(27)
 
 #define STA_PWM_DECODE_DONE         STATUS_MASK(28)
+#define STA_CCA_RADIO_SPIKE         STATUS_MASK(29)
+#define STA_CCA_RADIO_CONTINUE      STATUS_MASK(30)
 
 /**
  * Use this attribute to put variables in CCM.

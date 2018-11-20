@@ -1026,7 +1026,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             /*
              * If CCA ends and the decoder has not validated any frame.
              */
-          case PWM_TERM_CCA_CLOSE:
+          case PWM_TERM_STREAM_CLOSE:
             pktAddEventFlags(myHandler, EVT_PWM_CCA_CLOSE);
             myDriver->decoder_state = DECODER_RESET;
             continue; /* Decoder state switch. */
@@ -1144,6 +1144,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         myHandler->active_packet_object->status =
             myDriver->active_demod_stream->status;
 
+        myHandler->active_packet_object->seq_num =
+            myDriver->active_demod_stream->seq_num;
         /* Set AX25 status and dispatch the packet buffer object. */
         (void)pktDispatchReceivedBuffer(myHandler->active_packet_object);
 
@@ -1202,7 +1204,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         radio_pwm_fifo_t *myFIFO = myDriver->active_demod_stream;
         /* There won't be a demod object if the decoder is just being reset. */
         if(myFIFO != NULL) {
-          TRACE_DEBUG("AFSK > Decode end on radio %d with flags 0x%08x and HDLC token %d",
+          TRACE_DEBUG("AFSK > Decode %d end on radio %d with flags 0x%08x and HDLC token %d",
+                      myDriver->active_demod_stream->seq_num,
                       radio, myDriver->active_demod_stream->status,
                       myDriver->rx_hdlc.last_token);
           /*

@@ -486,13 +486,17 @@ void pktOpenPWMStreamI(ICUDriver *myICU, eventflags_t evt) {
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_SQUELCH, PAL_HIGH);
 
   if(myDemod->active_radio_stream != NULL) {
-    /* TODO: Work out correct handling. We should not have an open channel.
-     * Shouldn't happen unless CCA has not triggered an EXTI trailing edge.
-     * For now just flag that an error condition happened.
-     */
+    /* A stream is already open. */
+#if PKT_USE_CCA_DEGLITCH == TRUE
     pktClosePWMStreamI(myICU, STA_PWM_QUEUE_ERROR,
                        PWM_FIFO_ORDER, PWM_TERM_QUEUE_ERR);
+
     return;
+#else
+    pktClosePWMStreamI(myICU, STA_CCA_RADIO_CONTINUE,
+                       EVT_RAD_STREAM_CLOSE, PWM_TERM_STREAM_CLOSE);
+    myDemod->active_radio_stream = NULL;
+#endif
   }
   /* Normal CCA handling.
    * TODO: Check buffer availability first before taking FIFO object?
@@ -755,7 +759,7 @@ void pktRadioCCATrailTimer(ICUDriver *myICU) {
        * If CCA is still low close the PWM stream.
        */
       pktClosePWMStreamI(myICU, STA_CCA_RADIO_DROP,
-                         EVT_RADIO_CCA_DROP, PWM_TERM_CCA_CLOSE);
+                         EVT_RADIO_CCA_DROP, PWM_TERM_STREAM_CLOSE);
       /* TODO: Either send a RX re-set event to the radio from here
        *  Or preferably...
        *  Have radio monitor CCA and re-set itself.
@@ -807,32 +811,47 @@ void pktRadioCCAInput(ICUDriver *myICU) {
   }
 #else
     case PAL_LOW: {
-      if(myDemod->icustate == PKT_PWM_ACTIVE/* && !chVTIsArmedI(&myICU->pwm_timer)*/) {
+      if(myDemod->icustate == PKT_PWM_ACTIVE) {
         /* CCA trailing edge handling.
          * The ICU is active
          * Start timer and check if CCA remains low before closing PWM stream.
          *
-         * De-glitch for 8 AFSK bit times.
+         * De-glitch for 1 AFSK bit times.
          */
-        chVTSetI(&myICU->cca_timer, TIME_US2I(833 * 8),
+#if PKT_USE_CCA_DEGLITCH == TRUE
+        chVTSetI(&myICU->cca_timer, TIME_US2I(833 * 1),
                  (vtfunc_t)pktRadioCCATrailTimer, myICU);
+#else
+        pktClosePWMStreamI(myICU, STA_CCA_RADIO_DROP,
+                           EVT_RADIO_CCA_DROP, PWM_TERM_STREAM_CLOSE);
+#endif
         break;
       }
       if(myDemod->icustate == PKT_PWM_WAITING) {
         /* CCA trailing edge glitch handling.
-         * ICU has not received any PWM yet.
+         * ICU has not processed any PWM yet.
          * Start timer and check if CCA remains low before closing PWM.
          *
          * De-glitch for 8 AFSK bit times.
          */
-        chVTSetI(&myICU->cca_timer, TIME_US2I(833 * 8),
+#if PKT_USE_CCA_DEGLITCH == TRUE
+        chVTSetI(&myICU->cca_timer, chTimeUS2I(833 * 8),
                  (vtfunc_t)pktRadioCCATrailTimer, myICU);
+#else
+        /*
+         * CCA has dropped. Close the PWM stream.
+         */
+        pktClosePWMStreamI(myICU, STA_CCA_RADIO_SPIKE,
+                           EVT_RADIO_CCA_SPIKE, PWM_TERM_STREAM_CLOSE);
+#endif
       }
       /* other state. */
       break;
     } /* End case PAL_LOW. */
 
     case PAL_HIGH: {
+#if PKT_USE_CCA_DEGLITCH == TRUE
+
       if(chVTIsArmedI(&myICU->cca_timer)) {
         /* CAA has been re-asserted during trailing edge timer. */
         chVTResetI(&myICU->cca_timer);
@@ -840,9 +859,13 @@ void pktRadioCCAInput(ICUDriver *myICU) {
       }
       /* Else this is a leading edge of CCA for a new packet. */
       /* Delay for 1 AFSK bit time to allow AGC to settle. */
-      chVTSetI(&myICU->cca_timer, TIME_US2I(833 * 1),
+      chVTSetI(&myICU->cca_timer, chTimeUS2I(833 * 1),
                (vtfunc_t)pktRadioCCALeadTimer, myICU);
       break;
+#else
+      pktOpenPWMStreamI(myICU, EVT_RAD_STREAM_OPEN);
+      break;
+#endif
     }
 #endif
   } /* End switch. */

@@ -247,14 +247,7 @@ THD_FUNCTION(pktConsole, arg) {
   event_listener_t con_el;
   event_listener_t shell_el;
 
-  /*Wait for start permission. */
-  //thread_t *initiator = chMsgWait();
-  //(void)chMsgGet(initiator);
-
   console_state = CON_CHN_INIT;
-
-  /* Signal that basic init is done. */
-  //chMsgRelease(initiator, MSG_OK);
 
   /* Wait for serial channel to be started for us. */
   thread_t *initiator = chMsgWait();
