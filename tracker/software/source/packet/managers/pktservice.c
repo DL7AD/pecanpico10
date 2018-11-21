@@ -130,7 +130,7 @@ bool pktSystemInit(void) {
 
 #if ACTIVATE_CONSOLE
     /* Start console. */
-    pktStartConsole((BaseAsynchronousChannel *)&SERIAL_CONSOLE_DRIVER);
+    pktStartConsole(console);
     TRACE_INFO("MAIN > Console startup");
 #endif
 

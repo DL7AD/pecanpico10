@@ -9,6 +9,8 @@
 #ifndef PORTAB_H_
 #define PORTAB_H_
 
+#include "usbcfg2.h"
+
 /*===========================================================================*/
 /* Module constants.                                                         */
 /*===========================================================================*/
@@ -16,9 +18,14 @@
 /*
  * Serial port definitions
  */
-#define SERIAL_DEBUG_DRIVER		    SD3
-#define SERIAL_CONSOLE_DRIVER       SDU2
-#define SERIAL_STREAM_DRIVER        SDU1
+#define SERIAL_UART_DRIVER          SD3
+#define SERIAL_USB1_DRIVER          SDU1
+#define SERIAL_USB2_DRIVER          SDU2
+
+#define SERIAL_CONSOLE_DRIVER       SERIAL_UART_DRIVER
+#define SERIAL_TRACE_DRIVER         SERIAL_USB2_DRIVER
+#define SERIAL_DEBUG_DRIVER         SERIAL_UART_DRIVER
+#define SERIAL_STREAM_DRIVER        SERIAL_USB1_DRIVER
 
 /*
  * SPI definitions
@@ -175,13 +182,16 @@
 #define EI2C_SCL                        LINE_GPIO_PIN1 /* SCL */
 #define EI2C_SDA                        LINE_GPIO_PIN2 /* SDA */
 
-/* To use IO_TXD/IO_RXD for UART debug channel. */
-#define ENABLE_SERIAL_DEBUG             TRUE
+/* To use IO_TXD/IO_RXD as a UART serial channel. */
+#define ENABLE_UART_SERIAL              TRUE
 
-/* To use SDU1 for serial stream (diagnostic) channel. */
+/* To direct diagnostic to a serial channel. */
 #define ENABLE_SERIAL_STREAM            TRUE
 
-#if ENABLE_SERIAL_DEBUG == TRUE
+/* To direct trace to a serial channel. */
+#define ENABLE_SERIAL_TRACE             TRUE
+
+#if ENABLE_UART_SERIAL == TRUE
 #define LINE_USART3_TX                  LINE_IO_TXD
 #define LINE_USART3_RX                  LINE_IO_RXD
 #endif

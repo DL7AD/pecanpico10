@@ -220,7 +220,7 @@ const SerialConfig stream_config = {
 /*===========================================================================*/
 
 void pktConfigSerialDiag(void) {
-#if ENABLE_EXTERNAL_I2C == FALSE && ENABLE_SERIAL_DEBUG == TRUE
+#if ENABLE_EXTERNAL_I2C == FALSE && ENABLE_UART_SERIAL == TRUE
   /* USART3 TX.       */
   palSetLineMode(LINE_USART3_TX, PAL_MODE_ALTERNATE(7));
   /* USART3 RX.       */
@@ -243,9 +243,9 @@ uint8_t pktReadIOlines() {
 }
 
 void pktSerialStart(void) {
-#if ENABLE_SERIAL_DEBUG == TRUE
+#if ENABLE_UART_SERIAL == TRUE
   pktConfigSerialDiag();
-  sdStart(&SERIAL_CFG_DEBUG_DRIVER, &debug_config);
+  sdStart(&SERIAL_UART_DRIVER, &debug_config);
 #endif
 #if ENABLE_SERIAL_STREAM == TRUE
   /* Setup diagnostic resource access semaphore. */
@@ -256,7 +256,7 @@ void pktSerialStart(void) {
 
 void strmWrite(uint8_t level, uint8_t *buf, uint32_t len) {
   (void)level;
-#if ENABLE_SERIAL_DEBUG == TRUE
+#if ENABLE_SERIAL_STREAM == TRUE
   chnWrite((BaseSequentialStream*)&SERIAL_STREAM_DRIVER, buf, len);
 #else
   (void)buf;
@@ -266,7 +266,7 @@ void strmWrite(uint8_t level, uint8_t *buf, uint32_t len) {
 
 int strmPrintf(uint8_t level, const char *format, ...) {
   (void)level;
-#if ENABLE_SERIAL_DEBUG == TRUE
+#if ENABLE_SERIAL_STREAM == TRUE
   va_list arg;
   int done;
 
@@ -282,8 +282,8 @@ int strmPrintf(uint8_t level, const char *format, ...) {
 }
 
 void pktWrite(uint8_t *buf, uint32_t len) {
-#if ENABLE_SERIAL_DEBUG == TRUE
-  chnWrite((BaseSequentialStream*)&SERIAL_CFG_DEBUG_DRIVER, buf, len);
+#if ENABLE_SERIAL_STREAM == TRUE
+  chnWrite((BaseSequentialStream*)&SERIAL_STREAM_DRIVER, buf, len);
 #else
   (void)buf;
   (void)len;

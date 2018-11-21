@@ -68,7 +68,7 @@ static void pktConsoleConnected(eventid_t id) {
   }
 
   case CON_CHN_TRACE: {
-    TRACE_ERROR("CON  > Connect event when in TRACE");
+    TRACE_DEBUG("CON  > Connect event when in TRACE");
     break;
   }
 
@@ -247,7 +247,7 @@ THD_FUNCTION(pktConsole, arg) {
   event_listener_t con_el;
   event_listener_t shell_el;
 
-  console_state = CON_CHN_INIT;
+  console_state = CON_CHN_TRACE;
 
   /* Wait for serial channel to be started for us. */
   thread_t *initiator = chMsgWait();
@@ -384,7 +384,7 @@ THD_FUNCTION(pktConsole, arg) {
 /*
  *
  */
-msg_t pktStartConsole(BaseAsynchronousChannel *ser) {
+msg_t pktStartConsole(BaseSequentialStream *ser) {
 
   /* Start the console handler. */
   thread_t *con_thd = chThdCreateFromHeap(NULL,
@@ -398,9 +398,6 @@ msg_t pktStartConsole(BaseAsynchronousChannel *ser) {
 
   /* Wait for thread to initialise. */
   msg_t smsg = chMsgSend(con_thd, MSG_OK);
-
-  /* Signal thread to enter trace output and shell request monitoring. */
-  //smsg = chMsgSend(con_thd, MSG_OK);
 
   return smsg;
 }

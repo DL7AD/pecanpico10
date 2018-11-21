@@ -80,6 +80,9 @@ static inline heap_header_t *pktSystemHeapIntegrityCheck(memory_heap_t *heap) {
 /*===========================================================================*/
 
 extern mutex_t debug_mtx;
+extern BaseSequentialStream *console;
+extern BaseSequentialStream *serial;
+extern BaseSequentialStream *stream;
 
 void pktConfigureSerialIO(void);
 void debug_print(char *type, char* filename, uint32_t line, char* format, ...);

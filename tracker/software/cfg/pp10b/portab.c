@@ -249,9 +249,9 @@ uint8_t pktReadIOlines() {
 }
 
 void pktSerialStart(void) {
-#if ENABLE_SERIAL_DEBUG == TRUE
+#if ENABLE_UART_SERIAL == TRUE
   pktConfigSerialDiag();
-  sdStart(&SERIAL_DEBUG_DRIVER, &debug_config);
+  sdStart(&SERIAL_UART_DRIVER, &debug_config);
 #endif
 #if ENABLE_SERIAL_STREAM == TRUE
   /* Setup diagnostic resource access semaphore. */
@@ -272,7 +272,7 @@ void strmWrite(uint8_t level, uint8_t *buf, uint32_t len) {
 
 int strmPrintf(uint8_t level, const char *format, ...) {
   (void)level;
-#if ENABLE_SERIAL_DEBUG == TRUE
+#if ENABLE_SERIAL_STREAM == TRUE
   va_list arg;
   int done;
 
@@ -288,8 +288,8 @@ int strmPrintf(uint8_t level, const char *format, ...) {
 }
 
 void pktWrite(uint8_t *buf, uint32_t len) {
-#if ENABLE_SERIAL_DEBUG == TRUE
-  chnWrite((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, buf, len);
+#if ENABLE_SERIAL_STREAM == TRUE
+  chnWrite((BaseSequentialStream*)&SERIAL_STREAM_DRIVER, buf, len);
 #else
   (void)buf;
   (void)len;

@@ -2,7 +2,6 @@
 #include "hal.h"
 #include "debug.h"
 #include "portab.h"
-#include "usbcfg2.h"
 #include "console.h"
 
 mutex_t debug_mtx; // Used internal to synchronize multiple chprintf in debug.h
@@ -18,7 +17,8 @@ uint8_t error_counter;
 };*/
 
 /* Default initial condition for serial channels. */
-BaseSequentialStream *trace = (BaseSequentialStream *)&SERIAL_CONSOLE_DRIVER;
+BaseSequentialStream *console = (BaseSequentialStream *)&SERIAL_CONSOLE_DRIVER;
+BaseSequentialStream *trace = (BaseSequentialStream *)&SERIAL_TRACE_DRIVER;
 BaseSequentialStream *serial = (BaseSequentialStream *)&SERIAL_DEBUG_DRIVER;
 BaseSequentialStream *stream = (BaseSequentialStream *)&SERIAL_STREAM_DRIVER;
 
@@ -77,40 +77,40 @@ void debug_print(char *type, char* filename, uint32_t line, char* format, ...)
 
 	if(isConsoleOutputAvailable()) {
       if(TRACE_SHOW_TIME) {
-          chprintf((BaseSequentialStream*)trace, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000);
+          chprintf((BaseSequentialStream*)console, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000);
       }
-      chprintf((BaseSequentialStream*)trace, "[%s]", type);
+      chprintf((BaseSequentialStream*)console, "[%s]", type);
       if(TRACE_SHOW_FILE) {
-          chprintf((BaseSequentialStream*)trace, "[%12s %04d]", filename, line);
+          chprintf((BaseSequentialStream*)console, "[%12s %04d]", filename, line);
       }
       if(TRACE_SHOW_THREAD && TRACE_SHOW_TIME && TRACE_SHOW_FILE) {
-          chprintf((BaseSequentialStream*)trace, "[0x%08x]", chThdGetSelfX());
+          chprintf((BaseSequentialStream*)console, "[0x%08x]", chThdGetSelfX());
       }
-      chprintf((BaseSequentialStream*)trace, " ");
+      chprintf((BaseSequentialStream*)console, " ");
       va_list args;
       va_start(args, format);
-      chvprintf((BaseSequentialStream*)trace, format, args);
+      chvprintf((BaseSequentialStream*)console, format, args);
       va_end(args);
-      chprintf((BaseSequentialStream*)trace, "\r\n");
+      chprintf((BaseSequentialStream*)console, "\r\n");
 	}
 
-#if ENABLE_SERIAL_DEBUG == TRUE
+#if ENABLE_SERIAL_TRACE == TRUE
 	if(TRACE_SHOW_TIME) {
-		chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000);
+		chprintf((BaseSequentialStream*)trace, "[%8d.%03d]", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000);
 	}
-	chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, "[%s]", type);
+	chprintf((BaseSequentialStream*)trace, "[%s]", type);
 	if(TRACE_SHOW_FILE) {
-		chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, "[%12s %04d]", filename, line);
+		chprintf((BaseSequentialStream*)trace, "[%12s %04d]", filename, line);
 	}
     if(TRACE_SHOW_THREAD && TRACE_SHOW_TIME && TRACE_SHOW_FILE) {
-        chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, "[0x%08x]", chThdGetSelfX());
+        chprintf((BaseSequentialStream*)trace, "[0x%08x]", chThdGetSelfX());
     }
-    chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, " ");
+    chprintf((BaseSequentialStream*)trace, " ");
     va_list args;
     va_start(args, format);
-	chvprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, format, args);
+	chvprintf((BaseSequentialStream*)trace, format, args);
     va_end(args);
-    chprintf((BaseSequentialStream*)&SERIAL_DEBUG_DRIVER, "\r\n");
+    chprintf((BaseSequentialStream*)trace, "\r\n");
 #endif /* ENABLE_SERIAL_DEBUG == TRUE */
 
 	chMtxUnlock(&debug_mtx);
