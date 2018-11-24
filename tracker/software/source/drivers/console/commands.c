@@ -15,8 +15,10 @@
 #include "ov5640.h"
 #include "tcxo.h"
 
-//static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
-
+/**
+ * Commands handled by this module.
+ *
+ */
 const ShellCommand commands[] = {
     {"trace", usb_cmd_set_trace_level},
 	{"picture", usb_cmd_printPicture},
@@ -43,59 +45,55 @@ const ShellCommand commands[] = {
  *
  */
 void usb_cmd_get_gps_info(BaseSequentialStream *chp, int argc, char *argv[]) {
-  (void)argv;
-
-  if(argc > 2) {
-    shellUsage(chp, "gps [sats | tp [n]");
-    return;
-  }
-  if(strcmp(argv[0], "sats") == 0) {
-    chprintf(chp, "Checking for satellite information\r\n");
-    gps_svinfo_t svinfo = {0};
-    if(!gps_get_sv_info(&svinfo, sizeof(svinfo))) {
-      chprintf(chp, "No information available\r\n");
-      return;
-    }
-    if(svinfo.numCh == 0) {
-      chprintf(chp, "No satellites found\r\n");
-      return;
-    }
-    chprintf(chp, "Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d\r\n",
-             svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
-    uint8_t i;
-    for(i = 0; i < svinfo.numCh; i++) {
-      gps_svchn_t *sat = &svinfo.svinfo[i];
-      chprintf(chp, "chn=%03d svid=%03d flags=0x%02x quality=%02d"
-               " cno=%03d elev=%03d azim=%06d prRes=%06d\r\n",
-               sat->chn, sat->svid, sat->flags, sat->flags,
-               sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
-    }
-    return;
-  }
-  if(strcmp(argv[0], "tp") == 0) {
-    tpidx_t n = 0;
-    if(argc == 2) {
-      n = atoi(argv[1]);
-      if(n > 1) {
-        shellUsage(chp, "invalid timepulse index");
+  if(argc > 0) {
+    if(strcmp(argv[0], "sats") == 0 && argc == 1) {
+      chprintf(chp, "Checking for satellite information\r\n");
+      gps_svinfo_t svinfo = {0};
+      if(!gps_get_sv_info(&svinfo, sizeof(svinfo))) {
+        chprintf(chp, "No information available\r\n");
         return;
       }
-    }
-    chprintf(chp, "Checking for timepulse information\r\n");
-    gps_tp5_t tp5 = {0};
-    if(!gps_get_timepulse_info(n, &tp5, sizeof(tp5))) {
-      chprintf(chp, "No information available\r\n");
+      if(svinfo.numCh == 0) {
+        chprintf(chp, "No satellites found\r\n");
+        return;
+      }
+      chprintf(chp, "Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d\r\n",
+               svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
+      uint8_t i;
+      for(i = 0; i < svinfo.numCh; i++) {
+        gps_svchn_t *sat = &svinfo.svinfo[i];
+        chprintf(chp, "chn=%03d svid=%03d flags=0x%02x quality=%02d"
+                 " cno=%03d elev=%03d azim=%06d prRes=%06d\r\n",
+                 sat->chn, sat->svid, sat->flags, sat->flags,
+                 sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
+      }
       return;
     }
-    chprintf(chp, "Timepulse %d information\r\n", tp5.tpIdx);
-    chprintf(chp, "antD=%05d rfD=%05d ForP %08d ForPL %08d pLenR %08d "
-                  "pLenRL %08d UDelay %08d flags=0x%02x\r\n",
-                  tp5.antCableDelay, tp5.rfGroupDelay, tp5.freqPeriod,
-                  tp5.freqPeriodLock, tp5.pulseLenRatio,
-                  tp5.pulseLenRatioLock, tp5.userConfigDelay, tp5.flags);
-    return;
+    if(strcmp(argv[0], "tpulse") == 0) {
+      tpidx_t n = 0;
+      if(argc == 2) {
+        n = atoi(argv[1]);
+        if(n > 1) {
+          shellUsage(chp, "invalid timepulse index. Must be 0 or 1");
+          return;
+        }
+      }
+      chprintf(chp, "Checking for timepulse information\r\n");
+      gps_tp5_t tp5 = {0};
+      if(!gps_get_timepulse_info(n, &tp5, sizeof(tp5))) {
+        chprintf(chp, "No timepulse information available\r\n");
+        return;
+      }
+      chprintf(chp, "Timepulse %d information\r\n", tp5.tpIdx);
+      chprintf(chp, "antD=%05d rfD=%05d ForP %08d ForPL %08d pLenR %08d "
+               "pLenRL %08d UDelay %08d flags=0x%02x\r\n",
+               tp5.antCableDelay, tp5.rfGroupDelay, tp5.freqPeriod,
+               tp5.freqPeriodLock, tp5.pulseLenRatio,
+               tp5.pulseLenRatioLock, tp5.userConfigDelay, tp5.flags);
+      return;
+    }
   }
-  shellUsage(chp, "unknown gps parameter");
+  shellUsage(chp, "gps sats | tpulse [0 | 1]");
   return;
 }
 
