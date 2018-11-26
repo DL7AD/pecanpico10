@@ -150,7 +150,7 @@ const conf_t conf_flash_default = {
             .radio_conf = {
                 .freq = FREQ_APRS_AUSTRALIA,
                 .mod = MOD_AFSK,
-                .rssi = 0x3E
+                .rssi = 0x3F
             },
             // APRS identity used in message responses if digipeat is not enabled
             .call = "VK2GJ-4",

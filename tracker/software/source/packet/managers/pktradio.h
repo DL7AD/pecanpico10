@@ -34,6 +34,7 @@
 
 /* Temporary switch while testing TX thread self terminate (versus RTM termination). */
 #define PKT_TRANSMIT_TASK_SELF_TERMINATE TRUE
+
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
@@ -139,13 +140,12 @@ typedef struct radioParams {
  * @brief       Radio task object.
  * @details     queue object submitted via FIFO or radio task requests.
  *
- * TODO: Put persistent radio data into struct.
- * Other data need not be kept in handler.
  */
 struct radioTask {
   /* For safety keep clear - where pool stores its free link. */
   struct pool_header        link;
   radio_command_t           command;
+  packet_svc_t              *handler;
 #if PKT_RTO_HAS_INNER_CB != TRUE
   radio_mod_t               type;
   radio_freq_hz_t           base_frequency;
@@ -162,8 +162,9 @@ struct radioTask {
   radio_task_cb_t           user_cb;
   msg_t                     result;
   radio_signal_t            rssi;
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
   thread_t                  *thread;
-  packet_svc_t              *handler;
+#endif
 };
 
 /*===========================================================================*/
@@ -256,8 +257,12 @@ extern "C" {
   msg_t             pktSetReceiveStreamInactive(const radio_unit_t radio,
                                           const radio_task_object_t *rto,
                                           const sysinterval_t timeout);
-  void      		pktRadioSendComplete(radio_task_object_t *const rto,
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE == TRUE
+  void      		pktRadioSendComplete(radio_task_object_t *const rto);
+#else
+  void              pktRadioSendComplete(radio_task_object_t *const rto,
                                           thread_t *const thread);
+#endif
   ICUDriver         *pktLLDradioAttachStream(const radio_unit_t radio);
   void              pktLLDradioDetachStream(const radio_unit_t radio);
   const ICUConfig   *pktLLDradioStreamEnable(const radio_unit_t radio,

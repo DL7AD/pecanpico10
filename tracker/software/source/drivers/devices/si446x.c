@@ -1539,15 +1539,20 @@ void Si446x_radioShutdown(const radio_unit_t radio) {
 
 
 /**
- * @brief Used by TX to check CCA.
- * Get CCA over measurement interval.
- * Algorithm counts CCA pulses per millisecond (in systick time slices).
- * If more than one pulse per millisecond is counted then CCA is not true.
- * i.e. True is returned when a signal is present above the RSSI threshold.
+ * @brief Used by TX to check CCA over a measurement interval.
+ * @notes A maximum of 10 samples are taken in the measurement interval.
+ *
+ * @returns CCA count of samples taken over the measurement interval
+ * @retval  Special time values are allowed in measurement period
+ *          - TIME_INFINITE returns 0
+ *          - TIME_IMMEDIATE returns results of one CCA measurement
+ * @retval  Other measurement intervals will provide count of 1 - 10 samples
+ *          This depends on system time resolution setting
+ *
  */
-static bool Si446x_checkCCAthresholdForTX(const radio_unit_t radio,
-                                          const radio_mod_t mod,
-                                          const uint8_t ms) {
+static cnt_t Si446x_checkCCAthresholdForTX(const radio_unit_t radio,
+                                           const radio_mod_t mod,
+                                           const sysinterval_t interval) {
 
   ioline_t cca_line;
   /* Read CAA as setup by mod type. */
@@ -1569,25 +1574,28 @@ static bool Si446x_checkCCAthresholdForTX(const radio_unit_t radio,
   }
 
   case MOD_CW:
-    cca_line = PAL_NOLINE;
-    break;
+    return false;
 
   case MOD_NONE:
-    cca_line = PAL_NOLINE;
-    break;
+    return false;
   }
 
-  if(cca_line == PAL_NOLINE)
-    return true;
-  uint16_t cca = 0;
+  if(cca_line == PAL_NOLINE || interval == TIME_INFINITE)
+    return (cnt_t)0;
+
+  cnt_t cca = 0;
+
+  /* Take 10 measurements over the period. */
+  sysinterval_t slice = interval / 10;
+
   /* Measure sliced CCA instances in period. */
-  for(uint16_t i = 0; i < (ms * TIME_MS2I(1)); i++) {
+  for(uint16_t i = 0; i <= slice; i++) {
     cca += palReadLine(cca_line);
-    /* Sleep one tick. */
-    chThdSleep(1);
+    /* Sleep one time slice. */
+    chThdSleep(slice);
   }
   /* Return result. */
-  return cca > ms;
+  return cca;
 }
 
 /*
@@ -1641,7 +1649,8 @@ static bool Si446x_transmit(const radio_unit_t radio,
      *  - The radio is setup for CCA receive mode.
      *  - Set the RSSI threshold in the radio.
      *  - Put the radio into RX state.
-     *  - Measure the CCA level.
+     *  - Allow time for AGC to engage.
+     *  - Measure the CCA status.
      */
 
     /* Frequency is an absolute frequency in Hz. */
@@ -1649,19 +1658,12 @@ static bool Si446x_transmit(const radio_unit_t radio,
 
     /* Set receiver for CCA detection. */
     Si446x_setModemCCA_Detection(radio);
-
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_THRESH, rssi);
 
-    /*
-     * Start the receiver.
-     * The command does not get CTS until RX has started.
-     */
-    Si446x_startRXState(radio, chan);
-
     /* Minimum timeout for CCA is 1 second. */
-    if(cca_timeout < TIME_S2I(1)) {
-      TRACE_WARN("SI   > Minimum CCA wait time on radio %d forced to 1 second,"
-          " %d ms was specified", radio, chTimeI2MS(cca_timeout));
+    if(cca_timeout < TIME_S2I(1) || cca_timeout == TIME_INFINITE) {
+      TRACE_WARN("SI   > CCA wait time on radio %d forced to 1 second."
+          "invalid was specified", radio);
       cca_timeout = TIME_S2I(1);
     }
 
@@ -1670,26 +1672,32 @@ static bool Si446x_transmit(const radio_unit_t radio,
         " %d.%03d MHz",
         (float32_t)(TIME_I2MS(cca_timeout) / 1000), radio,
         op_freq/1000000, (op_freq%1000000)/1000);
-#define CCA_VALID_TIME_MS   50
+
+    /*
+     * Start the receiver.
+     * The command does not get CTS until RX has started.
+     */
+    Si446x_startRXState(radio, chan);
+
+
+    // TODO: adjust measurement based on... link_speed_t speed = mp.tx_speed;
+
+    /* Allow some time for AGC to engage. */
+    chThdSleep(TIME_MS2I(5));
+
+#define CCA_MEASURE_INTERVAL   TIME_MS2I(50)
 
     systime_t t0 = chVTGetSystemTime();
-    systime_t t1 = chTimeAddX(t0, cca_timeout);
-    while((Si446x_getState(radio) == Si446x_STATE_RX
-        && Si446x_checkCCAthresholdForTX(radio, mod, CCA_VALID_TIME_MS))
-        && chVTIsSystemTimeWithinX(t0, t1)) {
-      /* Wait 1mS. */
-      chThdSleep(TIME_MS2I(1));
-    }
-    if(!chVTIsSystemTimeWithinX(t0, t1)) {
-      TRACE_DEBUG( "SI   > CCA timeout after %d milliseconds on radio %d",
-                  chTimeI2MS(cca_timeout), radio);
-    } else {
+    sysinterval_t cca_time = CCA_MEASURE_INTERVAL;
+    do {
+      if(Si446x_checkCCAthresholdForTX(radio, mod, CCA_MEASURE_INTERVAL) == 0)
+        break;
+    } while(Si446x_getState(radio) == Si446x_STATE_RX
+        && cca_timeout > (cca_time = chVTTimeElapsedSinceX(t0)));
+
     /* Clear channel timing. */
     TRACE_DEBUG( "SI   > CCA attained in %d milliseconds on radio %d",
-                chTimeI2MS(chVTTimeElapsedSinceX(t0)), radio);
-    }
-
-
+                                         chTimeI2MS(cca_time), radio);
   } /* End if CCA. */
 
   /* Set radio back to ready state if RX was enabled. */
@@ -2046,19 +2054,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
     /* Schedule thread and task object memory release. */
     pktRadioSendComplete(rto, chThdGetSelfX());
-
-#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
     /* Exit thread. */
     chThdExit(MSG_RESET);
 #else
+    pktRadioSendComplete(rto);
     extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
     /* We never arrive here. */
   }
-
 
   /* Wait for receive stream in progress. Terminate on timeout. */
 #if PKT_RTO_HAS_INNER_CB == TRUE
@@ -2087,16 +2094,16 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
      */
     rto->result = MSG_ERROR;
 
-    /* Schedule thread and task object memory release. */
-    pktRadioSendComplete(rto, chThdGetSelfX());
-
     /* Unlock radio. */
     pktUnlockRadio(radio, RADIO_TX);
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
     /* Exit thread. */
     chThdExit(MSG_RESET);
 #else
+    pktRadioSendComplete(rto);
     extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
@@ -2124,7 +2131,6 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 #else
   radio_squelch_t rssi = rto->squelch;
 #endif
-
 
   do {
 
@@ -2155,18 +2161,19 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       /* Free packet object memory. */
       pktReleaseBufferChain(pp);
 
-      /* Schedule thread and task object memory release. */
-      pktRadioSendComplete(rto, chThdGetSelfX());
 #if Si446x_UNLOCK_FOR_ENCODE == FALSE
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 #endif
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-      /* Exit thread. */
-      chThdExit(MSG_RESET);
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
 #else
-      extern void pktThdTerminateSelf(void);
-      pktThdTerminateSelf();
+    pktRadioSendComplete(rto);
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
       /* We never arrive here. */
     }
@@ -2276,18 +2283,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
        */
       rto->result = MSG_ERROR;
 
-      /* Schedule thread and task object memory release. */
-      pktRadioSendComplete(rto, chThdGetSelfX());
-
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-      /* Exit thread. */
-      chThdExit(MSG_RESET);
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
 #else
-      extern void pktThdTerminateSelf(void);
-      pktThdTerminateSelf();
+    pktRadioSendComplete(rto);
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
       /* We never arrive here. */
     }
@@ -2320,18 +2327,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
        */
       rto->result = MSG_ERROR;
 
-      /* Schedule thread and task object memory release. */
-      pktRadioSendComplete(rto, chThdGetSelfX());
-
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-      /* Exit thread. */
-      chThdExit(MSG_RESET);
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
 #else
-      extern void pktThdTerminateSelf(void);
-      pktThdTerminateSelf();
+    pktRadioSendComplete(rto);
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
       /* We never arrive here. */
     }
@@ -2388,18 +2395,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
              */
             rto->result = MSG_ERROR;
 
-            /* Schedule thread and task object memory release. */
-            pktRadioSendComplete(rto, chThdGetSelfX());
-
             /* Unlock radio. */
             pktUnlockRadio(radio, RADIO_TX);
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-            /* Exit thread. */
-            chThdExit(MSG_RESET);
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
 #else
-            extern void pktThdTerminateSelf(void);
-            pktThdTerminateSelf();
+    pktRadioSendComplete(rto);
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
             /* We never arrive here. */
           }
@@ -2431,18 +2438,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                */
               rto->result = MSG_ERROR;
 
-              /* Schedule thread and task object memory release. */
-              pktRadioSendComplete(rto, chThdGetSelfX());
-
               /* Unlock radio. */
               pktUnlockRadio(radio, RADIO_TX);
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-              /* Exit thread. */
-              chThdExit(MSG_RESET);
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
 #else
-              extern void pktThdTerminateSelf(void);
-              pktThdTerminateSelf();
+    pktRadioSendComplete(rto);
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
               /* We never arrive here. */
             }
@@ -2518,11 +2525,6 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     /* Save status in case a callback requires it. */
     rto->result = exit_msg;
 
-    /*
-     * Finished send so schedule thread memory and task object release.
-     * The radio manager will resume RX or put the radio in standby if RX not enabled.
-     */
-    pktRadioSendComplete(rto, chThdGetSelfX());
 #if Si446x_UNLOCK_FOR_ENCODE == FALSE
     /* Unlock radio. */
     pktUnlockRadio(radio, RADIO_TX);
@@ -2532,9 +2534,12 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     }
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
     /* Exit thread. */
     chThdExit(MSG_RESET);
 #else
+    pktRadioSendComplete(rto);
     extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
@@ -2622,12 +2627,13 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
 
+#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
     /* Schedule thread and task object memory release. */
     pktRadioSendComplete(rto, chThdGetSelfX());
-#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
     /* Exit thread. */
     chThdExit(MSG_RESET);
 #else
+    pktRadioSendComplete(rto);
     extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
@@ -2657,16 +2663,16 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     /* Free packet object memory. */
     pktReleaseBufferChain(pp);
 
-    /* Schedule thread and task object memory release. */
-    pktRadioSendComplete(rto, chThdGetSelfX());
-
     /* Unlock radio. */
     pktUnlockRadio(radio, RADIO_TX);
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
     /* Exit thread. */
     chThdExit(MSG_RESET);
 #else
+    pktRadioSendComplete(rto);
     extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
@@ -2721,20 +2727,20 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       /* Free packet object memory. */
       pktReleaseBufferChain(pp);
 
-      /* Schedule thread and task object memory release. */
-      pktRadioSendComplete(rto, chThdGetSelfX());
-
 #if Si446x_UNLOCK_FOR_ENCODE == FALSE
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 #endif
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-      /* Exit thread. */
-      chThdExit(MSG_RESET);
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
 #else
-      extern void pktThdTerminateSelf(void);
-      pktThdTerminateSelf();
+    pktRadioSendComplete(rto);
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
       /* We never arrive here. */
     }
@@ -2842,18 +2848,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
        */
       rto->result = MSG_ERROR;
 
-      /* Schedule thread and task object memory release. */
-      pktRadioSendComplete(rto, chThdGetSelfX());
-
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-      /* Exit thread. */
-      chThdExit(MSG_RESET);
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
 #else
-      extern void pktThdTerminateSelf(void);
-      pktThdTerminateSelf();
+    pktRadioSendComplete(rto);
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
       /* We never arrive here. */
     }
@@ -2883,18 +2889,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
        */
       rto->result = MSG_ERROR;
 
-      /* Schedule thread and task object memory release. */
-      pktRadioSendComplete(rto, chThdGetSelfX());
-
       /* Unlock radio. */
       pktUnlockRadio(radio, RADIO_TX);
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-      /* Exit thread. */
-      chThdExit(MSG_RESET);
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
 #else
-      extern void pktThdTerminateSelf(void);
-      pktThdTerminateSelf();
+    pktRadioSendComplete(rto);
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
       /* We never arrive here. */
     }
@@ -2956,18 +2962,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
              */
             rto->result = MSG_ERROR;
 
-            /* Schedule thread and task object memory release. */
-            pktRadioSendComplete(rto, chThdGetSelfX());
-
             /* Unlock radio. */
             pktUnlockRadio(radio, RADIO_TX);
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-            /* Exit thread. */
-            chThdExit(MSG_RESET);
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
 #else
-            extern void pktThdTerminateSelf(void);
-            pktThdTerminateSelf();
+    pktRadioSendComplete(rto);
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
             /* We never arrive here. */
           }
@@ -2995,18 +3001,18 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                */
               rto->result = MSG_ERROR;
 
-              /* Schedule thread and task object memory release. */
-              pktRadioSendComplete(rto, chThdGetSelfX());
-
               /* Unlock radio. */
               pktUnlockRadio(radio, RADIO_TX);
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-              /* Exit thread. */
-              chThdExit(MSG_RESET);
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
+    /* Exit thread. */
+    chThdExit(MSG_RESET);
 #else
-              extern void pktThdTerminateSelf(void);
-              pktThdTerminateSelf();
+    pktRadioSendComplete(rto);
+    extern void pktThdTerminateSelf(void);
+    pktThdTerminateSelf();
 #endif
               /* We never arrive here. */
             }
@@ -3087,7 +3093,6 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
      * Finished send so schedule thread memory and task object release.
      * The radio manager will resume RX or put the radio in standby if RX not enabled.
      */
-    pktRadioSendComplete(rto, chThdGetSelfX());
 
 #if Si446x_UNLOCK_FOR_ENCODE == FALSE
     /* Unlock radio. */
@@ -3099,9 +3104,12 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     }
 
 #if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
+    /* Schedule thread and task object memory release. */
+    pktRadioSendComplete(rto, chThdGetSelfX());
     /* Exit thread. */
     chThdExit(MSG_RESET);
 #else
+    pktRadioSendComplete(rto);
     extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif

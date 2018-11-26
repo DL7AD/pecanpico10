@@ -34,41 +34,42 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
   packet_t pp = ax25_from_frame(buf, len);
 
   if(pp == NULL) {
-    TRACE_MON("RX   > Error in packet - dropped");
+    TRACE_MON("RX   > Error in packet %d - dropped", pkt_buff->seq_num);
     return;
   }
+
   /* Continue packet analysis. */
+  pp->seq = pkt_buff->seq_num;
   uint8_t *c;
   uint32_t ilen = ax25_get_info(pp, &c);
   if(ilen == 0) {
-    TRACE_MON("RX   > Invalid packet structure - dropped");
+    TRACE_MON("RX   > Invalid packet structure in packet %d - dropped",
+              pkt_buff->seq_num);
     pktReleaseCommonPacketBuffer(pp);
     return;
   }
   /* Output packet as text. */
-  char serial_buf[512] = {'*'};
-  uint8_t n = 1;
-  bool crc_OK;
-  if((crc_OK = pktGetAX25FrameStatus(pkt_buff)))
-    n = 0;
-  /* TODO: Check aprs_debug_getPacket(...) for buffer overrun bug. */
-  aprs_debug_getPacket(pp, &serial_buf[n], sizeof(serial_buf) - n);
+  char serial_buf[512];
+  bool crc_OK = pktGetAX25FrameStatus(pkt_buff);
+  size_t x = aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
   if(rssi != 0xFF) {
     TRACE_MON("RX   > Packet %d opening RSSI 0x%x (%d dBm)",
               pkt_buff->seq_num, rssi,
               (rssi / 2) - Si446x_MODEM_RSSI_COMP_VALUE - 70);
   }
   else {
-    TRACE_MON("RX   > Packet opening RSSI not captured");
+    TRACE_MON("RX   > Packet %d opening RSSI not captured", pkt_buff->seq_num);
   }
 
-  TRACE_MON("RX   > %s", serial_buf);
+  TRACE_MON("RX   > %s%s%s", crc_OK ? "" : "*",
+                                serial_buf,
+                                x > sizeof(serial_buf) ? "..." : "");
   if(pp->num_addr > 0 && crc_OK) {
     pp->rssi = rssi;
     aprs_process_packet(pp);
   }
   else {
-    TRACE_MON("RX   > Bad packet - dropped");
+    TRACE_MON("RX   > Bad packet %d - dropped", pkt_buff->seq_num);
   }
   pktReleaseCommonPacketBuffer(pp);
 }

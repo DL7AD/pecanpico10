@@ -2213,8 +2213,8 @@ radio_freq_hz_t pktComputeOperatingFrequency(const radio_unit_t radio,
  *
  * @api
  */
-void pktRadioSendComplete(radio_task_object_t *const rto,
-                          thread_t *const thread) {
+void pktRadioSendComplete(radio_task_object_t *const rto/*,
+                          thread_t *const thread*/) {
 
   radio_unit_t radio = rto->handler->radio;
   /*
@@ -2224,7 +2224,7 @@ void pktRadioSendComplete(radio_task_object_t *const rto,
    *  The RTO will be freed by RM.
    */
   rto->command = PKT_RADIO_TX_DONE;
-  rto->thread = thread;
+  //rto->thread = thread;
 #if  PKT_RTO_HAS_INNER_CB == TRUE
   /* Submit guaranteed to succeed by design. */
   pktSubmitPriorityRadioTask(radio, rto, NULL);

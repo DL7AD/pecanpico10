@@ -264,14 +264,14 @@ void aprs_get_identity(void) {
 /**
  *
  */
-void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
+size_t aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 {
 	// Decode packet
 	char rec[127];
 	unsigned char *pinfo;
 	ax25_format_addrs(pp, rec, sizeof(rec));
 	if(ax25_get_info(pp, &pinfo) == 0)
-	  return;
+	  return 0;
 
     // Print decoded packet
     uint32_t out = chsnprintf(buf, len, "%s", rec);
@@ -282,6 +282,7 @@ void aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
             out += chsnprintf(&buf[out], len - out, "%c", pinfo[i]);
         }
     }
+    return out;
 }
 
 /**
@@ -1282,7 +1283,7 @@ static void aprs_digipeat(packet_t pp) {
                                    preempt, NULL);
   if(result == NULL) {
     /* No packet buffer means don't digipeat. */
-    TRACE_DEBUG("PKT  > Packet will not be digipeated");
+    TRACE_DEBUG("PKT  > Packet %d will not be digipeated", pp->seq);
     return;
   }
   /*
@@ -1306,7 +1307,7 @@ static void aprs_digipeat(packet_t pp) {
                   conf_sram.aprs.tx.radio_conf.mod,
                   conf_sram.aprs.tx.radio_conf.cca)) {
     /* TX failed. */
-    TRACE_ERROR("PKT  > Failed to digipeat packet");
+    TRACE_ERROR("PKT  > Failed to digipeat packet %d", pp->seq);
     return;
   }
   /* TX succeeded. Remember the frequency. */

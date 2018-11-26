@@ -99,7 +99,7 @@ typedef struct {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void      aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len);
+  size_t    aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len);
   packet_t  aprs_encode_stamped_position_and_telemetry(const char *callsign,
                                 const char *path, aprs_sym_t symbol,
                                 dataPoint_t *dataPoint);
