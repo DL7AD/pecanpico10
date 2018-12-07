@@ -55,14 +55,16 @@
 #define PWM_ACK_DECODE_ERROR    9
 #define PWM_TERM_QUEUE_ERROR    10
 #define PWM_TERM_PWM_TIMEOUT    11
+#define PWM_INFO_ICU_LIMIT      12
 
 /* If all PWM buffers are consumed assume jamming and wait this timeout. */
-#define PWM_JAMMING_TIMEOUT     10
+#define PWM_JAMMING_TIMEOUT     TIME_S2I(10)
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
+/* Reason code for closing a PWM stream. */
 typedef uint8_t pwm_code_t;
 
 typedef enum ICUStates {
@@ -90,7 +92,7 @@ typedef struct {
   packed_pwmcnt_t           impulse;
   packed_pwmcnt_t           valley;
   packed_pwmxtn_t           xtn;
-} packed_pwm_counts_t;
+} __attribute__((packed)) packed_pwm_counts_t;
 
 #else
 typedef min_pwmcnt_t        packed_pwmcnt_t;
@@ -108,13 +110,20 @@ typedef union {
   packed_pwm_data_t         bytes[sizeof(packed_pwm_counts_t)];
 } byte_packed_pwm_t;
 
-/* Structure holding PWM entries created from ICU results. */
+/*
+ * Structure holding PWM entries after unpacking.
+ * Limited to 16 bit maximum counts.
+ */
 typedef struct {
   min_pwmcnt_t              impulse;
   min_pwmcnt_t              valley;
-} min_pwm_counts_t;
+} __attribute__((packed)) min_pwm_counts_t;
 
-/* Union of PWM results and byte array representation. */
+/*
+ * Union of PWM results and byte array representation.
+ * Used for unpacking 12 or 16 bit PWM.
+ * Accessible as 16 bit PWM representation and overlay byte stream.
+ */
 typedef union {
   min_pwm_counts_t          pwm;
   min_pwmcnt_t              array[sizeof(min_pwm_counts_t)
@@ -189,12 +198,41 @@ typedef struct {
   volatile eventflags_t     status;
   radio_signal_t            rssi;
   cnt_t                     seq_num;
+  radio_freq_hz_t           freq;
 } radio_pwm_fifo_t;
 
 /*===========================================================================*/
 /* Module macro definitions.                                                 */
 /*===========================================================================*/
 
+
+/*===========================================================================*/
+/* External declarations.                                                    */
+/*===========================================================================*/
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+  ICUDriver *pktAttachRadio(const radio_unit_t radio_id);
+  void      pktEnableRadioStream(const radio_unit_t radio);
+  void      pktDisableRadioStream(const radio_unit_t radio);
+  void      pktDetachRadio(const radio_unit_t radio_id);
+  void      pktRadioICUWidth(ICUDriver *myICU);
+  void      pktRadioICUPeriod(ICUDriver *myICU);
+  void      pktRadioICUOverflow(ICUDriver *myICU);
+  void      pktRadioCCAInput(ICUDriver *myICU);
+  void      pktStopAllICUtimersI(ICUDriver *myICU);
+  void      pktSleepICUI(ICUDriver *myICU);
+  msg_t     pktQueuePWMDataI(ICUDriver *myICU);
+  void      pktClosePWMStreamI(ICUDriver *myICU,
+                               statusflags_t sta,
+                               eventflags_t evt,
+                               pwm_code_t reason);
+  void      pktPWMInactivityTimeout(ICUDriver *myICU);
+  msg_t     pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack);
+#ifdef __cplusplus
+}
+#endif
 
 /*===========================================================================*/
 /* Module inline functions.                                                  */
@@ -213,6 +251,17 @@ static inline void pktConvertICUtoPWM(ICUDriver *icup,
                                       byte_packed_pwm_t *dest) {
   icucnt_t impulse = icuGetWidthX(icup);
   icucnt_t valley = icuGetPeriodX(icup) - impulse;
+
+  if ((impulse | valley) > PWM_MAX_COUNT) {
+    /*
+     *  ICU count has exceeded capacity of PWM encoding.
+     *  Substitute in-band message.
+     *  Decoder will determine what to do based on state.
+     */
+    impulse = PWM_IN_BAND_PREFIX;
+    valley = PWM_INFO_ICU_LIMIT;
+  }
+
 #if USE_12_BIT_PWM == TRUE
   dest->pwm.impulse = (packed_pwmcnt_t)impulse & 0xFFU;
   dest->pwm.valley = (packed_pwmcnt_t)valley & 0xFFU;
@@ -254,33 +303,24 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
 #endif
 }
 
-/*===========================================================================*/
-/* External declarations.                                                    */
-/*===========================================================================*/
-
-#ifdef __cplusplus
-extern "C" {
+/**
+ * @brief   Write in-band message to PWM queue.
+ * @note    This function deals with ICU data packed into 12 bits or 16 bits.
+ *
+ * @param[in] queue     pointer to an input queue object.
+ * @param[in] reason    in-band reason code for closing the queue
+ *
+ * @iclass
+ */
+static inline msg_t pktWritePWMinBandMessageI(input_queue_t *queue,
+                                       pwm_code_t reason) {
+#if USE_12_BIT_PWM == TRUE
+      byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, reason, 0}};
+#else
+      byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, reason}};
 #endif
-  ICUDriver *pktAttachRadio(const radio_unit_t radio_id);
-  void      pktEnableRadioStream(const radio_unit_t radio);
-  void      pktDisableRadioStream(const radio_unit_t radio);
-  void      pktDetachRadio(const radio_unit_t radio_id);
-  void      pktRadioICUWidth(ICUDriver *myICU);
-  void      pktRadioICUPeriod(ICUDriver *myICU);
-  void      pktRadioICUOverflow(ICUDriver *myICU);
-  void      pktRadioCCAInput(ICUDriver *myICU);
-  void      pktStopAllICUtimersI(ICUDriver *myICU);
-  void      pktSleepICUI(ICUDriver *myICU);
-  msg_t     pktQueuePWMDataI(ICUDriver *myICU);
-  void      pktClosePWMStreamI(ICUDriver *myICU,
-                               statusflags_t sta,
-                               eventflags_t evt,
-                               pwm_code_t reason);
-  void      pktPWMInactivityTimeout(ICUDriver *myICU);
-  msg_t     pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack);
-#ifdef __cplusplus
+      return pktWritePWMQueueI(queue, pack);
 }
-#endif
 
 #endif /* PKT_CHANNELS_RXPWM_H_ */
 

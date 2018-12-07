@@ -54,6 +54,9 @@ eventmask_t evt = chEvtGetAndClearEvents(
     if(flags & EVT_RADIO_CCA_SPIKE) {
       TRACE_DEBUG("PKT  > CCA spike on receive");
     }
+    if(flags & EVT_PWM_ICU_LIMIT) {
+      TRACE_DEBUG("PKT  > ICU exceed PWM stream width limit in open frame");
+    }
 #if 0
     if(flags & EVT_RADIO_CCA_GLITCH) {
       TRACE_DEBUG("PKT  > CCA glitch on receive");
@@ -117,9 +120,11 @@ eventmask_t evt = chEvtGetAndClearEvents(
     if(flags & EVT_AFSK_START_FAIL) {
       TRACE_ERROR("PKT  > AFSK decoder failed to start");
     }
+#if 0
     if(flags & EVT_PKT_BUFFER_MGR_FAIL) {
       TRACE_ERROR("PKT  > Unable to start packet RX buffer");
     }
+#endif
     if(flags & EVT_PKT_CBK_MGR_FAIL) {
       TRACE_ERROR("PKT  > Unable to start packet RX callback manager");
     }

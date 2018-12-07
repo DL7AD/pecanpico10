@@ -68,6 +68,7 @@ typedef struct packetBufferObject {
   char                      cb_thd_name[PKT_THREAD_NAME_MAX];
   pkt_buffer_cb_t           cb_func;
   volatile statusflags_t    status;
+  radio_freq_hz_t           freq;
   radio_signal_t            rssi;
   cnt_t                     seq_num;
   size_t                    buffer_size;

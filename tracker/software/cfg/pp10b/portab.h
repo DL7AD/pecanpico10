@@ -182,6 +182,10 @@
 #define EI2C_SCL                        LINE_GPIO_PIN1 /* SCL */
 #define EI2C_SDA                        LINE_GPIO_PIN2 /* SDA */
 
+/* External BME fitting setting. */
+#define BME280_E1_IS_FITTED     FALSE
+#define BME280_E2_IS_FITTED     FALSE
+
 /* To use IO_TXD/IO_RXD as a UART serial channel. */
 #define ENABLE_UART_SERIAL              TRUE
 
@@ -196,7 +200,7 @@
 #define LINE_USART3_RX                  LINE_IO_RXD
 #endif
 
-/* If set to true, the console using USB interface will be switched on. */
+/* If set to true, the console will be started. */
 #define ACTIVATE_CONSOLE                TRUE
 
 /**
@@ -219,19 +223,26 @@
 
 #endif
 
+/*
+ *  Configure PWM stream data.
+ *  Packed 12 bit saves memory but has reduced PWM range.
+ */
+#define USE_12_BIT_PWM                  TRUE
+
 /* ICU counter frequency. */
 /*
  * TODO: This should be calculated using timer clock.
  * ICU has to run at an integer divide from APBx clock.
  */
-
-#define PWM_ICU_COUNT_FREQUENCY      6000000U
+#if USE_12_BIT_PWM
+#define PWM_ICU_COUNT_FREQUENCY         2000000U
+#else
+#define PWM_ICU_COUNT_FREQUENCY         6000000U
+#endif
 
 #if ((PWM_ICU_RADIO1_CLK % PWM_ICU_COUNT_FREQUENCY) != 0)
 #error "Invalid ICU frequency for APBx clock setting"
 #endif
-
-#define USE_12_BIT_PWM                  FALSE
 
 /*
  * Allocate PWM buffers from a CCM heap/pool.
@@ -263,9 +274,6 @@
 #define NUMBER_RX_PKT_BUFFERS       5U
 #define USE_POOL_RX_BUFFER_OBJECTS  TRUE
 #define USE_CCM_HEAP_RX_BUFFERS     TRUE
-
-/* Set TRUE to use the idle thread sweeper to release terminated threads. */
-//#define PKT_RX_RLS_USE_NO_FIFO          TRUE
 
 /*
  * Number of general AX25/APRS processing & frame send buffers.

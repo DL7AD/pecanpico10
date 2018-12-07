@@ -90,6 +90,15 @@ typedef struct genPacket {
     /* unique sequence number for debugging. */
 	int seq;
 
+	/* Radio that this packet was received on. */
+	radio_unit_t radio;
+
+    /* Received signal strength of incoming packet. */
+    radio_signal_t  rssi;
+
+    /* Frequency of received packet. */
+    radio_freq_hz_t freq;
+
     /* Time stamp in format returned by dtime_now(). */
     /* When to release from the SATgate mode delay queue. */
 	//double release_time;
@@ -151,9 +160,6 @@ typedef struct genPacket {
 
     /* Raw frame contents, without the CRC plus one byte if \0 appended. */
 	unsigned char frame_data[AX25_MAX_PACKET_LEN + 1];
-
-	/* Received signal strength of incoming packet. */
-	radio_signal_t  rssi;
 
     /* Will get stomped on if above overflows. */
 	int magic2;

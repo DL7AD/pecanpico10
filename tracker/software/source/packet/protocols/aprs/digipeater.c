@@ -52,7 +52,7 @@
  *		
  *------------------------------------------------------------------*/
 
-#define DIGIPEATER_C
+//#define DIGIPEATER_C
 
 #include "ch.h"
 #include "hal.h"
@@ -80,7 +80,10 @@
  * 
  * Purpose:	A simple digipeater for APRS.
  *
- * Input:	pp		- Pointer to a packet object.
+ * Input:
+ *
+ *  	pp		- Pointer to a packet object. The packet object
+ *  	          has field that contains the receive frequency (freq).
  *	
  *		mycall_rec	- Call of my station, with optional SSID,
  *				  associated with the radio channel where the 
@@ -119,12 +122,11 @@
  *------------------------------------------------------------------------------*/
 				  
 
-packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
+packet_t digipeat_match (packet_t pp,
                          char *mycall_rec, char *mycall_xmit,
                          char *alias, char *wide,
                          radio_freq_hz_t to_freq, enum preempt_e preempt,
                          char *filter_str) {
-	(void)from_freq;
 	(void)filter_str;
 
 	char source[AX25_MAX_ADDR_LEN];
@@ -133,10 +135,8 @@ packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
 	char repeater[AX25_MAX_ADDR_LEN];
 	int found_len;
 
-
-
 /* 
- * Find the first repeater station which doesn't have "has been repeated" set.
+ * Find the first repeater station without "has been repeated" set.
  *
  * r = index of the address position in the frame.
  */
@@ -144,7 +144,7 @@ packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
 
 	if (r < AX25_REPEATER_1) {
 	    TRACE_MON("DIGI > All stations in packet %d already repeated", pp->seq);
-	  return (NULL);
+	  return NULL;
 	}
 
 	ax25_get_addr_with_ssid(pp, r, repeater);
@@ -175,7 +175,7 @@ packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
 	  ax25_set_addr (result, r, mycall_xmit);	
 	  ax25_set_h (result, r);
       TRACE_MON("DIGI > Digipeat packet %d my callsign as path", pp->seq);
-	  return (result);
+	  return result;
 	}
 
 /*
@@ -186,7 +186,7 @@ packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
 	ax25_get_addr_with_ssid(pp, AX25_SOURCE, source);
 	if (strcmp(source, mycall_rec) == 0) {
       TRACE_MON("DIGI > Don't repeat my own traffic from packet %d", pp->seq);
-	  return (NULL);
+	  return NULL;
 	}
 
 
@@ -221,10 +221,10 @@ packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
  * In this implementation, we already caught it further up.
  */
 	char *found = regex(alias, repeater, &found_len);
-	if(found_len) {
+	if (found_len) {
 	   packet_t result = ax25_dup (pp);
-       if(result == NULL) {
-         TRACE_ERROR("DIGI > Digipeat of packet %d failed for %s traffic"
+       if (result == NULL) {
+         TRACE_ERROR("DIGI > Digipeat of packet %d failed for %s path"
              " (no free packet object)",pp->seq, found);
          return NULL;
        }
@@ -233,7 +233,7 @@ packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
 	  ax25_set_addr (result, r, mycall_xmit);	
 	  ax25_set_h (result, r);
       TRACE_MON("DIGI > Digipeat packet %d alias pattern: %s ",pp->seq, alias);
-	  return (result);
+	  return result;
 	}
 
 /* 
@@ -286,9 +286,9 @@ packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
 	          }
 	          break;
 	      } /* End switch. */
-	      TRACE_MON("DIGI > Digipeat packet %d preemptive %s traffic",
+	      TRACE_MON("DIGI > Digipeat packet %d preemptive %s path",
 	                pp->seq, pre);
-	      return (result);
+	      return result;
 	    }
  	  }
 	}
@@ -315,7 +315,7 @@ packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
 
 	    result = ax25_dup (pp);
         if(result == NULL) {
-          TRACE_ERROR("DIGI > Digipeat of packet %d failed for %s traffic"
+          TRACE_ERROR("DIGI > Digipeat of packet %d failed for %s path"
               " (no free packet object)", pp->seq, path);
           return NULL;
         }
@@ -330,7 +330,7 @@ packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
 
 	    result = ax25_dup (pp);
         if(result == NULL) {
-          TRACE_ERROR("DIGI > Digipeat failed for packet %d with %s traffic"
+          TRACE_ERROR("DIGI > Digipeat failed for packet %d from %s path"
               " (no free packet object)",pp->seq, path);
           return NULL;
         }
@@ -341,8 +341,8 @@ packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
 	      ax25_insert_addr (result, r, mycall_xmit);	
 	      ax25_set_h (result, r);
 	    }
-        TRACE_MON("DIGI > Digipeat packet %d with %s traffic", pp->seq, path);
-	    return (result);
+        TRACE_MON("DIGI > Digipeat packet %d from %s path", pp->seq, path);
+	    return result;
 	  }
 	}
 
@@ -350,6 +350,6 @@ packet_t digipeat_match (radio_freq_hz_t from_freq, packet_t pp,
  * Don't repeat it if we get here.
  */
 
-	return (NULL);
+	return NULL;
 }
 

@@ -5,6 +5,7 @@
 #include "hal.h"
 #include "ptime.h"
 #include "types.h"
+#include "portab.h"
 
 #define BME_STATUS_BITS         2
 #define BME_STATUS_MASK         0x3
@@ -24,8 +25,8 @@
 #define BMEE2_STATUS_SHIFT      BMEI1_STATUS_SHIFT + BME_STATUS)BITS
 #define BMEE2_STATUS_MASK       (BME_STATUS_MASK << BMEE2_STATUS_SHIFT)
 
-#define BME280_E1_IS_FITTED     FALSE
-#define BME280_E2_IS_FITTED     TRUE
+//#define BME280_E1_IS_FITTED     FALSE
+//#define BME280_E2_IS_FITTED     TRUE
 
 /**
  * @brief   GPS states as array of strings.
@@ -37,15 +38,15 @@
   "ERROR", "FIXED", "TIME"
 
 typedef enum {
-	GPS_LOCKED1,	// The GPS is locked, the GPS has been switched off
+	GPS_LOCKED1,	// The GPS was locked, the GPS has been switched off
 	GPS_LOCKED2,	// The GPS is locked, the GPS has been kept switched on
-	GPS_LOSS,		// The GPS was switched on all time but it couln't acquire a fix
-	GPS_LOWBATT1,	// The GPS wasn't switched on because the battery has not enough energy
-	GPS_LOWBATT2,	// The GPS was switched on but has been switched off prematurely while the battery has not enough energy (or is too cold)
-	GPS_LOG,		// The tracker has just been switched on and the position has been taken from the log
+	GPS_LOSS,		// The GPS was switched on but did not acquire a fix
+	GPS_LOWBATT1,	// The GPS wasn't switched on because the battery is low
+	GPS_LOWBATT2,	// The GPS was switched on but switched off due low battery
+	GPS_LOG,		// The position has been taken from the log (switch on)
 	GPS_OFF,		// There was no prior acquisition by GPS
 	GPS_ERROR,		// The GPS has a communication error
-    GPS_FIXED,      // Fixed location data used from APRS location
+    GPS_FIXED,      // Fixed location data used from configuration location
     GPS_TIME        // Time stamp of RTC on first getting GPS time
 } gpsState_t;
 

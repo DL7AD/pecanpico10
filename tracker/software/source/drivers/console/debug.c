@@ -9,17 +9,26 @@ mutex_t debug_mtx; // Used internal to synchronize multiple chprintf in debug.h
 char error_list[ERROR_LIST_SIZE][ERROR_LIST_LENGTH];
 uint8_t error_counter;
 
-/*static const SerialConfig debug_config = {
-	115200,
-	0,
-	0,
-	0
-};*/
+/* Setup serial channel identities. */
 
-/* Default initial condition for serial channels. */
+/*
+ * The console is interactive and displays trace messages when not in CLI mode.
+ */
 BaseSequentialStream *console = (BaseSequentialStream *)&SERIAL_CONSOLE_DRIVER;
+
+/*
+ * The trace is an always on trace message output.
+ */
 BaseSequentialStream *trace = (BaseSequentialStream *)&SERIAL_TRACE_DRIVER;
+
+/*
+ * The serial out is a generally available serial output.
+ */
 BaseSequentialStream *serial = (BaseSequentialStream *)&SERIAL_DEBUG_DRIVER;
+
+/*
+ * The stream output is intended for dumping data (such as DSP) for analysis
+ */
 BaseSequentialStream *stream = (BaseSequentialStream *)&SERIAL_STREAM_DRIVER;
 
 #ifdef SET_TRACE_LEVEL

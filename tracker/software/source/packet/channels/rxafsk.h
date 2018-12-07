@@ -65,11 +65,11 @@
 
 #define AFSK_ERROR_TYPE             AFSK_NO_ERROR
 
-//#define PRE_FILTER_GEN_COEFF        TRUE
+/* Pre-filter f1 & f2 definitions. */
 #define PRE_FILTER_LOW              925
 #define PRE_FILTER_HIGH             2475
 
-//#define MAG_FILTER_GEN_COEFF        TRUE
+/* Decoder magnitude filter cutoff. */
 #define MAG_FILTER_HIGH             1400
 
 #define PRE_FILTER_NUM_TAPS         55U
@@ -107,9 +107,13 @@
  *
  */
 
+/* Decimation slices. All filter coefficients are dynamically recalculated. */
 #define SYMBOL_DECIMATION           (12U)
+
 /* Sample rate in Hz. */
 #define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
+
+/* The IQ decoder has a sliding window of two symbol periods. */
 #define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
 
 /* Thread working area size. */
@@ -135,9 +139,13 @@
  *
  */
 
+/* Decimation slices. All filter coefficients are dynamically recalculated. */
 #define SYMBOL_DECIMATION           (12U)
+
 /* Sample rate in Hz. */
 #define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
+
+/* The IQ decoder has a sliding window of two symbol periods. */
 #define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
 
 /* Thread working area size. */
@@ -314,14 +322,6 @@ typedef struct AFSK_data {
 /*===========================================================================*/
 /* Module inline functions.                                                  */
 /*===========================================================================*/
-
-#if 0
-static inline void pktResyncAFSKDecoder(AFSKDemodDriver *myDriver) {
-  packet_svc_t *myHandler = myDriver->packet_handler;
-  myDriver->frame_state = FRAME_OPEN;
-  myHandler->active_packet_object->packet_size = 0;
-}
-#endif
 
 /*===========================================================================*/
 /* External declarations.                                                    */

@@ -24,6 +24,10 @@
 
 #define OV5640_I2C_ADR		        0x3C
 
+#if !STM32_DMA_ADVANCED
+#error "PDCMI driver requires advanced DMA"
+#endif
+
 #if !defined(PDCMI_USE_DMA_DBM)
 #define PDCMI_USE_DMA_DBM           FALSE
 #endif

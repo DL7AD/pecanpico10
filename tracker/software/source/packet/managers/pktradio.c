@@ -279,7 +279,7 @@ static msg_t pktOpenRadioReceive(const radio_unit_t radio,
 #if USE_POOL_RX_BUFFER_OBJECTS == TRUE
   /* Create the packet management services. */
   if(pktIncomingBufferPoolCreate(radio) == NULL) {
-    pktAddEventFlags(rto->handler, (EVT_PKT_BUFFER_MGR_FAIL));
+/*    pktAddEventFlags(rto->handler, (EVT_PKT_BUFFER_MGR_FAIL));*/
     return MSG_ERROR;
   }
 #endif
@@ -1921,7 +1921,30 @@ radio_freq_hz_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
 }
 
 /**
- * @brief   Get current receive operating frequency.
+ * @brief   Get current absolute receive operating frequency.
+ *
+ * @param[in] radio         Radio unit ID.
+ *
+ * @return    Receive frequency.
+ * @retval    Absolute current receive frequency.
+ * @retval    Default operating frequency if receive not active.
+ *
+ * @notapi
+ */
+radio_freq_hz_t pktGetAbsoluteReceiveFrequency(const radio_unit_t radio) {
+  packet_svc_t *handler = pktGetServiceObject(radio);
+  radio_freq_hz_t op_freq;
+
+  op_freq = pktComputeOperatingFrequency(radio,
+                                         handler->radio_rx_config.base_frequency,
+                                         handler->radio_rx_config.step_hz,
+                                         handler->radio_rx_config.channel,
+                                         RADIO_RX);
+  return op_freq;
+}
+
+/**
+ * @brief   Get current receive operating frequency or frequency code.
  *
  * @param[in] radio         Radio unit ID.
  *
@@ -1931,7 +1954,7 @@ radio_freq_hz_t pktGetDefaultOperatingFrequency(const radio_unit_t radio) {
  *
  * @notapi
  */
-radio_freq_hz_t pktGetReceiveOperatingFrequency(const radio_unit_t radio) {
+static radio_freq_hz_t pktGetReceiveOperatingFrequencyOrCode(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   radio_freq_hz_t op_freq;
   if(pktIsReceiveEnabled(radio)) {
@@ -2172,7 +2195,7 @@ radio_freq_hz_t pktComputeOperatingFrequency(const radio_unit_t radio,
     step = 0;
     chan = 0;
     /* FIXME: Should switch on all special codes for error check. */
-    base_freq = pktGetReceiveOperatingFrequency(radio);
+    base_freq = pktGetReceiveOperatingFrequencyOrCode(radio);
   }
 
   /*
@@ -2218,9 +2241,7 @@ void pktRadioSendComplete(radio_task_object_t *const rto/*,
 
   radio_unit_t radio = rto->handler->radio;
   /*
-   *  The TX thread to be terminated is set in returned object.
-   *  TODO: Just use the result field in RM.
-   *  The TX thread can self terminate using idle terminator.
+   *  The TX thread has scheduled self terminate using idle terminator.
    *  The RTO will be freed by RM.
    */
   rto->command = PKT_RADIO_TX_DONE;

@@ -250,6 +250,7 @@ extern "C" {
                                             radio_chan_hz_t step,
                                             radio_ch_t chan,
                                             const radio_mode_t mode);
+  radio_freq_hz_t   pktGetAbsoluteReceiveFrequency(const radio_unit_t radio);
   radio_unit_t      pktSelectRadioForFrequency(const radio_freq_hz_t freq,
                                           const radio_chan_hz_t step,
                                           const radio_ch_t chan,

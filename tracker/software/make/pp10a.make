@@ -138,8 +138,7 @@ LDSCRIPT= $(CONFDIR)/STM32F413xH.ld
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(ALLCSRC) \
-       $(TESTSRC) \
-       main.c \
+       $(TESTSRC)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.

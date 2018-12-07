@@ -236,7 +236,7 @@ static msg_t pktProcessAFSK(AFSKDemodDriver *myDriver,
   radio_pwm_fifo_t *myFIFO = myDriver->active_demod_stream;
 
   /* Process the PWM data. */
-  for(uint8_t i = 0; i < (sizeof(min_pwm_counts_t) / sizeof(min_pwmcnt_t)); i++) {
+  for(uint8_t i = 0; i < AFSK_NUM_TONES/*(sizeof(min_pwm_counts_t) / sizeof(min_pwmcnt_t))*/; i++) {
     myDriver->decimation_accumulator += current_tone[i];
     while(myDriver->decimation_accumulator >= 0) {
       /*
@@ -908,6 +908,10 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
         /* Increase thread priority. */
         decoder_idle_priority = chThdSetPriority(DECODER_RUN_PRIORITY);
+
+        /* Capture receive frequency for this packet. */
+        myRadioFIFO->freq = pktGetAbsoluteReceiveFrequency(radio);
+
         //TRACE_DEBUG("AFSK > PWM stream active on radio %d", radio);
         pktAddEventFlags(myDriver, EVT_AFSK_PWM_START);
         /* Enable processing of incoming PWM stream. */
@@ -961,6 +965,9 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           myDriver->decoder_state = DECODER_RESET;
           continue;
         }
+        /*
+         * PWM may be 12 or 16 bit in queue.
+         *  Normalise to 16 bit PWM and overlayed byte stream. */
         array_min_pwm_counts_t stream;
         pktUnpackPWMData(data, &stream);
 
@@ -1011,7 +1018,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             continue; /* Decoder state switch. */
           } /* End case PWM_ACK_DECODE_END & PWM_ACK_DECODE_ERROR. */
 
-          /* The next cases all fall through and set DECODER_RESET state. */
 
           /*
            *  If PWM reports a zero impulse or valley.
@@ -1021,6 +1027,22 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             pktAddEventFlags(myHandler, EVT_PWM_ICU_ZERO);
             myFIFO->status |= STA_PWM_ICU_ZERO;
             myDriver->decoder_state = DECODER_RESET;
+            continue; /* Decoder state switch. */
+
+          /*
+           * Occurs if PWM encounters an out of bounds impulse or valley.
+           * This will be noise/weak signal related most likely.
+           * The PWM side has just passed this through without other action.
+           * If the frame is open then it will be faulty so terminate now.
+           * Otherwise for sync discard the in-band and go back for more data.
+           */
+          case PWM_INFO_ICU_LIMIT:
+/*            if(myDriver->rx_hdlc.frame_state == HDLC_FRAME_OPEN) {*/
+            if(isHDLCFrameOpen(myDriver)) {
+              pktAddEventFlags(myHandler, EVT_PWM_ICU_LIMIT);
+              myFIFO->status |= STA_PWM_ICU_LIMIT;
+              myDriver->decoder_state = DECODER_RESET;
+            }
             continue; /* Decoder state switch. */
 
             /*
@@ -1052,6 +1074,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
             /*
              * If the ICU timer overflows during PWM capture.
+             * TODO: Could be handled like a limit exceeded.
              */
           case PWM_TERM_ICU_OVERFLOW:
             pktAddEventFlags(myHandler, EVT_PWM_ICU_OVERFLOW);
@@ -1132,7 +1155,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
       } /* End case DECODER_ACTIVE. */
 
       case DECODER_DISPATCH: {
-/*        if(myHandler->active_packet_object != NULL) {*/
         chDbgAssert(myHandler->active_packet_object != NULL, "No packet buffer in dispatch");
         /*
          * Indicate AFSK decode done.
@@ -1140,19 +1162,21 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
          */
         myDriver->active_demod_stream->status |= STA_AFSK_DECODE_DONE;
 
-        /* Copy latest status into packet buffer object. */
+        /* Transfer receive information into packet buffer object. */
         myHandler->active_packet_object->status =
             myDriver->active_demod_stream->status;
-
         myHandler->active_packet_object->seq_num =
             myDriver->active_demod_stream->seq_num;
-        /* Set AX25 status and dispatch the packet buffer object. */
+        myHandler->active_packet_object->freq =
+            myDriver->active_demod_stream->freq;
+
+        /* Dispatch the packet buffer object. */
         (void)pktDispatchReceivedBuffer(myHandler->active_packet_object);
 
         /* Packet object has been handed over. Remove our reference. */
         myHandler->active_packet_object = NULL;
-        //} /* Active packet object != NULL. */
-        /* Release PWM buffers and reset decoder in RESET state. */
+
+        /* PWM buffers released and decoder reset executed in RESET state. */
         myDriver->decoder_state = DECODER_RESET;
         continue;
       } /* End case DECODER_DISPATCH. */

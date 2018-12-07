@@ -273,7 +273,7 @@ size_t aprs_debug_getPacket(packet_t pp, char* buf, uint32_t len)
 	if(ax25_get_info(pp, &pinfo) == 0)
 	  return 0;
 
-    // Print decoded packet
+    // Print decoded packet. Exit when buffer full.
     uint32_t out = chsnprintf(buf, len, "%s", rec);
     for(uint32_t i = 0; pinfo[i] && (len > out); i++) {
         if(pinfo[i] < 32 || pinfo[i] > 126) {
@@ -1272,9 +1272,11 @@ static void aprs_digipeat(packet_t pp) {
     dedupe_initialized = true;
   }
 
-  /* Check the digipeat conditions. */
-  packet_t result = digipeat_match(conf_sram.aprs.rx.radio_conf.freq,
-                                   pp,
+  /*
+   *  Check the digipeat conditions.
+   *  TODO: Expand aprs to handle multiple rx and tx identities.
+   */
+  packet_t result = digipeat_match(pp,
                                    conf_sram.aprs.rx.call,
                                    conf_sram.aprs.tx.call,
                                    alias_re,

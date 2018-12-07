@@ -6,7 +6,7 @@
 
 void dedupe_init(sysinterval_t ttl);
 void dedupe_remember(packet_t pp, radio_freq_hz_t freq);
-int dedupe_check(packet_t pp, radio_freq_hz_t freq);
+bool dedupe_check(packet_t pp, radio_freq_hz_t freq);
 
 #endif
 

@@ -16,7 +16,6 @@
  */
 static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
   ax25char_t *buf = pkt_buff->buffer;
-  radio_signal_t rssi = pkt_buff->rssi;
   size_t len = pkt_buff->packet_size;
 
   if(len < 3) {
@@ -38,8 +37,15 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
     return;
   }
 
-  /* Continue packet analysis. */
+  /*
+   * Continue packet analysis.
+   * Transfer sequence and radio data to general packet.
+   */
   pp->seq = pkt_buff->seq_num;
+  pp->radio = pkt_buff->handler->radio;
+  pp->freq = pkt_buff->freq;
+  pp->rssi = pkt_buff->rssi;
+
   uint8_t *c;
   uint32_t ilen = ax25_get_info(pp, &c);
   if(ilen == 0) {
@@ -48,14 +54,16 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
     pktReleaseCommonPacketBuffer(pp);
     return;
   }
-  /* Output packet as text. */
+
+  /* Output receive packet as text (truncated to buffer size). */
   char serial_buf[512];
   bool crc_OK = pktGetAX25FrameStatus(pkt_buff);
   size_t x = aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
-  if(rssi != 0xFF) {
+  if(pp->rssi != 0xFF) {
+    /* TODO: Implement radio HAL call to get RSSI in dBm. */
     TRACE_MON("RX   > Packet %d opening RSSI 0x%x (%d dBm)",
-              pkt_buff->seq_num, rssi,
-              (rssi / 2) - Si446x_MODEM_RSSI_COMP_VALUE - 70);
+              pkt_buff->seq_num, pp->rssi,
+              (pp->rssi / 2) - Si446x_MODEM_RSSI_COMP_VALUE - 70);
   }
   else {
     TRACE_MON("RX   > Packet %d opening RSSI not captured", pkt_buff->seq_num);
@@ -65,7 +73,6 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
                                 serial_buf,
                                 x > sizeof(serial_buf) ? "..." : "");
   if(pp->num_addr > 0 && crc_OK) {
-    pp->rssi = rssi;
     aprs_process_packet(pp);
   }
   else {
@@ -74,6 +81,9 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
   pktReleaseCommonPacketBuffer(pp);
 }
 
+/**
+ *
+ */
 void pktMapCallback(pkt_data_object_t *const pkt_buff) {
 
 #if PKT_DUMP_BAD_PACKETS == TRUE
@@ -93,7 +103,7 @@ void pktMapCallback(pkt_data_object_t *const pkt_buff) {
   /* The object and buffer are freed when the callback returns. */
 }
 
-/*
+/**
  *
  */
 bool pktTransmitOnRadio(packet_t pp,
@@ -170,7 +180,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
             tx_chan, pwr, getModulation(mod), cca, len
     );
 
-    /* TODO: Check size of buf. */
+    /* Output transmit packet as text (truncated to buffer size). */
     char buf[1024];
     aprs_debug_getPacket(pp, buf, sizeof(buf));
     TRACE_MON("TX   > %s", buf);

@@ -383,7 +383,9 @@ void pktRadioJammingReset(ICUDriver *myICU) {
  * @post    If the queue is full the optional LED is lit.
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
- * @param[in]   event flags to be set as to why the channel is closed.
+ * @param[in]   sta     flags to be set as to why the channel is closed.
+ * @param[in]   evt     event to be broadcast as to why the channel is closed.
+ * @param[in]   reason  in-band reason code for closing the queue
  *
  * @api
  */
@@ -409,9 +411,9 @@ void pktClosePWMStreamI(ICUDriver *myICU,
   icuStopCaptureI(myICU);
 
   /* Close can be called when there is no PWM activity. */
-  if(myDemod->active_radio_stream != NULL) {
+  if (myDemod->active_radio_stream != NULL) {
     pktAddEventFlagsI(myHandler, evt);
-    if(reason != PWM_TERM_QUEUE_ERROR) {
+    if (reason != PWM_TERM_QUEUE_ERROR) {
 #if USE_HEAP_PWM_BUFFER == TRUE
       input_queue_t *myQueue =
           &myDemod->active_radio_stream->radio_pwm_queue->queue;
@@ -422,27 +424,30 @@ void pktClosePWMStreamI(ICUDriver *myICU,
       input_queue_t *myQueue = &myDemod->active_radio_stream->radio_pwm_queue;
 #endif
       /* End of data flag. */
+      msg_t qs = pktWritePWMinBandMessageI(myQueue, reason);
+#if 0
 #if USE_12_BIT_PWM == TRUE
       byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, reason, 0}};
 #else
       byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, reason}};
 #endif
       msg_t qs = pktWritePWMQueueI(myQueue, pack);
-      if(qs == MSG_TIMEOUT || qs == MSG_ERROR) {
+#endif
+      if (qs == MSG_TIMEOUT || qs == MSG_ERROR) {
         /*
          * No space to write in-band flag.
-         * This may be due to a pending ICU interrupt?
+         * This should not happen as any write should check status.
          * In any case flag the error.
          */
-        if(qs == MSG_ERROR)
+        if (qs == MSG_ERROR)
           pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_PWM_ERROR, PAL_HIGH);
 
-        if(qs == MSG_TIMEOUT)
+        if (qs == MSG_TIMEOUT)
           pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_OVERFLOW, PAL_HIGH);
 
         pktAddEventFlagsI(myHandler, EVT_PWM_QUEUE_ERROR);
         sta |= STA_PWM_QUEUE_ERROR;
-      }
+      } /* End if (qs == MSG_TIMEOUT || qs == MSG_ERROR). */
       sta |= STA_PWM_STREAM_CLOSED;
     } /* End if(reason != PWM_TERM_QUEUE_ERROR). */
     myDemod->active_radio_stream->status |= sta;
@@ -516,7 +521,7 @@ void pktOpenPWMStreamI(ICUDriver *myICU, eventflags_t evt) {
      * Wait for a timeout before allowing new CAA detection.
      * TODO: Keep data on jamming and adjust RSSI threshold?
      */
-    chVTSetI(&myICU->jam_timer, TIME_S2I(PWM_JAMMING_TIMEOUT),
+    chVTSetI(&myICU->jam_timer, PWM_JAMMING_TIMEOUT,
              (vtfunc_t)pktRadioJammingReset, myICU);
 
     /* Turn on the FIFO out LED. */
@@ -1081,6 +1086,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
   }
 
   case MSG_RESET: {
+    /* Space remaining in current queue for in-band message only. */
 #if USE_HEAP_PWM_BUFFER == TRUE
     /* Get another queue/buffer object. */
     radio_pwm_object_t *pwm_object = chPoolAllocI(&myDemod->pwm_buffer_pool);
@@ -1120,6 +1126,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 
       /* Write the swap message to the old queue. */
       msg_t qs = pktWritePWMQueueI(&myObject->queue, pack);
+      chDbgAssert(qs == MSG_OK, "PWM write of in-band swap message failed");
 
       /* Set the new object as the active PWM queue/buffer. */
       myDemod->active_radio_stream->radio_pwm_queue = pwm_object;
@@ -1156,13 +1163,17 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
      * Wait for a timeout before allowing new CAA detection.
      * TODO: Keep data on jamming and adjust RSSI threshold?
      */
-    chVTSetI(&myICU->jam_timer, TIME_S2I(PWM_JAMMING_TIMEOUT),
+    chVTSetI(&myICU->jam_timer, PWM_JAMMING_TIMEOUT,
              (vtfunc_t)pktRadioJammingReset, myICU);
     chSysUnlockFromISR();
     return;
   } /* End case. */
 
   case MSG_TIMEOUT: {
+    /*
+     *  The PWM queue reported full.
+     *  But prior write should have reported "one slot left".
+     */
     chDbgAssert(qs != MSG_OK, "PWM queue unexpectedly full");
     pktClosePWMStreamI(myICU, STA_PWM_QUEUE_ERROR,
                        EVT_PWM_QUEUE_ERROR, PWM_TERM_QUEUE_ERROR);
@@ -1263,11 +1274,11 @@ msg_t pktQueuePWMDataI(ICUDriver *myICU) {
  * @return              The operation status.
  * @retval MSG_OK       The PWM entry has been queued.
  * @retval MSG_RESET    One slot remains which is reserved for an in-band signal.
- * @retval MSG_TIMEOUT  The queue is full for normal PWM data writes.
+ * @retval MSG_TIMEOUT  The queue is full.
  * @retval MSG_ERROR    The queue chunk size has become incorrect.
  *
  *
- * @api
+ * @iclass
  */
 msg_t pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack) {
 
@@ -1278,16 +1289,17 @@ msg_t pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack) {
     return MSG_ERROR;
   }
 
-  /* Check if there is only one slot left. */
+  /* Check if the queue is full. */
+  if(empty < sizeof(byte_packed_pwm_t))
+    return MSG_TIMEOUT;
+
+  /* If there is only one slot left reserve it for an in-band message. */
   if(empty == sizeof(byte_packed_pwm_t)) {
     array_min_pwm_counts_t data;
     pktUnpackPWMData(pack, &data);
     if(data.pwm.impulse != PWM_IN_BAND_PREFIX)
       return MSG_RESET;
   }
-
-  if(empty < sizeof(byte_packed_pwm_t))
-    return MSG_TIMEOUT;
 
   /* Data is normal PWM or an in-band. */
   for(uint8_t b = 0; b < sizeof(pack.bytes); b++) {

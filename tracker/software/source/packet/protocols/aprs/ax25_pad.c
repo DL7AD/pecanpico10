@@ -273,6 +273,8 @@ packet_t ax25_new (void) {
 	this_p->magic2 = MAGIC;
 	this_p->num_addr = (-1);
 	this_p->nextp = NULL;
+	this_p->radio = PKT_RADIO_NONE;
+	this_p->freq = FREQ_INVALID;
 
 	return (this_p);
 }

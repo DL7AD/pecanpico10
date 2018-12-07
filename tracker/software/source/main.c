@@ -1,5 +1,5 @@
-#include "ch.h"
-#include "hal.h"
+//#include "ch.h"
+//#include "hal.h"
 #include "pktconf.h"
 #include "debug.h"
 #include "threads.h"
@@ -14,9 +14,9 @@ int main(void) {
      * Setup packet system...
      * TODO: Check power state and start systems only if enough power available
      * Create memory (CCM based heap).
-     * - Most DSP related data is held in CCM SRAM2 mirror.
+     * - Most DSP related data is held in CCM SRAM2 alias.
      * - When using fixed point DSP the use of CCM may improve performance.
-     * - There is no DMA involved in DSP filtering/decoding.
+     * - There is no DMA involved in DSP filtering/decoding so CCM is safe.
      * Configure core IO/bus devices
      * Setup the debug output (UART, USB)
      * Configure radios.
