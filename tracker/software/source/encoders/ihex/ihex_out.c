@@ -31,7 +31,7 @@ void hexout(BaseSequentialStream * fhex, uint8_t byte, bool end) {
   if ((buffer_pos == MAX_HEX_LINE) || ((end) && (buffer_pos > 0)) ) {
       /* it's time to dump the buffer to a line in the file */
       chprintf(fhex, ":%02x%04x00", buffer_pos, output_addr);
-      sum = buffer_pos + 1 + (output_addr & 0xFF) + ((output_addr >> 8) & 0xFF);
+      sum = buffer_pos + (output_addr & 0xFF) + ((output_addr >> 8) & 0xFF);
       uint8_t i;
       for (i = 0; i < buffer_pos; i++) {
           chprintf(fhex, "%02x", byte_buffer[i]);

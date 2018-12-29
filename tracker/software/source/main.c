@@ -16,7 +16,7 @@ int main(void) {
      * Create memory (CCM based heap).
      * - Most DSP related data is held in CCM SRAM2 alias.
      * - When using fixed point DSP the use of CCM may improve performance.
-     * - There is no DMA involved in DSP filtering/decoding so CCM is safe.
+     * - No DMA is involved in DSP data so CCM is viable to use.
      * Configure core IO/bus devices
      * Setup the debug output (UART, USB)
      * Configure radios.

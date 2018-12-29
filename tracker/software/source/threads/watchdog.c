@@ -3,7 +3,7 @@
 #include "debug.h"
 #include "portab.h"
 
-#ifndef DISABLE_HW_WATCHDOG
+#if DISABLE_HW_WATCHDOG != TRUE
 // Hardware Watchdog configuration
 static const WDGConfig wdgcfg = {
 	.pr =	STM32_IWDG_PR_256,
@@ -40,7 +40,7 @@ THD_FUNCTION(wdgThread, arg) {
 		}*/
 
 		if(healthy)
-#ifndef DISABLE_HW_WATCHDOG
+#if DISABLE_HW_WATCHDOG != TRUE
 			wdgReset(&WDGD1);	// Reset hardware watchdog at no error
 #endif
 		// Switch LEDs
@@ -51,9 +51,12 @@ THD_FUNCTION(wdgThread, arg) {
 	}
 }
 
+/**
+ *
+ */
 void init_watchdog(void)
 {
-#ifndef DISABLE_HW_WATCHDOG
+#if DISABLE_HW_WATCHDOG != TRUE
 	// Initialize Watchdog
 	TRACE_INFO("WDG  > Initialize hardware watchdog");
 	wdgStart(&WDGD1, &wdgcfg);
