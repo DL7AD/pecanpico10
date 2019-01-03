@@ -22,8 +22,19 @@
 #define SERIAL_USB1_DRIVER          SDU1
 #define SERIAL_USB2_DRIVER          SDU2
 
+/* Console selection. */
+#if !defined(USE_UART_FOR_CONSOLE)
+#define USE_UART_FOR_CONSOLE        FALSE
+#endif
+
+/* Serial channel mapping. */
+#if USE_UART_FOR_CONSOLE == TRUE
+#define SERIAL_CONSOLE_DRIVER       SERIAL_UART_DRIVER
+#define SERIAL_TRACE_DRIVER         SERIAL_USB2_DRIVER
+#else
 #define SERIAL_CONSOLE_DRIVER       SERIAL_USB2_DRIVER
 #define SERIAL_TRACE_DRIVER         SERIAL_UART_DRIVER
+#endif
 #define SERIAL_DEBUG_DRIVER         SERIAL_UART_DRIVER
 #define SERIAL_STREAM_DRIVER        SERIAL_USB1_DRIVER
 

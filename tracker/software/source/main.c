@@ -17,6 +17,7 @@ int main(void) {
      * - Most DSP related data is held in CCM SRAM2 alias.
      * - When using fixed point DSP the use of CCM may improve performance.
      * - No DMA is involved in DSP data so CCM is viable to use.
+     * - The exceptions stack is also located in CCM (see STM32F413xH.ld)
      * Configure core IO/bus devices
      * Setup the debug output (UART, USB)
      * Configure radios.
@@ -29,6 +30,9 @@ int main(void) {
 	TRACE_INFO("MAIN > Loop active");
 #if DISABLE_HW_WATCHDOG == TRUE
 	TRACE_WARN("MAIN > *** Hardware watchdog is disabled ***");
+#endif
+#if defined(USE_UART_FOR_CONSOLE)
+    TRACE_WARN("MAIN > *** Console is set to UART channel ***");
 #endif
 	while(true) {
 	  /* Trace events from packet decoder system. */

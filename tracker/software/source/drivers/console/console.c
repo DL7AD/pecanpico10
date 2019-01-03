@@ -6,6 +6,10 @@
 #include "pktconf.h"
 #include "console.h"
 
+#if USE_UART_FOR_CONSOLE == TRUE
+#warning "Console is set to UART"
+#endif
+
 /*===========================================================================*/
 /* Module macros.                  .                                         */
 /*===========================================================================*/

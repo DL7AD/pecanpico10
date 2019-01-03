@@ -8,6 +8,13 @@
 #include "config.h"
 #include <string.h>
 
+/* TODO: Add a trace system which does not in-line process the trace data to stream.
+ * The system should be useable from Interrupt level as well as thread level.
+ * e.g. Trace events submit a time stamped, function, etc. entry to a queue.
+ * The format string for a trace message remains in the originating code.
+ * A pointer to the format string is in the trace data.
+ * The variables in the trace are put in the queue data (limited to some number TBD)
+ */
 #define ERROR_LIST_LENGTH	64
 #define ERROR_LIST_SIZE		32
 

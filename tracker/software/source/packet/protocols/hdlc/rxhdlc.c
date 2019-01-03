@@ -42,27 +42,27 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
 
   /* Check if a byte has been accumulated or if still searching for sync. */
   if((++myHDLC->bit_index % 8U == 0)
-      || (myHDLC->frame_state == HDLC_FRAME_SEARCH)) {
+      || (myHDLC->frame_state == HDLC_FLAG_SEARCH)) {
 
     /* Process HDLC stream based on frame state.  */
     switch(myHDLC->frame_state) {
 
     /* Frame opening sync pattern searching. */
-    case HDLC_FRAME_SEARCH: {
-      /*
-       *  Frame start not yet detected.
-       * Check for opening HDLC flag sequence.
-       */
-      if(
+    case HDLC_FLAG_SEARCH: {
+      /* Search bit pattern as it slides by looking for
+         opening HDLC flag sequence. */
+      if (
           ((myHDLC->hdlc_bits & HDLC_SYNC_MASK_A) == HDLC_SYNC_OPEN_A)
           ||
           ((myHDLC->hdlc_bits & HDLC_SYNC_MASK_B) == HDLC_SYNC_OPEN_B)
-      ) {
-
+         ) {
 
         /* Reset data bit/byte index. */
         myHDLC->bit_index = 0;
-
+#if HDLC_SYNC_USE_COUNTER == TRUE
+        /* Reset PLL sync counter. */
+        myHDLC->sync_count = 0;
+#endif
         /*
          * Contiguous HDLC flags in the preamble will be handled in SYNC state.
          */
@@ -72,13 +72,16 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
       return (myHDLC->last_token = HDLC_TOK_FEED);
     } /* End case FRAME_SEARCH. */
 
-    /* A frame opening sync pattern has been detected. */
+    /* An opening sync pattern has been detected. */
     case HDLC_FRAME_SYNC: {
-      switch(myHDLC->hdlc_bits & HDLC_BIT_MASK) {
+      switch (myHDLC->hdlc_bits & HDLC_BIT_MASK) {
       case HDLC_FLAG: {
         /*
          * Another preamble HDLC flag. Continue waiting for data.
          */
+#if HDLC_SYNC_USE_COUNTER == TRUE
+        myHDLC->sync_count++;
+#endif
         return (myHDLC->last_token = HDLC_TOK_FEED);
       } /* End case HDLC_FLAG. */
 
@@ -88,15 +91,25 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
          *  Since the decoder is in sync phase just go back to search.
          *  No data has been captured.
          */
-        myHDLC->frame_state = HDLC_FRAME_SEARCH;
+        myHDLC->frame_state = HDLC_FLAG_SEARCH;
         return (myHDLC->last_token = HDLC_TOK_RESET);
       } /* End case HDLC_FRAME_SYNC. */
 
       default:
-        /* If not an HDLC pattern then transition to open state. */
-        myHDLC->frame_state = HDLC_FRAME_OPEN;
+        /* Not an HDLC pattern. */
+#if HDLC_SYNC_USE_COUNTER == TRUE
+        /* Check number of contiguous flags received. This sequence is
+           intended to settle the decoder PLL. */
+        if (myHDLC->sync_count < HDLC_PLL_SYNC_COUNT) {
+          /* Discard as this is likely junk. Go back to bit level sync */
+          myHDLC->frame_state = HDLC_FLAG_SEARCH;
+          return (myHDLC->last_token = HDLC_TOK_FEED);
+        }
+#endif
         /* A data byte is available. */
-        return (myHDLC->last_token = HDLC_TOK_DATA);
+        myHDLC->frame_state = HDLC_FRAME_OPEN;
+
+        return (myHDLC->last_token = HDLC_TOK_OPEN);
       } /* End switch on HDLC code. */
     } /* End case HDLC_FRAME_SYNC. */
 
@@ -110,7 +123,7 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
          * If the frame has sufficient data the AFSK decoder can close it.
          * If not assume sync will be restarted.
          */
-        myHDLC->frame_state = HDLC_FRAME_SEARCH;
+        myHDLC->frame_state = HDLC_FLAG_SEARCH;
 
         /* Reset HDLC processor data bit/byte index. */
         myHDLC->bit_index = 0;
@@ -120,10 +133,10 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
       case HDLC_RESET: {
         /*
          *  Can be a real HDLC reset or more likely incorrect bit sync.
-         *  The decoder is in data state so go back to search.
+         *  The HDLC processor stays in frame open state.
          *  The AFSK decoder will decide what to do.
          */
-        myHDLC->frame_state = HDLC_FRAME_SEARCH;
+        //myHDLC->frame_state = HDLC_FLAG_SEARCH;
 
         /* Reset HDLC processor data bit/byte index. */
         myHDLC->bit_index = 0;

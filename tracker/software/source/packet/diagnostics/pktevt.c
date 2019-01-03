@@ -12,7 +12,9 @@ event_listener_t pkt_el;
 event_listener_t afsk_el;
 static bool trace_enabled = false;
 
-
+/**
+ * TODO: This should start a thread which outputs to a stream
+ */
 void pktEnableServiceEventTrace(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   chEvtRegisterMaskWithFlags(pktGetEventSource(handler), &pkt_el,
@@ -21,12 +23,18 @@ void pktEnableServiceEventTrace(radio_unit_t radio) {
   trace_enabled = true;
 }
 
+/**
+ * TODO: This should terminate the trace thread
+ */
 void pktDisableServiceEventTrace(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   trace_enabled = false;
   chEvtUnregister(pktGetEventSource(handler), &pkt_el);
 }
 
+/**
+ * TODO: This should start a thread which outputs to a stream
+ */
 void pktEnableDecoderEventTrace(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   chEvtRegisterMaskWithFlags(pktGetEventSource((AFSKDemodDriver *)handler->rx_link_control), &afsk_el,
@@ -34,6 +42,9 @@ void pktEnableDecoderEventTrace(radio_unit_t radio) {
                 ALL_EVENTS);
 }
 
+/**
+ * TODO: This should terminate the thread
+ */
 void pktDisableDecoderEventTrace(radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
   chEvtUnregister(pktGetEventSource((AFSKDemodDriver *)handler->rx_link_control), &afsk_el);
@@ -55,7 +66,7 @@ eventmask_t evt = chEvtGetAndClearEvents(
       TRACE_DEBUG("PKT  > CCA spike on receive");
     }
     if(flags & EVT_PWM_ICU_LIMIT) {
-      TRACE_DEBUG("PKT  > ICU exceed PWM stream width limit in open frame");
+      TRACE_DEBUG("PKT  > ICU exceeded PWM stream width limit in open frame");
     }
 #if 0
     if(flags & EVT_RADIO_CCA_GLITCH) {

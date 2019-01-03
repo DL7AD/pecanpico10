@@ -117,22 +117,9 @@ typedef struct packetHandlerData {
   bool                      radio_init; /**< Radio has been initialised     */
 
   binary_semaphore_t        radio_sem;  /**< Radio lock semaphore.          */
-
-#if PKT_RTO_HAS_INNER_CB != TRUE
-  /**
-   * @brief Radio receiver operating parameters.
-   */
-  radio_task_object_t       radio_rx_config;
-
-  /**
-   * @brief Radio transmitter operating parameters.
-   */
-  radio_task_object_t       radio_tx_config;
-
-#else
   radio_params_t            radio_rx_config;
   radio_params_t            radio_tx_config;
-#endif
+
   /**
    * @brief Counter for active transmit threads.
    */
@@ -232,13 +219,11 @@ extern "C" {
                             const radio_freq_hz_t frequency,
                             const radio_chan_hz_t ch_step,
                             const sysinterval_t timeout);*/
-#if PKT_RTO_HAS_INNER_CB == TRUE
   msg_t                 pktEnableDataReception(const radio_unit_t radio,
                                const radio_ch_t channel,
                                const radio_squelch_t sq,
                                const pkt_buffer_cb_t cb,
                                const sysinterval_t to);
-#endif
   msg_t                 pktOpenReceiveService(const radio_unit_t radio,
                               const radio_mod_t encoding,
                               const radio_freq_hz_t frequency,

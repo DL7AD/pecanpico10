@@ -168,7 +168,7 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #define STA_AFSK_UNEXPECTED_INBAND  STATUS_MASK(18)
 #define STA_AFSK_PWM_TIMEOUT        STATUS_MASK(19)
 
-#define STA_AFSK_FRAME_SYNC         STATUS_MASK(20)
+#define STA_AFSK_FRAME_OPEN         STATUS_MASK(20)
 #define STA_AFSK_FRAME_DATA         STATUS_MASK(21)
 #define STA_PWM_STREAM_DISABLE      STATUS_MASK(22)
 #define STA_PWM_RADIO_STOP          STATUS_MASK(23)
@@ -304,37 +304,27 @@ static inline int8_t pktReadGPIOline(ioline_t line) {
  * @api
  */
 static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
-#if PKT_RTO_HAS_INNER_CB != TRUE
-                                        const radio_task_object_t *task,
-#else
                                         const radio_command_t cmd,
                                         const radio_params_t *cfg,
-#endif
                                         const sysinterval_t timeout,
                                         const radio_task_cb_t cb) {
 
-#if PKT_RTO_HAS_INNER_CB == TRUE
+
   if(cmd > PKT_RADIO_TASK_MAX) {
     chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
   }
-#endif
+
   radio_task_object_t *rt = NULL;
-#if PKT_RTO_HAS_INNER_CB != TRUE
-  msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
-  if(msg != MSG_OK)
-    return msg;
-  *rt = *task;
-  pktSubmitRadioTask(radio, rt, cb);
-#else
+
   msg_t msg = pktGetRadioTaskObject(radio, timeout, cfg, &rt);
   if(msg != MSG_OK)
     return msg;
   rt->user_cb = cb;
   rt->command = cmd;
   pktSubmitRadioTask(radio, rt, NULL);
-#endif
-  return msg;
+
+  return MSG_OK;
 }
 
 /**
@@ -356,35 +346,24 @@ static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
  * @api
  */
 static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
-#if PKT_RTO_HAS_INNER_CB != TRUE
-                                        const radio_task_object_t *task,
-#else
                                         const radio_command_t cmd,
                                         const radio_params_t *cfg,
-#endif
                                         const radio_task_cb_t cb) {
 
-#if PKT_RTO_HAS_INNER_CB == TRUE
+
   if(cmd > PKT_RADIO_TASK_MAX) {
     chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
   }
-#endif
+
   radio_task_object_t *rt = NULL;
-#if PKT_RTO_HAS_INNER_CB != TRUE
-  msg_t msg = pktGetRadioTaskObjectI(radio, &rt);
-  if(msg == MSG_TIMEOUT)
-    return MSG_TIMEOUT;
-  *rt = *task;
-  pktSubmitPriorityRadioTaskI(radio, rt, cb);
-#else
   msg_t msg = pktGetRadioTaskObjectI(radio, cfg, &rt);
   if(msg == MSG_TIMEOUT)
     return MSG_TIMEOUT;
   rt->user_cb = cb;
   rt->command = cmd;
   pktSubmitPriorityRadioTaskI(radio, rt, NULL);
-#endif
+
   return msg;
 }
 
@@ -410,36 +389,23 @@ static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
  * @api
  */
 static inline msg_t pktQueuePriorityRadioCommand(const radio_unit_t radio,
-#if PKT_RTO_HAS_INNER_CB != TRUE
-                                        const radio_task_object_t *task,
-#else
                                         const radio_command_t cmd,
                                         const radio_params_t *cfg,
-#endif
                                         const sysinterval_t timeout,
                                         const radio_task_cb_t cb) {
 
-#if PKT_RTO_HAS_INNER_CB == TRUE
+
   if(cmd > PKT_RADIO_TASK_MAX) {
     chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
   }
-#endif
   radio_task_object_t *rt = NULL;
-#if PKT_RTO_HAS_INNER_CB != TRUE
-  msg_t msg = pktGetRadioTaskObject(radio, timeout, &rt);
-  if(msg != MSG_OK)
-    return msg;
-  *rt = *task;
-  pktSubmitPriorityRadioTask(radio, rt, cb);
-#else
   msg_t msg = pktGetRadioTaskObject(radio, timeout, cfg, &rt);
   if(msg != MSG_OK)
     return msg;
   rt->user_cb = cb;
   rt->command = cmd;
   pktSubmitPriorityRadioTask(radio, rt, NULL);
-#endif
   return msg;
 }
 

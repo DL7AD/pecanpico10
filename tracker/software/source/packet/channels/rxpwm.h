@@ -32,10 +32,10 @@
 /* Limit of ICU and PWM count for packed format. */
 
 #if USE_12_BIT_PWM == TRUE
-#define PWM_MAX_COUNT   0xFFF
+#define PWM_MAX_COUNT   0xFFFU
 #define MAX_PWM_BITS    12
 #else
-#define PWM_MAX_COUNT   0xFFFF
+#define PWM_MAX_COUNT   0xFFFFU
 #define MAX_PWM_BITS    16
 #endif
 
@@ -223,7 +223,7 @@ extern "C" {
   void      pktRadioCCAInput(ICUDriver *myICU);
   void      pktStopAllICUtimersI(ICUDriver *myICU);
   void      pktSleepICUI(ICUDriver *myICU);
-  msg_t     pktQueuePWMDataI(ICUDriver *myICU);
+  //msg_t     pktICUQueueAsPWMDataI(ICUDriver *myICU);
   void      pktClosePWMStreamI(ICUDriver *myICU,
                                statusflags_t sta,
                                eventflags_t evt,
@@ -260,6 +260,8 @@ static inline void pktConvertICUtoPWM(ICUDriver *icup,
      */
     impulse = PWM_IN_BAND_PREFIX;
     valley = PWM_INFO_ICU_LIMIT;
+/*    pktWritePWMinBandMessageI(input_queue_t *queue,
+                                           pwm_code_t reason) {*/
   }
 
 #if USE_12_BIT_PWM == TRUE
@@ -309,6 +311,12 @@ static inline void pktUnpackPWMData(byte_packed_pwm_t src,
  *
  * @param[in] queue     pointer to an input queue object.
  * @param[in] reason    in-band reason code for closing the queue
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       The PWM entry has been queued.
+ * @retval MSG_RESET    One slot remains which is reserved for an in-band signal.
+ * @retval MSG_TIMEOUT  The queue is full.
+ * @retval MSG_ERROR    The queue chunk size has become incorrect.
  *
  * @iclass
  */

@@ -187,7 +187,6 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
 
     /* The service object. */
     packet_svc_t *handler = pktGetServiceObject(radio);
-#if PKT_RTO_HAS_INNER_CB == TRUE
     /* Get  the saved radio data for this new request. */
     radio_params_t rp = handler->radio_tx_config;
 
@@ -208,29 +207,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
 
     msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_TX_SEND,
                                     &rp, TIME_S2I(10), cb);
-#else
-    /* Get  the saved radio data for this new request. */
-    radio_task_object_t rt = handler->radio_tx_config;
 
-    rt.handler = handler;
-    rt.command = PKT_RADIO_TX_SEND;
-    rt.type = mod;
-    rt.base_frequency = op_freq;
-    rt.step_hz = step;
-    rt.channel = tx_chan;
-    rt.tx_power = pwr;
-    rt.tto = TIME_S2I(5);
-    rt.squelch = cca;
-    rt.packet_out = pp;
-
-    /* Serial number for this TX. */
-    rt.rt_seq++;
-
-    /* Update the task mirror. */
-    handler->radio_tx_config = rt;
-
-    msg_t msg = pktQueueRadioCommand(radio, &rt, TIME_S2I(10), cb);
-#endif
     if(msg == MSG_TIMEOUT) {
       TRACE_ERROR("RAD  > Failed to post radio task");
       pktReleaseBufferChain(pp);

@@ -261,8 +261,9 @@ static msg_t pktProcessAFSK(AFSKDemodDriver *myDriver,
 
           case HDLC_TOK_SYNC: {
 
-            /* HDLC has detected an opening sync pattern. */
+            /* HDLC has detected an opening bit sync pattern. */
             myHandler->sync_count++;
+#if 0
             if(myHandler->active_packet_object == NULL) {
               myDriver->active_demod_stream->status |= STA_AFSK_FRAME_SYNC;
               /* Allocate management object and packet buffer. */
@@ -284,13 +285,19 @@ static msg_t pktProcessAFSK(AFSKDemodDriver *myDriver,
             } else {
               pktResetDataCount(myHandler->active_packet_object);
             }
+#else
+            /* Reset packet data count if a buffer has been assigned. */
+            if(myHandler->active_packet_object != NULL)
+              pktResetDataCount(myHandler->active_packet_object);
+#endif
+
             break; /* Continue processing PWM stream. */
           } /* End case HDLC_TOK_SYNC. */
 
           case HDLC_TOK_FLAG: {
 
             /*
-             * HDLC flag token should only occur after sync when a frame is open.
+             * HDLC flag token should only occur after a frame is open.
              * Check if the frame has valid data in which case the flag closes the frame.
              */
             chDbgAssert(myHandler->active_packet_object != NULL, "No packet buffer in frame close");
@@ -320,12 +327,16 @@ static msg_t pktProcessAFSK(AFSKDemodDriver *myDriver,
           } /* End case HDLC_TOK_RLL or HDLC_TOK_FEED. */
 
           case HDLC_TOK_RESET: {
-            pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_LOW);
+
             if(myHandler->active_packet_object == NULL) {
-              /* Frame is not open. HDLC processor is back in HDLC_FRAME_SEARCH. */
+              /* Frame is not open.  HDLC processor is back in
+                 HDLC_FRAME_SEARCH state. */
+              pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_LOW);
               break; /* Continue processing PWM stream. */
             }
 #if 1
+            /* Frame is open so reset data count.
+               HDLC processor stays in open state. */
             pktResetDataCount(myHandler->active_packet_object);
             break;
 #else
@@ -345,6 +356,33 @@ static msg_t pktProcessAFSK(AFSKDemodDriver *myDriver,
 #endif
           } /* End case HDLC_TOK_RESET. */
 
+          case HDLC_TOK_OPEN:
+            /* The HDLC processor has received a string of HDLC flags.
+             * The decoder PLL has had time to settle.
+             * Transition to an open frame now.
+             * Note this phase can be re-entered if HDLC RESET is encountered.
+             */
+            if(myHandler->active_packet_object == NULL) {
+                myDriver->active_demod_stream->status |= STA_AFSK_FRAME_OPEN;
+                /* Allocate management object and packet buffer. */
+                myHandler->active_packet_object =
+                    pktAssignReceivePacketObject(myHandler, TIME_MS2I(100));
+                /* If no management object/buffer is available get NULL. */
+                if(myHandler->active_packet_object == NULL) {
+                  pktAddEventFlags(myHandler, EVT_PKT_NO_BUFFER);
+                  /*
+                   * TODO: The STA_PKT_NO_BUFFER status is not checked anywhere.
+                   * When RESET runs the STA_AFSK_DECODE_RESET status is set.
+                   * This causes PWM to abort the current session.
+                   */
+                  TRACE_DEBUG("AFSK > No packet buffer aborted decode on radio %d", radio);
+                  myDriver->active_demod_stream->status |= STA_PKT_NO_BUFFER;
+                  myDriver->decoder_state = DECODER_RESET;
+                  return MSG_ERROR;
+                }
+              }
+            pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
+            /* Falls through. */
           case HDLC_TOK_DATA: {
             /*
              * The decoder normally stays in this state during data decoding.
@@ -354,9 +392,12 @@ static msg_t pktProcessAFSK(AFSKDemodDriver *myDriver,
              * RLL encoding is catered for in data processing.
              */
 
+            chDbgAssert(myHandler->active_packet_object != NULL,
+                        "No packet buffer in data storage");
+
             /* Data is ready and available in MyDriver->rx_hdlc.current_byte. */
             if(!pktStoreReceiveData(myHandler->active_packet_object,
-                                   myDriver->rx_hdlc.current_byte)) {
+                                   getHDLCDataByte(myDriver))) {
               /*
                * AX25 character decoded but buffer is full.
                * Set error state and don't dispatch the AX25 buffer.
@@ -399,13 +440,11 @@ static msg_t pktProcessAFSK(AFSKDemodDriver *myDriver,
  * @api
  */
 static bool pktResetAFSKDecoder(AFSKDemodDriver *myDriver) {
-  /*
-   * Called when a decode stream has completed.
-   * Called from normal thread level.
-   */
-
   /* Reset the HDLC decoder data.*/
-  myDriver->rx_hdlc.frame_state = HDLC_FRAME_SEARCH;
+  myDriver->rx_hdlc.frame_state = HDLC_FLAG_SEARCH;
+#if HDLC_SYNC_USE_COUNTER == TRUE
+  myDriver->rx_hdlc.sync_count = 0;
+#endif
   myDriver->rx_hdlc.tone_freq = TONE_NONE;
   myDriver->rx_hdlc.prior_freq = TONE_NONE;
   myDriver->rx_hdlc.bit_index = 0;
@@ -776,10 +815,10 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   /* Activity LED blink rate scaling variable. */
   int16_t led_count = 0;
 
-#define DECODER_WAIT_TIME           100    /* 100mS. */
-#define DECODER_POLL_TIME           10    /* 10mS. */
-#define DECODER_LED_POLL_PULSE      (50/DECODER_POLL_TIME) /* 50mS. */
-#define DECODER_LED_POLL_CYCLE      (30000/DECODER_POLL_TIME)    /* 30S. */
+#define DECODER_WAIT_TIME           100                         /* 100mS. */
+#define DECODER_POLL_TIME           10                          /* 10mS. */
+#define DECODER_LED_POLL_PULSE      (50/DECODER_POLL_TIME)      /* 50mS. */
+#define DECODER_LED_POLL_CYCLE      (30000/DECODER_POLL_TIME)   /* 30S. */
 
   /* Set thread priority to different level when decoding./ */
 #define DECODER_RUN_PRIORITY        NORMALPRIO+10
@@ -1032,13 +1071,14 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /*
            * Occurs if PWM encounters an out of bounds impulse or valley.
            * This will be noise/weak signal related most likely.
-           * The PWM side has just passed this through without other action.
-           * If the frame is open then it will be faulty so terminate now.
-           * Otherwise for sync discard the in-band and go back for more data.
+           * The PWM side has passed the in-band message in place of the data.
+           * If the frame is open and has data then it will be faulty so terminate now.
+           * Otherwise discard the in-band and go back for more data.
            */
           case PWM_INFO_ICU_LIMIT:
-/*            if(myDriver->rx_hdlc.frame_state == HDLC_FRAME_OPEN) {*/
-            if(isHDLCFrameOpen(myDriver)) {
+            if (isHDLCFrameOpen(myDriver)) {
+              if (myHandler->active_packet_object->packet_size < PKT_MIN_FRAME)
+                continue;
               pktAddEventFlags(myHandler, EVT_PWM_ICU_LIMIT);
               myFIFO->status |= STA_PWM_ICU_LIMIT;
               myDriver->decoder_state = DECODER_RESET;

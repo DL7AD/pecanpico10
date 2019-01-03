@@ -831,7 +831,6 @@ ssdv_packet_t packetRepeats[16];
  * Callback used to throttle image send.
  * Next packet (or burst) is readied.
  */
-#if PKT_RTO_HAS_INNER_CB == TRUE
 static void image_packet_send_complete(radio_task_object_t *rt) {
   chSemSignal(&tx_complete);
 #if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
@@ -841,19 +840,7 @@ static void image_packet_send_complete(radio_task_object_t *rt) {
   (void)rt;
 #endif
 }
-#else
-static bool image_packet_send_complete(radio_task_object_t *rt) {
-  chSemSignal(&tx_complete);
-#if PKT_SHOW_TX_THROTTLE_DEBUG == TRUE
-  TRACE_DEBUG("IMG  > Released transmit semaphore TX sequence %d",
-              rt->tx_seq_num);
-#else
-  (void)rt;
-#endif
-  /* Indicate RTO should be freed. */
-  return false;
-}
-#endif
+
 
 /**
  * @brief  Resend an image packet from a current in process image

@@ -221,10 +221,6 @@ bool pktServiceCreate(const radio_unit_t radio) {
 
   memset(&handler->radio_rx_config, 0, sizeof(radio_task_object_t));
   memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
-#if PKT_RTO_HAS_INNER_CB != TRUE
-  handler->radio_rx_config.handler = handler;
-  handler->radio_tx_config.handler = handler;
-#endif
 
   /* Set flags and radio ID. */
   handler->radio_init = false;
@@ -386,64 +382,6 @@ msg_t pktOpenRadioReceive(const radio_unit_t radio,
 }
 #endif
 
-#if PKT_RTO_HAS_INNER_CB != TRUE
-/**
- * @brief   Enable packet reception.
- * @pre     The packet service must have been opened.
- * @notes   This function submits a request.
- * @notes   The request may fail in the radio manager.
- * @post    The radio is tuned to the specified channel.
- * @post    The packet reception is running if it was stopped.
- *
- * @param[in]   handler pointer to a @p packet handler object.
- * @param[in]   channel radio channel number to select
- * @param[in]   sq      the RSSI setting to be used.
- * @param[in]   cb      callback function called on receipt of packet.
- * @param[in]   to      timeout
- *
- * @return              Status of the service request.
- * @retval MSG_OK       if the service request was queued successfully.
- * @retval MSG_RESET    parameter error or service not in correct state.
- * @retval MSG_TIMEOUT  if the service request could not be queued.
- *
- * @api
- */
-msg_t pktEnableDataReception(const radio_unit_t radio,
-                             const radio_ch_t channel,
-                             const radio_squelch_t sq,
-                             const pkt_buffer_cb_t cb,
-                             const sysinterval_t to) {
-
-  packet_svc_t *handler = pktGetServiceObject(radio);
-  if(handler == NULL)
-    return MSG_RESET;
-
-  if(handler->state != PACKET_READY)
-    return MSG_RESET;
-
-  /* FIXME: Temporary hack. */
-  while(handler->rx_state != PACKET_RX_OPEN) {
-    chThdSleep(TIME_MS2I(1));
-  }
-
-  /* Set the packet received callback. */
-  handler->usr_callback = cb;
-
-  handler->radio_rx_config.channel = channel;
-  handler->radio_rx_config.squelch = sq;
-
-  radio_task_object_t rt = handler->radio_rx_config;
-
-  rt.command = PKT_RADIO_RX_START;
-
-  msg_t msg = pktQueueRadioCommand(radio, &rt, to, NULL);
-  if(msg == MSG_OK)
-    pktAddEventFlags(handler, EVT_PKT_RECEIVE_START);
-  return msg;
-}
-#endif
-
-#if PKT_RTO_HAS_INNER_CB == TRUE
 /**
  * TODO: Should not process this via the outer level callbacks.
  * Should be handled inside RM initiated by a macro level directive.
@@ -469,32 +407,6 @@ static void pktReceiveStartCB(radio_task_object_t *rt) {
   }
   TRACE_DEBUG("RAD  > Starting packet receive on radio %d (CB)", radio);
 }
-#else
-/**
- *
- */
-static bool pktReceiveStartCB(radio_task_object_t *rt) {
-  packet_svc_t *handler = rt->handler;
-  const radio_unit_t radio = handler->radio;
-
-  /*
-   * TODO: Check result from open (rt->result)
-   *  Now start receive.
-   *  A re-schedule may have allowed another task to be queued.
-   *  The existing object is re-posted as a priority command.
-   *  The radio is locked during receive start actions.
-   */
-  rt->command = PKT_RADIO_RX_START;
-  pktSubmitRadioTask(radio, rt, NULL);
-  TRACE_DEBUG("RAD  > Starting packet receive on radio %d (CB)", radio);
-
-  /*
-   *  Task object passed in has been re-posted.
-   *  Indicate not to be freed by RM upon return from this callback.
-   */
-  return true;
-}
-#endif
 
 /**
  * @brief   Request start of packet reception service.
@@ -571,11 +483,8 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
     handler->radio_rx_config.base_frequency = frequency;
     handler->radio_rx_config.step_hz = step;
     handler->radio_rx_config.channel = channel;
-#if PKT_RTO_HAS_INNER_CB == TRUE
     handler->radio_rx_config.rssi = sq;
-#else
-    handler->radio_rx_config.squelch = sq;
-#endif
+
     /* Set the packet callback. */
     handler->usr_callback = cb;
 
@@ -585,23 +494,12 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
     handler->valid_count = 0;
     handler->good_count = 0;
 
-#if PKT_RTO_HAS_INNER_CB == TRUE
     msg = pktQueueRadioCommand(radio,
                               PKT_RADIO_RX_OPEN,
                               &handler->radio_rx_config,
                               to,
                               pktReceiveStartCB);
-#else
-    radio_task_object_t rt = handler->radio_rx_config;
-    /* Set parameters for radio command. */
-    rt.command = PKT_RADIO_RX_OPEN;
 
-    /*
-     * Open (init) the radio receive (via submit radio task).
-     */
-    msg = pktQueueRadioCommand(radio, &rt, to, pktReceiveStartCB);
-
-#endif
     if(msg == MSG_OK) {
       pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
       //pktEnableDecoderEventTrace(radio);
@@ -618,29 +516,19 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
 
     /* Update start parameters in radio configuration. */
     handler->radio_rx_config.channel = channel;
-#if PKT_RTO_HAS_INNER_CB == TRUE
     handler->radio_rx_config.rssi = sq;
-#else
-    handler->radio_rx_config.squelch = sq;
-#endif
+
 
     /* TODO: Check other parameters match current values in rx_config.
      * Encoding, frequency, step... actually only encoding matters.
      * In that case close the channel and re-open with new encoding.
      */
-#if PKT_RTO_HAS_INNER_CB == TRUE
     msg_t msg = pktQueueRadioCommand(radio,
                                     PKT_RADIO_RX_START,
                                     &handler->radio_rx_config,
                                     to,
                                     NULL);
-#else
-    radio_task_object_t rt = handler->radio_rx_config;
 
-    rt.command = PKT_RADIO_RX_START;
-
-    msg_t msg = pktQueueRadioCommand(radio, &rt, to, NULL);
-#endif
     if(msg == MSG_OK)
       pktAddEventFlags(handler, EVT_PKT_RECEIVE_START);
     return msg;
@@ -658,24 +546,6 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
   return MSG_ERROR;
 }
 
-
-
-#if PKT_RTO_HAS_INNER_CB != TRUE
-/**
- *
- */
-static bool pktReceiveDisableCB(radio_task_object_t *rt) {
-  (void)rt;
-  /*packet_svc_t *handler = rt->handler;
-
-  if(handler->rx_state == PACKET_RX_ENABLED) {
-    handler->rx_state = PACKET_RX_OPEN;
-    rt->result = MSG_OK;
-  }*/
-  /* Task object can be released. */
-  return false;
-}
-#endif
 /**
  * @brief   Stop reception.
  * @notes   Called from an application level.
@@ -706,24 +576,12 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
   /*if(handler->state != PACKET_READY || handler->rx_state != PACKET_RX_ENABLED)*/
     return MSG_ERROR;
 
-#if PKT_RTO_HAS_INNER_CB == TRUE
   /* Submit command. A timeout can occur waiting for a command queue object. */
   radio_params_t rp = handler->radio_rx_config;
   msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_RX_STOP,
                                   &rp, TIME_INFINITE, NULL);
   if(msg != MSG_OK)
     return msg;
-#else
-  /* Stop the radio processing. */
-
-  radio_task_object_t rt = handler->radio_rx_config;
-  rt.command = PKT_RADIO_RX_STOP;
-
-  msg_t msg = pktQueueRadioCommand(radio, &rt, TIME_INFINITE,
-                                       pktReceiveDisableCB);
-  if(msg != MSG_OK)
-    return msg;
-#endif
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_STOP);
   return MSG_OK;
 }
@@ -752,24 +610,13 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
   chDbgCheck(handler->state == PACKET_READY);
   if(handler->state != PACKET_READY)
     return MSG_RESET;
-#if PKT_RTO_HAS_INNER_CB == TRUE
+
   /* Submit command. A timeout can occur waiting for a command queue object. */
   msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_RX_CLOSE,
                                   NULL, TIME_INFINITE, NULL);
   if(msg != MSG_OK)
     return msg;
-#else
-  /* Set parameters for radio. */;
 
-  radio_task_object_t rt = handler->radio_rx_config;
-
-  rt.command = PKT_RADIO_RX_CLOSE;
-
-  /* Submit command. A timeout can occur waiting for a command queue object. */
-  msg_t msg = pktQueueRadioCommand(radio, &rt, TIME_INFINITE, NULL);
-  if(msg != MSG_OK)
-    return msg;
-#endif
   //pktDisableDecoderEventTrace(radio);
   pktAddEventFlags(handler, EVT_PKT_CHANNEL_CLOSE);
   return MSG_OK;

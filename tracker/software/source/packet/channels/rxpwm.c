@@ -878,7 +878,6 @@ void pktRadioCCAInput(ICUDriver *myICU) {
   return;
 }
 
-#if PKT_RTO_HAS_INNER_CB == TRUE
 /**
  * Callback after radio manager gets RSSI from radio
  */
@@ -896,27 +895,45 @@ static void pktRadioRSSIreadCB(radio_task_object_t *rt) {
     /* Set the RSSI or flag unable to read. */
     myFIFO->rssi = (rt->result == MSG_OK) ? rt->rssi : 0xFF;
 }
-#else
+
+
 /**
- * Callback after radio manager gets RSSI from radio
+ * @brief   Converts ICU data and posts to the PWM queue.
+ * @pre     The ICU driver is linked to a demod driver (pointer to driver).
+ * @details Byte values of packed PWM data are written into an input queue.
+ *
+ * @param[in] myICU      pointer to the ICU driver structure
+ *
+ * @return              The operation status.
+ * @retval MSG_OK       The PWM data has been queued.
+ * @retval MSG_TIMEOUT  The queue is already full.
+ * @retval MSG_RESET    Queue has one slot left and the data is not an in-band.
+ * @retval MSG_ERROR    The PWM queue chunk size is incorrect.
+ *
+ * @iclass
  */
-static bool pktRadioRSSIreadCB(radio_task_object_t *rt) {
-  AFSKDemodDriver *myDemod = rt->handler->rx_link_control;
+static msg_t pktICUQueueAsPWMDataI(ICUDriver *myICU) {
 
-  radio_pwm_fifo_t *myFIFO = myDemod->active_radio_stream;
-  if(myFIFO == NULL)
-    return false;
-  /*
-   * Is the callback still good for current RX sequence?
-   * Can be out of sync if the radio manager is delayed or PWM is jittery.
-   */
-  if(myFIFO->seq_num == rt->rt_seq)
-    /* Set the RSSI or flag unable to read. */
-    myFIFO->rssi = (rt->result == MSG_OK) ? rt->rssi : 0xFF;
-  return false;
-}
+  chDbgCheckClassI();
+
+  AFSKDemodDriver *myDemod = myICU->link;
+  chDbgAssert(myDemod != NULL, "no linked demod driver");
+
+#if USE_HEAP_PWM_BUFFER == TRUE
+  input_queue_t *myQueue =
+      &myDemod->active_radio_stream->radio_pwm_queue->queue;
+#if USE_CCM_BASED_PWM_HEAP == TRUE
+  pktAssertCCMdynamicCheck(myQueue);
 #endif
+#else
+  input_queue_t *myQueue = &myDemod->active_radio_stream->radio_pwm_queue;
+#endif
+  chDbgAssert(myQueue != NULL, "no queue assigned");
 
+  byte_packed_pwm_t pack;
+  pktConvertICUtoPWM(myICU, &pack);
+  return pktWritePWMQueueI(myQueue, pack);
+}
 
 /**
  * @brief   Width callback from ICU driver.
@@ -945,8 +962,8 @@ void pktRadioICUWidth(ICUDriver *myICU) {
     myHandler->radio_rx_config.seq_num++;
 
 #if PKT_RSSI_CAPTURE == TRUE
-    /* Setup a radio task object. */
-#if PKT_RTO_HAS_INNER_CB == TRUE
+    /* Queue a radio task to read RSSI in radio. */
+
     radio_params_t rp = myHandler->radio_rx_config;
 
     /* Clear RSSI (no value). */
@@ -956,27 +973,12 @@ void pktRadioICUWidth(ICUDriver *myICU) {
     rp.seq_num = myDemod->packet_handler->radio_rx_config.seq_num;
     myDemod->active_radio_stream->seq_num = rp.seq_num;
 
-    /* Send the radio task. */
+    /* Send the radio task. It is put at the front of the queue. */
     msg_t msg = pktQueuePriorityRadioCommandI(myHandler->radio,
                                               PKT_RADIO_RX_RSSI,
                                               &rp,
                                               pktRadioRSSIreadCB);
-#else /* PKT_RTO_USE_SETTING == FALSE */
-    radio_task_object_t rt = myDemod->packet_handler->radio_rx_config;
 
-    /* Set command and clear RSSI (no value). */
-    rt.command = PKT_RADIO_RX_RSSI;
-    rt.rssi = 0;
-
-    /* Sequence stamp the RT and PWM FIFO objects. */
-    rt.rt_seq = myHandler->radio_rx_config.rt_seq;
-    myDemod->active_radio_stream->seq_num = rt.rt_seq;
-
-    /* Send the radio task. */
-    msg_t msg = pktQueuePriorityRadioCommandI(myHandler->radio,
-                                              &rt,
-                                              pktRadioRSSIreadCB);
-#endif /* PKT_RTO_USE_SETTING == TRUE */
     if(msg == MSG_TIMEOUT) {
       myDemod->active_radio_stream->rssi = 0xFF;
     }
@@ -1014,7 +1016,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
                    ||  myDemod->icustate == PKT_PWM_ACTIVE)) {
     /*
      * Arrive here if ICU is running but not buffering.
-     * The ICU has been stopped and PWM is not active.
+     * The PWM stream is not active.
      */
     chSysUnlockFromISR();
     return;
@@ -1056,12 +1058,13 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
   }
 
   /* Write ICU data to PWM queue. */
-  msg_t qs = pktQueuePWMDataI(myICU);
+  msg_t qs = pktICUQueueAsPWMDataI(myICU);
 
   /* Switch on PWM write result. */
   switch(qs) {
   case MSG_OK: {
-    /* PWM write OK. */
+    /* PWM write OK. If ICU has produced first period count cancel timer
+       and change state. */
     if(myDemod->icustate == PKT_PWM_WAITING) {
 
 #if PKT_USE_CCA_LEADING_ONLY != TRUE
@@ -1117,22 +1120,14 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
         myDemod->active_radio_stream->peak = out;
 #endif
       /* Write the in-band queue swap message to the current object. */
+      msg_t qs = pktWritePWMinBandMessageI(&myObject->queue, PWM_INFO_QUEUE_SWAP);
 
-#if USE_12_BIT_PWM == TRUE
-      byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INFO_QUEUE_SWAP, 0}};
-#else
-      byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, PWM_INFO_QUEUE_SWAP}};
-#endif
-
-      /* Write the swap message to the old queue. */
-      msg_t qs = pktWritePWMQueueI(&myObject->queue, pack);
       chDbgAssert(qs == MSG_OK, "PWM write of in-band swap message failed");
-
       /* Set the new object as the active PWM queue/buffer. */
       myDemod->active_radio_stream->radio_pwm_queue = pwm_object;
 
       /* Write the PWM data to the new buffer. */
-      qs = pktQueuePWMDataI(myICU);
+      qs = pktICUQueueAsPWMDataI(myICU);
       chDbgAssert(qs == MSG_OK, "PWM initial write to empty buffer failed");
 #if PKT_USE_CCA_LEADING_ONLY == TRUE
     /*
@@ -1224,45 +1219,6 @@ void pktRadioICUOverflow(ICUDriver *myICU) {
   }
   chSysUnlockFromISR();
 }
-
-/**
- * @brief   Converts ICU data and posts to the PWM queue.
- * @pre     The ICU driver is linked to a demod driver (pointer to driver).
- * @details Byte values of packed PWM data are written into an input queue.
- *
- * @param[in] myICU      pointer to the ICU driver structure
- *
- * @return              The operation status.
- * @retval MSG_OK       The PWM data has been queued.
- * @retval MSG_TIMEOUT  The queue is already full.
- * @retval MSG_RESET    Queue has one slot left and the data is not an in-band.
- * @retval MSG_ERROR    The PWM queue chunk size is incorrect.
- *
- * @iclass
- */
-msg_t pktQueuePWMDataI(ICUDriver *myICU) {
-
-  chDbgCheckClassI();
-
-  AFSKDemodDriver *myDemod = myICU->link;
-  chDbgAssert(myDemod != NULL, "no linked demod driver");
-
-#if USE_HEAP_PWM_BUFFER == TRUE
-  input_queue_t *myQueue =
-      &myDemod->active_radio_stream->radio_pwm_queue->queue;
-#if USE_CCM_BASED_PWM_HEAP == TRUE
-  pktAssertCCMdynamicCheck(myQueue);
-#endif
-#else
-  input_queue_t *myQueue = &myDemod->active_radio_stream->radio_pwm_queue;
-#endif
-  chDbgAssert(myQueue != NULL, "no queue assigned");
-
-  byte_packed_pwm_t pack;
-  pktConvertICUtoPWM(myICU, &pack);
-  return pktWritePWMQueueI(myQueue, pack);
-}
-
 
 /**
  * @brief   Write PWM data into input queue.

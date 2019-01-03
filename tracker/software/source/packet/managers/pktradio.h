@@ -30,7 +30,7 @@
 #define RADIO_TASK_QUEUE_MAX            10
 
 /* New RTM implementation supports outer and inner level callbacks in the RTO. */
-#define PKT_RTO_HAS_INNER_CB             TRUE
+//#define PKT_RTO_HAS_INNER_CB             TRUE
 
 /* Temporary switch while testing TX thread self terminate (versus RTM termination). */
 #define PKT_TRANSMIT_TASK_SELF_TERMINATE TRUE
@@ -105,13 +105,8 @@ typedef struct radioConfig radio_config_t;
  *
  * @param[in] task_object  pointer to a @p radio task object
  */
-#if PKT_RTO_HAS_INNER_CB == TRUE
 typedef void (*radio_task_cb_t)(radio_task_object_t *task_object);
 typedef bool (*radio_mgr_cb_t)(radio_task_object_t *task_object);
-#else
-typedef bool (*radio_task_cb_t)(radio_task_object_t *task_object);
-#endif
-
 
 #include "ax25_pad.h"
 
@@ -146,19 +141,8 @@ struct radioTask {
   struct pool_header        link;
   radio_command_t           command;
   packet_svc_t              *handler;
-#if PKT_RTO_HAS_INNER_CB != TRUE
-  radio_mod_t               type;
-  radio_freq_hz_t           base_frequency;
-  radio_chan_hz_t           step_hz;
-  radio_ch_t                channel;
-  radio_squelch_t           squelch;
-  packet_t                  packet_out;
-  radio_pwr_t               tx_power;
-  uint8_t                   rt_seq;
-#else
   radio_params_t            radio_dat;
   radio_mgr_cb_t            mgr_cb;
-#endif
   radio_task_cb_t           user_cb;
   msg_t                     result;
   radio_signal_t            rssi;
@@ -201,37 +185,20 @@ extern "C" {
   void      		pktRadioManager(void *arg);
   msg_t     		pktGetRadioTaskObject(const radio_unit_t radio,
                               const sysinterval_t timeout,
-#if PKT_RTO_HAS_INNER_CB == TRUE
                               const radio_params_t *cfg,
-#endif
                               radio_task_object_t **rt);
   msg_t             pktGetRadioTaskObjectI(const radio_unit_t radio,
-#if PKT_RTO_HAS_INNER_CB == TRUE
                             const radio_params_t *cfg,
-#endif
                               radio_task_object_t **rt);
   void      		pktSubmitRadioTask(const radio_unit_t radio,
                           radio_task_object_t *object,
-#if PKT_RTO_HAS_INNER_CB == TRUE
                            const radio_mgr_cb_t cb);
-#else
-                           const radio_task_cb_t cb);
-#endif
   void              pktSubmitPriorityRadioTask(const radio_unit_t radio,
                            radio_task_object_t *object,
-#if PKT_RTO_HAS_INNER_CB == TRUE
                            const radio_mgr_cb_t cb);
-#else
-                           const radio_task_cb_t cb);
-#endif
   void              pktSubmitPriorityRadioTaskI(const radio_unit_t radio,
                            radio_task_object_t *object,
-#if PKT_RTO_HAS_INNER_CB == TRUE
                            const radio_mgr_cb_t cb);
-#else
-                           const radio_task_cb_t cb);
-#endif
-
   void      		pktScheduleThreadRelease(const radio_unit_t radio,
                                 thread_t *thread);
   msg_t     		pktLockRadio(const radio_unit_t radio,

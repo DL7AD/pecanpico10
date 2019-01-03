@@ -255,7 +255,7 @@ void update_qcorr_pll(AFSKDemodDriver *myDriver) {
     decoder->prior_demod = decoder->current_demod;
 
     /* Adjust symbol PLL. */
-    if(myDriver->rx_hdlc.frame_state == HDLC_FRAME_SEARCH) {
+    if (isHDLCSynchronising(myDriver)) {
       decoder->symbol_pll = (int32_t)((float32_t)decoder->symbol_pll
           * QCORR_PLL_SEARCH_RATE);
     } else {
