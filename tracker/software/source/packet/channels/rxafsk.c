@@ -1039,7 +1039,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           } /* End case PWM_TERM_PWM_STOP. */
 
           case PWM_ACK_DECODE_ERROR:
-          case PWM_ACK_DECODE_END: {
+          case PWM_ACK_DECODE_RESET: {
             /*
              * Decoder has set an end or error flag while PWM is still running.
              * The radio side closes the PWM stream.
@@ -1282,6 +1282,12 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /* Wait for stream control object to be released by the radio. */
           (void)chBSemWait(&myFIFO->sem);
 
+          /* TODO: Check the STA_PWM_STREAM_SWITCH status. If this is set
+           * then the reset simply resets the HDLC processor.
+           * The stream FIFO, PWM queue and DSP status remains as is.
+           * State is set to ACTIVE and decoding starts on the PWM stream
+           * in the PWM buffer(s).
+           */
 #if USE_HEAP_PWM_BUFFER == TRUE
           /* Release PWM queue/buffer objects back to the pool. */
           radio_pwm_fifo_t *myFIFO = myDriver->active_demod_stream;

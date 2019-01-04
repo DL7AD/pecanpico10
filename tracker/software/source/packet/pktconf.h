@@ -99,7 +99,8 @@
 
 #define EVT_RADIO_CCA_SPIKE     EVENT_MASK(EVT_PRIORITY_BASE + 28)
 #define EVT_PWM_ICU_OVERFLOW    EVENT_MASK(EVT_PRIORITY_BASE + 29)
-#define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 30)
+//#define EVT_HDLC_RESET_RCVD     EVENT_MASK(EVT_PRIORITY_BASE + 30)
+#define EVT_RAD_STREAM_SWITCH   EVENT_MASK(EVT_PRIORITY_BASE + 30)
 #define EVT_HDLC_OPENING_FLAG   EVENT_MASK(EVT_PRIORITY_BASE + 31)
 
 /* Decoder thread event masks (sent from initiator to a decoder). */
@@ -175,10 +176,10 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 
 #define STA_PWM_RADIO_NONE          STATUS_MASK(24)
 #define STA_CCA_RADIO_DROP          STATUS_MASK(25)
-#define STA_PWM_DECODE_RESET        STATUS_MASK(26)
+#define STA_PWM_STREAM_SWITCH       STATUS_MASK(26)
 #define STA_AFSK_HDLC_ERROR         STATUS_MASK(27)
 
-#define STA_PWM_DECODE_DONE         STATUS_MASK(28)
+#define STA_PWM_STREAM_STOP         STATUS_MASK(28)
 #define STA_CCA_RADIO_SPIKE         STATUS_MASK(29)
 #define STA_CCA_RADIO_CONTINUE      STATUS_MASK(30)
 #define STA_PWM_ICU_LIMIT           STATUS_MASK(31)

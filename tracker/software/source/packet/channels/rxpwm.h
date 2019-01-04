@@ -47,7 +47,7 @@
 #define PWM_TERM_QUEUE_FULL     1
 #define PWM_TERM_ICU_OVERFLOW   2
 #define PWM_TERM_QUEUE_ERR      3
-#define PWM_ACK_DECODE_END      4
+#define PWM_ACK_DECODE_RESET    4
 #define PWM_TERM_PWM_STOP       5
 #define PWM_TERM_NO_DATA        6
 #define PWM_TERM_ICU_ZERO       7
@@ -223,11 +223,13 @@ extern "C" {
   void      pktRadioCCAInput(ICUDriver *myICU);
   void      pktStopAllICUtimersI(ICUDriver *myICU);
   void      pktSleepICUI(ICUDriver *myICU);
-  //msg_t     pktICUQueueAsPWMDataI(ICUDriver *myICU);
   void      pktClosePWMStreamI(ICUDriver *myICU,
                                statusflags_t sta,
                                eventflags_t evt,
                                pwm_code_t reason);
+  void      pktSwitchPWMStreamI(ICUDriver *myICU,
+                          statusflags_t sta,
+                          eventflags_t evt);
   void      pktPWMInactivityTimeout(ICUDriver *myICU);
   msg_t     pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack);
 #ifdef __cplusplus

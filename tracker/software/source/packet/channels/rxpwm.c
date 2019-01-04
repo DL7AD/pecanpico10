@@ -425,14 +425,6 @@ void pktClosePWMStreamI(ICUDriver *myICU,
 #endif
       /* End of data flag. */
       msg_t qs = pktWritePWMinBandMessageI(myQueue, reason);
-#if 0
-#if USE_12_BIT_PWM == TRUE
-      byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, reason, 0}};
-#else
-      byte_packed_pwm_t pack = {{PWM_IN_BAND_PREFIX, reason}};
-#endif
-      msg_t qs = pktWritePWMQueueI(myQueue, pack);
-#endif
       if (qs == MSG_TIMEOUT || qs == MSG_ERROR) {
         /*
          * No space to write in-band flag.
@@ -451,7 +443,7 @@ void pktClosePWMStreamI(ICUDriver *myICU,
       sta |= STA_PWM_STREAM_CLOSED;
     } /* End if(reason != PWM_TERM_QUEUE_ERROR). */
     myDemod->active_radio_stream->status |= sta;
-    /* Allow the decoder thread to release the stream control object. */
+    /* Allow the decoder thread to proceed in RESET state. */
     chBSemSignalI(&myDemod->active_radio_stream->sem);
 
 #if USE_HEAP_PWM_BUFFER == TRUE
@@ -500,7 +492,7 @@ void pktOpenPWMStreamI(ICUDriver *myICU, eventflags_t evt) {
 #else
     pktClosePWMStreamI(myICU, STA_CCA_RADIO_CONTINUE,
                        EVT_RAD_STREAM_CLOSE, PWM_TERM_STREAM_CLOSE);
-    myDemod->active_radio_stream = NULL;
+    //myDemod->active_radio_stream = NULL;
 #endif
   }
   /* Normal CCA handling.
@@ -643,8 +635,46 @@ void pktOpenPWMStreamI(ICUDriver *myICU, eventflags_t evt) {
 }
 
 /**
+ * @brief   Switches the PWM stream where ICU data is continuous.
+ * @notes   The purpose is to handle the case were CCA does not drop.
+ *          The PWM side will re-use the existing stream FIFO.
+ *          The decoder will be signalled via a status to re-use the FIFO.
+ *
+ * @param[in]   myICU   pointer to a @p ICUDriver structure
+ * @param[in]   sta     additional flags to be set.
+ * @param[in]   evt     additional event to be broadcast.
+ *
+ * @api
+ */
+void pktSwitchPWMStreamI(ICUDriver *myICU,
+                        statusflags_t sta,
+                        eventflags_t evt) {
+
+  AFSKDemodDriver *myDemod = myICU->link;
+  packet_svc_t *myHandler = myDemod->packet_handler;
+  chDbgAssert(myDemod != NULL, "no demod linked");
+
+  myDemod->active_radio_stream->status |= (sta | STA_PWM_STREAM_SWITCH);
+  /* Allow the decoder thread to proceed in RESET state. */
+  chBSemSignalI(&myDemod->active_radio_stream->sem);
+  /* Send event broadcast. */
+  pktAddEventFlagsI(myHandler, (evt | EVT_RAD_STREAM_SWITCH));
+
+  /*
+   * Start the PWM activity timer.
+   * This catches the condition where PWM does not continue.
+   */
+  chVTSetI(&myICU->pwm_timer, TIME_MS2I(50),
+           (vtfunc_t)pktPWMInactivityTimeout, myICU);
+
+  /* Return to waiting state. ICU width updates receive sequence number
+     and triggers RSSI capture. */
+  myDemod->icustate = PKT_PWM_WAITING;
+}
+
+/**
  * @brief   Stop all ICU associated timers.
- * @notes   Will be called when the packet channel is stopped.
+ * @notes   Will be called when a packet stream is closed.
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
  *
@@ -653,12 +683,13 @@ void pktOpenPWMStreamI(ICUDriver *myICU, eventflags_t evt) {
 void pktStopAllICUtimersI(ICUDriver *myICU) {
   chVTResetI(&myICU->cca_timer);
   chVTResetI(&myICU->pwm_timer);
+  chVTResetI(&myICU->pkt_timer);
   chVTResetI(&myICU->jam_timer);
 }
 
 /**
  * @brief   Timer callback when PWM data stops after stream is open.
- * @post    The PWM stream will be closed
+ * @post    The PWM stream will be closed.
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
  *
@@ -835,11 +866,12 @@ void pktRadioCCAInput(ICUDriver *myICU) {
       if(myDemod->icustate == PKT_PWM_WAITING) {
         /* CCA trailing edge glitch handling.
          * ICU has not processed any PWM yet.
-         * Start timer and check if CCA remains low before closing PWM.
-         *
-         * De-glitch for 8 AFSK bit times.
          */
 #if PKT_USE_CCA_DEGLITCH == TRUE
+        /*
+         * Start timer and check if CCA remains low before closing PWM.
+         * De-glitch for 8 AFSK bit times.
+         */
         chVTSetI(&myICU->cca_timer, chTimeUS2I(833 * 8),
                  (vtfunc_t)pktRadioCCATrailTimer, myICU);
 #else
@@ -954,36 +986,93 @@ void pktRadioICUWidth(ICUDriver *myICU) {
 #if LINE_PWM_MIRROR != PAL_NOLINE
   pktWriteGPIOline(LINE_PWM_MIRROR, PAL_LOW);
 #endif
+  if(myDemod->active_radio_stream == NULL) {
+    /*
+     * Arrive here if ICU is running but not buffering.
+     * The PWM stream is not active.
+     */
+    chSysUnlockFromISR();
+    return;
+  }
 
-  if(myDemod->icustate == PKT_PWM_WAITING) {
-    /* On first width request RSSI read. */
+  /* Check if impulse ICU value is zero and thus invalid. */
+  if(icuGetWidthX(myICU) == 0) {
+    pktClosePWMStreamI(myICU, STA_PWM_ICU_ZERO, EVT_NONE, PWM_TERM_ICU_ZERO);
+    chSysUnlockFromISR();
+    return;
+  }
 
+  switch (myDemod->icustate) {
+  case PKT_PWM_WAITING: {
     /* Increment receive session count. */
     myHandler->radio_rx_config.seq_num++;
+
+    /* Cancel the PWM inactivity timer. */
+    chVTResetI(&myICU->pwm_timer);
 
 #if PKT_RSSI_CAPTURE == TRUE
     /* Queue a radio task to read RSSI in radio. */
 
     radio_params_t rp = myHandler->radio_rx_config;
 
-    /* Clear RSSI (no value). */
+    /* Sequence stamp the RT and PWM FIFO objects. Clear RSSI value. */
+    rp.seq_num = myHandler->radio_rx_config.seq_num;
+    myDemod->active_radio_stream->seq_num = rp.seq_num;
     rp.rssi = 0;
 
-    /* Sequence stamp the RT and PWM FIFO objects. */
-    rp.seq_num = myDemod->packet_handler->radio_rx_config.seq_num;
-    myDemod->active_radio_stream->seq_num = rp.seq_num;
-
-    /* Send the radio task. It is put at the front of the queue. */
+    /* Send RSSI read as priority radio task (front of the queue). */
     msg_t msg = pktQueuePriorityRadioCommandI(myHandler->radio,
                                               PKT_RADIO_RX_RSSI,
                                               &rp,
                                               pktRadioRSSIreadCB);
 
     if(msg == MSG_TIMEOUT) {
+      /* Indicate RSSI was not captured. */
       myDemod->active_radio_stream->rssi = 0xFF;
     }
 #endif /* PKT_RSSI_CAPTURE == TRUE */
-  }
+    pktAddEventFlagsI(myHandler, EVT_PWM_ACTIVE);
+    myDemod->icustate = PKT_PWM_ACTIVE;
+    break;
+  } /* End case PKT_PWM_WAITING */
+
+  case PKT_PWM_ACTIVE: {
+    /*
+     * Check if decoding has been reset while ICU is still active.
+     * The decoder always resets after a packet decode (success or fail).
+     *
+     * The decoder terminates a frame on the first valid trailing HDLC flag.
+     * If CPU is fast (FPU enabled) it might finish decode before PWM stops.
+     * Or a long sequence of trailing HDLC flags or junk after a frame close
+     *  flag or overlapping/continuous incoming packet traffic
+     *  may cause continued PWM activity beyond a decode completion.
+     */
+    if((myDemod->active_radio_stream->status & STA_AFSK_DECODE_RESET) != 0) {
+      pktClosePWMStreamI(myICU, STA_PWM_STREAM_STOP,
+                         EVT_NONE, PWM_ACK_DECODE_RESET);
+
+      /* Check if CCA is still asserted. If so open a new stream now.
+         TODO: Rework AFSK decoder to handle a transition from RESET to ACTIVE
+         Set a status flag here to tell decoder to only partial reset.
+         This will save the overhead of getting a new stream object,
+         PWM queue, etc. at IRQ level. */
+      uint8_t cca = pktLLDradioReadCCAlineI(myHandler->radio);
+      if (cca == PAL_HIGH) {
+        /* PWM is set in WAITING state. Period CB will just return. Width CB
+           will transition ICU to ACTIVE.
+         */
+        pktOpenPWMStreamI(myICU, EVT_RAD_STREAM_OPEN);
+        break;
+      }
+    }
+
+    chSysUnlockFromISR();
+    return;
+  } /* End case PKT_PWM_ACTIVE */
+
+  default:
+    break;
+  } /* End switch. */
   chSysUnlockFromISR();
 }
 
@@ -1006,14 +1095,14 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
   AFSKDemodDriver *myDemod = myICU->link;
   chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
   packet_svc_t *myHandler = myDemod->packet_handler;
+  chDbgAssert(myHandler != NULL, "no packet handler");
   chSysLockFromISR();
 
 #if LINE_PWM_MIRROR != PAL_NOLINE
   pktWriteGPIOline(LINE_PWM_MIRROR, PAL_HIGH);
 #endif
-  if(myDemod->active_radio_stream == NULL ||
-                 !(myDemod->icustate == PKT_PWM_WAITING
-                   ||  myDemod->icustate == PKT_PWM_ACTIVE)) {
+  if(myDemod->active_radio_stream == NULL
+      || myDemod->icustate != PKT_PWM_ACTIVE) {
     /*
      * Arrive here if ICU is running but not buffering.
      * The PWM stream is not active.
@@ -1021,6 +1110,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
     chSysUnlockFromISR();
     return;
   }
+#if 0
   /*
    * Check if decoding has already finished while ICU is still active.
    * The decoder terminates a frame on the first valid trailing HDLC flag.
@@ -1047,26 +1137,17 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
     chSysUnlockFromISR();
     return;
   }
-
-  /*
-   * Check if impulse ICU value is zero and thus invalid.
-   */
-  if(icuGetWidthX(myICU) == 0) {
-    pktClosePWMStreamI(myICU, STA_PWM_ICU_ZERO, EVT_NONE, PWM_TERM_ICU_ZERO);
-    chSysUnlockFromISR();
-    return;
-  }
-
+#endif
   /* Write ICU data to PWM queue. */
   msg_t qs = pktICUQueueAsPWMDataI(myICU);
 
   /* Switch on PWM write result. */
   switch(qs) {
   case MSG_OK: {
+#if 0
     /* PWM write OK. If ICU has produced first period count cancel timer
        and change state. */
     if(myDemod->icustate == PKT_PWM_WAITING) {
-
 #if PKT_USE_CCA_LEADING_ONLY != TRUE
       /* Cancel the PWM inactivity timer. */
       chVTResetI(&myICU->pwm_timer);
@@ -1074,6 +1155,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
       pktAddEventFlagsI(myHandler, EVT_PWM_ACTIVE);
       myDemod->icustate = PKT_PWM_ACTIVE;
     }
+#endif
 #if PKT_USE_CCA_LEADING_ONLY == TRUE
     /*
      * The PWM timer now looks for activity.

@@ -90,7 +90,7 @@ static void pktCBOverflowTCXO(ICUDriver *icup) {
  *
  */
 static xtal_osc_t pktMeasureTCXO(sysinterval_t timeout) {
-  if(timeout == TIME_INFINITE)
+  if(timeout == TIME_INFINITE || timeout == TIME_IMMEDIATE)
     return 0;
   /* TODO: The correct test is if GPS is active and locked. */
   if(!hasGPSacquiredLock(getLastDataPoint()))

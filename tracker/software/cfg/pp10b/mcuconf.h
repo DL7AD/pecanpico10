@@ -54,8 +54,8 @@
 #define STM32_PLLP_VALUE                    4
 #define STM32_PLLQ_VALUE                    8
 #define STM32_HPRE                          STM32_HPRE_DIV1
-#define STM32_PPRE1                         STM32_PPRE1_DIV2
-#define STM32_PPRE2                         STM32_PPRE2_DIV1
+#define STM32_PPRE1                         STM32_PPRE1_DIV4
+#define STM32_PPRE2                         STM32_PPRE2_DIV2
 #define STM32_PLLI2SSRC                     STM32_PLLI2SSRC_PLLSRC
 #define STM32_TIMPRE                        STM32_TIMPRE_PCLK
 #define STM32_RTCSEL                        STM32_RTCSEL_LSI
