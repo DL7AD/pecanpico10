@@ -93,6 +93,9 @@ eventmask_t evt = chEvtGetAndClearEvents(
       TRACE_DEBUG("PKT  > Radio PWM stream close");
     }
 #endif
+    if(flags & EVT_RAD_STREAM_SWITCH) {
+      TRACE_DEBUG("PKT  > Radio PWM stream switch");
+    }
     if(flags & EVT_PWM_QUEUE_FULL) {
       TRACE_WARN("PKT  > PWM queue full. Possible jamming or RSSI set too low");
     }

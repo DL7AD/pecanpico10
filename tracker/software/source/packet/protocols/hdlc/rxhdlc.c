@@ -9,6 +9,37 @@
 #include "pktconf.h"
 
 /**
+ * Array for looking up model name
+ */
+static const char *token[] = {HDLC_TOKEN_NAMES};
+
+/**
+ * Get pointer to token name as string
+ */
+const char *pktGetHDLCTokenName(uint8_t index) {
+  return (index > HDLC_TOKEN_MAX ? "INVALID" : token[index]);
+}
+
+/**
+ * @brief   Reset HDLC processor.
+ * @post    The HDLC decode control object will be reset.
+ *
+ * @param[in]   myDriver   pointer to an @p decodeHDLC structure.
+ *
+ * @api
+ */
+void pktResetHDLCProcessor(pkt_hdlc_decode_t *myHDLC) {
+    myHDLC->frame_state = HDLC_FLAG_SEARCH;
+#if HDLC_SYNC_USE_COUNTER == TRUE
+    myHDLC->sync_count = 0;
+#endif
+ myHDLC->tone_freq = TONE_NONE;
+ myHDLC->prior_freq = TONE_NONE;
+ myHDLC->bit_index = 0;
+ myHDLC->hdlc_bits = (int32_t)-1;
+}
+
+/**
  * @brief   Extract HDLC from AFSK.
  * @post    The HDLC decode control object will be updated.
  *
@@ -121,9 +152,10 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
         /*
          * An HDLC flag here should close the frame.
          * If the frame has sufficient data the AFSK decoder can close it.
-         * If not assume sync will be restarted.
+         * If not then the decoder will reset itself and HDLC processor.
+         * In the case that a decode is valid we setup to consume the HDLC tail.
          */
-        myHDLC->frame_state = HDLC_FLAG_SEARCH;
+        myHDLC->frame_state = HDLC_FRAME_TAIL;
 
         /* Reset HDLC processor data bit/byte index. */
         myHDLC->bit_index = 0;
@@ -149,6 +181,21 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
         return (myHDLC->last_token = HDLC_TOK_DATA);
       } /* End switch on HDLC code. */
     } /* End case HDLC_FRAME_OPEN. */
+
+    /* Frame closing flag processed. */
+    case HDLC_FRAME_TAIL: {
+      switch(myHDLC->hdlc_bits & HDLC_BIT_MASK) {
+      case HDLC_FLAG: {
+        /* Consume the frame tail flags. */
+        return (myHDLC->last_token = HDLC_TOK_FEED);
+      } /* End case HDLC_FRAME_OPEN. */
+
+      default:
+        /* If not a flag then go into bit sync. */
+        myHDLC->frame_state = HDLC_FLAG_SEARCH;
+        return (myHDLC->last_token = HDLC_TOK_FEED);
+      } /* End switch on HDLC code. */
+    } /* End case HDLC_FRAME_TAIL. */
     } /* End switch on decoder state. */
   } /* End if byte. */
   return (myHDLC->last_token = HDLC_TOK_FEED);

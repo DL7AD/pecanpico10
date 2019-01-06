@@ -221,6 +221,7 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #include "si446x.h"
 #include "pktevt.h"
 #include "debug.h"
+#include "threads.h"
 
 /*===========================================================================*/
 /* Driver definitions.                                                       */

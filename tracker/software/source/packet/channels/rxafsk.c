@@ -236,7 +236,7 @@ static msg_t pktProcessAFSK(AFSKDemodDriver *myDriver,
   radio_pwm_fifo_t *myFIFO = myDriver->active_demod_stream;
 
   /* Process the PWM data. */
-  for(uint8_t i = 0; i < AFSK_NUM_TONES/*(sizeof(min_pwm_counts_t) / sizeof(min_pwmcnt_t))*/; i++) {
+  for(uint8_t i = 0; i < AFSK_NUM_TONES; i++) {
     myDriver->decimation_accumulator += current_tone[i];
     while(myDriver->decimation_accumulator >= 0) {
       /*
@@ -350,7 +350,6 @@ static msg_t pktProcessAFSK(AFSKDemodDriver *myDriver,
             /* Packet is greater than valid data size. */
             pktAddEventFlags(myHandler, EVT_HDLC_RESET_RCVD);
             TRACE_DEBUG("AFSK > HDLC reset aborted decode on radio %d", radio);
-            //myFIFO->status |= STA_AFSK_FRAME_RESET;
             myDriver->decoder_state = DECODER_RESET;
             return MSG_ERROR;
 #endif
@@ -441,6 +440,7 @@ static msg_t pktProcessAFSK(AFSKDemodDriver *myDriver,
  */
 static bool pktResetAFSKDecoder(AFSKDemodDriver *myDriver) {
   /* Reset the HDLC decoder data.*/
+#if 0
   myDriver->rx_hdlc.frame_state = HDLC_FLAG_SEARCH;
 #if HDLC_SYNC_USE_COUNTER == TRUE
   myDriver->rx_hdlc.sync_count = 0;
@@ -448,7 +448,11 @@ static bool pktResetAFSKDecoder(AFSKDemodDriver *myDriver) {
   myDriver->rx_hdlc.tone_freq = TONE_NONE;
   myDriver->rx_hdlc.prior_freq = TONE_NONE;
   myDriver->rx_hdlc.bit_index = 0;
-  myDriver->hdlc_bits = (int32_t)-1;
+  //myDriver->hdlc_bits = (int32_t)-1;
+  myDriver->rx_hdlc.hdlc_bits = (int32_t)-1;
+#else
+  pktResetHDLCProcessor(&myDriver->rx_hdlc);
+#endif
 
   /* Reset the PWM decimation accumulator. */
   myDriver->decimation_accumulator = 0;
@@ -690,15 +694,7 @@ uint8_t pktReleasePWMbuffers(AFSKDemodDriver *myDriver) {
   radio_pwm_object_t *next;
   do {
     next = qGetLink(&object->queue);
-#if USE_CCM_BASED_PWM_HEAP == TRUE
-    /* Check if the object is in CCM first. */
-    pktAssertCCMdynamicCheck(object);
-#endif
     chPoolFree(&myDriver->pwm_buffer_pool, object);
-#if USE_CCM_BASED_PWM_HEAP == TRUE
-    /* Then check that the pool reference points to CCM. */
-    pktAssertCCMdynamicCheck(myDriver->pwm_buffer_pool.next);
-#endif
 #if TRACE_PWM_BUFFER_STATS == TRUE
     myDriver->active_demod_stream->rlsd++;
 #endif
@@ -748,7 +744,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   if(myDriver->the_pwm_fifo == NULL) {
     chMsgSend(myDriver->caller, MSG_ERROR);
     /* We continue and terminate when caller sends release. */
-    extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
   }
 
@@ -983,9 +978,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         input_queue_t *myQueue = &myFIFO->radio_pwm_queue;
 #endif
         chDbgAssert(myQueue != NULL, "no queue assigned");
-#if USE_CCM_BASED_PWM_HEAP == TRUE
-        pktAssertCCMdynamicCheck(myQueue);
-#endif
         byte_packed_pwm_t data;
         size_t n = iqReadTimeout(myQueue, data.bytes,
                                  sizeof(packed_pwm_counts_t),
@@ -1017,7 +1009,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         pktWrite( (uint8_t *)buf, out);
 #endif
 
-        /* Look for "in band" message in radio data. */
+        /* Look for "in band" message in PWM data. */
         if(stream.pwm.impulse == PWM_IN_BAND_PREFIX) {
           switch(stream.pwm.valley) {
           case PWM_TERM_PWM_STOP: {
@@ -1147,9 +1139,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
             radio_pwm_object_t *nextObject = qGetLink(&myFIFO->decode_pwm_queue->queue);
             chDbgAssert(nextObject != NULL, "No linked queue in swap");
             if(nextObject != NULL) {
-#if USE_CCM_BASED_PWM_HEAP == TRUE
-              pktAssertCCMdynamicCheck(nextObject);
-#endif
               /*
                *  Release the now empty prior buffer object back to the pool.
                *  Switch to the next queue/buffer object for decoding.
@@ -1242,7 +1231,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           pktWrite( (uint8_t *)buf, out);
         }
 #endif
-        /* There won't be a demod object if the decoder is just being reset. */
+        /* There won't be a packet buffer object if the decoder is just being reset. */
         if(myHandler->active_packet_object != NULL) {
 #if AFSK_DEBUG_TYPE == AFSK_PWM_DATA_CAPTURE_DEBUG
           char buf[80];
@@ -1268,26 +1257,43 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         radio_pwm_fifo_t *myFIFO = myDriver->active_demod_stream;
         /* There won't be a demod object if the decoder is just being reset. */
         if(myFIFO != NULL) {
-          TRACE_DEBUG("AFSK > Decode %d end on radio %d with flags 0x%08x and HDLC token %d",
+          TRACE_DEBUG("AFSK > Decode %d end on radio %d with flags 0x%08x and HDLC token %s",
                       myDriver->active_demod_stream->seq_num,
                       radio, myDriver->active_demod_stream->status,
-                      myDriver->rx_hdlc.last_token);
+                      pktGetHDLCTokenName(myDriver->rx_hdlc.last_token));
           /*
-           * Lock the PWM queue to stop any further radio data being written.
-           * This caters for the situation where the radio is still writing PWM.
-           * Possible with with long trailing HDLC flag sequence and fast decode.
+           * Signal the PWM queue that decoding is finished.
+           * The PWM front end can stream switch if it is still associated
+           * with this stream.
            */
           myDriver->active_demod_stream->status |= STA_AFSK_DECODE_RESET;
 
           /* Wait for stream control object to be released by the radio. */
           (void)chBSemWait(&myFIFO->sem);
 
-          /* TODO: Check the STA_PWM_STREAM_SWITCH status. If this is set
-           * then the reset simply resets the HDLC processor.
-           * The stream FIFO, PWM queue and DSP status remains as is.
-           * State is set to ACTIVE and decoding starts on the PWM stream
-           * in the PWM buffer(s).
+          /*
+           * Check the STA_PWM_STREAM_SWITCH status. If this is set
+           * then the front end is still steaming PWM.
+           * This occurs when CCA does not drop or a packet with a long HDLC tail.
+           * In this case simply reset the HDLC processor.
+           * The stream FIFO, PWM queue and DSP status remain as is.
+           * State is set to ACTIVE and decoding continues with the HDLC bits
+           * and the PWM stream already buffered.
            */
+          if ((myDriver->active_demod_stream->status & STA_PWM_STREAM_SWITCH) != 0) {
+            /* Only reset the HDLC processor and status for stream switch if
+               there was no closed packet. Filters and decoders continue as is. */
+            if ((myDriver->active_demod_stream->status & STA_AFSK_DECODE_DONE) == 0)
+              /* This is a failed decode or a simple reset (no closed packet).
+                 Reset HDLC processor so we re-start bit sync immediately. */
+              pktResetHDLCProcessor(&myDriver->rx_hdlc);
+
+            myDriver->active_demod_stream->status = 0;
+
+            /* Set decoder back to active. */
+            myDriver->decoder_state = DECODER_ACTIVE;
+            continue;
+          }
 #if USE_HEAP_PWM_BUFFER == TRUE
           /* Release PWM queue/buffer objects back to the pool. */
           radio_pwm_fifo_t *myFIFO = myDriver->active_demod_stream;

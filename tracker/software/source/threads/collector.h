@@ -28,6 +28,10 @@
 //#define BME280_E1_IS_FITTED     FALSE
 //#define BME280_E2_IS_FITTED     TRUE
 
+/*===========================================================================*/
+/* Module data structures and types.                                         */
+/*===========================================================================*/
+
 /**
  * @brief   GPS states as array of strings.
  * @details Each element in an array initialized with this macro can be
@@ -112,21 +116,26 @@ typedef struct {
     uint8_t  gpio;    // GPIO states
 } dataPoint_t;
 
+/*===========================================================================*/
+/* External declarations.                                                    */
+/*===========================================================================*/
 
-/*typedef struct telemRequest {
-  dataPoint_t dp;
-  thd_pos_conf_t *conf;
-} telem_request_t;*/
+extern thread_t *collector_thd;
 
-//void waitForNewDataPoint(void);
-dataPoint_t* getLastDataPoint(void);
-void getSensors(dataPoint_t* tp);
-void setSystemStatus(dataPoint_t* tp);
-void init_data_collector(void);
-const char *get_gps_state_name(uint8_t index);
+#ifdef __cplusplus
+extern "C" {
+#endif
+dataPoint_t*    getLastDataPoint(void);
+void            getSensors(dataPoint_t* tp);
+void            setSystemStatus(dataPoint_t* tp);
+void            init_data_collector(void);
+const char*     get_gps_state_name(uint8_t index);
+#ifdef __cplusplus
+}
+#endif
 
 /*===========================================================================*/
-/* Module inline functions.                                                  */
+/* Module macros.                                                            */
 /*===========================================================================*/
 
 /**
@@ -140,7 +149,7 @@ const char *get_gps_state_name(uint8_t index);
  *
  * @api
  */
-#define hasGPSacquiredLock(dp) (dp->gps_state == GPS_LOCKED1                \
+#define hasGPSacquiredLock(dp) (dp->gps_state == GPS_LOCKED1                 \
                                 || dp->gps_state == GPS_LOCKED2)
 
 /**
@@ -199,8 +208,8 @@ const char *get_gps_state_name(uint8_t index);
  *
  * @api
  */
-#define isGPSbatteryOperable(dp) (dp->gps_state == GPS_LOCKED1              \
-                                 || dp->gps_state == GPS_LOCKED2            \
+#define isGPSbatteryOperable(dp) (dp->gps_state == GPS_LOCKED1               \
+                                 || dp->gps_state == GPS_LOCKED2             \
                                  || dp->gps_state == GPS_LOSS)
 
 #endif /* __COLLECTOR_H__ */

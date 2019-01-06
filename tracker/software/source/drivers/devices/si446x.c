@@ -2048,7 +2048,7 @@ static void Si446x_transmitTerminate(radio_task_object_t *rto, packet_t pp,
 #else
   rto->result = msg;
   pktRadioSendComplete(rto);
-  extern void pktThdTerminateSelf(void);
+  //extern void pktThdTerminateSelf(void);
   pktThdTerminateSelf();
 #endif
   /* We never arrive here. */
@@ -2089,7 +2089,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   /* Wait for receive stream in progress. Force inactive on timeout. */
   (void)pktSetReceiveStreamInactive(radio, rto,
                                     rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
-                                    ? TIME_IMMEDIATE : TIME_MS2I(300));
+                                    ? TIME_IMMEDIATE : TIME_MS2I(2000));
   /* Initialise radio before any commands since it may be in standby. */
   if(!Si446x_conditional_init(radio)) {
     /* Radio did not initialise. */
@@ -2453,7 +2453,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     chThdExit(MSG_RESET);
 #else
     pktRadioSendComplete(rto);
-    extern void pktThdTerminateSelf(void);
+    //extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
     /* We never arrive here. */
@@ -2462,7 +2462,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   /* Stop packet system reception. */
   (void)pktSetReceiveStreamInactive(radio, rto,
                                     rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
-                                    ? TIME_IMMEDIATE : TIME_MS2I(300));
+                                    ? TIME_IMMEDIATE : TIME_MS2I(2000));
 
   /* Initialize radio before any commands as it may have been powered down. */
   if(!Si446x_conditional_init(radio)) {
@@ -2488,7 +2488,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     chThdExit(MSG_RESET);
 #else
     pktRadioSendComplete(rto);
-    extern void pktThdTerminateSelf(void);
+    //extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
     /* We never arrive here. */
@@ -2551,7 +2551,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     chThdExit(MSG_RESET);
 #else
     pktRadioSendComplete(rto);
-    extern void pktThdTerminateSelf(void);
+    //extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
       /* We never arrive here. */
@@ -2670,7 +2670,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     chThdExit(MSG_RESET);
 #else
     pktRadioSendComplete(rto);
-    extern void pktThdTerminateSelf(void);
+    //extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
       /* We never arrive here. */
@@ -2711,7 +2711,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     chThdExit(MSG_RESET);
 #else
     pktRadioSendComplete(rto);
-    extern void pktThdTerminateSelf(void);
+    //extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
       /* We never arrive here. */
@@ -2773,7 +2773,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     chThdExit(MSG_RESET);
 #else
     pktRadioSendComplete(rto);
-    extern void pktThdTerminateSelf(void);
+    //extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
             /* We never arrive here. */
@@ -2812,7 +2812,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     chThdExit(MSG_RESET);
 #else
     pktRadioSendComplete(rto);
-    extern void pktThdTerminateSelf(void);
+    //extern void pktThdTerminateSelf(void);
     pktThdTerminateSelf();
 #endif
               /* We never arrive here. */

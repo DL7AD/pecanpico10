@@ -175,6 +175,7 @@
 #include "debug.h"
 #include "chprintf.h"
 #include "pkttypes.h"
+#include "pktconf.h"
 
 
 /*
@@ -253,7 +254,7 @@ packet_t ax25_new (void) {
 
 #if USE_CCM_HEAP_FOR_PKT == TRUE
     /* Use CCM heap. */
-    extern memory_heap_t *ccm_heap;
+    //extern memory_heap_t *ccm_heap;
     this_p = chHeapAlloc(ccm_heap, sizeof (struct genPacket));
     pktAssertCCMdynamicCheck(this_p);
 #else /* USE_CCM_HEAP_FOR_PKT != TRUE */

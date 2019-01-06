@@ -206,6 +206,7 @@ typedef struct packetHandlerData {
 /*===========================================================================*/
 
 extern packet_svc_t RPKTD1;
+extern memory_heap_t *ccm_heap;
 
 #ifdef __cplusplus
 extern "C" {

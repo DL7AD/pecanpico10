@@ -169,10 +169,11 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
   /*
    * Wait for initial data to be valid from pre-filter + correlators.
    */
-  if(++decoder->filter_valid <
-      PRE_FILTER_NUM_TAPS + DECODE_FILTER_LENGTH)
+  if(decoder->filter_valid <
+      PRE_FILTER_NUM_TAPS + DECODE_FILTER_LENGTH) {
+    ++decoder->filter_valid;
     return false;
-
+  }
   /*
    *  Samples have propagated through pre-filter and correlators.
    *  Compute magnitude of bins from now on.
@@ -184,8 +185,10 @@ bool process_qcorr_output(AFSKDemodDriver *myDriver) {
   filter_qcorr_magnitude(myDriver);
   /* Further delay result by mag filter size. */
   if(decoder->filter_valid < (PRE_FILTER_NUM_TAPS + DECODE_FILTER_LENGTH
-                                    + MAG_FILTER_NUM_TAPS))
+                                    + MAG_FILTER_NUM_TAPS)) {
+    ++decoder->filter_valid;
     return false;
+  }
 #endif
 
 #if AFSK_DEBUG_TYPE == AFSK_QCORR_DATA_DEBUG

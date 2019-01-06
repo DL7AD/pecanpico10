@@ -152,9 +152,11 @@ bool process_fcorr_output(AFSKDemodDriver *myDriver) {
   /*
    * Wait for initial data to be valid from pre-filter + correlators.
    */
-  if(++decoder->filter_valid <
-      PRE_FILTER_NUM_TAPS + DECODE_FILTER_LENGTH)
+  if(decoder->filter_valid <
+      PRE_FILTER_NUM_TAPS + DECODE_FILTER_LENGTH) {
+    ++decoder->filter_valid;
     return false;
+  }
 
   /*
    *  Samples have propagated through pre-filter and correlators.
@@ -167,8 +169,10 @@ bool process_fcorr_output(AFSKDemodDriver *myDriver) {
   filter_fcorr_magnitude(myDriver);
   /* Further delay result by mag filter size. */
   if(decoder->filter_valid < (PRE_FILTER_NUM_TAPS + DECODE_FILTER_LENGTH
-                                    + MAG_FILTER_NUM_TAPS))
+                                    + MAG_FILTER_NUM_TAPS)) {
+    ++decoder->filter_valid;
     return false;
+  }
 #endif
 
   /* Do magnitude comparison on tone bins and save results. */
@@ -206,8 +210,8 @@ bool get_fcorr_symbol_timing(AFSKDemodDriver *myDriver) {
  * @brief Advances the symbol PLL timing.
  * @notes The rate of advance is determined by the HDLC frame state.
  * @notes If a frame start has not been detected a faster search rate is used.
- * @notes This aids in finding the HDLC sync point as soon as possible.
- * @notea After HDLC frame start has been found the PLL search rate is reduced.
+ * @notes This aids in finding the HDLC_FLAG bit sync as quickly as possible.
+ * @notes After bit sync start has been found the PLL search rate is reduced.
  *
  * @param[in] myDriver    pointer to AFSKDemodDriver structure.
  *

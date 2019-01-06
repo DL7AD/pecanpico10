@@ -795,7 +795,7 @@ THD_FUNCTION(pktCallback, arg) {
 
   /* The callback no longer holds a reference to the service object. */
   handler->rxcb_ref_count--;
-  extern void pktThdTerminateSelf(void);
+  //extern void pktThdTerminateSelf(void);
   pktThdTerminateSelf();
 }
 
@@ -816,7 +816,7 @@ pkt_data_object_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
                                  sizeof(pkt_data_object_t),
                                  sizeof(size_t));
 
-  extern memory_heap_t *ccm_heap;
+  //extern memory_heap_t *ccm_heap;
   pkt_data_object_t *objects = chHeapAllocAligned(
                             USE_CCM_HEAP_RX_BUFFERS ? ccm_heap
                             : NULL,
@@ -1036,7 +1036,7 @@ pkt_data_object_t* pktAssignReceivePacketObject(packet_svc_t *const handler,
   (void)timeout;
   if(handler->rxcb_ref_count >= NUMBER_RX_PKT_BUFFERS)
     return NULL;
-  extern memory_heap_t *ccm_heap;
+  //extern memory_heap_t *ccm_heap;
   pkt_data_object_t *pkt_object =
       chHeapAlloc(USE_CCM_HEAP_RX_BUFFERS ? ccm_heap
                                           : NULL,
@@ -1054,7 +1054,7 @@ pkt_data_object_t* pktAssignReceivePacketObject(packet_svc_t *const handler,
   pkt_object->packet_size = 0;
   pkt_object->buffer_size = PKT_RX_BUFFER_SIZE;
   pkt_object->cb_func = handler->usr_callback;
-  extern memory_heap_t *ccm_heap;
+  //extern memory_heap_t *ccm_heap;
   pkt_object->buffer =
       chHeapAlloc(USE_CCM_HEAP_RX_BUFFERS ? ccm_heap
                                           : NULL,

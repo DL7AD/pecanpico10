@@ -302,7 +302,7 @@ typedef struct AFSK_data {
    * @brief Symbol incoming bit stream.
    */
   /* TODO: Should typdef this? */
-  uint32_t                  hdlc_bits;
+  //uint32_t                  hdlc_bits;
 
   /**
    * @brief Opening HDLC flag sequence found.

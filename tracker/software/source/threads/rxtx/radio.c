@@ -8,7 +8,7 @@
 #include "pktconf.h"
 #include "radio.h"
 #include "sleep.h"
-#include "threads.h"
+//#include "threads.h"
 
 /**
  * Packet object is passed in.

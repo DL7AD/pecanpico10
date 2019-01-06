@@ -858,7 +858,7 @@ msg_t aprs_transmit_telemetry_response(aprs_identity_t *id,
    * Start a run once beacon thread.
    * The identity data has a ref to the bcn_app_conf_t object of the call sign.
    */
-  extern memory_heap_t *ccm_heap;
+  //extern memory_heap_t *ccm_heap;
   bcn_app_conf_t *aprsd = chHeapAlloc(ccm_heap, sizeof(bcn_app_conf_t));
   if(aprsd == NULL)
     return MSG_ERROR;

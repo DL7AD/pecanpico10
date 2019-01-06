@@ -12,6 +12,7 @@
 #include <string.h>
 #include <math.h>
 #include "watchdog.h"
+#include "collector.h"
 
 /*
  *
@@ -64,7 +65,7 @@ THD_FUNCTION(bcnThread, arg) {
     /*
      *  Pass pointer to beacon config to the collector thread.
      */
-    extern thread_t *collector_thd;
+    //extern thread_t *collector_thd;
     msg_t dpmsg = chMsgSend(collector_thd, (msg_t)&conf);
     dataPoint_t *dataPoint = (dataPoint_t *)dpmsg;
 
@@ -178,7 +179,7 @@ THD_FUNCTION(bcnThread, arg) {
  *
  */
 thread_t * start_beacon_thread(bcn_app_conf_t *conf, const char *name) {
-  extern memory_heap_t *ccm_heap;
+  //extern memory_heap_t *ccm_heap;
   thread_t *th = chThdCreateFromHeap(ccm_heap,
                                THD_WORKING_AREA_SIZE(PKT_APRS_BEACON_WA_SIZE),
                                name, LOWPRIO, bcnThread, conf);

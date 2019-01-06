@@ -9,6 +9,10 @@
 #ifndef PKT_PROTOCOLS_RXHDLC_H_
 #define PKT_PROTOCOLS_RXHDLC_H_
 
+/*===========================================================================*/
+/* Module constants.                                                         */
+/*===========================================================================*/
+
 #define HDLC_SYNC_USE_COUNTER TRUE
 
 /* HDLC bit pattern definitions. */
@@ -23,10 +27,18 @@
 #endif
 
 /* Frame bounding. */
-#define HDLC_SYNC_MASK_A    0xFFFFFFFFU
-#define HDLC_SYNC_OPEN_A    0x7E7E7E7EU
-#define HDLC_SYNC_MASK_B    0xFFFFFFFFU
-#define HDLC_SYNC_OPEN_B    0x00007E7EU
+#define HDLC_SYNC_MASK_A    0x0000FFFFFFFFFFFFU
+#define HDLC_SYNC_OPEN_A    0x00007E7E7E7E7E7EU
+#define HDLC_SYNC_MASK_B    0x000000FFFFFFFFFFU
+#define HDLC_SYNC_OPEN_B    0x000000007E7E7E7EU
+
+/**
+ * @brief   HDLC tokens as array of strings.
+ * @details Each element in an array initialized with this macro can be
+ *          indexed using a numeric token value.
+ */
+#define HDLC_TOKEN_NAMES                                                     \
+  "SYNC", "FLAG", "RESET", "DATA", "OPEN", "FEED", "RLL"
 
 /* RLL encoding. */
 #define HDLC_RLL_BIT        0x3EU
@@ -36,7 +48,7 @@
 /*===========================================================================*/
 
 typedef uint8_t     hdlc_octet_t;
-typedef uint32_t    hdlc_stream_t;
+typedef uint64_t    hdlc_stream_t;
 
 /* Result token codes returned from HDLC receive processing. */
 typedef enum HDLCToken {
@@ -49,16 +61,20 @@ typedef enum HDLCToken {
   HDLC_TOK_RLL
 } hdlc_token_t;
 
+/* Token limits. */
+#define HDLC_TOKEN_MAX           HDLC_TOK_RLL
+
 /* Structure containing the HDLC decode control. */
 typedef struct decodeHDLC {
   enum {
     HDLC_FLAG_SEARCH,
     HDLC_FRAME_SYNC,
-    HDLC_FRAME_OPEN
+    HDLC_FRAME_OPEN,
+    HDLC_FRAME_TAIL
   } frame_state;
   hdlc_stream_t     hdlc_bits;
 #if HDLC_SYNC_USE_COUNTER == TRUE
-  uint16_t           sync_count;
+  uint16_t          sync_count;
 #endif
   uint32_t          bit_index;  /*<< AX25 data bit index. */
   ax25char_t        current_byte;
@@ -84,7 +100,9 @@ typedef struct decodeHDLC {
   #ifdef __cplusplus
   extern "C" {
   #endif
-    hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC);
+    hdlc_token_t    pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC);
+    void            pktResetHDLCProcessor(pkt_hdlc_decode_t *myHDLC);
+    const char      *pktGetHDLCTokenName(uint8_t index);
   #ifdef __cplusplus
   }
   #endif
