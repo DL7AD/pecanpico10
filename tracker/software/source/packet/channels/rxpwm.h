@@ -191,11 +191,10 @@ typedef struct {
    * The semaphore controls the release of the PWM buffer and FIFO resources.
    * In non-linked mode the buffer is enclosed within the FIFO object.
    * In linked mode the last PWM buffer is protected along with the FIFO.
-   * The semaphore prevents any release during trailing PWM buffering.
-   * Trailing PWM is not used but the object(s) are still in use by the radio.
+   * The semaphore prevents any release during front end PWM buffering.
    */
   binary_semaphore_t        sem;
-  volatile eventflags_t     status;
+  volatile statusflags_t    status;
   radio_signal_t            rssi;
   cnt_t                     seq_num;
   radio_freq_hz_t           freq;

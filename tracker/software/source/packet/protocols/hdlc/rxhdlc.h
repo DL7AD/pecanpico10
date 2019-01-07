@@ -22,15 +22,20 @@
 #define HDLC_ZERO           0x00U
 
 #if HDLC_SYNC_USE_COUNTER == TRUE
-/* Count of flags after initial detection met which is for PLL settle. */
-#define HDLC_PLL_SYNC_COUNT 16
+
+/* Minimum HDLC flags that should follow after initial bit sync detection.
+   The decoder PLL is running at normal lock-up rate in this phase. */
+#define HDLC_SYNC_COUNT_ZERO   0
+#define HDLC_SYNC_COUNT_FLAG   12
 #endif
 
-/* Frame bounding. */
-#define HDLC_SYNC_MASK_A    0x0000FFFFFFFFFFFFU
-#define HDLC_SYNC_OPEN_A    0x00007E7E7E7E7E7EU
-#define HDLC_SYNC_MASK_B    0x000000FFFFFFFFFFU
-#define HDLC_SYNC_OPEN_B    0x000000007E7E7E7EU
+/* Bit sync patterns used in fast lock-up phase of decoder PLL. */
+#define HDLC_SYNC_MASK_FLAG    0x0000FFFFFFFFFFFFU
+#define HDLC_SYNC_OPEN_FLAG    0x00007E7E7E7E7E7EU
+
+#define HDLC_SYNC_MASK_ZERO    0x0000FFFFFFFFFFFFU
+#define HDLC_SYNC_OPEN_ZERO    0x000000000000007EU
+
 
 /**
  * @brief   HDLC tokens as array of strings.
@@ -74,7 +79,12 @@ typedef struct decodeHDLC {
   } frame_state;
   hdlc_stream_t     hdlc_bits;
 #if HDLC_SYNC_USE_COUNTER == TRUE
-  uint16_t          sync_count;
+  cnt_t           sync_count;
+  enum {
+    HDLC_LEAD_NONE = 0,
+    HDLC_LEAD_ZERO,
+    HDLC_LEAD_FLAG
+  } lead_type;
 #endif
   uint32_t          bit_index;  /*<< AX25 data bit index. */
   ax25char_t        current_byte;

@@ -271,7 +271,7 @@ static void pktPWMInactivityTimeout(ICUDriver *myICU) {
   AFSKDemodDriver *myDemod = myICU->link;
   if(myDemod->active_radio_stream != NULL
       && myDemod->icustate == PKT_PWM_WAITING) {
-    pktClosePWMStreamI(myICU, STA_PWM_RADIO_NONE,
+    pktClosePWMStreamI(myICU, STA_PWM_NO_RADIO_DATA,
                        EVT_PWM_NO_DATA, PWM_TERM_NO_DATA);
   }
   chSysUnlockFromISR();
@@ -309,7 +309,6 @@ static void pktOpenPWMStreamI(ICUDriver *myICU, eventflags_t evt) {
 #else
     pktClosePWMStreamI(myICU, STA_CCA_RADIO_CONTINUE,
                        EVT_RAD_STREAM_CLOSE, PWM_TERM_STREAM_CLOSE);
-    //myDemod->active_radio_stream = NULL;
 #endif
   }
   /* Normal CCA handling.
@@ -991,8 +990,9 @@ void pktRadioICUWidth(ICUDriver *myICU) {
 
   switch (myDemod->icustate) {
   case PKT_PWM_WAITING: {
-    /* TODO: The stream should be opened here rather than in CCA handlers.
-     * Then we don't waste time allocating a stream which has no PWM.
+    /* TODO: The stream could be opened here rather than in CCA handlers.
+     * Probably an infrequent case where PWM does not happen but probably
+     * more sensible to open the PWM stream here in any case.
      */
     /* Increment receive session count. */
     myHandler->radio_rx_config.seq_num++;
@@ -1001,7 +1001,8 @@ void pktRadioICUWidth(ICUDriver *myICU) {
     chVTResetI(&myICU->pwm_timer);
 
 #if PKT_RSSI_CAPTURE == TRUE
-    /* Queue a radio task to read RSSI in radio. */
+    /* Queue a radio task to read RSSI in radio.
+       Radio registers can't be read at ISR level.  */
 
     radio_params_t rp = myHandler->radio_rx_config;
 

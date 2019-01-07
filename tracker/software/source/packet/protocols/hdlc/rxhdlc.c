@@ -78,16 +78,18 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
     /* Process HDLC stream based on frame state.  */
     switch(myHDLC->frame_state) {
 
-    /* Frame opening sync pattern searching. */
+    /* Frame opening sync pattern searching. The decoder PLL will search at
+       an aggressive rate for bit sync when HDLC processor is in this state.
+       Two search patterns are looked for. One with pure HDLC flags the other
+       with leading zeros followed by HDLC flags. Leading zeros are used by
+       some TNCs as that results in constant NRZI transitions. */
     case HDLC_FLAG_SEARCH: {
-      /* Search bit pattern as it slides by looking for
-         opening HDLC flag sequence. */
-      if (
-          ((myHDLC->hdlc_bits & HDLC_SYNC_MASK_A) == HDLC_SYNC_OPEN_A)
-          ||
-          ((myHDLC->hdlc_bits & HDLC_SYNC_MASK_B) == HDLC_SYNC_OPEN_B)
-         ) {
-
+      /* Search bit pattern as it slides by looking for a sync sequence. */
+      if ((myHDLC->hdlc_bits & HDLC_SYNC_MASK_FLAG) == HDLC_SYNC_OPEN_FLAG)
+        myHDLC->lead_type = HDLC_LEAD_FLAG;
+      if ((myHDLC->hdlc_bits & HDLC_SYNC_MASK_ZERO) == HDLC_SYNC_OPEN_ZERO)
+        myHDLC->lead_type = HDLC_LEAD_ZERO;
+      if (myHDLC->lead_type != HDLC_LEAD_NONE) {
         /* Reset data bit/byte index. */
         myHDLC->bit_index = 0;
 #if HDLC_SYNC_USE_COUNTER == TRUE
@@ -103,7 +105,7 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
       return (myHDLC->last_token = HDLC_TOK_FEED);
     } /* End case FRAME_SEARCH. */
 
-    /* An opening sync pattern has been detected. */
+    /* An opening bit sync pattern has been detected. */
     case HDLC_FRAME_SYNC: {
       switch (myHDLC->hdlc_bits & HDLC_BIT_MASK) {
       case HDLC_FLAG: {
@@ -131,16 +133,25 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
 #if HDLC_SYNC_USE_COUNTER == TRUE
         /* Check number of contiguous flags received. This sequence is
            intended to settle the decoder PLL. */
-        if (myHDLC->sync_count < HDLC_PLL_SYNC_COUNT) {
-          /* Discard as this is likely junk. Go back to bit level sync */
-          myHDLC->frame_state = HDLC_FLAG_SEARCH;
-          return (myHDLC->last_token = HDLC_TOK_FEED);
+        if (
+            (myHDLC->lead_type == HDLC_LEAD_ZERO && myHDLC->sync_count >= HDLC_SYNC_COUNT_ZERO)
+            ||
+            (myHDLC->lead_type == HDLC_LEAD_FLAG && myHDLC->sync_count >= HDLC_SYNC_COUNT_FLAG)
+            ) {
+          /* A data byte is available. */
+          myHDLC->frame_state = HDLC_FRAME_OPEN;
+          return (myHDLC->last_token = HDLC_TOK_OPEN);
         }
-#endif
+        else {
+        /* Discard as this is likely junk. Go back to bit level sync */
+        myHDLC->frame_state = HDLC_FLAG_SEARCH;
+        return (myHDLC->last_token = HDLC_TOK_FEED);
+      }
+#else
         /* A data byte is available. */
         myHDLC->frame_state = HDLC_FRAME_OPEN;
-
         return (myHDLC->last_token = HDLC_TOK_OPEN);
+#endif
       } /* End switch on HDLC code. */
     } /* End case HDLC_FRAME_SYNC. */
 

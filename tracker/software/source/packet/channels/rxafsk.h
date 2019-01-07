@@ -220,7 +220,10 @@ typedef struct AFSK_data {
    */
   thread_t                  *decoder_thd;
 
-  pkt_hdlc_decode_t         rx_hdlc; /*<< HDLC decoder control object. */
+  /**
+   * @brief Control object for HDLC processor.
+   */
+  pkt_hdlc_decode_t         rx_hdlc;
 
   /**
    * @brief AFSK decoder states.
@@ -283,31 +286,10 @@ typedef struct AFSK_data {
   radio_pwm_fifo_t          *active_demod_stream;
 
   /**
-   * @brief current symbol frequency.
-   */
-  //tone_t                    tone_freq;
-
-  /**
-   * @brief Prior symbol frequency.
-   */
-  //tone_t                    prior_freq;
-
-  /**
    * @brief     Pointer to a decoder data structure.
    * @details   This may be Q31 or F32 type.
    */
   void                      *tone_decoder;
-
-  /**
-   * @brief Symbol incoming bit stream.
-   */
-  /* TODO: Should typdef this? */
-  //uint32_t                  hdlc_bits;
-
-  /**
-   * @brief Opening HDLC flag sequence found.
-   */
-  //frame_state_t             frame_state;
 
   /**
    * @brief Thread reference of initiating thread.

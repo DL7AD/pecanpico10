@@ -174,7 +174,7 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #define STA_PWM_STREAM_DISABLE      STATUS_MASK(22)
 #define STA_PWM_RADIO_STOP          STATUS_MASK(23)
 
-#define STA_PWM_RADIO_NONE          STATUS_MASK(24)
+#define STA_PWM_NO_RADIO_DATA       STATUS_MASK(24)
 #define STA_CCA_RADIO_DROP          STATUS_MASK(25)
 #define STA_PWM_STREAM_SWITCH       STATUS_MASK(26)
 #define STA_AFSK_HDLC_ERROR         STATUS_MASK(27)
