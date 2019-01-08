@@ -83,7 +83,7 @@ const si446x_mcucfg_t radio1_cfg = {
     .icu     = &PKT_RADIO1_PWM_ICU,
     .cfg     = {
        ICU_INPUT_ACTIVE_HIGH,
-       PWM_ICU_COUNT_FREQUENCY,   /**< ICU clock frequency. */
+       PWM_ICU_COUNT_FREQUENCY,  /**< ICU clock frequency. */
        pktRadioICUWidth,         /**< ICU width callback. */
        pktRadioICUPeriod,        /**< ICU period callback. */
        pktRadioICUOverflow,      /**< ICU overflow callback. */

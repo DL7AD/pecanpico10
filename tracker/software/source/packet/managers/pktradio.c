@@ -138,7 +138,7 @@ static bool pktLLDradioSendPacket(radio_task_object_t *const rto) {
  *
  * @return  status of the operation
  * @retval  true    operation succeeded.
- * retval   false   operation failed.
+ * @retval  false   operation failed.
  *
  * @notapi
  */
@@ -660,6 +660,7 @@ static msg_t pktStopRadioReceive(const radio_unit_t radio,
  * @post    The radio receive is resumed.
  *
  * @param[in] radio     Radio unit ID.
+ * @param[in] rto       Pointer to @p radioTask object.
  * @param[in] timeout   the number of ticks before the operation times out.
  *                      the following special values are allowed:
  *                      - @a TIME_IMMEDIATE immediate timeout.
@@ -1132,25 +1133,23 @@ THD_FUNCTION(pktRadioManager, arg) {
       } /* End case PKT_RADIO_RX_CLOSE. */
 
     case PKT_RADIO_TX_DONE: {
-      /* Get thread exit code and free memory. */
-#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-      msg_t msg = chThdWait(task_object->thread);
-      task_object->result = MSG_ERROR;
-#else
+      /* Get thread exit code, handle RX resume and callbacks. */
       msg_t msg = task_object->result;
-#endif
       if(msg == MSG_TIMEOUT) {
-        TRACE_ERROR("RAD  > Transmit timeout on radio %d", radio);
+        TRACE_ERROR("RAD  > %s transmit timeout on radio %d",
+                    getModulation(task_object->radio_dat.type),
+                    radio);
       }
       if(msg == MSG_RESET) {
-        TRACE_ERROR("RAD  > Transmit failed to start on radio %d", radio);
+        TRACE_ERROR("RAD  > %s transmit failed to start on radio %d",
+                    getModulation(task_object->radio_dat.type),
+                    radio);
       }
-#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-      /* Set status WRT TX. */
-      task_object->result = MSG_OK;
-#endif
+      /* Save the TX modulation type. */
+      radio_mod_t type = task_object->radio_dat.type;
       /* If no transmissions pending then enable RX or enter standby. */
       if(--handler->txrto_ref_count == 0) {
+        /* Set the RX configuration in the current RTO for set receive active. */
         task_object->radio_dat = handler->radio_rx_config;
         msg = pktSetReceiveStreamActive(radio, task_object, TIME_MS2I(10));
       }
@@ -1159,9 +1158,11 @@ THD_FUNCTION(pktRadioManager, arg) {
         break;
       /*
        * Enter standby state (low power).
-       * TODO: Create new standby task that can be re-submitted.
+       * TODO: Create new standby task that can be re-submitted if lock fails.
        */
-      TRACE_DEBUG("RAD  > Radio %d entering standby", radio);
+      TRACE_DEBUG("RAD  > Radio %d entering standby after %s transmit",
+                  radio,
+                  getModulation(type));
       msg = pktLockRadio(radio, RADIO_RX, TIME_IMMEDIATE);
       if(msg != MSG_OK)
         break;
@@ -2039,16 +2040,14 @@ radio_freq_hz_t pktComputeOperatingFrequency(const radio_unit_t radio,
 }
 
 /**
- * @brief   Called by transmit threads to schedule release after completing.
- * @post    A thread release task is posted to the radio manager queue.
+ * @brief   Called by transmit threads to advise radio manager.
+ * @post    A transmit end task is posted to the radio manager queue.
  *
  * @param[in]   rto     reference to radio task object.
- * @param[in]   thread  thread reference of thread terminating.
  *
  * @api
  */
-void pktRadioSendComplete(radio_task_object_t *const rto/*,
-                          thread_t *const thread*/) {
+void pktRadioSendComplete(radio_task_object_t *const rto) {
 
   radio_unit_t radio = rto->handler->radio;
   /*
@@ -2056,7 +2055,6 @@ void pktRadioSendComplete(radio_task_object_t *const rto/*,
    *  The RTO will be freed by RM.
    */
   rto->command = PKT_RADIO_TX_DONE;
-  //rto->thread = thread;
   /* Submit guaranteed to succeed by design. */
   pktSubmitPriorityRadioTask(radio, rto, NULL);
 }

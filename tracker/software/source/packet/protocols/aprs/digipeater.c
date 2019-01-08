@@ -143,7 +143,7 @@ packet_t digipeat_match (packet_t pp,
 	r = ax25_get_first_not_repeated(pp);
 
 	if (r < AX25_REPEATER_1) {
-	    TRACE_MON("DIGI > All stations in packet %d already repeated", pp->seq);
+	    TRACE_MON("DIGI > No stations to be repeated in packet %d", pp->seq);
 	  return NULL;
 	}
 

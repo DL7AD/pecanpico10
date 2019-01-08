@@ -198,7 +198,7 @@ static void pktConsoleInputAvailable(eventid_t id) {
   case CON_CHN_TRACE: {
     if(CON_DEBUG_TRACE)
       TRACE_DEBUG("CON  > Input available event when in TRACE");
-    TRACE_INFO("CON  > Enter command mode");
+    TRACE_INFO("CON  > Enter command mode on console channel");
     console_state = CON_CHN_FLUSH;
     break;
   }
@@ -370,7 +370,7 @@ THD_FUNCTION(pktConsole, arg) {
         chprintf(chp, "\r\n*** Trace resumed by user ***\r\n");
         chThdSleep(TIME_MS2I(100));
         console_state = CON_CHN_TRACE;
-        TRACE_INFO("CON  > Resume trace mode");
+        TRACE_INFO("CON  > Resume trace mode on console channel");
         continue;
       }
       /*

@@ -146,9 +146,6 @@ struct radioTask {
   radio_task_cb_t           user_cb;
   msg_t                     result;
   radio_signal_t            rssi;
-#if PKT_TRANSMIT_TASK_SELF_TERMINATE != TRUE
-  thread_t                  *thread;
-#endif
 };
 
 /*===========================================================================*/
@@ -225,12 +222,7 @@ extern "C" {
   msg_t             pktSetReceiveStreamInactive(const radio_unit_t radio,
                                           const radio_task_object_t *rto,
                                           const sysinterval_t timeout);
-#if PKT_TRANSMIT_TASK_SELF_TERMINATE == TRUE
   void      		pktRadioSendComplete(radio_task_object_t *const rto);
-#else
-  void              pktRadioSendComplete(radio_task_object_t *const rto,
-                                          thread_t *const thread);
-#endif
   ICUDriver         *pktLLDradioAttachStream(const radio_unit_t radio);
   void              pktLLDradioDetachStream(const radio_unit_t radio);
   const ICUConfig   *pktLLDradioStreamEnable(const radio_unit_t radio,

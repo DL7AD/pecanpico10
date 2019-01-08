@@ -18,13 +18,14 @@
 #define SI446X_EVT_TX_TIMEOUT                   EVENT_MASK(0)
 
 //#define Si446x_LOCK_BY_SEMAPHORE                TRUE
-#define Si446x_UNLOCK_FOR_ENCODE                FALSE
+//#define Si446x_UNLOCK_FOR_ENCODE                FALSE
 #define Si446x_4463_USE_446X_COMPATABILITY      TRUE
 #define Si446x_USE_AFSK_LCM_DATA_RATE           FALSE
 #define Si446x_USE_NB_RECEIVE_FILTER            TRUE
 
 #define Si446x_MODEM_RSSI_COMP_VALUE            0x40
 
+#if 0
 /* Si4464 States. */
 #define Si446x_STATE_REMAIN                     0
 #define Si446x_STATE_SLEEP                      1
@@ -36,6 +37,20 @@
 #define Si446x_STATE_RX_TUNE                    6
 #define Si446x_STATE_TX                         7
 #define Si446x_STATE_RX                         8
+#endif
+typedef enum {
+  /* Si4464 States. */
+  Si446x_REMAIN       =          0,
+  Si446x_SLEEP        =          1,
+  Si446x_STANDBY      =          1,
+  Si446x_SPI_ACTIVE   =          2,
+  Si446x_READY        =          3,
+  Si446x_READY2       =          4,
+  Si446x_TX_TUNE      =          5,
+  Si446x_RX_TUNE      =          6,
+  Si446x_TX           =          7,
+  Si446x_RX           =          8
+} si446x_state_t;
 
 /* Commands. */
 #define Si446x_NOP                              0x00
@@ -251,6 +266,10 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
+/* SPI byte stream arguments and replies. */
+typedef uint8_t si446x_reply_t;
+typedef uint8_t si446x_args_t;
+
 /* AFSK encoder/up-sampler control object. */
 typedef struct {
   uint32_t  phase_delta;            // 1200/2200 for standard AX.25
@@ -368,9 +387,7 @@ extern "C" {
   bool Si446x_radioWakeUp(const radio_unit_t radio);
   void Si446x_radioShutdown(const radio_unit_t radio);
   void Si446x_radioStandby(const radio_unit_t radio);
-  //void Si446x_sendAFSK(packet_t pp);
   bool Si446x_blocSendAFSK(radio_task_object_t *rto);
-  //void Si446x_send2FSK(packet_t pp);
   bool Si446x_blocSend2FSK(radio_task_object_t *rto);
   bool Si446x_blocSendCW(radio_task_object_t *rt);
   void Si446x_disableReceive(radio_unit_t radio);
@@ -400,7 +417,6 @@ extern "C" {
   void Si446x_disablePWMeventsI(const radio_unit_t radio,
                                 const radio_mod_t mod);
   uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio, radio_mod_t mod);
-  //bool Si446x_waitTransmitEnd(const radio_unit_t radio, sysinterval_t timeout);
   bool Si446x_updateClock(const radio_unit_t, const xtal_osc_t freq);
 #ifdef __cplusplus
 }

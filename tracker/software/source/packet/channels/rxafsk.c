@@ -443,7 +443,7 @@ static bool pktResetAFSKDecoder(AFSKDemodDriver *myDriver) {
 #if 0
   myDriver->rx_hdlc.frame_state = HDLC_FLAG_SEARCH;
 #if HDLC_SYNC_USE_COUNTER == TRUE
-  myDriver->rx_hdlc.sync_count = 0;
+  myDriver->rx_hdlc.flag_count = 0;
 #endif
   myDriver->rx_hdlc.tone_freq = TONE_NONE;
   myDriver->rx_hdlc.prior_freq = TONE_NONE;
@@ -1257,9 +1257,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         radio_pwm_fifo_t *myFIFO = myDriver->active_demod_stream;
         /* There won't be a demod object if the decoder is just being reset. */
         if(myFIFO != NULL) {
-          TRACE_DEBUG("AFSK > Decode %d end on radio %d with flags 0x%08x and HDLC token %s",
+          TRACE_DEBUG("AFSK > Decode %d end on radio %d, sync type %d, flag count %d, status 0x%08x and HDLC token %s",
                       myDriver->active_demod_stream->seq_num,
-                      radio, myDriver->active_demod_stream->status,
+                      radio, myDriver->rx_hdlc.lead_type,
+                      myDriver->rx_hdlc.flag_count,
+                      myDriver->active_demod_stream->status,
                       pktGetHDLCTokenName(myDriver->rx_hdlc.last_token));
           /*
            * Signal the PWM queue that decoding is finished.

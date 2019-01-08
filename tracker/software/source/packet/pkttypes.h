@@ -32,6 +32,7 @@ typedef uint8_t     radio_signal_t;     /**< RX signal level.               */
 typedef uint16_t    radio_dev_hz_t;     /**< TX deviation.                  */
 typedef uint32_t    radio_clock_t;      /**< XO frequency for radio chip.   */
 typedef int16_t     radio_temp_t;       /**< Chip temperature.              */
+typedef uint16_t    radio_payload_t;    /**< Packet payload size.           */
 
 /**
  * @brief   Definition of radio unit ID.

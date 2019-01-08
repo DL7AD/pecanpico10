@@ -79,7 +79,7 @@ typedef struct decodeHDLC {
   } frame_state;
   hdlc_stream_t     hdlc_bits;
 #if HDLC_SYNC_USE_COUNTER == TRUE
-  cnt_t           sync_count;
+  cnt_t           flag_count;
   enum {
     HDLC_LEAD_NONE = 0,
     HDLC_LEAD_ZERO,

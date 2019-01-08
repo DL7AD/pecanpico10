@@ -31,7 +31,8 @@ const char *pktGetHDLCTokenName(uint8_t index) {
 void pktResetHDLCProcessor(pkt_hdlc_decode_t *myHDLC) {
     myHDLC->frame_state = HDLC_FLAG_SEARCH;
 #if HDLC_SYNC_USE_COUNTER == TRUE
-    myHDLC->sync_count = 0;
+    myHDLC->flag_count = 0;
+    myHDLC->lead_type = HDLC_LEAD_NONE;
 #endif
  myHDLC->tone_freq = TONE_NONE;
  myHDLC->prior_freq = TONE_NONE;
@@ -94,7 +95,7 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
         myHDLC->bit_index = 0;
 #if HDLC_SYNC_USE_COUNTER == TRUE
         /* Reset PLL sync counter. */
-        myHDLC->sync_count = 0;
+        myHDLC->flag_count = 0;
 #endif
         /*
          * Contiguous HDLC flags in the preamble will be handled in SYNC state.
@@ -113,7 +114,7 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
          * Another preamble HDLC flag. Continue waiting for data.
          */
 #if HDLC_SYNC_USE_COUNTER == TRUE
-        myHDLC->sync_count++;
+        myHDLC->flag_count++;
 #endif
         return (myHDLC->last_token = HDLC_TOK_FEED);
       } /* End case HDLC_FLAG. */
@@ -134,9 +135,9 @@ hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
         /* Check number of contiguous flags received. This sequence is
            intended to settle the decoder PLL. */
         if (
-            (myHDLC->lead_type == HDLC_LEAD_ZERO && myHDLC->sync_count >= HDLC_SYNC_COUNT_ZERO)
+            (myHDLC->lead_type == HDLC_LEAD_ZERO && myHDLC->flag_count >= HDLC_SYNC_COUNT_ZERO)
             ||
-            (myHDLC->lead_type == HDLC_LEAD_FLAG && myHDLC->sync_count >= HDLC_SYNC_COUNT_FLAG)
+            (myHDLC->lead_type == HDLC_LEAD_FLAG && myHDLC->flag_count >= HDLC_SYNC_COUNT_FLAG)
             ) {
           /* A data byte is available. */
           myHDLC->frame_state = HDLC_FRAME_OPEN;

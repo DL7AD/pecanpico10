@@ -1030,49 +1030,30 @@ void pktRadioICUWidth(ICUDriver *myICU) {
   case PKT_PWM_ACTIVE: {
     /*
      * Check if decoding has been reset while ICU is still active.
-     * The decoder always resets after a packet decode (success or fail).
+     * The decoder always resets after processing a stream (success or fail).
      *
-     * Situations where PWM may still be incoming...
+     * Situations where PWM stream may still be incoming and a
+     *   switch should be made...
      * 1. If CPU is fast (FPU enabled) it might finish decode before PWM stops.
-     *    This would can also happen if the packet transmission has a long tail.
+     *    This can also happen if the packet transmission has a long tail.
      *
      * 2. Overlapping or continuous packet traffic (CCA stays asserted).
      *
      * 3. RSSI threshold is set too low and CCA remains asserted.
      */
-    if((myDemod->active_radio_stream->status & STA_AFSK_DECODE_RESET) != 0) {
-#if 0
-      pktClosePWMStreamI(myICU, STA_PWM_STREAM_STOP,
-                         EVT_RAD_STREAM_SWITCH, PWM_ACK_DECODE_RESET);
-
-      /* Check if CCA is still asserted. If so open a new stream now.
-         TODO: Rework AFSK decoder to handle a transition from RESET to ACTIVE
-         Set a status flag here to tell decoder to only partial reset.
-         This will save the overhead of getting a new stream object,
-         PWM queue, etc. at IRQ level.
-         The stream is switched by calling pktSwitchPWMStreamI() */
-      uint8_t cca = pktLLDradioReadCCAlineI(myHandler->radio);
-      if (cca == PAL_HIGH) {
-        /* PWM is set in WAITING state. Period CB will just return. Width CB
-           will transition ICU to ACTIVE.
-         */
-        pktOpenPWMStreamI(myICU, EVT_RAD_STREAM_OPEN);
-        break;
-      }
-#else
+    if((myDemod->active_radio_stream->status & STA_AFSK_DECODE_RESET) != 0)
       pktSwitchPWMStreamI(myICU, STA_NONE, EVT_NONE);
-      break;
-#endif
-    }
     break;
   } /* End case PKT_PWM_ACTIVE */
 
   default:
     break;
   } /* End switch. */
+
   /* Check if impulse ICU value is zero and thus invalid. */
   if(icuGetWidthX(myICU) == 0) {
-    /* Close stream if one is allocated. */
+    /* Post an in-band message to the stream if one is allocated.
+      The EVT_PWM_ICU_ZERO event would be broadcast by the decoder. */
     pktClosePWMStreamI(myICU, STA_PWM_ICU_ZERO, EVT_NONE, PWM_TERM_ICU_ZERO);
   }
   chSysUnlockFromISR();
