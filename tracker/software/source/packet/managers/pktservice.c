@@ -382,6 +382,7 @@ msg_t pktOpenRadioReceive(const radio_unit_t radio,
 }
 #endif
 
+#if 0
 /**
  * TODO: Should not process this via the outer level callbacks.
  * Should be handled inside RM initiated by a macro level directive.
@@ -407,7 +408,7 @@ static void pktReceiveStartCB(radio_task_object_t *rt) {
   }
   TRACE_DEBUG("RAD  > Starting packet receive on radio %d (CB)", radio);
 }
-
+#endif
 /**
  * @brief   Request start of packet reception service.
  * @pre     The packet receive service is opened if not already.
@@ -458,7 +459,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
    * Use RM internal callbacks to transition between states.
    */
 
-  switch(handler->rx_state) {
+  switch (handler->rx_state) {
   /**
    *
    */
@@ -494,15 +495,18 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
     handler->valid_count = 0;
     handler->good_count = 0;
 
+    /* Setup the task. The open task callback pktReceiveStartCB()
+       will queue a start task. */
+    msg_t result;
     msg = pktQueueRadioCommand(radio,
                               PKT_RADIO_RX_OPEN,
                               &handler->radio_rx_config,
-                              to,
-                              pktReceiveStartCB);
+                              to, &result,
+                              /*pktReceiveStartCB*/NULL);
 
-    if(msg == MSG_OK) {
-      pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
-      //pktEnableDecoderEventTrace(radio);
+    if (msg == MSG_OK) {
+      if (result == MSG_OK)
+        pktAddEventFlags(handler, EVT_PKT_RECEIVE_OPEN | EVT_PKT_RECEIVE_START);
     }
     return msg;
   }
@@ -523,14 +527,17 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
      * Encoding, frequency, step... actually only encoding matters.
      * In that case close the channel and re-open with new encoding.
      */
+    msg_t result;
     msg_t msg = pktQueueRadioCommand(radio,
                                     PKT_RADIO_RX_START,
                                     &handler->radio_rx_config,
-                                    to,
+                                    to, &result,
                                     NULL);
 
-    if(msg == MSG_OK)
-      pktAddEventFlags(handler, EVT_PKT_RECEIVE_START);
+    if (msg == MSG_OK) {
+      if (result == MSG_OK)
+        pktAddEventFlags(handler, EVT_PKT_RECEIVE_START);
+    }
     return msg;
   }
 
@@ -557,10 +564,10 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
  * @param[in] radio     radio unit ID.
  *
  * @return              Status of the operation.
- * @retval MSG_OK       if the channel was stopped.
- * @retval MSG_RESET    if the channel was reset (semaphore reset).
- * @retval MSG_TIMEOUT  if the channel could not be stopped or is invalid.
- * @retval MSG_ERROR    if the channel was not in the correct state.
+ * @retval MSG_OK       if the reception was stopped.
+ * @retval MSG_RESET    if the radio was reset (semaphore reset).
+ * @retval MSG_TIMEOUT  if the reception could not be stopped or is invalid.
+ * @retval MSG_ERROR    if the service was not in the correct state.
  *
  * @api
  */
@@ -569,21 +576,22 @@ msg_t pktDisableDataReception(radio_unit_t radio) {
 
   packet_svc_t *handler = pktGetServiceObject(radio);
 
-  if(handler == NULL)
+  if (handler == NULL)
     return MSG_ERROR;
 
-  if(!pktIsReceiveEnabled(radio))
-  /*if(handler->state != PACKET_READY || handler->rx_state != PACKET_RX_ENABLED)*/
+  if (!pktIsReceiveEnabled(radio))
     return MSG_ERROR;
 
   /* Submit command. A timeout can occur waiting for a command queue object. */
   radio_params_t rp = handler->radio_rx_config;
+  msg_t result;
   msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_RX_STOP,
-                                  &rp, TIME_INFINITE, NULL);
-  if(msg != MSG_OK)
-    return msg;
-  pktAddEventFlags(handler, EVT_PKT_CHANNEL_STOP);
-  return MSG_OK;
+                                  &rp, TIME_INFINITE, &result, NULL);
+  if (msg == MSG_OK) {
+    if (result == MSG_OK)
+      pktAddEventFlags(handler, EVT_PKT_RECEIVE_STOP);
+  }
+  return msg;
 }
 
 /**
@@ -612,14 +620,14 @@ msg_t pktCloseRadioReceive(radio_unit_t radio) {
     return MSG_RESET;
 
   /* Submit command. A timeout can occur waiting for a command queue object. */
+  msg_t result;
   msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_RX_CLOSE,
-                                  NULL, TIME_INFINITE, NULL);
-  if(msg != MSG_OK)
-    return msg;
-
-  //pktDisableDecoderEventTrace(radio);
-  pktAddEventFlags(handler, EVT_PKT_CHANNEL_CLOSE);
-  return MSG_OK;
+                                  NULL, TIME_INFINITE, &result, NULL);
+  if (msg == MSG_OK) {
+    if (result == MSG_OK)
+      pktAddEventFlags(handler, EVT_PKT_RECEIVE_CLOSE);
+  }
+  return msg;
 }
 
 /**

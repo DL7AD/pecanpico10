@@ -117,6 +117,7 @@ typedef struct packetHandlerData {
   bool                      radio_init; /**< Radio has been initialised     */
 
   binary_semaphore_t        radio_sem;  /**< Radio lock semaphore.          */
+  radio_mode_t              lock_mode;  /**< Radio lock mode.               */
   radio_params_t            radio_rx_config;
   radio_params_t            radio_tx_config;
 
@@ -139,9 +140,9 @@ typedef struct packetHandlerData {
    * @brief names for the factory FIFOs.
    * @notes packet buffer & radio task and callback
    */
-  char                      pbuff_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
+  //char                      pbuff_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
   char                      rtask_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
-  char                      cbend_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
+  //char                      cbend_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
 
   /**
    *  @brief Packet system service threads.
@@ -233,9 +234,9 @@ extern "C" {
                               const radio_squelch_t sq,
                               const pkt_buffer_cb_t cb,
                               const sysinterval_t to);
-  msg_t                 pktStartDecoder(const radio_unit_t radio);
+  //msg_t                 pktStartDecoder(const radio_unit_t radio);
   msg_t                 pktDisableDataReception(const radio_unit_t radio);
-  void                  pktStopDecoder(const radio_unit_t radio);
+  //void                  pktStopDecoder(const radio_unit_t radio);
   //msg_t                 pktCloseRadioReceive(const radio_unit_t radio);
   bool                  pktStoreReceiveData(pkt_data_object_t *const buffer,
                                             const ax25char_t data);

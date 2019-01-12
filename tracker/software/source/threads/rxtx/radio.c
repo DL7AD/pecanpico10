@@ -206,7 +206,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
     handler->radio_tx_config = rp;
 
     msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_TX_SEND,
-                                    &rp, TIME_S2I(10), cb);
+                                    &rp, TIME_S2I(10), NULL, cb);
 
     if(msg == MSG_TIMEOUT) {
       TRACE_ERROR("RAD  > Failed to post radio task");

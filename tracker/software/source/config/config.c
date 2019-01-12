@@ -39,7 +39,7 @@ const conf_t conf_flash_default = {
     .pos_sec = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 5), // Beacon interval
+            .cycle = TIME_S2I(30), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
         },
@@ -85,7 +85,7 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = true,
+            .active = false,
             .cycle = TIME_S2I(60 * 5),
             .init_delay = TIME_S2I(30),
             .send_spacing = TIME_S2I(0)
@@ -142,9 +142,9 @@ const conf_t conf_flash_default = {
                  // Cycle timing less than interval means the cycle will run immediately after interval
                  // If cycle is CYCLE_CONTINUOUSLY the radio turns off and on at each interval
                  .active = true,
-                 .init_delay = TIME_S2I(0),
-                 .cycle = TIME_S2I(60),
-                 .interval = TIME_INFINITE
+                 .init_delay = TIME_S2I(30),
+                 .cycle = TIME_S2I(60 * 5),
+                 .interval = TIME_S2I((60 * 5) - 10)
              },
             // Receive radio configuration
             .radio_conf = {

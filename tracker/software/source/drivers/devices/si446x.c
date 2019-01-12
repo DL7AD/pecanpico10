@@ -438,6 +438,7 @@ static bool Si446x_clearInterruptStatus(const radio_unit_t radio) {
 
 /**
  * Initializes Si446x transceiver chip.
+ * Returns false on success, true on fail.
  */
 static bool Si446x_init(const radio_unit_t radio) {
 
@@ -449,9 +450,9 @@ static bool Si446x_init(const radio_unit_t radio) {
    * Set MCU GPIO for radio GPIO1 (CTS).
    * Execute radio wake up sequence.
    */
-  if(!Si446x_radioWakeUp(radio)) {
+  if(Si446x_radioWakeUp(radio)) {
     TRACE_ERROR("SI   > Wake up of radio %d failed", radio);
-    return false;
+    return true;
   }
 
   /*
@@ -512,9 +513,9 @@ static bool Si446x_init(const radio_unit_t radio) {
     TRACE_DEBUG("SI   > Restart radio %d to apply patch", radio);
     Si446x_radioShutdown(radio);
     chThdSleep(TIME_MS2I(10));
-    if(!Si446x_radioWakeUp(radio)) {
+    if(Si446x_radioWakeUp(radio)) {
       TRACE_ERROR("SI   > Wake up of radio %d to load patch failed", radio);
-      return false;
+      return true;
     }
     uint16_t i = 0;
     while(Si4463_Patch_Data_Array[i] != 0) {
@@ -523,7 +524,7 @@ static bool Si446x_init(const radio_unit_t radio) {
       i += Si4463_Patch_Data_Array[i] + 1;
       else {
         TRACE_ERROR("SI   > Error during loading of patch to radio %d", radio);
-        return false;
+        return true;
       }
     }
     const uint8_t init_command[] = {Si446x_POWER_UP, 0x81,
@@ -531,7 +532,7 @@ static bool Si446x_init(const radio_unit_t radio) {
                                     x3, x2, x1, x0};
     if (Si446x_writeBoot(radio, init_command, sizeof(init_command))) {
       TRACE_ERROR("SI   > Restart of radio %d after patch failed", radio);
-      return false;
+      return true;
     }
   }
 
@@ -631,15 +632,23 @@ static bool Si446x_init(const radio_unit_t radio) {
 
   /* Leave the radio in standby state. */
   Si446x_radioStandby(radio);
-  return true;
+  return false;
 }
 
 /**
  * Intialize radio if it has been shutdown.
+ *
+ * NOTE: RADIO_CS and RADIO_SDN pins are configured in board.h
+ * RADIO_SDN is configured to open drain pullup.
+ * It is also pulled up on PCB by 100K.
+ * The radio powers up in SDN mode.
+ * CS is set as push-pull and initialized to HIGH.
+ *
+ * returns false on success, true on fail.
  */
 bool Si446x_conditional_init(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
-  bool r = true;
+  bool r = false;
   if(!handler->radio_init) {
     r = Si446x_init(radio);
   }
@@ -1120,7 +1129,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
 
   /*
    * AFC_GEAR
-   *  GEAR_SW[7:6]  = ENUM_1 (Sync word detection - switch gears after detection of Sync Word.)
+   *  GEAR_SW[7:6]  = ENUM_1 (Sync word detection - switch gears after detection of Sync Word - not active.)
    *  AFC_FAST[5:3] = 2 (higher gain results in slower AFC tracking)
    *  AFC_SLOW[2:0] = 4 (higher gain results in slower AFC tracking)
    */
@@ -1515,7 +1524,8 @@ static bool Si446x_getTXfreeFIFO(const radio_unit_t radio,
 }
 
 /**
- *
+ * Put radio in standby (low power) mode.
+ * All registers are retained.
  */
 void Si446x_radioStandby(const radio_unit_t radio) {
   TRACE_DEBUG("SI   > Set radio %d to standby state", radio);
@@ -1524,20 +1534,20 @@ void Si446x_radioStandby(const radio_unit_t radio) {
 
 /**
  * The GPIO connected to radio SDN.
- * The GPIO is open drain output with pullup and high in board initialization.
+ * The GPIO is open drain output with pull-up at board initialization.
  * Thus the radio is in shutdown following board initialization.
  * Si446x GPIO1 is configured to output CTS (option 8) during POR.
- * We use the MCU GPIO connected to radio GPIO1 to check CTS here.
+ * Hence the MCU GPIO connected to radio GPIO1 can be used to check CTS.
  *
  * Radio init is performed in the radio manager thread init stage.
  * The radio GPIOs can be reconfigured after radio init is complete.
+ *
+ * Returns false on success, true on error.
  */
 bool Si446x_radioWakeUp(const radio_unit_t radio) {
   TRACE_DEBUG("SI   > Wake up radio %i", radio);
 
-  /*
-   * Set MCU GPIO input for POR and CTS of radio from GPIO0 and GPIO1.
-   */
+  /* Set MCU GPIO input for POR and CTS of radio from GPIO0 and GPIO1. */
   palSetLineMode(Si446x_getConfig(radio)->gpio0, PAL_MODE_INPUT_PULLDOWN);
   palSetLineMode(Si446x_getConfig(radio)->gpio1, PAL_MODE_INPUT_PULLDOWN);
 
@@ -1548,9 +1558,12 @@ bool Si446x_radioWakeUp(const radio_unit_t radio) {
   /* Assert SDN low to perform radio POR wakeup. */
   palClearLine(Si446x_getConfig(radio)->sdn);
 
-  /* Wait for transceiver to wake up (maximum wakeup time is 6mS).
-   * During start up the POR state is on GPIO0.
-   * This goes from zero to one when POR completes.
+  /*
+   * Wait for transceiver to wake up.
+   * During start up the POR state is on radio GPIO0.
+   * GPIO0 goes from zero to one when POR completes.
+   * The specified maximum wake-up time is 6mS.
+   * The 50ms is a timeout to cover a fault condition.
    */
   uint8_t timeout = 50;
   while(--timeout && !pktReadGPIOline(Si446x_getConfig(radio)->gpio0)) {
@@ -1558,14 +1571,17 @@ bool Si446x_radioWakeUp(const radio_unit_t radio) {
   }
   if(timeout == 0) {
     TRACE_ERROR("SI   > Timeout waiting for POR on radio %i", radio);
+    return true;
   }
   /* Return state of CTS after delay. */
   chThdSleep(TIME_MS2I(10));
-  return pktReadGPIOline(Si446x_getConfig(radio)->gpio1) == PAL_HIGH;
+  return !(pktReadGPIOline(Si446x_getConfig(radio)->gpio1) == PAL_HIGH);
 }
 
 /**
  * The radio is shutdown by setting SDN high.
+ *
+ * When radio is put in shutdown all registers are lost.
  */
 void Si446x_radioShutdown(const radio_unit_t radio) {
   TRACE_DEBUG("SI   > Disable radio %i", radio);
@@ -1910,10 +1926,10 @@ bool Si4464_enableReceive(const radio_unit_t radio,
 
   /*
    *  Initialize radio before any commands.
-   *  It may have been powered down or the TCXO may have been updated.
+   *  It may have been powered down or in standby.
    *  The radio will be in standby mode after initialisation.
    */
-  if(!Si446x_conditional_init(radio)) {
+  if(Si446x_conditional_init(radio)) {
     /* Radio did not initialise. */
     TRACE_ERROR("SI   > Radio %d failed to initialise when enabling RX", radio);
     return false;
@@ -2106,18 +2122,22 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   /* Wait for any active receive stream in progress. Force inactive on timeout.
      Any stream is stopped but the 446x would remain in receive state. */
-  (void)pktSetReceiveStreamInactive(radio, rto,
+  msg = pktSetReceiveStreamInactive(radio,
                                 rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
                                 ? TIME_IMMEDIATE : TIME_MS2I(2000));
+  if (msg == MSG_ERROR) {
+    /* Parameter error. */
+    chDbgAssert(false, "parameter error");
+  }
 
   /* Initialise the radio. It may be uninitialised, in standby or in receive. */
-  if(!Si446x_conditional_init(radio)) {
+  if(Si446x_conditional_init(radio)) {
     /* Radio did not initialise. */
     TRACE_ERROR("SI   > Radio %d failed to initialise for %s TX", radio,
                           getModulation(rto->radio_dat.type));
 
     /* Unlock radio. */
-    pktUnlockRadio(radio, RADIO_TX);
+    pktUnlockRadio(radio);
 
     Si446x_transmitRelease(rto, pp, MSG_ERROR);
     /* We never arrive here. */
@@ -2161,7 +2181,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                   getModulation(rto->radio_dat.type), radio);
 
       /* Unlock radio. */
-      pktUnlockRadio(radio, RADIO_TX);
+      pktUnlockRadio(radio);
 
       Si446x_transmitRelease(rto, pp, MSG_ERROR);
       /* We never arrive here. */
@@ -2189,7 +2209,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                   getModulation(rto->radio_dat.type), radio);
 
       /* Unlock radio. */
-      pktUnlockRadio(radio, RADIO_TX);
+      pktUnlockRadio(radio);
 
       Si446x_transmitRelease(rto, pp, MSG_ERROR);
       /* We never arrive here. */
@@ -2206,7 +2226,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                   getModulation(rto->radio_dat.type), radio);
 
       /* Unlock radio. */
-      pktUnlockRadio(radio, RADIO_TX);
+      pktUnlockRadio(radio);
 
       Si446x_transmitRelease(rto, pp, MSG_ERROR);
       /* We never arrive here. */
@@ -2234,7 +2254,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                   radio, getModulation(rto->radio_dat.type));
 
       /* Unlock radio. */
-      pktUnlockRadio(radio, RADIO_TX);
+      pktUnlockRadio(radio);
 
       Si446x_transmitRelease(rto, pp, MSG_ERROR);
       /* We never arrive here. */
@@ -2277,7 +2297,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                         radio, getModulation(rto->radio_dat.type));
 
             /* Unlock radio. */
-            pktUnlockRadio(radio, RADIO_TX);
+            pktUnlockRadio(radio);
 
             Si446x_transmitRelease(rto, pp, MSG_ERROR);
             /* We never arrive here. */
@@ -2301,7 +2321,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
               Si446x_setReadyState(radio);
 
               /* Unlock radio. */
-              pktUnlockRadio(radio, RADIO_TX);
+              pktUnlockRadio(radio);
 
               TRACE_ERROR("SI   > Radio %d write to FIFO failed for %s TX",
                           radio, getModulation(rto->radio_dat.type));
@@ -2382,7 +2402,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     }
 
     /* Unlock radio. */
-    pktUnlockRadio(radio, RADIO_TX);
+    pktUnlockRadio(radio);
 
     /* Signal RTM that the TX is complete. */
     Si446x_transmitRelease(rto, pp, exit_msg);
@@ -2446,18 +2466,22 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 
   /* Wait for any active receive stream in progress. Force inactive on timeout.
      Any stream is stopped but the 446x would remain in receive state. */
-  (void)pktSetReceiveStreamInactive(radio, rto,
+  msg = pktSetReceiveStreamInactive(radio,
                                 rto->radio_dat.rssi == PKT_SI446X_NO_CCA_RSSI
                                 ? TIME_IMMEDIATE : TIME_MS2I(2000));
+  if (msg == MSG_ERROR) {
+    /* Parameter error. */
+    chDbgAssert(false, "parameter error");
+  }
 
   /* Initialise the radio. It may be uninitialised, in standby or in receive. */
-  if(!Si446x_conditional_init(radio)) {
+  if(Si446x_conditional_init(radio)) {
     /* Radio did not initialise. */
     TRACE_ERROR("SI   > Radio %d failed to initialise for %s TX", radio,
                           getModulation(rto->radio_dat.type));
 
     /* Unlock radio. */
-    pktUnlockRadio(radio, RADIO_TX);
+    pktUnlockRadio(radio);
 
     Si446x_transmitRelease(rto, pp, MSG_ERROR);
     /* We never arrive here. */
@@ -2501,7 +2525,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                   getModulation(rto->radio_dat.type), radio);
 
       /* Unlock radio. */
-      pktUnlockRadio(radio, RADIO_TX);
+      pktUnlockRadio(radio);
 
       Si446x_transmitRelease(rto, pp, MSG_ERROR);
       /* We never arrive here. */
@@ -2520,7 +2544,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                   getModulation(rto->radio_dat.type), radio);
 
       /* Unlock radio. */
-      pktUnlockRadio(radio, RADIO_TX);
+      pktUnlockRadio(radio);
 
       Si446x_transmitRelease(rto, pp, MSG_ERROR);
       /* We never arrive here. */
@@ -2537,7 +2561,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                   getModulation(rto->radio_dat.type), radio);
 
       /* Unlock radio. */
-      pktUnlockRadio(radio, RADIO_TX);
+      pktUnlockRadio(radio);
 
       Si446x_transmitRelease(rto, pp, MSG_ERROR);
       /* We never arrive here. */
@@ -2562,7 +2586,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                   radio, getModulation(rto->radio_dat.type));
 
       /* Unlock radio. */
-      pktUnlockRadio(radio, RADIO_TX);
+      pktUnlockRadio(radio);
 
       Si446x_transmitRelease(rto, pp, MSG_ERROR);
       /* We never arrive here. */
@@ -2608,7 +2632,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                         radio, getModulation(rto->radio_dat.type));
 
             /* Unlock radio. */
-            pktUnlockRadio(radio, RADIO_TX);
+            pktUnlockRadio(radio);
 
             Si446x_transmitRelease(rto, pp, MSG_ERROR);
             /* We never arrive here. */
@@ -2629,7 +2653,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
               Si446x_setReadyState(radio);
 
               /* Unlock radio. */
-              pktUnlockRadio(radio, RADIO_TX);
+              pktUnlockRadio(radio);
 
               TRACE_ERROR("SI   > Radio %d write to FIFO failed for %s TX",
                           radio, getModulation(rto->radio_dat.type));
@@ -2709,7 +2733,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     }
 
     /* Unlock radio. */
-    pktUnlockRadio(radio, RADIO_TX);
+    pktUnlockRadio(radio);
 
     /* Signal RTM that the TX is complete. */
     Si446x_transmitRelease(rto, pp, exit_msg);
@@ -2758,48 +2782,52 @@ radio_temp_t Si446x_getLastTemperature(const radio_unit_t radio) {
 }
 
 /**
- *
+ * Attach PWM sets up the hardware resources and mapping for ICU and CCA.
+ * The ICU is started. The GPIOs are set in the required mode as defined by
+ * the radio configuration.
  */
 ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
-  /* The radio RX_RAW_DATA output is routed to ICU timer channel.  */
 
+  /* The radio RX_RAW_DATA output is routed to an ICU timer channel.  */
   pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.pwm.line,
                      Si446x_getConfig(radio)->rafsk.pwm.mode);
 
-  /*
-  * Set up GPIO port where the NIRQ from the radio is connected.
-  * The NIRQ line is configured in the radio to output the CCA condition.
-  * The MCU GPIO will be setup to interrupt on CCA changes.
-  */
+  /**
+   * Set up GPIO port where the radio line outputting CCA is connected.
+   * The MCU GPIO when enabled will be set to interrupt on CCA changes.
+   */
   pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.cca.line,
                      Si446x_getConfig(radio)->rafsk.cca.mode);
 
-  /*
-   * Return the ICU this radio is assigned to.
-   * TODO: Check that the ICU is not already taken?
-   * This would only be made possible by a radio data config error.
-   * Packet channel control enforces single use of decoder PWM for AFSK.
-   */
-  return Si446x_getConfig(radio)->rafsk.icu;
+  /* Initialise and start the ICU. */
+  ICUDriver *picu = Si446x_getConfig(radio)->rafsk.icu;
+  icuObjectInit(picu);
+  icuStart(picu, &Si446x_getConfig(radio)->rafsk.cfg);
+  return picu;
 }
 
 /**
- *
+ * Detach the radio ICU. Stops the ICU and set the GPIOs to input state.
+ * Any GPIO interrupt/event settings should be disabled already.
  */
-bool Si446x_detachPWM(const radio_unit_t radio) {
-  (void)radio;
-  return true;
+void Si446x_detachPWM(const radio_unit_t radio) {
+  icuStop(Si446x_getConfig(radio)->rafsk.icu);
+
+  /* Timer channel GPIO. */
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.pwm.line,
+                     PAL_MODE_INPUT_PULLUP);
+
+  /* CCA GPIO. */
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.cca.line,
+                     PAL_MODE_INPUT_PULLUP);
 }
 
 /**
  * Enable the GPIO for CCA used in PWM mode of operation.
  * Set a callback and enable event on both edges.
- * The RX_DATA GPIO is configured in Si446x_attachPWM().
- * It is not de-configured in Si446x_disablePWMeventsI().
- * TODO:  Switch on mod type.
- * TODO: The radio GPIO mapping needs to be considered.
+ * The RX_DATA GPIO is configured by Si446x_attachPWM().
  */
-const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio,
+void Si446x_enablePWMevents(const radio_unit_t radio,
                                         const radio_mod_t mod,
                                         const palcallback_t cb) {
  (void)mod;
@@ -2811,7 +2839,7 @@ const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio,
   palEnableLineEvent(*Si446x_getConfig(radio)->rafsk.cca.line,
                      PAL_EVENT_MODE_BOTH_EDGES);
 
-  return &Si446x_getConfig(radio)->rafsk.cfg;
+  //return &Si446x_getConfig(radio)->rafsk.cfg;
 }
 
 /**

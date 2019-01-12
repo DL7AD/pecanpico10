@@ -56,7 +56,7 @@
  * @post    The PWM ICU is configured and started for a specified radio.
  * @post    The ports and timers for CCA input are configured.
  *
- * @param[in]   radio_id   radio being started.
+ * @param[in]   radio   radio being started.
  *
  * @return  Pointer to assigned ICUDriver object.
  *
@@ -65,16 +65,18 @@
 ICUDriver *pktAttachRadio(const radio_unit_t radio) {
   /*
    * Initialize the association between the radio and the PWM IO.
+   * The ICU is started (notifications are not enabled).
    */
   ICUDriver *myICU = pktLLDradioAttachStream(radio);
 
   chDbgAssert(myICU != NULL, "no ICU driver");
 
-  icuObjectInit(myICU);
+  //icuObjectInit(myICU);
 
   /* Initialise the ICU PWM timers. */
   chVTObjectInit(&myICU->cca_timer);
   chVTObjectInit(&myICU->pwm_timer);
+  chVTObjectInit(&myICU->pkt_timer);
   chVTObjectInit(&myICU->jam_timer);
 
   /* Setup the squelch LED. */
@@ -108,6 +110,7 @@ ICUDriver *pktAttachRadio(const radio_unit_t radio) {
 
 /**
  * @brief   Detaches the Radio from the PWM handlers.
+ * @notes   Called by the decoder only.
  * @post    The PWM ICU is stopped.
  * @post    The GPIO for CCA input is disabled.
  * @post    The GPIO for LED indicators are disabled.
@@ -126,11 +129,12 @@ void pktDetachRadio(const radio_unit_t radio) {
   /*
    * Stop the ICU.
    */
-  icuStop(myDemod->icudriver);
+  //icuStop(myDemod->icudriver);
 
   /*
    * Detach the radio from the PWM handlers.
-   * Unlink the driver from the ICU.
+   * Detach stops the ICU.
+   * Then unlink the driver from the ICU.
    * Forget the ICU driver.
    */
   pktLLDradioDetachStream(radio);
@@ -200,6 +204,7 @@ static void pktClosePWMStreamI(ICUDriver *myICU,
 
   radio_unit_t radio = myHandler->radio;
 
+  /* Stop the PWM activity check timer. */
   chVTResetI(&myICU->pwm_timer);
 
   /*
@@ -207,8 +212,11 @@ static void pktClosePWMStreamI(ICUDriver *myICU,
    */
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_SQUELCH, PAL_LOW);
 
-  /* Stop capture (and stop notifications). */
-  icuStopCaptureI(myICU);
+  /* Stop notifications. Capture is left enabled so ICU remains synced
+     to PWM stream from radio. */
+
+  icuDisableNotificationsI(myICU);
+  //icuStopCaptureI(myICU);
 
   /* Close can be called when there is no PWM activity. */
   if (myDemod->active_radio_stream != NULL) {
@@ -253,8 +261,8 @@ static void pktClosePWMStreamI(ICUDriver *myICU,
   /* Send event broadcast. */
   pktAddEventFlagsI(myHandler, (evt | EVT_RAD_STREAM_CLOSE));
 
-  /* Return to ready state (inactive). */
-  myDemod->icustate = PKT_PWM_READY;
+  /* Return to ready state (inactive) if not stopped. */
+  myDemod->icustate = myDemod->icustate == PKT_PWM_STOP ? PKT_PWM_STOP : PKT_PWM_READY;
 }
 
 /**
@@ -462,7 +470,7 @@ static void pktOpenPWMStreamI(ICUDriver *myICU, eventflags_t evt) {
  *
  * @api
  */
-static void __attribute__((unused))  pktSwitchPWMStreamI(ICUDriver *myICU,
+static void pktSwitchPWMStreamI(ICUDriver *myICU,
                         statusflags_t sta,
                         eventflags_t evt) {
 
@@ -490,7 +498,7 @@ static void __attribute__((unused))  pktSwitchPWMStreamI(ICUDriver *myICU,
 
 /**
  * @brief   Enables PWM stream from radio for DSP.
- * @post    The ICU is configured and started.
+ * @post    The ICU capture only is started (notifications are not changed).
  * @post    The ports and timers for CCA input are configured.
  *
  * @param[in]   radio   radio attached to this PWM handler
@@ -518,8 +526,9 @@ void pktEnableRadioStream(const radio_unit_t radio) {
 
     switch(myDemod->icustate) {
     case PKT_PWM_INIT: {
+#if 0
       /* Enable CCA callback. */
-      const ICUConfig *icucfg = pktLLDradioStreamEnable(radio, mod,
+      const ICUConfig *icucfg = pktLLDradioCCAEnable(radio, mod,
                                       (palcallback_t)pktRadioCCAInput);
 
       /* Start ICU and start capture. */
@@ -527,26 +536,32 @@ void pktEnableRadioStream(const radio_unit_t radio) {
       icuStartCapture(myDemod->icudriver);
       myDemod->icustate = PKT_PWM_READY;
       return;
+#endif
     } /* End case PKT_PWM_INIT. */
 
+    /* The PWM handling is currently stopped. */
     case PKT_PWM_STOP: {
-      /* Enable CCA callback. */
-      (void)pktLLDradioStreamEnable(radio, mod,
-                                    (palcallback_t)pktRadioCCAInput);
+      /* Enable CCA callback from GPIO. */
+      pktLLDradioCCAEnable(radio, mod, (palcallback_t)pktRadioCCAInput);
 
-      /* Start ICU capture. */
+      /* Start ICU capture. The ICU will sync to the next edge. Notifications
+         are enabled by CCA interrupt. */
       icuStartCapture(myDemod->icudriver);
       myDemod->icustate = PKT_PWM_READY;
       return;
     } /* End case PKT_PWM_STOP. */
 
+    /* The PWM handling is currently ready. */
     case PKT_PWM_READY:
+      /* Arriving here means enable is being called without prior disable. */
+      chDbgAssert(false, "wrong PWM state");
       return;
 
+      /* The PWM handler is activated to handle a stream. */
     case PKT_PWM_WAITING:
     case PKT_PWM_ACTIVE: {
-      /* TODO: This was asserting... for now just let it go. */
-      //chDbgAssert(false, "wrong PWM state");
+      /* Should not be attempting to enable PWM in this state. */
+      chDbgAssert(false, "wrong PWM state");
       return;
     } /* End case PKT_PWM_WAITING or PKT_PWM_ACTIVE. */
     } /* End switch on ICU state. */
@@ -562,6 +577,7 @@ void pktEnableRadioStream(const radio_unit_t radio) {
   case MOD_2FSK_76k8:
   case MOD_2FSK_96k:
   case MOD_2FSK_115k2: {
+    chDbgAssert(false, "wrong PWM state");
     return;
   }
   }
@@ -570,39 +586,40 @@ void pktEnableRadioStream(const radio_unit_t radio) {
 /**
  * @brief   Disables packet data stream from radio.
  * @details Actions will depend on the modulation in effect.
+ * @pre     Radio must be locked prior to calling.
  * @notes   For AFSK...
- * @post    The PWM channel is closed.
+ * @post    Any active PWM stream is closed (stops notifications).
  * @post    All PWM related timers are stopped.
  * @post    The port for CCA input is disabled.
  * @post    The ICU capture is stopped.
  * @post    The ICU remains ready for capture to be restarted.
+ * @post    The radio is put into standby mode.
  * @notes   For other modulations...
  * @post    TBD
  *
  * @param[in]   radio   radio unit ID
  *
- * @api
+ * @notapi
  */
 void pktDisableRadioStream(const radio_unit_t radio) {
 
   packet_svc_t *myHandler = pktGetServiceObject(radio);
 
-  /* Process under locked. */
-  chSysLock();
   /* Is the receiver active? */
   if(!pktIsReceiveEnabled(radio)) {
-    chSysUnlock();
     return;
   }
   radio_mod_t mod = myHandler->rx_link_type;
 
-  switch(mod) {
+  switch (mod) {
 
   case MOD_AFSK: {
 
     AFSKDemodDriver *myDemod = (AFSKDemodDriver *)myHandler->rx_link_control;
     chDbgAssert(myDemod != NULL, "no link controller");
     chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
+
+    chSysLock();
 
     switch(myDemod->icustate) {
     case PKT_PWM_WAITING:
@@ -611,7 +628,7 @@ void pktDisableRadioStream(const radio_unit_t radio) {
 
 
       /* Disable CCA line event. */
-      pktLLDradioStreamDisableI(radio, mod);
+      pktLLDradioCCADisableI(radio, mod);
 
       /* Stop any timeouts in ICU PWM handling. */
       pktStopAllICUtimersI(myDemod->icudriver);
@@ -619,50 +636,62 @@ void pktDisableRadioStream(const radio_unit_t radio) {
       /*
        *  Close the PWM stream.
        *  Disable ICU notifications.
-       *  Stop ICU capture.
        *  Post in-band PWM message.
-       *
        */
       pktClosePWMStreamI(myDemod->icudriver, STA_PWM_STREAM_DISABLE,
                                        EVT_NONE, PWM_TERM_PWM_STOP);
 
+      /* Stop ICU capture. When ICU capture is started it will
+         sync to the next PWM edge. */
+      icuStopCaptureI(myDemod->icudriver);
+
       myDemod->icustate = PKT_PWM_STOP;
-      /*
-       * Reschedule to avoid a "priority order violation".
-       */
+
+      /* Reschedule to avoid a "priority order violation". */
       chSchRescheduleS();
       chSysUnlock();
+
+      /* Putting radio in standby stops all output from radio. */
+      pktLLDradioStandby(radio);
       return;
     } /* End case PKT_PWM_WAITING or PKT_PWM_ACTIVE */
 
     case PKT_PWM_STOP:
-      /* Stream is already stopped. */
+      /* Stream is stopped. This can be done from PWMClose. */
+      //chDbgAssert(false, "wrong PWM state");
       chSysUnlock();
       return;
 
     case PKT_PWM_INIT: {
-      chDbgAssert(false, "wrong PWM state");
+#if 0
+      /* TX threads can call this when PWM is not enabled... */
+      //chDbgAssert(false, "wrong PWM state");
       chSysUnlock();
       return;
+#endif
     }
 
     case PKT_PWM_READY: {
 
       /*
-       *  PWM incoming is enabled but not active.
-       *  Capture and notifications are not enabled.
+       *  PWM incoming is enabled.
+       *  There is no active stream.
        */
+
       /* Disable CCA line event. */
-      pktLLDradioStreamDisableI(radio, mod);
+      pktLLDradioCCADisableI(radio, mod);
 
       /* Stop any timeouts in ICU PWM handling. */
       pktStopAllICUtimersI(myDemod->icudriver);
 
-      /* Stop ICU capture. */
+      /* Stop ICU capture. Notifications can't happen now. */
       icuStopCaptureI(myDemod->icudriver);
       myDemod->icustate = PKT_PWM_STOP;
 
       chSysUnlock();
+
+      /* Put radio in standby. */
+      pktLLDradioStandby(radio);
       return;
     } /* End case PKT_PWM_READY. */
 
@@ -680,10 +709,12 @@ void pktDisableRadioStream(const radio_unit_t radio) {
   case MOD_2FSK_96k:
   case MOD_2FSK_115k2: {
     chSysUnlock();
+    chDbgAssert(false, "wrong PWM state");
     return;
   }
   default:
     chSysUnlock();
+    chDbgAssert(false, "wrong PWM state");
     return;
   } /* End switch on link type. */
 }

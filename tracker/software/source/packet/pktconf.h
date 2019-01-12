@@ -92,9 +92,9 @@
 #define EVT_PKT_RECEIVE_START   EVENT_MASK(EVT_PRIORITY_BASE + 22)
 #define EVT_PKT_CBK_MGR_FAIL    EVENT_MASK(EVT_PRIORITY_BASE + 23)
 
-#define EVT_PKT_CHANNEL_STOP    EVENT_MASK(EVT_PRIORITY_BASE + 24)
-#define EVT_PKT_CHANNEL_CLOSE   EVENT_MASK(EVT_PRIORITY_BASE + 25)
-#define EVT_PKT_CHANNEL_OPEN    EVENT_MASK(EVT_PRIORITY_BASE + 26)
+#define EVT_PKT_RECEIVE_STOP    EVENT_MASK(EVT_PRIORITY_BASE + 24)
+#define EVT_PKT_RECEIVE_CLOSE   EVENT_MASK(EVT_PRIORITY_BASE + 25)
+#define EVT_PKT_RECEIVE_OPEN    EVENT_MASK(EVT_PRIORITY_BASE + 26)
 #define EVT_PWM_RADIO_TIMEOUT   EVENT_MASK(EVT_PRIORITY_BASE + 27)
 
 #define EVT_RADIO_CCA_SPIKE     EVENT_MASK(EVT_PRIORITY_BASE + 28)
@@ -235,15 +235,32 @@ typedef uint32_t            statusmask_t;    /**< Mask of status identifiers. */
 #define PKT_SVC_USE_RADIO2 FALSE
 #endif
 
+#if 0
+ /*===========================================================================*/
+ /* Driver macros.                                                            */
+ /*===========================================================================*/
+
+ /**
+  * @brief   Wakes up the waiting thread for a radio task.
+  *
+  * @param[in] rto      pointer to the @p radioTask object
+  *
+  * @notapi
+  */
+ #define _rcmd_wakeup_cb(rto) do {                                           \
+   chSysLock();                                                              \
+   chThdResumeS(&(rto)->thread, rto->result);                                \
+   chSysUnlock();                                                            \
+ } while(0)
+#endif
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
 
-//extern packet_svc_t RPKTD1;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 #ifdef __cplusplus
 }
 #endif
@@ -284,6 +301,7 @@ static inline int8_t pktReadGPIOline(ioline_t line) {
     return PAL_INVALID;
 }
 
+
 /**
  * @brief   Sends a command request to the radio manager queue.
  * @notes   The task descriptor is copied into a task object which is posted.
@@ -294,14 +312,20 @@ static inline int8_t pktReadGPIOline(ioline_t line) {
  *                      this is usually a persistent descriptor in the handler.
  * @param[in]   cmd     the radio task to be queued
  * @param[in]   cfg     pointer to radio configuration
- * @param[in]   timeout expressed in sysinterval units.
+ * @param[in]   timeout the timeout in system ticks, the special values are
+ *                      handled as follow:
+ *                      - @a TIME_INFINITE the thread enters an infinite sleep
+ *                        state.
+ *                      - @a TIME_IMMEDIATE the thread is not enqueued and
+ *                        the function returns @p MSG_TIMEOUT as if a timeout
+ *                        occurred.
+ * @param[in]   result  pointer to variable for task result (can be NULL).
  * @param[in]   cb      function to call with result (can be NULL).
  *
  * @return      status of operation
  * @retval      MSG_OK      if command queued successfully
  * @retval      MSG_TIMEOUT if a task object could not be obtained
  * @retval      MSG_RESET   the radio manager is closing.
- * @retval      MSG_ERROR   Command is invalid from outer level.
  *
  * @api
  */
@@ -309,10 +333,11 @@ static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
                                         const radio_command_t cmd,
                                         const radio_params_t *cfg,
                                         const sysinterval_t timeout,
+                                        msg_t *const result,
                                         const radio_task_cb_t cb) {
 
 
-  if(cmd > PKT_RADIO_TASK_MAX) {
+  if (cmd > PKT_RADIO_TASK_MAX) {
     chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
   }
@@ -320,12 +345,18 @@ static inline msg_t pktQueueRadioCommand(const radio_unit_t radio,
   radio_task_object_t *rt = NULL;
 
   msg_t msg = pktGetRadioTaskObject(radio, timeout, cfg, &rt);
-  if(msg != MSG_OK)
+  if (msg != MSG_OK)
     return msg;
   rt->user_cb = cb;
   rt->command = cmd;
   pktSubmitRadioTask(radio, rt, NULL);
 
+  /* Result check required so suspend. */
+  if (result != NULL) {
+    chSysLock();
+    *result = chThdSuspendS(&rt->thread);
+    chSysUnlock();
+  }
   return MSG_OK;
 }
 
@@ -353,14 +384,14 @@ static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
                                         const radio_task_cb_t cb) {
 
 
-  if(cmd > PKT_RADIO_TASK_MAX) {
+  if (cmd > PKT_RADIO_TASK_MAX) {
     chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
   }
 
   radio_task_object_t *rt = NULL;
   msg_t msg = pktGetRadioTaskObjectI(radio, cfg, &rt);
-  if(msg == MSG_TIMEOUT)
+  if (msg == MSG_TIMEOUT)
     return MSG_TIMEOUT;
   rt->user_cb = cb;
   rt->command = cmd;
@@ -379,14 +410,20 @@ static inline msg_t pktQueuePriorityRadioCommandI(const radio_unit_t radio,
  *                      this is usually a persistent descriptor in the handler.
  * @param[in]   cmd     the radio task to be queued
  * @param[in]   cfg     pointer to radio configuration
- * @param[in]   timeout expressed in sysinterval units.
+ * @param[in]   timeout the timeout in system ticks, the special values are
+ *                      handled as follow:
+ *                      - @a TIME_INFINITE the thread enters an infinite sleep
+ *                        state.
+ *                      - @a TIME_IMMEDIATE the thread is not enqueued and
+ *                        the function returns @p MSG_TIMEOUT as if a timeout
+ *                        occurred.
+ * @param[in]   result  pointer to variable for task result (can be NULL).
  * @param[in]   cb      function to call with result (can be NULL).
  *
  * @return      status of operation
  * @retval      MSG_OK      Command has been queued.
  * @retval      MSG_TIMEOUT No task object available.
  * @retval      MSG_RESET   the radio manager is closing.
- * @retval      MSG_ERROR   Command is invalid from outer level.
  *
  * @api
  */
@@ -394,10 +431,11 @@ static inline msg_t pktQueuePriorityRadioCommand(const radio_unit_t radio,
                                         const radio_command_t cmd,
                                         const radio_params_t *cfg,
                                         const sysinterval_t timeout,
+                                        msg_t *const result,
                                         const radio_task_cb_t cb) {
 
 
-  if(cmd > PKT_RADIO_TASK_MAX) {
+  if (cmd > PKT_RADIO_TASK_MAX) {
     chDbgAssert(false, "invalid radio command");
     return MSG_ERROR;
   }
@@ -408,7 +446,14 @@ static inline msg_t pktQueuePriorityRadioCommand(const radio_unit_t radio,
   rt->user_cb = cb;
   rt->command = cmd;
   pktSubmitPriorityRadioTask(radio, rt, NULL);
-  return msg;
+
+  /* Result check required so suspend. */
+  if (result != NULL) {
+    chSysLock();
+    *result = chThdSuspendS(&rt->thread);
+    chSysUnlock();
+  }
+  return MSG_OK;
 }
 
 /**

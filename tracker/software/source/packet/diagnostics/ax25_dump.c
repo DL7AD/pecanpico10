@@ -93,7 +93,7 @@ void pktDumpAX25Frame(ax25char_t *frame_buffer,
   } /* End raw dump. */
 }
 
-
+#if 0
 void pktDiagnosticOutput(packet_svc_t *packetHandler,
                          pkt_data_object_t *myPktFIFO) {
   //chMtxLock(&debug_mtx);
@@ -142,6 +142,6 @@ void pktDiagnosticOutput(packet_svc_t *packetHandler,
   chBSemSignal(&stream_out_sem);
   //chMtxUnlock(&debug_mtx);
 }
-
+#endif
 
 /** @} */

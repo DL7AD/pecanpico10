@@ -410,8 +410,8 @@ extern "C" {
   bool Si446x_conditional_init(radio_unit_t radio);
   radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
   ICUDriver *Si446x_attachPWM(const radio_unit_t radio);
-  bool Si446x_detachPWM(const radio_unit_t radio);
-  const ICUConfig *Si446x_enablePWMevents(const radio_unit_t radio,
+  void       Si446x_detachPWM(const radio_unit_t radio);
+  void Si446x_enablePWMevents(const radio_unit_t radio,
                                           const radio_mod_t mod,
                                           const palcallback_t cb);
   void Si446x_disablePWMeventsI(const radio_unit_t radio,

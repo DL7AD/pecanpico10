@@ -141,6 +141,7 @@ struct radioTask {
   struct pool_header        link;
   radio_command_t           command;
   packet_svc_t              *handler;
+  thread_reference_t        thread;
   radio_params_t            radio_dat;
   radio_mgr_cb_t            mgr_cb;
   radio_task_cb_t           user_cb;
@@ -152,6 +153,21 @@ struct radioTask {
 /* Module macros.                                                            */
 /*===========================================================================*/
 
+#if 0
+/**
+ * @brief   Wakes up the waiting thread for a radio task.
+ *
+ * @param[in] rto      pointer to the @p radioTask object
+ *
+ * @notapi
+ */
+#define _rcmd_wakeup_cb(rto) do {                                           \
+  chSysLock();                                                              \
+  chThdResumeS(&(rto)->thread, rto->result);                                \
+  chSysUnlock();                                                            \
+} while(0)
+#endif
+#if 0
 /**
  * @brief   Alias of pktStopDecoder for convenience.
  *
@@ -169,6 +185,23 @@ struct radioTask {
  * @api
  */
 #define pktResumeDecoding(radio) pktStartDecoder(radio)
+#endif
+/**
+ * @brief   Get state of radio lock.
+ *
+ * @param[in] radio radio unit ID.
+ *
+ * @returns  State of lock.
+ * @retval   true if radio is locked.
+ * @retval   false if radio is not locked.
+ *
+ * @api
+ */
+#define pktIsRadioLocked(radio)                                             \
+  chSysLock();                                                              \
+  bool s = chBSemGetStateI(pktGetServiceObject(radio)->radio_sem);          \
+  chSysUnlock();                                                            \
+  return s;
 
 /*===========================================================================*/
 /* External declarations.                                                    */
@@ -201,8 +234,7 @@ extern "C" {
   msg_t     		pktLockRadio(const radio_unit_t radio,
             		                const radio_mode_t mode,
             		                const sysinterval_t timeout);
-  void      		pktUnlockRadio(const radio_unit_t radio,
-                                   const radio_mode_t mode);
+  void      		pktUnlockRadio(const radio_unit_t radio);
   void              pktResetRadioLock(const radio_unit_t radio,
                                       const bool taken);
   const radio_config_t *pktGetRadioList(void);
@@ -216,20 +248,21 @@ extern "C" {
                                             const radio_mode_t mode);
   radio_freq_hz_t   pktGetAbsoluteReceiveFrequency(const radio_unit_t radio);
   radio_unit_t      pktSelectRadioForFrequency(const radio_freq_hz_t freq,
-                                          const radio_chan_hz_t step,
-                                          const radio_ch_t chan,
-                                          const radio_mode_t mode);
+                                               const radio_chan_hz_t step,
+                                               const radio_ch_t chan,
+                                               const radio_mode_t mode);
   msg_t             pktSetReceiveStreamInactive(const radio_unit_t radio,
-                                          const radio_task_object_t *rto,
-                                          const sysinterval_t timeout);
+                                                const sysinterval_t timeout);
+  msg_t             pktSetReceiveStreamActive(const radio_unit_t radio);
   void      		pktRadioSendComplete(radio_task_object_t *const rto);
   ICUDriver         *pktLLDradioAttachStream(const radio_unit_t radio);
   void              pktLLDradioDetachStream(const radio_unit_t radio);
-  const ICUConfig   *pktLLDradioStreamEnable(const radio_unit_t radio,
+  void              pktLLDradioCCAEnable(const radio_unit_t radio,
                                              const radio_mod_t mod,
                                              const palcallback_t cb);
-  void              pktLLDradioStreamDisableI(const radio_unit_t radio,
+  void              pktLLDradioCCADisableI(const radio_unit_t radio,
                                               const radio_mod_t mod);
+  void              pktLLDradioStandby(const radio_unit_t radio);
   bool              pktRadioGetInProgress(const radio_unit_t radio);
   int       	 	pktDisplayFrequencyCode(radio_freq_hz_t code, char *buf,
             	 	                        size_t size);

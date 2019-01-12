@@ -638,9 +638,12 @@ void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver) {
   radio_unit_t radio = myDriver->packet_handler->radio;
 
   /* Stop PWM queue. */
-  pktDisableRadioStream(radio);
+  //pktDisableRadioStream(radio);
+  //pktLockRadio(radio, RADIO_RX, TIME_INFINITE);
+  //pktSetReceiveStreamInactive(radio, TIME_INFINITE);
 
-  /* Detach radio from this AFSK driver. */
+  /* Detach radio from this AFSK driver. The GPIOs are
+    disabled and the accociated ICU is stopped. */
   pktDetachRadio(radio);
 
   /* Release the PWM stream FIFO. */
@@ -794,7 +797,11 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
   /* Set the link from ICU driver to AFSK demod driver. */
   myDriver->icudriver->link = myDriver;
+#if 0
   myDriver->icustate = PKT_PWM_INIT;
+#else
+  myDriver->icustate = PKT_PWM_STOP;
+#endif
 
   /* Create the packet buffer name. */
   chsnprintf(myDriver->decoder_name, sizeof(myDriver->decoder_name),
@@ -846,9 +853,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 #if AFSK_THREAD_DOES_INIT == TRUE
   chMsgSend(myDriver->caller, MSG_OK);
 #endif
-   /* Acknowledge open then wait for start or close of decoder. */
-  //pktAddEventFlags(myDriver, DEC_OPEN_EXEC);
-  myDriver->decoder_state = DECODER_WAIT;
+  myDriver->decoder_state = DECODER_RESET;
   while(true) {
     switch(myDriver->decoder_state) {
 
@@ -856,17 +861,20 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
         /*
          *  Wait for start or close event.
          */
+#if 0
         eventmask_t evt = chEvtWaitAnyTimeout(DEC_COMMAND_START,
                                   TIME_MS2I(DECODER_WAIT_TIME));
         if(evt) {
-          /* Start stream from radio. */
-          pktEnableRadioStream(radio);
           /* Reset decoder data ready for decode. */
           myDriver->decoder_state = DECODER_RESET;
           pktAddEventFlags(myDriver, DEC_START_EXEC);
           continue;
         }
         evt = chEvtGetAndClearEvents(DEC_COMMAND_CLOSE);
+#else
+        eventmask_t evt = chEvtWaitAnyTimeout(DEC_COMMAND_CLOSE,
+                                  TIME_MS2I(DECODER_WAIT_TIME));
+#endif
         if(evt) {
           pktAddEventFlags(myDriver, DEC_CLOSE_EXEC);
           pktReleaseAFSKDecoder(myDriver);
@@ -876,8 +884,8 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
           /* Something went wrong if we arrive here. */
           chSysHalt("ThdExit");
         }
-        /* Toggle indicator LED in wait state. */
 
+        /* Toggle indicator LED in wait state. */
         pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_TOGGLE);
         continue;
       }
@@ -893,8 +901,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
          */
         eventmask_t evt = chEvtGetAndClearEvents(DEC_COMMAND_STOP);
         if(evt) {
-          /* Stop stream from radio. */
-          pktDisableRadioStream(radio);
+          pktSetReceiveStreamInactive(radio, TIME_INFINITE);
           myDriver->decoder_state = DECODER_WAIT;
           pktAddEventFlags(myDriver, DEC_STOP_EXEC);
           continue;
