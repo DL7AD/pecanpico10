@@ -222,12 +222,9 @@ static void pktClosePWMStreamI(ICUDriver *myICU,
   if (myDemod->active_radio_stream != NULL) {
     pktAddEventFlagsI(myHandler, evt);
     if (reason != PWM_TERM_QUEUE_ERROR) {
-#if USE_HEAP_PWM_BUFFER == TRUE
       input_queue_t *myQueue =
           &myDemod->active_radio_stream->radio_pwm_queue->queue;
-#else
-      input_queue_t *myQueue = &myDemod->active_radio_stream->radio_pwm_queue;
-#endif
+
       /* End of data flag. */
       msg_t qs = pktWritePWMinBandMessageI(myQueue, reason);
       if (qs == MSG_TIMEOUT || qs == MSG_ERROR) {
@@ -251,10 +248,8 @@ static void pktClosePWMStreamI(ICUDriver *myICU,
     /* Allow the decoder thread to proceed in RESET state. */
     chBSemSignalI(&myDemod->active_radio_stream->sem);
 
-#if USE_HEAP_PWM_BUFFER == TRUE
     /* Remove the PWM object reference. */
     myDemod->active_radio_stream->radio_pwm_queue = NULL;
-#endif
     /* Remove object reference. */
     myDemod->active_radio_stream = NULL;
   }
@@ -352,7 +347,6 @@ static void pktOpenPWMStreamI(ICUDriver *myICU, eventflags_t evt) {
   /* Save the FIFO used for this PWM -> decoder session. */
   myDemod->active_radio_stream = myFIFO;
 
-#if USE_HEAP_PWM_BUFFER == TRUE
   /*
    * The linked PWM queue system buffers PWM in chained queue/buffer pool objects.
    * Once CCA is validated PWM buffering commences.
@@ -411,14 +405,6 @@ static void pktOpenPWMStreamI(ICUDriver *myICU, eventflags_t evt) {
                      (*pwm_object).buffer.pwm_bytes,
                      sizeof(radio_pwm_buffer_t),
                      NULL, NULL);
-
-#else /* USE_HEAP_PWM_BUFFER != TRUE */
-  /* Non linked FIFOs have an embedded input queue with data buffer. */
-  iqObjectInit(&myFIFO->radio_pwm_queue,
-                     myFIFO->packed_buffer.pwm_bytes,
-                     sizeof(radio_pwm_buffer_t),
-                     NULL, NULL);
-#endif /* USE_HEAP_PWM_BUFFER == TRUE */
 
   /*
    * Initialize stream object release control semaphore.
@@ -525,8 +511,9 @@ void pktEnableRadioStream(const radio_unit_t radio) {
     chDbgAssert(myDemod->icudriver != NULL, "no ICU driver");
 
     switch(myDemod->icustate) {
-    case PKT_PWM_INIT: {
 #if 0
+    case PKT_PWM_INIT: {
+
       /* Enable CCA callback. */
       const ICUConfig *icucfg = pktLLDradioCCAEnable(radio, mod,
                                       (palcallback_t)pktRadioCCAInput);
@@ -536,9 +523,9 @@ void pktEnableRadioStream(const radio_unit_t radio) {
       icuStartCapture(myDemod->icudriver);
       myDemod->icustate = PKT_PWM_READY;
       return;
-#endif
-    } /* End case PKT_PWM_INIT. */
 
+    } /* End case PKT_PWM_INIT. */
+#endif
     /* The PWM handling is currently stopped. */
     case PKT_PWM_STOP: {
       /* Enable CCA callback from GPIO. */
@@ -661,16 +648,16 @@ void pktDisableRadioStream(const radio_unit_t radio) {
       //chDbgAssert(false, "wrong PWM state");
       chSysUnlock();
       return;
-
-    case PKT_PWM_INIT: {
 #if 0
+    case PKT_PWM_INIT: {
+
       /* TX threads can call this when PWM is not enabled... */
       //chDbgAssert(false, "wrong PWM state");
       chSysUnlock();
       return;
-#endif
-    }
 
+    }
+#endif
     case PKT_PWM_READY: {
 
       /*
@@ -978,12 +965,9 @@ static msg_t pktICUQueueAsPWMDataI(ICUDriver *myICU) {
   AFSKDemodDriver *myDemod = myICU->link;
   chDbgAssert(myDemod != NULL, "no linked demod driver");
 
-#if USE_HEAP_PWM_BUFFER == TRUE
   input_queue_t *myQueue =
       &myDemod->active_radio_stream->radio_pwm_queue->queue;
-#else
-  input_queue_t *myQueue = &myDemod->active_radio_stream->radio_pwm_queue;
-#endif
+
   chDbgAssert(myQueue != NULL, "no queue assigned");
 
   byte_packed_pwm_t pack;
@@ -1186,7 +1170,6 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
 
   case MSG_RESET: {
     /* Space remaining in current queue for in-band message only. */
-#if USE_HEAP_PWM_BUFFER == TRUE
     /* Get another queue/buffer object. */
     radio_pwm_object_t *pwm_object = chPoolAllocI(&myDemod->pwm_buffer_pool);
     if(pwm_object != NULL) {
@@ -1235,7 +1218,6 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
       return;
     } /* End pwm_object != NULL. */
     /* No next PWM stream buffer object available. */
-#endif /* USE_HEAP_PWM_BUFFER == TRUE */
     /*
      * No Next PWM stream buffer available.
      * Queue has space for one entry only.

@@ -29,11 +29,10 @@
 /* The number of radio task objects the FIFO has. */
 #define RADIO_TASK_QUEUE_MAX            10
 
-/* New RTM implementation supports outer and inner level callbacks in the RTO. */
-//#define PKT_RTO_HAS_INNER_CB             TRUE
 
-/* Temporary switch while testing TX thread self terminate (versus RTM termination). */
-#define PKT_TRANSMIT_TASK_SELF_TERMINATE TRUE
+/*===========================================================================*/
+/* Module pre-compile time settings.                                         */
+/*===========================================================================*/
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
@@ -87,9 +86,10 @@ typedef enum radioCommand {
   PKT_RADIO_MGR_CLOSE,
   PKT_RADIO_TCXO_UPDATE,
   PKT_RADIO_RX_RSSI,
+  PKT_RADIO_RX_DISPATCH,
   /* Internal or function API accessed RM tasks only. */
   PKT_RADIO_TX_DONE,
-  PKT_RADIO_RX_DECODE
+  PKT_RADIO_RX_DONE
 } radio_command_t;
 
 #define PKT_RADIO_TASK_MAX  PKT_RADIO_RX_RSSI
@@ -99,6 +99,7 @@ typedef enum radioCommand {
 typedef struct radioTask radio_task_object_t;
 typedef struct packetHandlerData packet_svc_t;
 typedef struct radioConfig radio_config_t;
+typedef struct packetBufferObject pkt_data_object_t;
 
 /**
  * @brief   Radio task notification callback type.
@@ -126,8 +127,11 @@ typedef struct radioParams {
   radio_ch_t                channel;
   radio_signal_t            rssi;
   radio_pwr_t               tx_power;
-  sysinterval_t             tto;
+  sysinterval_t             timer;
+  union {
   packet_t                  packet_out;
+  pkt_data_object_t         *packet_in;
+  } pkt;
   cnt_t                     seq_num;
 } radio_params_t;
 

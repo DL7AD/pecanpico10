@@ -837,30 +837,39 @@ static void Si446x_setModemCCA_Detection(const radio_unit_t radio) {
   /* Packet handler disabled in RX. */
   Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x41);
 
-  if(is_part_Si4463(handler->radio_part)) {
+  if(is_part_Si4463(handler->radio_part))
     /* Run 4463 in 4464 compatibility mode (set SEARCH2 to zero). */
     Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0x00);
-  }
   Si446x_setProperty8(radio, Si446x_MODEM_RAW_CONTROL, 0x8F);
   Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH, 0xD6);
   if(is_part_Si4463(handler->radio_part))
+#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
+    Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
+#else
     Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x76);
+#endif
   else
     Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
 
   /*
    * OOK_MISC settings include parameters related to asynchronous mode.
    * Asynchronous mode is used for AFSK reception passed to DSP decode.
+   *
+   * SQUELCH[1:0] = 1 (don't toggle RX data if no signal received).
+   * OOK_LIMIT_DISCG[5] Configures if the peak detector discharge is limited.
+   *  Set 1 the peak detector discharge is disabled when the detected peak is lower than the input signal for low input levels.
+   *  Versus 0 which sets peak detector discharges always.
    */
-  /* SQUELCH[1:0] = 1 (don't toggle RX data if no signal received). */
   Si446x_setProperty8(radio, Si446x_MODEM_OOK_CNT1, 0x85);
   Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x2A);
-  if(is_part_Si4463(handler->radio_part)) {
+  if(is_part_Si4463(handler->radio_part))
+#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
     Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
-  }
-  else {
+#else
     Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
-  }
+#endif
+  else
+    Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
 
 
   /* RX AFC control. */
@@ -891,9 +900,12 @@ static void Si446x_setModemCCA_Detection(const radio_unit_t radio) {
   /* RX IF filter decimation controls. */
   Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x70);
   Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
-  if(is_part_Si4463(handler->radio_part)) {
+  if(is_part_Si4463(handler->radio_part))
+#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
+    Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x00);
+#else
     Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x0C);
-  }
+#endif
 
   /* RSSI latching disabled. */
   Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL, 0x00);
@@ -1057,7 +1069,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   /* Packet handler disabled in RX. */
   Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x40);
 
-  if(is_part_Si4463(handler->radio_part)) {
+  if(is_part_Si4463(handler->radio_part))
     /* To run 4463 in 4464 compatibility mode (set SEARCH2 to zero). */
     /* 0xBC (SCH_FROZEN = 1 {Freeze min-max on gear switch, SCHPRD_HI = 6 SCHPRD_LO = 4 {SEARCH_4TB, SEARCH_8TB}) */
 #if Si446x_4463_USE_446X_COMPATABILITY == TRUE
@@ -1065,7 +1077,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
 #else
     Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0xBC);
 #endif
-  }
+
   /*
    * MODEM_RAW_CONTROL
    *  UNSTDPK[7] = 1 (raw mode for non-standard packet reception)
@@ -1115,13 +1127,20 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    */
   Si446x_setProperty8(radio, Si446x_MODEM_OOK_CNT1, 0x85);
   /*
-   * MODEM_OOK_MISC
-   *  DETECTOR[1:0] = 3 (Mid-point aka MEAN detector)
-   *  4463...
-   *  OOK_LIMIT_DISCHG[5] = 1 Peak detector discharge is disabled when the detected peak is lower than the input signal for low input levels.
+   * OOK_MISC settings include parameters related to asynchronous mode.
+   * Asynchronous mode is used for AFSK reception passed to DSP decode.
+   *
+   * SQUELCH[1:0] = 1 (don't toggle RX data if no signal received).
+   * OOK_LIMIT_DISCG[5] Configures if the peak detector discharge is limited.
+   *  Set 1 the peak detector discharge is disabled when the detected peak is lower than the input signal for low input levels.
+   *  Versus 0 which sets peak detector discharges always.
    */
   if(is_part_Si4463(handler->radio_part))
+  #if Si446x_4463_USE_446X_COMPATABILITY == TRUE
+    Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
+  #else
     Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
+  #endif
   else
     Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
 
@@ -1184,12 +1203,34 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    */
   Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0x82);
 
-  /* RX AGC control. */
-  /* 0xE2 -> xE0 (ADC_GAIN_CORR_EN[1] exists in 4463.) */
+  /* RX AGC control.
+   * AGCOVPKT[7] Selects whether the AGC operates over the entire packet, or only during acquisition of the Preamble.
+   *  Set to 1 so AGC operates over entire packet (but in RAW mode the radio has no concept of a packet).
+   * IFPDSLOW[6] Controls AGC for gain decreases of the IF PGA and LNA derived from peak detectors.
+   *  The IFPDSLOW bit controls the step size of gain reductions to the PGA, and thus affects the slope or speed of the AGC attack time.
+   *  Set to 1 so the IF programmable gain loop will always perform gain decreases in -3 dB steps versus -3 db initial and then -6 dB steps.
+   * RFPDSLOW[5] Controls AGC for gain decreases of the RF PGA and LNA derived from peak detectors.
+   *  The RFPDSLOW bit controls the step size of gain reductions to the PGA, and thus affects the slope or speed of the AGC attack time.
+   *  Set to 1 so the IF programmable gain loop will always perform gain decreases in -3 dB steps versus -3 db initial and then -6 dB steps.
+   * SGI_N[4] Selects whether gain increases are allowed due to selection of a weak antenna during the Antenna Diversity algorithm.
+   *  This bit is effective only in ANT-DIV mode, and only during acquisition of the Preamble (when the signal strength of the two antennas is being evaluated).
+   * AGC_SLOW[3] In the event that the AGC cycle speed cannot be configured to a sufficiently low value by MODEM_AGC_WINDOW_SIZE, the AGC speed may be reduced by an additional factor of 8x by setting the AGC_SLOW bit.
+   * AGC_GAIN_CORR_EN[1] Selects whether the input gain of the RX A/D Converter is reduced when the condition of minimum AGC gain is detected.
+   *  Set to 0 so ADC input gain is not reduced by 6 dB, when the condition of minimum AGC gain is detected.
+   * RST_PKDT_PERIOD[0] Selects the period at which the IF and RF peak detectors are reset.
+   *  Set to 0 so he peak detectors are reset only when a change in gain is indicated by the peak detector output versus being reset on each and every cycle of the AGC algorithm.
+   * 0xE2 -> xE0 (ADC_GAIN_CORR_EN[1] exists in 4463 but not 4464.)
+   *  When set the ADC input gain is reduced by 6 dB, when the condition of minimum AGC gain is detected.
+   */
   if(is_part_Si4463(handler->radio_part))
+#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
+    Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0);
+#else
     Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE2);
+#endif
   else
     Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0);
+
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
 #if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
   Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x12);
@@ -1257,7 +1298,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
 #if Si446x_4463_USE_446X_COMPATABILITY == TRUE
     /*
      * Si4463 revC2A has an extra decimator stage to be used for very
-     * narrowband (< 1 kHz) Rx applications. In this case this should
+     * narrowband (< 1 kHz) Rx applications. For AFSK case this should
      * be bypassed to emulate the Si4464 configuration.
      * NDEC2AGC[2] = 1 enable AGC control of 2nd stage CIC
      * NDEC2GAIN[4:3] = 1 2nd stage CIC gain is 12dB
@@ -1278,7 +1319,11 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
   Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL, 0x00);
   if(is_part_Si4463(handler->radio_part)) {
     /* RSSI jump control (ENRSSIJMP[3] 1 -> 0 to disable. */
+#if Si446x_4463_USE_446X_COMPATABILITY == TRUE
+    Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL2, 0x00);
+#else
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL2, 0x18);
+#endif
     Si446x_setProperty8(radio, Si446x_MODEM_RSSI_JUMP_THRESH, 0x06);
   }
 
@@ -2096,7 +2141,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
   radio_unit_t radio = rto->handler->radio;
 
-  packet_t pp = rto->radio_dat.packet_out;
+  packet_t pp = rto->radio_dat.pkt.packet_out;
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
@@ -2110,7 +2155,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   chRegSetThreadName(tx_thd_name);
 
   /* Lock radio for the entirety of the transmit session. */
-  msg_t msg = pktLockRadio(radio, RADIO_TX, rto->radio_dat.tto);
+  msg_t msg = pktLockRadio(radio, RADIO_TX, rto->radio_dat.timer);
 
   if (msg != MSG_OK) {
     TRACE_ERROR("SI   > TX reset or timeout when %s attempting radio %d acquisition",
@@ -2440,7 +2485,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   radio_task_object_t *rto = arg;
 
   radio_unit_t radio = rto->handler->radio;
-  packet_t pp = rto->radio_dat.packet_out;
+  packet_t pp = rto->radio_dat.pkt.packet_out;
 
   chDbgAssert(pp != NULL, "no packet in radio task");
 
@@ -2454,7 +2499,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   chRegSetThreadName(tx_thd_name);
 
   /* Lock radio for the entirety of the transmit session. */
-  msg_t msg = pktLockRadio(radio, RADIO_TX, rto->radio_dat.tto);
+  msg_t msg = pktLockRadio(radio, RADIO_TX, rto->radio_dat.timer);
 
   if (msg != MSG_OK) {
     TRACE_ERROR("SI   > TX reset or timeout when %s attempting radio %d acquisition",

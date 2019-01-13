@@ -195,9 +195,9 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
     rp.step_hz = step;
     rp.channel = tx_chan;
     rp.tx_power = pwr;
-    rp.tto = TIME_S2I(5);
+    rp.timer = TIME_S2I(5);
     rp.rssi = cca;
-    rp.packet_out = pp;
+    rp.pkt.packet_out = pp;
 
     /* Serial number for this TX. */
     rp.seq_num++;

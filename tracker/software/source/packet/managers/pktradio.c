@@ -399,13 +399,11 @@ static msg_t pktCloseRadioReceive(const radio_unit_t radio,
     return MSG_ERROR;
   } /* End switch on link_type. */
 
-#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
   /*
    * Release packet services.
    * TODO: Is there a check for outstanding call backs done earlier so is this safe?
    */
   pktIncomingBufferPoolRelease(handler);
-#endif
   handler->rx_state = PACKET_RX_IDLE;
   return MSG_OK;
 }
@@ -739,11 +737,9 @@ THD_FUNCTION(pktRadioManager, arg) {
    */
   bool init_fail = false;
 
-#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
   handler->packet_heap = pktIncomingBufferPoolCreate(radio);
   if (handler->packet_heap == NULL)
     init_fail |= true;
-#endif /* USE_POOL_RX_BUFFER_OBJECTS == TRUE */
 
   handler->active_packet_object = NULL;
 
@@ -870,42 +866,40 @@ THD_FUNCTION(pktRadioManager, arg) {
     case PKT_RADIO_MGR_CLOSE: {
       /*
        * Radio manager close is sent as a task object.
-       * Check RX callback and TX task objects tasks outstanding.
+       * Check RX callback and TX task object tasks outstanding.
        * If all done release the FIFO and terminate.
        *
        * TODO: This is open to a race condition.
-       * There should be a mechanism blocking new tasks and rejecting queued ones.
-       * - In the command queue function test closing semaphore.
-       *
-       * The task initiator waits with chThdWait(...).
-       * TODO: Refactor what buffers, FIFOs are closed here.
-       * chSysLock();
-       * if (chBSemGetStateI(&handler->close_sem)) {
-       *    msg_t msg = chBSemWaitS(&handler->close_sem);
-       *
-       *    }
-       * ...
+       * Terminate needs to deal with...
+       *  1. new RTOs in the queue (RSSI requests).
+       *  2. receive CBs outstanding since the RX packet buffer is released.
+       *  3. transmit RTOs outstanding since those send RTO after transmit.
        */
-      if (handler->txrto_ref_count == 0 && handler->rxcb_ref_count == 0) {
-        msg_t msg = pktLockRadio(radio, RADIO_RX, TIME_MS2I(100));
-        if (msg == MSG_TIMEOUT) {
-          /*
-           * The radio has not been locked.
-           * Repost task in normal order.
-           * Let the FIFO be processed and check again.
-           * TODO: Add a retry limit or just force out with a sem reset.
-           */
+      msg_t msg = pktLockRadio(radio, RADIO_RX, TIME_MS2I(100));
+      if (msg == MSG_TIMEOUT) {
+        /*
+         * The radio has not been locked.
+         * Repost task in normal order.
+         * Let the FIFO be processed and check again.
+         * TODO: Add a retry limit or just force out with a sem reset.
+         */
 
-          pktSubmitRadioTask(radio, task_object, NULL);
-          continue;
-        } /* Else MSG_OK or MSG_RESET */
+        pktSubmitRadioTask(radio, task_object, NULL);
+        continue;
+      } /* Else MSG_OK or MSG_RESET */
+      if (msg == MSG_RESET) {
+        pktUnlockRadio(radio);
+        task_object->result = msg;
+        break;
+      }
+      /* The radio is locked. */
+      if (handler->txrto_ref_count == 0 && handler->rxcb_ref_count == 0) {
+
         /* TODO: Work out a better handling of shutdown race condition than
          * the above system of a semaphore in the task object getter?
          */
         pktLLDradioShutdown(radio);
-#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
         pktIncomingBufferPoolRelease(handler);
-#endif
         chFactoryReleaseObjectsFIFO(handler->the_radio_fifo);
         if (msg != MSG_RESET)
           /* If the radio semaphore was reset then we did not get lock. */
@@ -1061,9 +1055,9 @@ THD_FUNCTION(pktRadioManager, arg) {
      * To implement RX_STOP would just post the decoder stop request.
      * Then retry and wait with a sliced T/O for the stop event in RX_DECODE.
      */
-    case PKT_RADIO_RX_DECODE: {
+    case PKT_RADIO_RX_DISPATCH: {
       break;
-    } /* End case PKT_RADIO_RX_DECODE. */
+    } /* End case PKT_RADIO_RX_DISPATCH. */
 
     /**
      * Send packet(s) on radio.
@@ -1100,7 +1094,7 @@ THD_FUNCTION(pktRadioManager, arg) {
        *  TODO: Delineate between failed submit and failed TX.
        */
 
-      packet_t pp = task_object->radio_dat.packet_out;
+      packet_t pp = task_object->radio_dat.pkt.packet_out;
       pktReleaseBufferChain(pp);
       task_object->result = MSG_ERROR;
       break;
@@ -1146,6 +1140,9 @@ THD_FUNCTION(pktRadioManager, arg) {
       task_object->result = msg;
       break;
       } /* End case PKT_RADIO_RX_CLOSE. */
+
+    case PKT_RADIO_RX_DONE:
+      break;
 
     case PKT_RADIO_TX_DONE: {
       /* TX thread has completed. */
@@ -1212,7 +1209,7 @@ THD_FUNCTION(pktRadioManager, arg) {
          */
         continue;
     }
-    /* Wake up calling thread if RM task status requested. */
+    /* Wake up calling thread if RM task status was requested. */
     if (task_object->thread != NULL) {
       chThdResume(&(task_object)->thread, task_object->result);
     }
@@ -1228,6 +1225,9 @@ THD_FUNCTION(pktRadioManager, arg) {
 
     /* Return task object to free list. */
     chFifoReturnObject(radio_queue, (radio_task_object_t *)task_object);
+
+    /* Decrease the FIFO ref count. */
+    chFactoryReleaseObjectsFIFO(handler->the_radio_fifo);
 
 /*    TRACE_DEBUG("RAD  > Radio task object 0x%x (%d) freed on radio %d",
                 task_object, task_object->command, radio);*/
@@ -1375,6 +1375,9 @@ msg_t pktGetRadioTaskObjectI(const radio_unit_t radio,
     /* No object available. */
       return MSG_TIMEOUT;
 
+  /* Increment the FIFO ref count. */
+  chFactoryDuplicateReference(&task_fifo->element);
+
   /* Clear the object then add base data. */
   memset(*rt, 0, sizeof(radio_task_object_t));
   (*rt)->handler = handler;
@@ -1448,10 +1451,16 @@ msg_t pktGetRadioTaskObject(const radio_unit_t radio,
   objects_fifo_t *task_queue = chFactoryGetObjectsFIFO(task_fifo);
   chDbgAssert(task_queue != NULL, "no objects fifo list");
 
+  chSysLock();
   /* Request an RT object. */
-  if ((*rt = chFifoTakeObjectTimeout(task_queue, timeout)) == NULL)
+  if ((*rt = chFifoTakeObjectTimeoutS(task_queue, timeout)) == NULL) {
     /* No object available. */
+    chSysUnlock();
     return MSG_TIMEOUT;
+  }
+  /* Increment the FIFO ref count. */
+  chFactoryDuplicateReference(&task_fifo->element);
+  chSysUnlock();
 
   /* Clear the object then add base data. */
   memset(*rt, 0, sizeof(radio_task_object_t));

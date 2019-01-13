@@ -11,6 +11,52 @@
 
 #include "usbcfg2.h"
 
+
+/*===========================================================================*/
+/* Module pre-compile time settings.                                         */
+/*===========================================================================*/
+
+/* To use IO_TXD/IO_RXD as a UART serial channel. */
+#define ENABLE_UART_SERIAL          TRUE
+
+/* To direct diagnostic to a serial channel. */
+#define ENABLE_SERIAL_STREAM        FALSE
+
+/* To direct trace to a serial channel. */
+#define ENABLE_SERIAL_TRACE         TRUE
+
+/* If set to true, the console will be started. */
+#define ACTIVATE_CONSOLE            TRUE
+
+/* Console selection. */
+#if !defined(USE_UART_FOR_CONSOLE)
+#define USE_UART_FOR_CONSOLE        FALSE
+#endif
+
+/* The external port can be used for bit bang I2C. */
+#define ENABLE_EXTERNAL_I2C         FALSE
+
+/* External BME fitting setting. */
+#define BME280_E1_IS_FITTED         FALSE
+#define BME280_E2_IS_FITTED         TRUE
+
+/*
+ *  Configure PWM stream data.
+ *  Packed 12 bit saves memory but has reduced PWM range.
+ */
+#define USE_12_BIT_PWM                  TRUE
+
+/*
+ * Allocate PWM buffers from a CCM heap/pool.
+ * Implements fragmented queue/buffer objects.
+ * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
+ * Decoder side swaps queue/buffer on in-band message.
+ * The retired buffer is reticulated to the pool ready for re-use.
+ */
+//#define USE_HEAP_PWM_BUFFER         TRUE
+#define USE_CCM_BASED_PWM_HEAP      TRUE
+#define TRACE_PWM_BUFFER_STATS      FALSE
+
 /*===========================================================================*/
 /* Module constants.                                                         */
 /*===========================================================================*/
@@ -21,11 +67,6 @@
 #define SERIAL_UART_DRIVER          SD3
 #define SERIAL_USB1_DRIVER          SDU1
 #define SERIAL_USB2_DRIVER          SDU2
-
-/* Console selection. */
-#if !defined(USE_UART_FOR_CONSOLE)
-#define USE_UART_FOR_CONSOLE        FALSE
-#endif
 
 /* Serial channel mapping. */
 #if USE_UART_FOR_CONSOLE == TRUE
@@ -188,24 +229,9 @@
 //#define LINE_UART4_TX               PAL_LINE(GPIOA, 12U)
 //#define LINE_UART4_RX               PAL_LINE(GPIOA, 11U)
 
-/* The external port can be used for bit bang I2C. */
-#define ENABLE_EXTERNAL_I2C         FALSE
 
 #define EI2C_SCL                    LINE_IO_TXD /* SCL */
 #define EI2C_SDA                    LINE_IO_RXD /* SDA */
-
-/* External BME fitting setting. */
-#define BME280_E1_IS_FITTED     FALSE
-#define BME280_E2_IS_FITTED     TRUE
-
-/* To use IO_TXD/IO_RXD as a UART serial channel. */
-#define ENABLE_UART_SERIAL          TRUE
-
-/* To direct diagnostic to a serial channel. */
-#define ENABLE_SERIAL_STREAM        FALSE
-
-/* To direct trace to a serial channel. */
-#define ENABLE_SERIAL_TRACE         TRUE
 
 #if ENABLE_EXTERNAL_I2C == TRUE && ENABLE_UART_SERIAL == TRUE
 #error "Cannot enable serial debug and external I2C together"
@@ -213,9 +239,6 @@
 #define LINE_USART3_TX              LINE_IO_TXD
 #define LINE_USART3_RX              LINE_IO_RXD
 #endif
-
-/* If set to true, the console will be started. */
-#define ACTIVATE_CONSOLE            TRUE
 
 /**
  *  PWM ICU related definitions.
@@ -237,12 +260,6 @@
 
 #endif
 
-/*
- *  Configure PWM stream data.
- *  Packed 12 bit saves memory but has reduced PWM range.
- */
-#define USE_12_BIT_PWM                  TRUE
-
 /* ICU counter frequency. */
 /*
  * TODO: This should be calculated using timer clock.
@@ -258,34 +275,17 @@
 #error "Invalid ICU frequency for APBx clock setting"
 #endif
 
-/*
- * Allocate PWM buffers from a CCM heap/pool.
- * Implements fragmented queue/buffer objects.
- * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
- * Decoder side swaps queue/buffer on in-band message.
- * The retired buffer is reticulated to the pool ready for re-use.
- */
-#define USE_HEAP_PWM_BUFFER         TRUE
-#define USE_CCM_BASED_PWM_HEAP      TRUE
-#define TRACE_PWM_BUFFER_STATS      FALSE
-
 /* Definitions for ICU FIFO implemented using chfactory. */
-#if USE_HEAP_PWM_BUFFER == TRUE
 /* Use factory FIFO as stream control with separate chained PWM buffers. */
 #define NUMBER_PWM_FIFOS            5U
 /* Number of PWM data entries (stream symbols) per queue object. */
 #define PWM_DATA_SLOTS              200
 /* Number of PWM queue objects in total. */
 #define PWM_DATA_BUFFERS            30
-#else /* USE_HEAP_PWM_BUFFER != TRUE */
-/* Use factory FIFO as stream control with integrated PWM buffer. */
-#define NUMBER_PWM_FIFOS            3U
-#define PWM_DATA_SLOTS              6000
-#endif /* USE_HEAP_PWM_BUFFER == TRUE */
+
 
 /* Number of frame receive buffers. */
 #define NUMBER_RX_PKT_BUFFERS       5U
-#define USE_POOL_RX_BUFFER_OBJECTS  TRUE
 #define USE_CCM_HEAP_RX_BUFFERS     TRUE
 
 /*

@@ -20,9 +20,14 @@
 
 #define PKT_SEND_BUFFER_SEM_NAME        "pbsem"
 
-
 #define PKT_RX_CALLBACK_WA_SIZE          (1024 * 5)
 #define PKT_TERMINATOR_WA_SIZE           (1024 * 1)
+
+/*===========================================================================*/
+/* Module pre-compile time settings.                                         */
+/*===========================================================================*/
+
+#define PKT_USE_RM_FOR_RX_DISPATCH  FALSE
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
@@ -60,11 +65,7 @@ typedef void (*pkt_buffer_cb_t)(pkt_data_object_t *const pkt_object);
 typedef struct packetBufferObject {
   struct pool_header        link; /* For safety keep clear - where pool stores its free link. */
   packet_svc_t              *handler;
-#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
   ax25char_t                buffer[PKT_RX_BUFFER_SIZE];
-#else
-  ax25char_t               *buffer;
-#endif
   char                      cb_thd_name[PKT_THREAD_NAME_MAX];
   pkt_buffer_cb_t           cb_func;
   volatile statusflags_t    status;
@@ -137,31 +138,25 @@ typedef struct packetHandlerData {
   radio_mod_t               rx_link_type;
 
   /**
-   * @brief names for the factory FIFOs.
-   * @notes packet buffer & radio task and callback
+   * @brief names for the radio task FIFO
    */
-  //char                      pbuff_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
   char                      rtask_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
-  //char                      cbend_name[CH_CFG_FACTORY_MAX_NAMES_LENGTH];
 
   /**
    *  @brief Packet system service threads.
    */
   thread_t                  *radio_manager;
-  //thread_t                  *cb_terminator;
 
   /**
    * @brief Radio task guarded FIFO.
    */
   dyn_objects_fifo_t        *the_radio_fifo;
 
-#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
   /**
    * @brief AX25 receive packet objects guarded pool.
    */
   guarded_memory_pool_t     rx_packet_pool;
   pkt_data_object_t         *packet_heap;
-#endif
 
   /**
    * @brief Packet buffer cb_func.

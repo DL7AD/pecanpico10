@@ -495,14 +495,12 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
     handler->valid_count = 0;
     handler->good_count = 0;
 
-    /* Setup the task. The open task callback pktReceiveStartCB()
-       will queue a start task. */
+    /* Setup the task to open and start receive. */
     msg_t result;
     msg = pktQueueRadioCommand(radio,
                               PKT_RADIO_RX_OPEN,
                               &handler->radio_rx_config,
-                              to, &result,
-                              /*pktReceiveStartCB*/NULL);
+                              to, &result, NULL);
 
     if (msg == MSG_OK) {
       if (result == MSG_OK)
@@ -649,12 +647,9 @@ bool pktStoreReceiveData(pkt_data_object_t *const pkt_object,
     /* Buffer full. */
     return false;
   }
+
   /* Buffer space available. */
-#if USE_POOL_RX_BUFFER_OBJECTS != TRUE
-  *((pkt_object->buffer) + pkt_object->packet_size++) = data;
-#else
   pkt_object->buffer[pkt_object->packet_size++] = data;
-#endif
   return true;
 }
 
@@ -699,6 +694,22 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *const pkt_object) {
   /* Update status in packet buffer object. */
   pkt_object->status |= flags;
 
+#if PKT_USE_RM_FOR_RX_DISPATCH == TRUE
+  /* Setup the task to dispatch the receive packet buffer. The RM creates a
+     call back thread for the packet to be dispatched via. */
+  radio_task_object_t rto = *handler->radio_rx_config;
+  rto.radio_dat.pkt = pkt_object;
+  msg_t result;
+  msg = pktQueueRadioCommand(radio,
+                             PKT_RADIO_RX_DISPATCH,
+                            &rto,
+                            TIME_MS2I(500), &result, NULL);
+
+  if (msg == MSG_OK) {
+    msg = result;
+  }
+  return msg;
+#else
   /* Schedule a callback thread. */
   thread_t *cb_thd = pktCreateReceiveCallback(pkt_object);
 
@@ -710,14 +721,9 @@ eventflags_t pktDispatchReceivedBuffer(pkt_data_object_t *const pkt_object) {
    * Release the packet buffer and management object.
    * Broadcast event.
    */
-#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
   chGuardedPoolFree(&handler->rx_packet_pool, pkt_object);
-#else
-  /* Release the buffer and management object. */
-  chHeapFree(pkt_object->buffer);
-  chHeapFree(pkt_object);
-#endif
   pktAddEventFlags(handler, EVT_PKT_FAILED_CB_THD);
+#endif
   return flags;
 }
 
@@ -803,11 +809,9 @@ THD_FUNCTION(pktCallback, arg) {
 
   /* The callback no longer holds a reference to the service object. */
   handler->rxcb_ref_count--;
-  //extern void pktThdTerminateSelf(void);
   pktThdTerminateSelf();
 }
 
-#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
 /*
  * @brief   Create the receive packet management/buffer objects.
  *
@@ -840,7 +844,7 @@ pkt_data_object_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
   }
   return objects;
 }
-#endif
+
 /*
  * Send and APRS share a common pool of packet buffers.
  */
@@ -966,15 +970,12 @@ void pktReleaseCommonPacketBuffer(const packet_t pp) {
  */
 void pktIncomingBufferPoolRelease(packet_svc_t *const handler) {
 
-  /* Release the dynamic objects FIFO for the incoming packet data queue. */
-#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
-  /* Should only be here when all packets have been released. */
+  /* Release the dynamic objects FIFO for the incoming packet data queue.
+     Should only be here when all packets have been released. */
   cnt_t objects = chGuardedPoolGetCounterI(&handler->rx_packet_pool);
-  chDbgAssert(objects != 0, "pool has outstanding objects");
+  chDbgAssert(objects == 0, "pool has outstanding objects");
   chHeapFree(handler->packet_heap);
-#else
-  (void)handler;
-#endif
+
 }
 
 
@@ -1024,12 +1025,13 @@ packet_svc_t *pktGetServiceObject(const radio_unit_t radio) {
  */
 pkt_data_object_t* pktAssignReceivePacketObject(packet_svc_t *const handler,
                                                 const sysinterval_t timeout) {
-#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
+
   pkt_data_object_t *pkt_object = chGuardedPoolAllocTimeout(
                                             &handler->rx_packet_pool,
                                             timeout);
   if(pkt_object == NULL)
     return NULL;
+
   /*
    * Packet management object available.
    * Initialize the object fields.
@@ -1040,43 +1042,7 @@ pkt_data_object_t* pktAssignReceivePacketObject(packet_svc_t *const handler,
   pkt_object->buffer_size = PKT_RX_BUFFER_SIZE;
   pkt_object->cb_func = handler->usr_callback;
   return pkt_object;
-#else
-  (void)timeout;
-  if(handler->rxcb_ref_count >= NUMBER_RX_PKT_BUFFERS)
-    return NULL;
-  //extern memory_heap_t *ccm_heap;
-  pkt_data_object_t *pkt_object =
-      chHeapAlloc(USE_CCM_HEAP_RX_BUFFERS ? ccm_heap
-                                          : NULL,
-                                            sizeof(pkt_data_object_t));
-  if(pkt_object == NULL)
-    return NULL;
 
-  //handler->active_packet_object = pkt_object;
-  /*
-   * Packet management object available.
-   * Initialize the object fields.
-   */
-  pkt_object->handler = handler;
-  pkt_object->status = EVT_STATUS_CLEAR;
-  pkt_object->packet_size = 0;
-  pkt_object->buffer_size = PKT_RX_BUFFER_SIZE;
-  pkt_object->cb_func = handler->usr_callback;
-  //extern memory_heap_t *ccm_heap;
-  pkt_object->buffer =
-      chHeapAlloc(USE_CCM_HEAP_RX_BUFFERS ? ccm_heap
-                                          : NULL,
-                                            PKT_RX_BUFFER_SIZE);
-  if(pkt_object->buffer != NULL)
-    return pkt_object;
-  /*
-   * No heap available for data buffer.
-   * Release management object.
-   */
-  chHeapFree(pkt_object);
-  handler->active_packet_object = NULL;
-  return NULL;
-#endif
 }
 
 /**
@@ -1090,21 +1056,8 @@ pkt_data_object_t* pktAssignReceivePacketObject(packet_svc_t *const handler,
  */
 void pktReleaseDataBuffer(pkt_data_object_t *const object) {
 
-
-  /*
-   * Decrease the outstanding buffer count.
-   * Free the buffer control object.
-   * Decrease the factory reference count.
-   * Decrease the outstanding receive packet count.
-   */
-#if USE_POOL_RX_BUFFER_OBJECTS == TRUE
   packet_svc_t *handler = object->handler;
   chGuardedPoolFree(&handler->rx_packet_pool, object);
-#else /* USE_POOL_RX_BUFFER_OBJECTS != TRUE */
-  /* Free the linked packet buffer. */
-  chHeapFree(object->buffer);
-  chHeapFree(object);
-#endif
 }
 
 /** @} */
