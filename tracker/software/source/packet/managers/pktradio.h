@@ -34,6 +34,8 @@
 /* Module pre-compile time settings.                                         */
 /*===========================================================================*/
 
+#define PKT_RADIO_LOCK_IN_RECEIVE   FALSE
+
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
@@ -87,6 +89,7 @@ typedef enum radioCommand {
   PKT_RADIO_TCXO_UPDATE,
   PKT_RADIO_RX_RSSI,
   PKT_RADIO_RX_DISPATCH,
+  //PKT_RADIO_INT_STATUS,
   /* Internal or function API accessed RM tasks only. */
   PKT_RADIO_TX_DONE,
   PKT_RADIO_RX_DONE
@@ -107,6 +110,12 @@ typedef struct packetBufferObject pkt_data_object_t;
  * @param[in] task_object  pointer to a @p radio task object
  */
 typedef void (*radio_task_cb_t)(radio_task_object_t *task_object);
+
+/**
+ * @brief   Radio manager internal callback type.
+ *
+ * @param[in] task_object  pointer to a @p radio task object
+ */
 typedef bool (*radio_mgr_cb_t)(radio_task_object_t *task_object);
 
 #include "ax25_pad.h"
@@ -129,8 +138,8 @@ typedef struct radioParams {
   radio_pwr_t               tx_power;
   sysinterval_t             timer;
   union {
-  packet_t                  packet_out;
-  pkt_data_object_t         *packet_in;
+    packet_t                packet_out;
+    pkt_data_object_t       *packet_in;
   } pkt;
   cnt_t                     seq_num;
 } radio_params_t;

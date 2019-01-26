@@ -77,8 +77,7 @@ typedef enum ICUStates {
   PKT_PWM_STOP = 0,
   PKT_PWM_READY,
   PKT_PWM_WAITING,
-  PKT_PWM_ACTIVE/*,
-  PKT_PWM_STOP*/
+  PKT_PWM_ACTIVE
 } rx_icu_state_t;
 
 /*
@@ -200,8 +199,8 @@ typedef struct {
 extern "C" {
 #endif
   ICUDriver *pktAttachRadio(const radio_unit_t radio_id);
-  void      pktEnableRadioStream(const radio_unit_t radio);
-  void      pktDisableRadioStream(const radio_unit_t radio);
+  void      pktEnableRadioStreamProcessing(const radio_unit_t radio);
+  void      pktDisableRadioStreamProcessing(const radio_unit_t radio);
   void      pktDetachRadio(const radio_unit_t radio_id);
   void      pktRadioICUWidth(ICUDriver *myICU);
   void      pktRadioICUPeriod(ICUDriver *myICU);

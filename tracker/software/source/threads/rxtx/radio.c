@@ -18,7 +18,7 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
   ax25char_t *buf = pkt_buff->buffer;
   size_t len = pkt_buff->packet_size;
 
-  if(len < 3) {
+  if (len < 3) {
     /*
      *  Incoming packet was too short.
      *  Nothing to do.
@@ -32,7 +32,7 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
   /* Decode APRS frame. */
   packet_t pp = ax25_from_frame(buf, len);
 
-  if(pp == NULL) {
+  if (pp == NULL) {
     TRACE_MON("RX   > Error in packet %d - dropped", pkt_buff->seq_num);
     return;
   }
@@ -48,7 +48,7 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
 
   uint8_t *c;
   uint32_t ilen = ax25_get_info(pp, &c);
-  if(ilen == 0) {
+  if (ilen == 0) {
     TRACE_MON("RX   > Invalid packet structure in packet %d - dropped",
               pkt_buff->seq_num);
     pktReleaseCommonPacketBuffer(pp);
@@ -59,7 +59,7 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
   char serial_buf[512];
   bool crc_OK = pktGetAX25FrameStatus(pkt_buff);
   size_t x = aprs_debug_getPacket(pp, serial_buf, sizeof(serial_buf));
-  if(pp->rssi != 0xFF) {
+  if (pp->rssi != 0xFF) {
     /* TODO: Implement radio HAL call to get RSSI in dBm. */
     TRACE_MON("RX   > Packet %d opening RSSI 0x%x (%d dBm)",
               pkt_buff->seq_num, pp->rssi,
@@ -72,7 +72,7 @@ static void pktProcessReceivedPacket(pkt_data_object_t *const pkt_buff) {
   TRACE_MON("RX   > %s%s%s", crc_OK ? "" : "*",
                                 serial_buf,
                                 x > sizeof(serial_buf) ? "..." : "");
-  if(pp->num_addr > 0 && crc_OK) {
+  if (pp->num_addr > 0 && crc_OK) {
     aprs_process_packet(pp);
   }
   else {
@@ -90,7 +90,7 @@ void pktMapCallback(pkt_data_object_t *const pkt_buff) {
   pktProcessReceivedPacket(pkt_buff);
 #else
   /* Report the RSSI. */
-  if(pktGetAX25FrameStatus(pkt_buff)) {
+  if (pktGetAX25FrameStatus(pkt_buff)) {
     /* Perform the callback if CRC is good. */
     pktProcessReceivedPacket(pkt_buff);
   } else {
@@ -131,7 +131,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
                                                   chan,
                                                   RADIO_TX);
 
-  if(radio == PKT_RADIO_NONE) {
+  if (radio == PKT_RADIO_NONE) {
     char code_s[100];
     pktDisplayFrequencyCode(base_freq, code_s, sizeof(code_s));
     TRACE_WARN( "RAD  > No radio available to transmit on base %s "
@@ -141,7 +141,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
     return false;
   }
 
-  if(!pktIsTransmitAvailable(radio)) {
+  if (!pktIsTransmitAvailable(radio)) {
     TRACE_WARN( "RAD  > Transmit is not open on radio");
     pktReleaseBufferChain(pp);
     return false;
@@ -150,7 +150,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
   radio_ch_t tx_chan = chan;
 
   /* Channel is only used with absolute base frequencies. */
-  if(base_freq < FREQ_CODES_END) {
+  if (base_freq < FREQ_CODES_END) {
     tx_chan = 0;
   }
 
@@ -159,7 +159,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
                                                       step,
                                                       tx_chan,
                                                       RADIO_TX);
-  if(op_freq == FREQ_INVALID) {
+  if (op_freq == FREQ_INVALID) {
     TRACE_ERROR("RAD  > Transmit operating frequency of %d.%03d MHz is invalid",
                 op_freq/1000000, (op_freq%1000000)/1000);
       pktReleaseBufferChain(pp);
@@ -171,7 +171,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
   uint16_t len = ax25_get_info(pp, NULL);
 
   /* Check information size. */
-  if(AX25_MIN_INFO_LEN < len && len <= AX25_MAX_INFO_LEN) {
+  if (AX25_MIN_INFO_LEN < len && len <= AX25_MAX_INFO_LEN) {
 
     TRACE_MON( "RAD  > %s transmit on %d.%03d MHz (ch %d),"
         " PWR %d, %s, CCA 0x%x, data %d",
@@ -187,6 +187,7 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
 
     /* The service object. */
     packet_svc_t *handler = pktGetServiceObject(radio);
+
     /* Get  the saved radio data for this new request. */
     radio_params_t rp = handler->radio_tx_config;
 
@@ -198,21 +199,19 @@ bool pktTransmitOnRadioWithCallback(packet_t pp,
     rp.timer = TIME_S2I(5);
     rp.rssi = cca;
     rp.pkt.packet_out = pp;
-
     /* Serial number for this TX. */
     rp.seq_num++;
-
-    /* Update the task mirror. */
-    handler->radio_tx_config = rp;
-
     msg_t msg = pktQueueRadioCommand(radio, PKT_RADIO_TX_SEND,
                                     &rp, TIME_S2I(10), NULL, cb);
 
-    if(msg == MSG_TIMEOUT) {
+    if (msg == MSG_TIMEOUT) {
       TRACE_ERROR("RAD  > Failed to post radio task");
       pktReleaseBufferChain(pp);
       return false;
     }
+
+    /* Update the task mirror on submission success. */
+    handler->radio_tx_config = rp;
   } else {
 
     TRACE_ERROR("RAD  > Information size is invalid for transmission, %d.%03d MHz, "
@@ -234,14 +233,14 @@ THD_FUNCTION(aprsThread, arg) {
 
   radio_unit_t radio = PKT_RADIO_1;
 
-  if(conf->rx.svc_conf.init_delay) chThdSleep(conf->rx.svc_conf.init_delay);
+  if (conf->rx.svc_conf.init_delay) chThdSleep(conf->rx.svc_conf.init_delay);
   systime_t time = chVTGetSystemTime();
   do {
-    if(conf->rx.radio_conf.freq == FREQ_RX_APRS) {
+    if (conf->rx.radio_conf.freq == FREQ_RX_APRS) {
       TRACE_ERROR("RX   > Cannot specify FREQ_RX_APRS for receive");
       break;
     }
-    if(pktIsReceiveReady(radio)) {
+    if (pktIsReceiveReady(radio)) {
       TRACE_MON("RX   > Resuming receive on radio %d", radio);
     }
     else {
@@ -255,7 +254,7 @@ THD_FUNCTION(aprsThread, arg) {
                                      conf->rx.radio_conf.rssi,
                                      pktMapCallback,
                                      TIME_S2I(10));
-    if(msg != MSG_OK) {
+    if (msg != MSG_OK) {
       TRACE_ERROR("RX   > Start of radio %d packet reception failed with error %d",
                   radio, msg);
       time = waitForTrigger(time, conf->rx.svc_conf.cycle);
@@ -266,11 +265,11 @@ THD_FUNCTION(aprsThread, arg) {
      * Check if there is a "listening" interval.
      * In that case turn the receive off after that time.
      */
-    if(conf->rx.svc_conf.interval != TIME_IMMEDIATE) {
+    if (conf->rx.svc_conf.interval != TIME_IMMEDIATE) {
       chThdSleep(conf->rx.svc_conf.interval);
       TRACE_MON("RX   > Pausing receive on radio %d", radio);
       msg = pktDisableDataReception(radio);
-      if(msg != MSG_OK) {
+      if (msg != MSG_OK) {
         TRACE_ERROR("RX   > Pause of radio %d packet reception failed (%d)",
                     radio, msg);
         time = waitForTrigger(time, conf->rx.svc_conf.cycle);
@@ -298,7 +297,7 @@ thread_t *pktStartAPRSthreads(thd_aprs_conf_t *conf, const char *name) {
   thread_t *th = chThdCreateFromHeap(NULL,
                                THD_WORKING_AREA_SIZE(PKT_APRS_MAIN_WA_SIZE),
                                name, LOWPRIO, aprsThread, conf);
-  if(!th) {
+  if (!th) {
     TRACE_ERROR("APRS > Could not start thread (insufficient memory)");
   }
   return th;

@@ -52,9 +52,12 @@
  * Decoder side swaps queue/buffer on in-band message.
  * The retired buffer is reticulated to the pool ready for re-use.
  */
-//#define USE_HEAP_PWM_BUFFER         TRUE
 #define USE_CCM_BASED_PWM_HEAP      TRUE
 #define TRACE_PWM_BUFFER_STATS      FALSE
+
+/* Test of re-assigning CCA and NIRQ on radio. */
+#define USE_GPIO0_OF_RADIO_FOR_CCA  TRUE
+#define USE_NIRQ_OF_RADIO_FOR_NIRQ  TRUE
 
 /*===========================================================================*/
 /* Module constants.                                                         */

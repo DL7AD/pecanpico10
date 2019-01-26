@@ -508,80 +508,6 @@ AFSKDemodDriver *pktCreateAFSKDecoder(radio_unit_t radio) {
   myDriver->packet_handler = pktGetServiceObject(radio);
 
   chDbgAssert(data != NULL, "invalid AFSK driver");
-#if AFSK_THREAD_DOES_INIT == FALSE
-  /*
-   * Initialize the decoder event object.
-   */
-  chEvtObjectInit(pktGetEventSource(myDriver));
-
-  /* Create a PWM FIFO name for this radio. */
-  chsnprintf(myDriver->pwm_fifo_name, sizeof(myDriver->pwm_fifo_name),
-             "%s%02i", PKT_PWM_QUEUE_PREFIX, radio);
-
-  /* Create the dynamic objects FIFO for the PWM data queue. */
-  myDriver->the_pwm_fifo = chFactoryCreateObjectsFIFO(myDriver->pwm_fifo_name,
-                                        sizeof(radio_pwm_fifo_t),
-                                        NUMBER_PWM_FIFOS, sizeof(msg_t));
-
-  chDbgAssert(myDriver->the_pwm_fifo != NULL, "failed to create PWM FIFO");
-
-  if(myDriver->the_pwm_fifo == NULL) {
-    return NULL;
-  }
-
-#if USE_HEAP_PWM_BUFFER == TRUE
-  /*
-   * Create a memory pool of PWM queue objects in heap.
-   * 1. Allocate heap memory
-   * 2. Initialise pool manager
-   * 3. Load heap with pool buffer objects
-   */
-
-  /*
-   * Get heap to accommodate buffer objects.
-   * The size of the allocation is:
-   *  Number of slots for individual PWM entries in each buffer
-   *  Multiplied by the number of chained buffers to be allocated
-   */
-#if USE_CCM_BASED_PWM_HEAP == TRUE
-  extern memory_heap_t *ccm_heap;
-  myDriver->pwm_queue_heap = chHeapAllocAligned(ccm_heap,
-        sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS, sizeof(msg_t));
-#else /* USE_CCM_BASED_PWM_HEAP != TRUE */
-  myDriver->pwm_queue_heap = chHeapAllocAligned(NULL,
-        sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS, sizeof(msg_t));
-#endif /* USE_CCM_BASED_PWM_HEAP == TRUE */
-  chDbgAssert(myDriver->pwm_queue_heap != NULL, "failed to create space "
-                                                "in heap for PWM pool");
-  /* Initialize the memory pool to manage buffer objects. */
-  chPoolObjectInitAligned(&myDriver->pwm_buffer_pool,
-                          sizeof(radio_pwm_object_t),
-                          sizeof(msg_t), NULL);
-
-  /* Load the memory pool with buffer objects. */
-  chPoolLoadArray(&myDriver->pwm_buffer_pool,
-                  myDriver->pwm_queue_heap,
-                  PWM_DATA_BUFFERS);
-#endif /* USE_HEAP_PWM_BUFFER == TRUE */
-
-  /* Get the objects FIFO . */
-  myDriver->pwm_fifo_pool = chFactoryGetObjectsFIFO(myDriver->the_pwm_fifo);
-
-  /* Indicate no buffer allocated. */
-  myDriver->active_radio_stream = NULL;
-  myDriver->active_demod_stream = NULL;
-
-  /* Attach and initialize the ICU PWM system. */
-  myDriver->icudriver = pktAttachRadio(radio);
-
-  /* Set the link from ICU driver to AFSK demod driver. */
-  myDriver->icudriver->link = myDriver;
-  myDriver->icustate = PKT_PWM_INIT;
-
-  /* Create the packet buffer name. */
-  chsnprintf(myDriver->decoder_name, sizeof(myDriver->decoder_name),
-             "%s%02i", PKT_AFSK_THREAD_NAME_PREFIX, radio);
-#endif
 
   /* Set the link from demod driver to the packet driver. */
   myDriver->packet_handler = pktGetServiceObject(radio);
@@ -602,20 +528,16 @@ AFSKDemodDriver *pktCreateAFSKDecoder(radio_unit_t radio) {
               "error in AFSK decoder thread creation");
 
   if(myDriver->decoder_thd == NULL) {
-#if AFSK_THREAD_DOES_INIT == FALSE
-    chFactoryReleaseObjectsFIFO(myDriver->the_pwm_fifo);
-#endif /* AFSK_THREAD_DOES_INIT == FALSE */
     return NULL;
   }
 
-#if AFSK_THREAD_DOES_INIT == TRUE
   /* TODO: Add init start thread message handshake. */
   thread_t *thd = chMsgWait();
   msg_t msg = chMsgGet(thd);
   chMsgRelease(thd, MSG_OK);
   if(msg == MSG_ERROR)
     return NULL;
-#endif
+
   return myDriver;
 }
 
@@ -722,8 +644,6 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   packet_svc_t *myHandler = myDriver->packet_handler;
   radio_unit_t radio = myHandler->radio;
 
-#if AFSK_THREAD_DOES_INIT == TRUE
-
   /*
    * Initialize the decoder event object.
    */
@@ -760,14 +680,13 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
    *  Number of slots for individual PWM entries in each buffer
    *  Multiplied by the number of chained buffers to be allocated
    */
+  memory_heap_t *pwm_heap = NULL;
 #if USE_CCM_BASED_PWM_HEAP == TRUE
-  extern memory_heap_t *ccm_heap;
-  myDriver->pwm_queue_heap = chHeapAllocAligned(ccm_heap,
+  //extern memory_heap_t *ccm_heap;
+  pwm_heap = ccm_heap;
+#endif/* USE_CCM_BASED_PWM_HEAP == TRUE */
+  myDriver->pwm_queue_heap = chHeapAllocAligned(pwm_heap,
         sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS, sizeof(msg_t));
-#else /* USE_CCM_BASED_PWM_HEAP != TRUE */
-  myDriver->pwm_queue_heap = chHeapAllocAligned(NULL,
-        sizeof(radio_pwm_object_t) * PWM_DATA_BUFFERS, sizeof(msg_t));
-#endif /* USE_CCM_BASED_PWM_HEAP == TRUE */
   chDbgAssert(myDriver->pwm_queue_heap != NULL, "failed to create space "
                                                 "in heap for PWM pool");
   /* Initialize the memory pool to manage buffer objects. */
@@ -792,17 +711,13 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
 
   /* Set the link from ICU driver to AFSK demod driver. */
   myDriver->icudriver->link = myDriver;
-#if 0
-  myDriver->icustate = PKT_PWM_INIT;
-#else
+
+  /* Set state to initial/stopped. */
   myDriver->icustate = PKT_PWM_STOP;
-#endif
 
   /* Create the packet buffer name. */
   chsnprintf(myDriver->decoder_name, sizeof(myDriver->decoder_name),
              "%s%02i", PKT_AFSK_THREAD_NAME_PREFIX, radio);
-
-#endif /* AFSK_THREAD_DOES_INIT == TRUE */
 
   tprio_t decoder_idle_priority;
 
@@ -845,9 +760,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
   pktLLDradioConfigIndicator(radio, PKT_INDICATOR_DECODE);
   pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_DECODE, PAL_HIGH);
 
-#if AFSK_THREAD_DOES_INIT == TRUE
   chMsgSend(myDriver->caller, MSG_OK);
-#endif
   myDriver->decoder_state = DECODER_RESET;
   while(true) {
     switch(myDriver->decoder_state) {

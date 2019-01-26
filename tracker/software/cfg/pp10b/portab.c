@@ -47,20 +47,66 @@ const si446x_mcucfg_t radio1_cfg = {
   .sdn      = LINE_RADIO1_SDN,
   .cs       = LINE_RADIO1_CS,
   .spi      = &PKT_RADIO1_SPI,
-  .init     = {
+  .init     = {            /**< Default reset radio GPIO settings. */
     .gpio       = {
-     .gpio0 = 00,          /**< DONOTHING. */
-     .gpio1 = 00,          /**< DONOTHING. */
-     .gpio2 = 0x21,        /**< RX_STATE. */
-     .gpio3 = 0x20,        /**< TX_STATE. */
-     .nirq  = 02,          /**< DRIVE0. */
-     .sdo   = 00,          /**< DONOTHING. */
+     .gpio0 = 00,          /**< DONOTHING.  */
+     .gpio1 = 00,          /**< DONOTHING.  */
+     .gpio2 = 0x21,        /**< RX_STATE.   */
+     .gpio3 = 0x20,        /**< TX_STATE.   */
+     .nirq  = 03,          /**< DRIVE1.     */
+     .sdo   = 00,          /**< DONOTHING.  */
      .cfg   = 00           /**< HIGH DRIVE. */
     }
   },
-  .rafsk    = {
+  .xirq      = {           /**< Settings for global IRQ dispatcher. */
+     .gpio       = {
+      .gpio0 = 00,          /**< DONOTHING.  */
+      .gpio1 = 00,          /**< DONOTHING.  */
+      .gpio2 = 00,          /**< DONOTHING.  */
+      .gpio3 = 00,          /**< DONOTHING.  */
+      .nirq  = 0x27,        /**< NIRQ.       */
+      .sdo   = 00,          /**< DONOTHING.  */
+      .cfg   = 00           /**< HIGH DRIVE. */
+     },
+       .nirq = {
+         .line = &radio1_cfg.nirq,
+         .mode = (PAL_MODE_INPUT_PULLUP)
+       },
+  },
+  .rcca    = {            /**< CCA carrier sense radio GPIO settings. */
     .gpio       = {
+#if USE_GPIO0_OF_RADIO_FOR_CCA
+      .gpio0 = 0x1B,        /**< CCA.       */
+#else
       .gpio0 = 00,          /**< DONOTHING. */
+#endif
+      .gpio1 = 00,        /**< RX_DATA. */
+      .gpio2 = 00,          /**< DONOTHING. */
+      .gpio3 = 00,          /**< DONOTHING. */
+#if USE_NIRQ_OF_RADIO_FOR_NIRQ == TRUE
+     .nirq  = 00,           /**< DONOTHING. */
+#else
+     .nirq  = 0x1B,         /**< CCA. */
+#endif
+      .sdo   = 00,          /**< DONOTHING. */
+      .cfg   = 00           /**< HIGH DRIVE. */
+    },
+    .cca     = {
+#if USE_GPIO0_OF_RADIO_FOR_CCA
+               .line = &radio1_cfg.gpio0,
+#else
+               .line = &radio1_cfg.nirq,
+#endif
+               .mode = PAL_MODE_INPUT_PULLUP
+    }
+  },
+  .rafsk    = {            /**< AFSK RX radio GPIO settings. */
+    .gpio       = {
+#if USE_GPIO0_OF_RADIO_FOR_CCA
+      .gpio0 = 0x1B,        /**< CCA.       */
+#else
+      .gpio0 = 00,          /**< DONOTHING. */
+#endif
 #if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
       .gpio1 = 0x14,        /**< RX_DATA. */
 #else
@@ -68,7 +114,11 @@ const si446x_mcucfg_t radio1_cfg = {
 #endif
       .gpio2 = 00,          /**< DONOTHING. */
       .gpio3 = 00,          /**< DONOTHING. */
-      .nirq  = 0x1B,        /**< CCA. */
+#if USE_NIRQ_OF_RADIO_FOR_NIRQ == TRUE
+     .nirq  = 00,           /**< DONOTHING. */
+#else
+     .nirq  = 0x1B,         /**< CCA. */
+#endif
       .sdo   = 00,          /**< DONOTHING. */
       .cfg   = 00           /**< HIGH DRIVE. */
     },
@@ -77,7 +127,11 @@ const si446x_mcucfg_t radio1_cfg = {
                .mode = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2))
     },
     .cca     = {
+#if USE_GPIO0_OF_RADIO_FOR_CCA
+               .line = &radio1_cfg.gpio0,
+#else
                .line = &radio1_cfg.nirq,
+#endif
                .mode = PAL_MODE_INPUT_PULLUP
     },
     .icu     = &PKT_RADIO1_PWM_ICU,
@@ -91,48 +145,84 @@ const si446x_mcucfg_t radio1_cfg = {
        0                          /**< DIER bits. */
     }
   },
-  .tafsk    = {
+  .tafsk    = {            /**< AFSK TX radio GPIO settings. */
     .gpio       = {
-     .gpio0 = 00,          /**< DONOTHING. */
+#if USE_GPIO0_OF_RADIO_FOR_CCA
+      .gpio0 = 0x1B,        /**< CCA.       */
+#else
+      .gpio0 = 00,          /**< DONOTHING. */
+#endif
      .gpio1 = 00,          /**< DONOTHING. */
      .gpio2 = 00,          /**< DONOTHING. */
      .gpio3 = 00,          /**< DONOTHING. */
+#if USE_NIRQ_OF_RADIO_FOR_NIRQ == TRUE
+     .nirq  = 00,          /**< DONOTHING. */
+#else
      .nirq  = 0x1B,        /**< CCA. */
+#endif
      .sdo   = 00,          /**< DONOTHING. */
      .cfg   = 00           /**< HIGH DRIVE. */
     },
     .cca     = {
+#if USE_GPIO0_OF_RADIO_FOR_CCA
+               .line = &radio1_cfg.gpio0,
+#else
                .line = &radio1_cfg.nirq,
+#endif
                .mode = PAL_MODE_INPUT_PULLUP
     },
   },
-  .r2fsk    = {
+  .r2fsk    = {            /**< 2FSK RX radio GPIO settings. */
     .gpio       = {
-     .gpio0 = 00,          /**< DONOTHING. */
+#if USE_GPIO0_OF_RADIO_FOR_CCA
+      .gpio0 = 0x1B,        /**< CCA.       */
+#else
+      .gpio0 = 00,          /**< DONOTHING. */
+#endif
      .gpio1 = 00,          /**< DONOTHING. */
      .gpio2 = 00,          /**< DONOTHING. */
      .gpio3 = 00,          /**< DONOTHING. */
+#if USE_NIRQ_OF_RADIO_FOR_NIRQ == TRUE
+     .nirq  = 00,          /**< DONOTHING. */
+#else
      .nirq  = 0x1B,        /**< CCA. */
+#endif
      .sdo   = 00,          /**< DONOTHING. */
      .cfg   = 00           /**< HIGH DRIVE. */
     },
     .cca     = {
+#if USE_GPIO0_OF_RADIO_FOR_CCA
+               .line = &radio1_cfg.gpio0,
+#else
                .line = &radio1_cfg.nirq,
+#endif
                .mode = PAL_MODE_INPUT_PULLUP
     },
   },
-  .t2fsk    = {
+  .t2fsk    = {            /**< 2FSK TX radio GPIO settings. */
     .gpio       = {
-     .gpio0 = 00,          /**< DONOTHING. */
+#if USE_GPIO0_OF_RADIO_FOR_CCA
+      .gpio0 = 0x1B,        /**< CCA.       */
+#else
+      .gpio0 = 00,          /**< DONOTHING. */
+#endif
      .gpio1 = 00,          /**< DONOTHING. */
      .gpio2 = 00,          /**< DONOTHING. */
      .gpio3 = 00,          /**< DONOTHING. */
+#if USE_NIRQ_OF_RADIO_FOR_NIRQ == TRUE
+     .nirq  = 00,          /**< DONOTHING. */
+#else
      .nirq  = 0x1B,        /**< CCA. */
+#endif
      .sdo   = 00,          /**< DONOTHING. */
      .cfg   = 00           /**< HIGH DRIVE. */
     },
     .cca     = {
+#if USE_GPIO0_OF_RADIO_FOR_CCA
+               .line = &radio1_cfg.gpio0,
+#else
                .line = &radio1_cfg.nirq,
+#endif
                .mode = PAL_MODE_INPUT_PULLUP
     },
   }
@@ -151,7 +241,7 @@ si446x_data_t radio1_dat = {
 /* List of bands in this radio. */
 const radio_band_t *const radio1_bands[] = {
                 (radio_band_t *const)&band_2m,
-                 NULL
+                 NULL          /**< Required end of list. */
 };
 
 /* List of indicators controlled by this radio. */
@@ -169,7 +259,7 @@ const indicator_io_t radio1_ind[] = {
    .driver.mode = PAL_MODE_OUTPUT_PUSHPULL
   },
   {
-   .ind = PKT_INDICATOR_NONE
+   .ind = PKT_INDICATOR_NONE          /**< Required end of list. */
   }
 };
 
@@ -186,7 +276,7 @@ const radio_config_t radio_list[] = {
     .ind_set    = (indicator_io_t *const)radio1_ind
   }, /* End radio1 */
   {
-     .unit = PKT_RADIO_NONE
+     .unit = PKT_RADIO_NONE          /**< Required end of list. */
   }
 };
 

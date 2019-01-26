@@ -50,9 +50,9 @@ typedef uint8_t     radio_rev_t;        /**< Radio part revision.           */
 typedef uint16_t    radio_patch_t;      /**< Radio patch ID.                */
 
 typedef struct radioData {
-  radio_part_t  radio_part;
-  radio_rev_t   radio_rom_rev;
-  radio_patch_t radio_patch;
+  radio_part_t      radio_part;
+  radio_rev_t       radio_rom_rev;
+  radio_patch_t     radio_patch;
 } radio_data_t;
 
 /*
@@ -77,9 +77,9 @@ typedef struct indicatorIO indicator_io_t;
 
 /* Type for a radio band. */
 typedef struct radioBand {
-  radio_freq_hz_t  start;
-  radio_freq_hz_t  end;
-  radio_chan_hz_t  step;
+  radio_freq_hz_t   start;
+  radio_freq_hz_t   end;
+  radio_chan_hz_t   step;
 } radio_band_t;
 
 typedef struct radioConfig {
@@ -109,5 +109,12 @@ typedef uint16_t volt_level_t;
 typedef uint32_t xtal_osc_t;
 
 typedef uint32_t statusflags_t;
+
+/**
+ * @brief   Radio task notification callback type.
+ *
+ * @param[in] task_object  pointer to a @p radio task object
+ */
+typedef void (*radio_isr_cb_t)(uint8_t radio_events);
 
 #endif /* PKT_PKTTYPES_H_ */

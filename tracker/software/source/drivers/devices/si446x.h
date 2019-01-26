@@ -12,76 +12,74 @@
 #define __si446x__H__
 
 /*===========================================================================*/
-/* Module constants.                                                         */
+/* Driver pre-compile time settings.                                         */
+/*===========================================================================*/
+
+#define Si446x_4463_USE_446X_COMPATABILITY      TRUE
+#define Si446x_USE_AFSK_LCM_DATA_RATE           FALSE
+#define Si446x_USE_NB_RECEIVE_FILTER            TRUE
+#define Si446x_USE_TRANSMIT_TIMEOUT             FALSE
+
+/*===========================================================================*/
+/* Driver constants.                                                         */
 /*===========================================================================*/
 
 #define SI446X_EVT_TX_TIMEOUT                   EVENT_MASK(0)
 
-//#define Si446x_LOCK_BY_SEMAPHORE                TRUE
-//#define Si446x_UNLOCK_FOR_ENCODE                FALSE
-#define Si446x_4463_USE_446X_COMPATABILITY      TRUE
-#define Si446x_USE_AFSK_LCM_DATA_RATE           FALSE
-#define Si446x_USE_NB_RECEIVE_FILTER            TRUE
-
 #define Si446x_MODEM_RSSI_COMP_VALUE            0x40
 
-#if 0
-/* Si4464 States. */
-#define Si446x_STATE_REMAIN                     0
-#define Si446x_STATE_SLEEP                      1
-#define Si446x_STATE_STANDBY                    1
-#define Si446x_STATE_SPI_ACTIVE                 2
-#define Si446x_STATE_READY                      3
-#define Si446x_STATE_READY2                     4
-#define Si446x_STATE_TX_TUNE                    5
-#define Si446x_STATE_RX_TUNE                    6
-#define Si446x_STATE_TX                         7
-#define Si446x_STATE_RX                         8
-#endif
-typedef enum {
-  /* Si4464 States. */
-  Si446x_REMAIN       =          0,
-  Si446x_SLEEP        =          1,
-  Si446x_STANDBY      =          1,
-  Si446x_SPI_ACTIVE   =          2,
-  Si446x_READY        =          3,
-  Si446x_READY2       =          4,
-  Si446x_TX_TUNE      =          5,
-  Si446x_RX_TUNE      =          6,
-  Si446x_TX           =          7,
-  Si446x_RX           =          8
-} si446x_state_t;
-
-/* Commands. */
-#define Si446x_NOP                              0x00
-#define Si446x_GET_PART_INFO                    0x01
-#define Si446x_POWER_UP                         0x02
-#define Si446x_GET_FUNC_INFO                    0x10
-#define Si446x_SET_PROPERTY                     0x11
-#define Si446x_GET_PROPERTY                     0x12
-#define Si446x_GPIO_PIN_CFG                     0x13
-#define Si446x_GET_ADC_READING                  0x14
-#define Si446x_FIFO_INFO                        0x15
-#define Si446x_PACKET_INFO                      0x16
-#define Si446x_GET_INT_STATUS                   0x20
-#define Si446x_GET_PH_STATUS                    0x21
-#define Si446x_GET_MODEM_STATUS                 0x22
-#define Si446x_GET_CHIP_STATUS                  0x23
-#define Si446x_START_TX                         0x31
-#define Si446x_START_RX                         0x32
-#define Si446x_REQUEST_DEVICE_STATE             0x33
-#define Si446x_CHANGE_STATE                     0x34
-#define Si446x_RX_HOP                           0x36
-#define Si446x_TX_HOP                           0x37
-#define Si446x_READ_CMD_BUFF                    0x44
-#define Si446x_WRITE_TX_FIFO                    0x66
-#define Si446x_READ_RX_FIFO                     0x77
+/*
+ * Si446x commands.
+ * The reply size is reply data only.
+ */
+#define Si446x_NOP_CMD                          0x00
+#define Si446x_NOP_REPLY_SIZE                   0
+#define Si446x_GET_PART_INFO_CMD                0x01
+#define Si446x_GET_PART_INFO_REPLY_SIZE         8
+#define Si446x_POWER_UP_CMD                     0x02
+#define Si446x_POWER_UP_CMD_REPLY_SIZE          0
+#define Si446x_GET_FUNC_INFO_CMD                0x10
+#define Si446x_GET_FUNC_INFO_REPLY_SIZE         6
+#define Si446x_SET_PROPERTY_CMD                 0x11
+#define Si446x_GET_PROPERTY_CMD                 0x12
+#define Si446x_GPIO_PIN_CFG_CMD                 0x13
+#define Si446x_GPIO_PIN_CFG_REPLY_SIZE          7
+#define Si446x_GET_ADC_READING_CMD              0x14
+#define Si446x_GET_ADC_READING_REPLY_SIZE       6
+#define Si446x_FIFO_INFO_CMD                    0x15
+#define Si446x_FIFO_INFO_REPLY_SIZE             2
+#define Si446x_PACKET_INFO_CMD                  0x16
+#define Si446x_PACKET_INFO_REPLY_SIZE           2
+#define Si446x_GET_INT_STATUS_CMD               0x20
+#define Si446x_GET_INT_STATUS_REPLY_SIZE        8
+#define Si446x_GET_PH_STATUS_CMD                0x21
+#define Si446x_GET_PH_STATUS_REPLY_SIZE         2
+#define Si446x_GET_MODEM_STATUS_CMD             0x22
+#define Si446x_GET_MODEM_STATUS_REPLY_SIZE      8
+#define Si446x_GET_CHIP_STATUS_CMD              0x23
+#define Si446x_GET_CHIP_STATUS_REPLY_SIZE       3
+#define Si446x_START_TX_CMD                     0x31
+#define Si446x_START_TX_REPLY_SIZE              0
+#define Si446x_START_RX_CMD                     0x32
+#define Si446x_START_RX_REPLY_SIZE              0
+#define Si446x_REQUEST_DEVICE_STATE_CMD         0x33
+#define Si446x_REQUEST_DEVICE_STATE_REPLY_SIZE  2
+#define Si446x_CHANGE_STATE_CMD                 0x34
+#define Si446x_CHANGE_STATE_REPLY_SIZE          0
+#define Si446x_RX_HOP_CMD                       0x36
+#define Si446x_RX_HOP_REPLY_SIZE                0
+#define Si446x_TX_HOP_CMD                       0x37
+#define Si446x_TX_HOP_REPLY_SIZE                0
+#define Si446x_READ_CMD_BUFF_CMD                0x44
+#define Si446x_READ_FRR_A_CMD                   0x50
+#define Si446x_WRITE_TX_FIFO_CMD                0x66
+#define Si446x_READ_RX_FIFO_CMD                 0x77
 
 /* Defined response values. */
 #define Si446x_COMMAND_CTS                      0xFF
 
 /*
- * Property group commands.
+ * Property group commands, indexes and masks.
  * Format is 0xGGNN (GG = group, NN = number).
  */
 #define Si446x_GLOBAL_XO_TUNE                   0x0000
@@ -89,7 +87,13 @@ typedef enum {
 #define Si446x_GLOBAL_CONFIG                    0x0003
 
 #define Si446x_INT_CTL_ENABLE                   0x0100
+#define Si446x_INT_CTL_PH_REG_INDEX             0x00
+#define Si446x_INT_CTL_MODEM_REG_INDEX          0x01
+#define Si446x_INT_CTL_CHIP_REG_INDEX           0x02
+#define Si446x_INT_CTL_PH_ENABLE                0x0101
+#define Si446x_INT_CTL_PH_TX_FIFO_MASK          0x02
 #define Si446x_INT_CTL_MODEM_ENABLE             0x0102
+#define Si446x_INT_CTL_CHIP_ENABLE              0x0103
 
 #define Si446x_FRR_CTL_A_MODE                   0x0200
 #define Si446x_FRR_CTL_B_MODE                   0x0201
@@ -109,6 +113,8 @@ typedef enum {
 #define Si446x_PKT_CONFIG1                      0x1206
 #define Si446x_PKT_LEN                          0x1208
 #define Si446x_PKT_LEN_FIELD_SOURCE             0x1209
+#define Si446x_PKT_LEN_ADJUST                   0x120A
+#define Si446x_PKT_TX_THRESHOLD                 0x120B
 
 #define Si446x_MODEM_MOD_TYPE                   0x2000
 #define Si446x_MODEM_MAP_CONTROL                0x2001
@@ -236,6 +242,7 @@ typedef enum {
 #define SI_AFSK_FIFO_MIN_FEEDER_WA_SIZE         (1 * 1024)
 #define SI_FSK_FIFO_FEEDER_WA_SIZE              (1 * 1024)
 
+#define SI_NIRQ_HANDLER_WA_SIZE                 (512)
 /*
  *  AFSK NRZI up-sampler definitions.
  */
@@ -249,13 +256,12 @@ typedef enum {
 /* Delta-phase per sample for 2200Hz tone */
 #define PHASE_DELTA_2200    (((2 * 2200) << 16) / PLAYBACK_RATE)
 
-/*===========================================================================*/
-/* Module macros.                                                            */
-/*===========================================================================*/
-
  /* Frequency offset corrected oscillator frequency */
-/*#define Si446x_CCLK ((Si446x_CLK) + (Si446x_CLK_ERROR * (Si446x_CLK / 1000000)))*/
 #define Si446x_CCLK (Si446x_CLK + Si446x_CLK_ERROR)
+
+/*===========================================================================*/
+/* Driver macros.                                                            */
+/*===========================================================================*/
 
 #define is_part_Si4463(part) (part == 0x4463)
 
@@ -263,8 +269,22 @@ typedef enum {
 	(is_part_Si4463(part) && rom == 0x6)
 
 /*===========================================================================*/
-/* Module data structures and types.                                         */
+/* Driver data structures and types.                                         */
 /*===========================================================================*/
+
+typedef enum {
+  /* Si4464 States. */
+  Si446x_REMAIN       =          0,
+  Si446x_SLEEP        =          1,
+  Si446x_STANDBY      =          1,
+  Si446x_SPI_ACTIVE   =          2,
+  Si446x_READY        =          3,
+  Si446x_READY2       =          4,
+  Si446x_TX_TUNE      =          5,
+  Si446x_RX_TUNE      =          6,
+  Si446x_TX           =          7,
+  Si446x_RX           =          8
+} si446x_state_t;
 
 /* SPI byte stream arguments and replies. */
 typedef uint8_t si446x_reply_t;
@@ -322,16 +342,21 @@ typedef struct Si446x_MCUCFG {
     struct {
       si446x_gpio_t     gpio;
     } init;
+    /* Configuration of global IRQ dispatcher. */
+    struct {
+      si446x_gpio_t     gpio;   /**< Radio GPIO config for IRQ mode. */
+      ioline_ref_t      nirq;
+    } xirq;
     /* CCA detection only. */
-/*    struct {
+    struct {
       si446x_gpio_t     gpio;
       ioline_ref_t      cca;
-    } rcca;*/
+    } rcca;
     /* AFSK receive settings. */
 	struct {
       si446x_gpio_t     gpio;   /**< Radio GPIO config for this mode. */
 	  ioline_ref_t      pwm;    /**< PWM (RAW_RX) from radio to MCU GPIO. */
-	  ioline_ref_t      cca;    /**< CCA (NIRQ) from radio to MCU GPIO. */
+	  ioline_ref_t      cca;    /**< CCA (CCA) from radio to MCU GPIO. */
 	  ICUDriver         *icu;   /**< ICU (TIM) for capturing radio PWM. */
 	  ICUConfig         cfg;
 	} rafsk;
@@ -343,7 +368,7 @@ typedef struct Si446x_MCUCFG {
 	/* 2FSK receive settings. */
     struct {
       si446x_gpio_t     gpio;
-      ioline_ref_t      cca;    /**< CCA (NIRQ) from radio to MCU GPIO. */
+      ioline_ref_t      cca;    /**< CCA (CCA) from radio to MCU GPIO. */
     } r2fsk;
     /* 2FSK transmit settings. */
     struct {
@@ -354,29 +379,44 @@ typedef struct Si446x_MCUCFG {
 
 /* Si446x part info. */
 typedef struct {
-  uint8_t   info[10];
+  si446x_reply_t   info[Si446x_GET_PART_INFO_REPLY_SIZE];
 } si446x_part_t;
 
 /* Si446x func info. */
 typedef struct {
-  uint8_t   info[10];
+  si446x_reply_t   info[Si446x_GET_FUNC_INFO_REPLY_SIZE];
 } si446x_func_t;
+
+/* Si446x full interrupt status. */
+typedef struct {
+  si446x_reply_t        int_pend;
+  si446x_reply_t        int_status;
+  si446x_reply_t        ph_pend;
+  si446x_reply_t        ph_status;
+  si446x_reply_t        modem_pend;
+  si446x_reply_t        modem_status;
+  si446x_reply_t        chip_pend;
+  si446x_reply_t        chip_status;
+} __attribute__((packed)) si446x_int_status_t;
 
 /* Data associated with a specific radio. */
 typedef struct Si446x_DAT {
-  radio_part_t      radio_part;
-  radio_rev_t       radio_rom_rev;
-  radio_patch_t     radio_patch;
-  radio_temp_t      lastTemp;
-  radio_clock_t     radio_clock;
+  radio_part_t          radio_part;
+  radio_rev_t           radio_rom_rev;
+  radio_patch_t         radio_patch;
+  radio_temp_t          lastTemp;
+  radio_clock_t         radio_clock;
+  thread_t              *irq_dispatch;
+  thread_reference_t    wait_thread;
+  radio_isr_cb_t        cb;
+  si446x_int_status_t   int_status;
 } si446x_data_t;
-
-/* External. */
-typedef struct radioTask radio_task_object_t;
 
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
+
+typedef struct radioTask radio_task_object_t;
 
 extern void pktReleaseCommonPacketBuffer(packet_t pp);
 
@@ -423,7 +463,7 @@ extern "C" {
 #endif
 
 /*===========================================================================*/
-/* Module inline functions.                                                  */
+/* Driver inline functions.                                                  */
 /*===========================================================================*/
 
 static inline void Si446x_releaseSendObject(packet_t pp) {

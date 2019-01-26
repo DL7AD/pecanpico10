@@ -13,7 +13,7 @@ int main(void) {
     /*
      * Setup packet system...
      * TODO: Check power state and start systems only if enough power available
-     * Create memory (CCM based heap).
+     * Create memory (CCM based heap) if enabled.
      * - Most DSP related data is held in CCM SRAM2 alias.
      * - When using fixed point DSP the use of CCM may improve performance.
      * - No DMA is involved in DSP data so CCM is viable to use.

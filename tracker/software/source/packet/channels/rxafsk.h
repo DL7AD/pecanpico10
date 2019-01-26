@@ -21,7 +21,6 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-#define AFSK_THREAD_DOES_INIT       TRUE
 /*
  * AFSK decoding definitions.
  */
@@ -317,9 +316,9 @@ extern struct qCorrFilter QCORR1;
 #ifdef __cplusplus
 extern "C" {
 #endif
-  AFSKDemodDriver *pktCreateAFSKDecoder(radio_unit_t radio);
-  void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver);
-  void pktAFSKDecoder(void *arg);
+  AFSKDemodDriver   *pktCreateAFSKDecoder(radio_unit_t radio);
+  void              pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver);
+  void              pktAFSKDecoder(void *arg);
 #ifdef __cplusplus
 }
 #endif
