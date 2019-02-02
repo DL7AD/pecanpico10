@@ -844,6 +844,7 @@ inline void dma_start(pdcmi_capture_t *ppdcmi) {
  * The Chibios DMAV2 driver waits for EN to clear before proceeding.
  */
 inline uint16_t dma_stop(pdcmi_capture_t *ppdcmi) {
+  /* Disable stream and clear any pending interrupts. */
 	dmaStreamDisable(ppdcmi->dmastp);
 	uint16_t remaining = dmaStreamGetTransactionSize(ppdcmi->dmastp);
 	dmaStreamRelease(ppdcmi->dmastp);
@@ -858,9 +859,8 @@ inline uint16_t dma_stop(pdcmi_capture_t *ppdcmi) {
 static void dma_interrupt(void *p, uint32_t flags) {
 
   pdcmi_capture_t *dma_control = p;
-  //const stm32_dma_stream_t *dmastp = dma_control->dmastp;
   chSysLockFromISR();
-
+#if PDCMI_USE_THREAD_SUSPEND == FALSE
   /*
    *  DMA has been terminated by initiating function.
    *  DMA and timer stop has already been executed.
@@ -871,7 +871,12 @@ static void dma_interrupt(void *p, uint32_t flags) {
     chSysUnlockFromISR();
     return;
   }
-
+#else
+  if (dma_control->pdcmi_state != PDCMI_CAPTURE_ACTIVE) {
+    chSysUnlockFromISR();
+    return;
+  }
+#endif
   /* Save flags for any error trace. */
   dma_control->dma_flags = flags;
 
@@ -884,11 +889,16 @@ static void dma_interrupt(void *p, uint32_t flags) {
      */
     dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
     dma_control->timer->CCER &= ~TIM_CCER_CC1E;
+    /* Stop DMA disables the stream and clears pending interrupts. */
     dma_control->transfer_count += dma_stop(dma_control);
     dma_control->pdcmi_state = PDCMI_DMA_ERROR;
     palDisableLineEventI(dma_control->vsync_line);
-    dmaStreamClearInterrupt(dma_control->dmastp);
+    //dmaStreamClearInterrupt(dma_control->dmastp);
+#if  PDCMI_USE_THREAD_SUSPEND == TRUE
+    chThdResumeI(&dma_control->suspend_thread, MSG_ERROR);
+#else
     dma_control->terminate = true;
+#endif
     chSysUnlockFromISR();
     return;
   }
@@ -908,15 +918,20 @@ static void dma_interrupt(void *p, uint32_t flags) {
        * The DMA should normally be terminated by VSYNC before the last page.
        * In the case that the total buffer size was too small we can be here.
        *
-       * Disable timer, DMA and flag fault.
+       * Disable timer, DMA and set state.
        */
       dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
       dma_control->timer->CCER &= ~TIM_CCER_CC1E;
+      /* Disable DMA stream and clear pending interrupts. */
       dma_control->transfer_count += dma_stop(dma_control);
       dma_control->pdcmi_state = PDCMI_DMA_END_BUFFER;
+#if  PDCMI_USE_THREAD_SUSPEND == TRUE
+      chThdResumeI(&dma_control->suspend_thread, MSG_ERROR);
+#else
       dma_control->terminate = true;
+#endif
       palDisableLineEventI(dma_control->vsync_line);
-      dmaStreamClearInterrupt(dma_control->dmastp);
+      //dmaStreamClearInterrupt(dma_control->dmastp);
       chSysUnlockFromISR();
       return;
     }
@@ -958,11 +973,16 @@ static void dma_interrupt(void *p, uint32_t flags) {
   dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
   dma_control->timer->CCER &= ~TIM_CCER_CC1E;
   dma_control->pdcmi_state = PDCMI_DMA_UNKNOWN_IRQ;
+#if  PDCMI_USE_THREAD_SUSPEND == TRUE
+  chThdResumeI(&dma_control->suspend_thread, MSG_ERROR);
+#else
   dma_control->terminate = true;
+#endif
+  /* Disable DMA stream and clear pending interrupts. */
   dma_stop(dma_control);
   dma_control->transfer_count = 0;
   palDisableLineEventI(dma_control->vsync_line);
-  dmaStreamClearInterrupt(dma_control->dmastp);
+  //dmaStreamClearInterrupt(dma_control->dmastp);
   chSysUnlockFromISR();
   return;
 }
@@ -977,9 +997,10 @@ static void dma_interrupt(void *p, uint32_t flags) {
 
   chSysLockFromISR();
 
+#if PDCMI_USE_THREAD_SUSPEND == FALSE
   /*
    *  DMA has been terminated by initiating function.
-   *  DMA stop has already been executed.
+   *  DMA and timer stop has already been executed.
    *  If there was a pending interrupt can we get here?
    */
   if(dma_control->terminate) {
@@ -987,7 +1008,12 @@ static void dma_interrupt(void *p, uint32_t flags) {
     chSysUnlockFromISR();
     return;
   }
-
+#else
+  if (dma_control->pdcmi_state != PDCMI_CAPTURE_ACTIVE) {
+    chSysUnlockFromISR();
+    return;
+  }
+#endif
   dma_control->dma_flags = flags;
 
   if(flags & (STM32_DMA_ISR_FEIF | STM32_DMA_ISR_TEIF | STM32_DMA_ISR_DMEIF)) {
@@ -997,18 +1023,24 @@ static void dma_interrupt(void *p, uint32_t flags) {
      */
     dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
     dma_control->timer->CCER &= ~TIM_CCER_CC1E;
+    /* Disable DMA stream and clear pending interrupts. */
     dma_control->transfer_count = dma_stop(dma_control);
     dma_control->pdcmi_state = PDCMI_DMA_ERROR;
     palDisableLineEventI(dma_control->vsync_line);
-    dmaStreamClearInterrupt(dma_control->dmastp);
+    //dmaStreamClearInterrupt(dma_control->dmastp);
+#if  PDCMI_USE_THREAD_SUSPEND == TRUE
+    chThdResumeI(&dma_control->suspend_thread, MSG_ERROR);
+#else
+    dma_control->terminate = true;
+#endif
     chSysUnlockFromISR();
     return;
   }
 
   if((flags & STM32_DMA_ISR_TCIF) != 0) {
     /*
-     * If DMA has run to end within a frame then:
-     * - this is a VSYNC error
+     * If DMA has run to end within a frame then this is either:
+     * - a VSYNC timing error
      * - or the buffer has been set too small for the image
      *
      * In single buffer mode DMA should normally be terminated by VSYNC.
@@ -1016,11 +1048,14 @@ static void dma_interrupt(void *p, uint32_t flags) {
      */
     dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
     dma_control->timer->CCER &= ~TIM_CCER_CC1E;
+    /* Stop DMA stream and clear pending interrupts. */
     dma_control->transfer_count = dma_stop(dma_control);
     dma_control->pdcmi_state = PDCMI_DMA_COUNT_END;
     palDisableLineEventI(dma_control->vsync_line);
-    dmaStreamClearInterrupt(dma_control->dmastp);
-    dma_control->terminate = true;
+    //dmaStreamClearInterrupt(dma_control->dmastp);
+#if  PDCMI_USE_THREAD_SUSPEND == TRUE
+    chThdResumeI(&dma_control->suspend_thread, MSG_ERROR);
+#endif
     chSysUnlockFromISR();
     return;
   }
@@ -1034,6 +1069,9 @@ static void dma_interrupt(void *p, uint32_t flags) {
   dma_control->transfer_count += dma_stop(dma_control);
   palDisableLineEventI(dma_control->vsync_line);
   dmaStreamClearInterrupt(dma_control->dmastp);
+#if  PDCMI_USE_THREAD_SUSPEND == TRUE
+    chThdResumeI(&dma_control->suspend_thread, MSG_ERROR);
+#endif
   chSysUnlockFromISR();
   return;
 }
@@ -1055,15 +1093,22 @@ void mode3_vsync_cb(void *arg) {
     if(dma_control->pdcmi_state == PDCMI_CAPTURE_ACTIVE) {
       /*
        * Capture is still active so DMA is still running.
-       * This should be the leading edge of the next VSYNC pulse.
+       * This must be the leading edge of the next VSYNC pulse.
+       * Stop DMA stream and clear pending inerrupts.
        */
       dma_control->transfer_count += dma_stop(dma_control);
       dma_control->timer->DIER &= ~TIM_DIER_CC1DE;
       dma_control->timer->CCER &= ~TIM_CCER_CC1E;
       palDisableLineEventI(dma_control->vsync_line);
       dma_control->pdcmi_state = PDCMI_VSYNC_END;
+#if  PDCMI_USE_THREAD_SUSPEND == FALSE
       /* If a DMA interrupt is pending then this will stop any activity. */
       dma_control->terminate = true;
+#else
+      /* Resume the driver thread waiting for capture. */
+      chThdResumeI(&dma_control->suspend_thread, MSG_ERROR);
+#endif
+
     } /* Else wait to arm timer on trailing edge. */
     chSysUnlockFromISR();
     return;
@@ -1229,14 +1274,17 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
     dma_control.pdcmi_state = PDCMI_WAIT_VSYNC;
     dma_control.dma_flags = 0;
     dma_control.transfer_count = 0;
+#if  PDCMI_USE_THREAD_SUSPEND == TRUE
+    dma_control.suspend_thread = NULL;
+#else
     dma_control.terminate = false;
-
+#endif
 	/*
 	 * Setup timer for DMA trigger using PCLK as CC input.
 	 * TODO: Define TIM in header and check it is not already allocated
 	 * #if defined(STM32_TIM8_IS_USED)
-	 * Alternatively require TIM8 to be allocated to GPT and hijack it.
-	 * That way we don't need to put rccEnable() etc. here.
+	 * Use pattern from ICU/PWM/GPT.
+	 * The driver needs a timer with CC event that drives DMA.
 	 */
     dma_control.timer = TIM8;
 	rccEnableTIM8(FALSE);
@@ -1256,14 +1304,23 @@ pdcmi_error_t OV5640_Capture(uint8_t* buffer, uint32_t size,
     /* Start capture process. */
     palEnableLineEvent(dma_control.vsync_line, PAL_EVENT_MODE_BOTH_EDGES);
 
-	/* Wait for capture to be finished. */
+	/*
+	 * Wait for capture to be finished.
+	 */
+#if PDCMI_USE_THREAD_SUSPEND
+    chSysLock();
+    msg_t msg = chThdSuspendTimeoutS(&dma_control.suspend_thread, TIME_MS2I(500));
+    chSysUnlock();
+    if (msg == MSG_TIMEOUT) {
+#else
 	uint8_t timeout = 50; // 500ms max
 	do {
 		chThdSleep(TIME_MS2I(10));
 	} while(!dma_control.terminate && --timeout);
 
 	if(!timeout) {
-	  palDisableLineEventI(dma_control.vsync_line);
+#endif /* PDCMI_USE_THREAD_SUSPEND */
+	  palDisableLineEvent(dma_control.vsync_line);
       dma_control.transfer_count += dma_stop(&dma_control);
       dma_control.timer->DIER &= ~TIM_DIER_CC1DE;
       dma_control.timer->CCER &= ~TIM_CCER_CC1E;

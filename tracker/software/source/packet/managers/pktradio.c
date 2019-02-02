@@ -1113,14 +1113,12 @@ THD_FUNCTION(pktRadioManager, arg) {
        *  Send queueing failed.
        *  Release send packet object(s) and task object.
        *  The callback (if set) will get the result in RTO->result.
-       *
-       *  Actual result of transmit will be returned by radio.
-       *  TODO: Delineate between failed submit and failed TX.
        */
 
       packet_t pp = task_object->radio_dat.pkt.packet_out;
       pktReleaseBufferChain(pp);
       task_object->result = MSG_ERROR;
+      /* Complete command. Callback will be executed and RTO released. */
       break;
       } /* End case PKT_RADIO_TX_SEND. */
 
@@ -1203,7 +1201,7 @@ THD_FUNCTION(pktRadioManager, arg) {
 
       /* Release radio. */
       pktUnlockRadio(radio);
-
+#if 0
       /* Trace message based on TX thread exit code. */
       if (task_object->result == MSG_TIMEOUT) {
         TRACE_ERROR("RAD  > %s transmit timeout on radio %d",
@@ -1213,6 +1211,7 @@ THD_FUNCTION(pktRadioManager, arg) {
         TRACE_ERROR("RAD  > %s transmit failed to start on radio %d",
                     getModulation(task_object->radio_dat.type), radio);
       }
+#endif
       /* Execute any callback then release the RTO. */
       break;
     } /* End case PKT_RADIO_TX_DONE */

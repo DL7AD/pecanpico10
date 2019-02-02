@@ -462,14 +462,18 @@ static inline msg_t pktQueuePriorityRadioCommand(const radio_unit_t radio,
  *
  * @param[in]   pp     pointer to a @p packet send object
  *
+ * @return  next linked packet reference or NULL if none
+ *
  * @api
  */
-static inline void pktReleaseBufferObject(packet_t pp) {
+static inline packet_t pktReleaseBufferObject(packet_t pp) {
   chDbgAssert(pp != NULL, "no packet pointer");
 #if USE_CCM_HEAP_FOR_PKT == TRUE
   pktAssertCCMdynamicCheck(pp);
 #endif
+  packet_t np = pp->nextp;
   pktReleaseCommonPacketBuffer(pp);
+  return np;
 }
 
 /**
@@ -484,11 +488,8 @@ static inline void pktReleaseBufferObject(packet_t pp) {
 static inline void pktReleaseBufferChain(packet_t pp) {
   chDbgAssert(pp != NULL, "no packet pointer");
   /* Release all packets in linked list. */
-  do {
-    packet_t np = pp->nextp;
-    pktReleaseBufferObject(pp);
-    pp = np;
-  } while(pp != NULL);
+  while((pp = pktReleaseBufferObject(pp)) != NULL)
+    ;
 }
 
 #endif /* _PKTCONF_H_ */

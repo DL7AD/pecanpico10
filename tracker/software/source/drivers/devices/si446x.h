@@ -19,6 +19,8 @@
 #define Si446x_USE_AFSK_LCM_DATA_RATE           FALSE
 #define Si446x_USE_NB_RECEIVE_FILTER            TRUE
 #define Si446x_USE_TRANSMIT_TIMEOUT             FALSE
+#define Si446x_USE_PACKET_END_INTERRUPT         TRUE
+#define Si446x_USE_COMMON_LINK_HANDLER          TRUE
 
 /*===========================================================================*/
 /* Driver constants.                                                         */
@@ -27,7 +29,9 @@
 #define SI446X_EVT_TX_TIMEOUT                   EVENT_MASK(0)
 
 #define Si446x_MODEM_RSSI_COMP_VALUE            0x40
-
+#define SI446X_TX_CCA_TIMEOUT                   5
+#define SI446X_TRANSMIT_TIMEOUT                 10
+#define SI446X_TX_FIFO_TIMEOUT                  5
 /*
  * Si446x commands.
  * The reply size is reply data only.
@@ -91,9 +95,12 @@
 #define Si446x_INT_CTL_MODEM_REG_INDEX          0x01
 #define Si446x_INT_CTL_CHIP_REG_INDEX           0x02
 #define Si446x_INT_CTL_PH_ENABLE                0x0101
-#define Si446x_INT_CTL_PH_TX_FIFO_MASK          0x02
+#define Si446x_INT_CTL_PH_RX_FIFO_MASK          (1 << 0)
+#define Si446x_INT_CTL_PH_TX_FIFO_THRESH_MASK   (1 << 1)
+#define Si446x_INT_CTL_PH_PACKET_SENT_MASK      (1 << 5)
 #define Si446x_INT_CTL_MODEM_ENABLE             0x0102
 #define Si446x_INT_CTL_CHIP_ENABLE              0x0103
+#define Si446x_INT_CTL_CHIP_STATE_CHANGE_MASK   (1 << 4)
 
 #define Si446x_FRR_CTL_A_MODE                   0x0200
 #define Si446x_FRR_CTL_B_MODE                   0x0201
@@ -243,18 +250,19 @@
 #define SI_FSK_FIFO_FEEDER_WA_SIZE              (1 * 1024)
 
 #define SI_NIRQ_HANDLER_WA_SIZE                 (512)
+
 /*
- *  AFSK NRZI up-sampler definitions.
+ *  AFSK NRZI re-sampler definitions.
  */
-#define PLAYBACK_RATE       13200
+#define RESAMPLE_RATE       13200
 /* APRS AFSK baudrate */
-#define BAUD_RATE           1200
-/* Samples per baud (13200Hz / 1200baud = 11samp/baud) */
-#define SAMPLES_PER_BAUD    (PLAYBACK_RATE / BAUD_RATE)
+#define SYMBOL_RATE         1200
+/* Samples per baud (13200Hz / 1200baud = 11 samples/baud) */
+#define SAMPLES_PER_AFSK_SYMBOL    (RESAMPLE_RATE / SYMBOL_RATE)
 /* Delta-phase per sample for 1200Hz tone */
-#define PHASE_DELTA_1200    (((2 * 1200) << 16) / PLAYBACK_RATE)
+#define PHASE_DELTA_1200    (((2 * 1200) << 16) / RESAMPLE_RATE)
 /* Delta-phase per sample for 2200Hz tone */
-#define PHASE_DELTA_2200    (((2 * 2200) << 16) / PLAYBACK_RATE)
+#define PHASE_DELTA_2200    (((2 * 2200) << 16) / RESAMPLE_RATE)
 
  /* Frequency offset corrected oscillator frequency */
 #define Si446x_CCLK (Si446x_CLK + Si446x_CLK_ERROR)
@@ -295,9 +303,12 @@ typedef struct {
   uint32_t  phase_delta;            // 1200/2200 for standard AX.25
   uint32_t  phase;                  // Fixed point 9.7 (2PI = TABLE_SIZE)
   uint32_t  packet_pos;             // Index of next bit to be sent out
-  uint32_t  current_sample_in_baud; // 1 bit = SAMPLES_PER_BAUD samples
+  uint8_t   current_sample_in_baud; // 1 AFSK bit = SAMPLES_PER_BAUD tx bits
   uint8_t   current_byte;
-} up_sampler_t;
+  uint8_t   sample_rate;            /**<< Up sample rate. */
+  uint16_t  mark_delta;
+  uint16_t  space_delta;
+} re_sampler_t;
 
 /* Indexes of GPIO parameters in 446x GPIO command. */
 typedef enum {
