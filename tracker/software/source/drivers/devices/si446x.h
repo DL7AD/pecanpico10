@@ -20,7 +20,7 @@
 #define Si446x_USE_NB_RECEIVE_FILTER            TRUE
 #define Si446x_USE_TRANSMIT_TIMEOUT             FALSE
 #define Si446x_USE_PACKET_END_INTERRUPT         TRUE
-#define Si446x_USE_COMMON_LINK_HANDLER          TRUE
+#define Si446x_USE_COMMON_TX_THREAD             TRUE
 
 /*===========================================================================*/
 /* Driver constants.                                                         */
@@ -437,27 +437,29 @@ extern "C" {
   radio_temp_t Si446x_getLastTemperature(const radio_unit_t radio);
   bool Si446x_radioWakeUp(const radio_unit_t radio);
   void Si446x_radioShutdown(const radio_unit_t radio);
-  void Si446x_radioStandby(const radio_unit_t radio);
+  bool Si446x_radioStandby(const radio_unit_t radio);
   bool Si446x_blocSendAFSK(radio_task_object_t *rto);
   bool Si446x_blocSend2FSK(radio_task_object_t *rto);
   bool Si446x_blocSendCW(radio_task_object_t *rt);
-  void Si446x_disableReceive(radio_unit_t radio);
+  //void Si446x_disableReceive(radio_unit_t radio);
   bool Si4464_enableReceive(const radio_unit_t radio,
                             radio_freq_hz_t rx_frequency,
                             radio_chan_hz_t rx_step,
                             radio_ch_t rx_chan,
                             radio_squelch_t rx_rssi,
                             radio_mod_t rx_mod);
+#if 0
   bool Si446x_receiveActivate(const radio_unit_t radio,
                             radio_freq_hz_t rx_frequency,
                             radio_chan_hz_t rx_step,
                             radio_ch_t chan,
                             radio_squelch_t rssi,
                             radio_mod_t mod);
+#endif
   void Si446x_lockRadio(const radio_mode_t mode);
   void Si446x_unlockRadio(const radio_mode_t mode);
-  void Si446x_lockRadioByCamera(void);
-  void Si446x_unlockRadioByCamera(void);
+  //void Si446x_lockRadioByCamera(void);
+  //void Si446x_unlockRadioByCamera(void);
   bool Si446x_conditional_init(radio_unit_t radio);
   radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
   ICUDriver *Si446x_attachPWM(const radio_unit_t radio);

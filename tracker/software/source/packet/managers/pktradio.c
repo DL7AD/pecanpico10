@@ -1580,7 +1580,7 @@ void pktSubmitPriorityRadioTask(const radio_unit_t radio,
  * @return              A message specifying the result.
  * @retval MSG_OK       if the resources have been successfully acquired.
  * @retval MSG_TIMEOUT  if all locks could not be acquired within specified time.
- * @retval MSG_RESET    if a resource can not be used due to a system abort.
+ * @retval MSG_RESET    if a resource can not be used due to a semaphore reset.
  *
  * @api
  */
