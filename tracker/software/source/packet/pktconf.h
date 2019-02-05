@@ -17,8 +17,8 @@
  * @{
  */
 
-#ifndef _PKTCONF_H_
-#define _PKTCONF_H_
+#ifndef PKTCONF_H
+#define PKTCONF_H
 
 /*===========================================================================*/
 /* ChibiOS required common and system includes.                              */
@@ -478,7 +478,7 @@ static inline packet_t pktReleaseBufferObject(packet_t pp) {
 
 /**
  * @brief   Release memory from one or more send object(s).
- * @notes   a linked list will have all members released.
+ * @notes   A linked list will have all members released.
  * @post    The object memory is released.
  *
  * @param[in]   pp     pointer to a @p packet send object
@@ -492,6 +492,6 @@ static inline void pktReleaseBufferChain(packet_t pp) {
     ;
 }
 
-#endif /* _PKTCONF_H_ */
+#endif /* PKTCONF_H */
 
 /** @} */

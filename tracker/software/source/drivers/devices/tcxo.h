@@ -1,21 +1,34 @@
 /*
- * tcxo.h
+    Aerospace Decoder - Copyright (C) 2018-2019 Bob Anderson (VK2GJ)
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*/
+
+/**
+ * @file    tcxo.h
+ * @brief   TCXO manager.
  *
- *  Created on: 20 Oct 2018
- *      Author: bob
+ * @addtogroup devices
+ * @{
  */
 
-#ifndef SOURCE_DRIVERS_DEVICES_TCXO_H_
-#define SOURCE_DRIVERS_DEVICES_TCXO_H_
+#ifndef PKTTCXO_H
+#define PKTTCXO_H
 
 #include "pktconf.h"
+
+/*===========================================================================*/
+/* Module pre-compile time settings.                                         */
+/*===========================================================================*/
 
 /*===========================================================================*/
 /* Module constants.                                                         */
 /*===========================================================================*/
 
 /* The wrap around count for the TCXO ICU timer. */
-#define TCXO_OVERFLOW_COUNT     0x10000
+#define TCXO_OVERFLOW_COUNT         0x10000
 
 #define PKT_TCXO_MAX_PPM_ERROR      40       /**< Max ppm drift from default */
 #define PKT_TCXO_DEFAULT_CLOCK      (PKT_TCXO_CLOCK + PKT_TCXO_DEFAULT_ERROR_HZ)
@@ -55,8 +68,11 @@ extern "C" {
   void          pktInitTCXO(void);
   xtal_osc_t    pktGetCurrentTCXO(void);
   xtal_osc_t    pktCheckUpdatedTCXO(xtal_osc_t current);
+  bool          pktPPMcheckTCXO(xtal_osc_t f);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* SOURCE_DRIVERS_DEVICES_TCXO_H_ */
+#endif /* PKTTCXO_H */
+
+/** @} */

@@ -14,8 +14,8 @@
  * @{
  */
 
-#ifndef PKT_MANAGERS_PKTRADIO_H_
-#define PKT_MANAGERS_PKTRADIO_H_
+#ifndef PKTRADIO_H
+#define PKTRADIO_H
 
 /*===========================================================================*/
 /* Module constants.                                                         */
@@ -80,6 +80,7 @@ typedef struct indicatorIO {
  * @details Radio task requests execute these commands.
  */
 typedef enum radioCommand {
+  /* External service commands to RM. */
   PKT_RADIO_RX_OPEN,
   PKT_RADIO_RX_START,
   PKT_RADIO_RX_STOP,
@@ -88,11 +89,9 @@ typedef enum radioCommand {
   PKT_RADIO_MGR_CLOSE,
   PKT_RADIO_TCXO_UPDATE,
   PKT_RADIO_RX_RSSI,
-  PKT_RADIO_RX_DISPATCH,
-  //PKT_RADIO_INT_STATUS,
-  /* Internal or function API accessed RM tasks only. */
-  PKT_RADIO_TX_DONE,
-  PKT_RADIO_RX_DONE
+  /* Internal RM tasks only. */
+  PKT_RADIO_MGR_SHUTDOWN,
+  PKT_RADIO_TX_DONE
 } radio_command_t;
 
 #define PKT_RADIO_TASK_MAX  PKT_RADIO_RX_RSSI
@@ -166,39 +165,6 @@ struct radioTask {
 /* Module macros.                                                            */
 /*===========================================================================*/
 
-#if 0
-/**
- * @brief   Wakes up the waiting thread for a radio task.
- *
- * @param[in] rto      pointer to the @p radioTask object
- *
- * @notapi
- */
-#define _rcmd_wakeup_cb(rto) do {                                           \
-  chSysLock();                                                              \
-  chThdResumeS(&(rto)->thread, rto->result);                                \
-  chSysUnlock();                                                            \
-} while(0)
-#endif
-#if 0
-/**
- * @brief   Alias of pktStopDecoder for convenience.
- *
- * @param[in] radio radio unit ID
- *
- * @api
- */
-#define pktPauseDecoding(radio) pktStopDecoder(radio)
-
-/**
- * @brief   Alias for convenience of pktStartDecoder.
- *
- * @param[in] radio radio unit ID
- *
- * @api
- */
-#define pktResumeDecoding(radio) pktStartDecoder(radio)
-#endif
 /**
  * @brief   Get state of radio lock.
  *
@@ -300,6 +266,6 @@ extern "C" {
 /* Module inline functions.                                                  */
 /*===========================================================================*/
 
-#endif /* PKT_MANAGERS_PKTRADIO_H_ */
+#endif /* PKTRADIO_H */
 
 /** @} */

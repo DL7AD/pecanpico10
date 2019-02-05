@@ -49,9 +49,9 @@ THD_FUNCTION(bcnThread, arg) {
    * Force fast timeout on first attempt from normal BCN app.
    * ?APRSP command can set its own interval to override the timing.
    */
-  if(conf.run_once != true)
+  if (conf.run_once != true)
     conf.gps_wait = TIME_MS2I(100);
-  while(true) {
+  while (true) {
     /*
      * Get system time at start of loop.
      * Any consumed time in collector does not subtract from cycle time.
@@ -62,18 +62,46 @@ THD_FUNCTION(bcnThread, arg) {
     TRACE_DEBUG("POS  > Do module BEACON cycle for %s on %s%s",
                conf.call, code_s, conf.run_once ? " (?aprsp response)" : "");
 
-    /*
-     *  Pass pointer to beacon config to the collector thread.
+    /* TODO: Implement altitude controlled beaconing.
+     *
+     * This feature is primarily for short latex based flights.
+     * In such case high rate beaconing is preferable on descent to improve
+     *  the chances of beacon reception and location accuracy.
+     * A complementary ascent base beaconing is also included for completeness.
+     *
+     * Altitude control is done with an ENABLE and ACTIVATE field in config.
+     * If not explicitly set in config these values will both be zero and
+     *  normal beacon operation takes place.
+     *
+     * There are two altitude controlled cases.
+     * In both cases an ENABLE altitude must be reached to enable a beacon.
+     * 1. Ascending activated
+     *    If ACTIVATE >= ENABLE then the beacon is of ascending type.
+     *    i.e. the beacon runs after first being enabled and then exceeding the
+     *    activate altitude.
+     *
+     * 2. Descending activated
+     *    If ACTIVATE < ENABLE then the beacon is of descending type.
+     *    i.e. the beacon will run after first being enabled and then falling
+     *    below the ACTIVATE altitude level.
+     *
+     * Once activated an altitude controlled beacon runs on the cycle time
+     *  and ignores the ARM and ACTIVATE settings from then on.
+     *
+     * Normally ENABLE would be zero in the case of an ascending beacon
+     *  although it need not be if an altitude delayed start is required.
      */
-    //extern thread_t *collector_thd;
+
+
+    /* Pass pointer to beacon config to the collector thread. */
     msg_t dpmsg = chMsgSend(collector_thd, (msg_t)&conf);
     dataPoint_t *dataPoint = (dataPoint_t *)dpmsg;
 
     /* Continue here when collector responds. */
-    if(!p_sleep(&conf.beacon.sleep_conf)) {
+    if (!p_sleep(&conf.beacon.sleep_conf)) {
 
-      // Telemetry encoding parameter transmissions
-      if(conf_sram.tel_enc_cycle != 0 &&  time > next_conf_transmission) {
+      /* Telemetry encoding parameter transmissions. */
+      if (conf_sram.tel_enc_cycle != 0 &&  time > next_conf_transmission) {
         TRACE_MON("BCN  > Transmit telemetry configuration");
 
         /* Encode and transmit telemetry configuration data. */
@@ -84,7 +112,7 @@ THD_FUNCTION(bcnThread, arg) {
               conf.path,
               conf.call,
               type);
-          if(packet == NULL) {
+          if (packet == NULL) {
             TRACE_WARN("BCN  > No free packet objects for"
                 " telemetry config transmission %d", type);
           } else {
@@ -100,19 +128,19 @@ THD_FUNCTION(bcnThread, arg) {
             }
           }
           chThdSleep(TIME_S2I(5));
-        } while(++type < APRS_NUM_TELEM_GROUPS);
+        } while (++type < APRS_NUM_TELEM_GROUPS);
         /* Set timing for next telemetry configuration transmission. */
         next_conf_transmission = chTimeAddX(time, conf_sram.tel_enc_cycle);
       }
 
       TRACE_MON("BCN  > Transmit position and telemetry");
 
-      // Encode/Transmit position packet
+      /* Encode/Transmit position packet. */
       packet_t packet = aprs_encode_position_and_telemetry(conf.call,
                                                            conf.path,
                                                            conf.symbol,
                                                            dataPoint, true);
-      if(packet == NULL) {
+      if (packet == NULL) {
         TRACE_ERROR("BCN  > No free packet objects"
             " for position transmission");
       } else {
@@ -128,7 +156,7 @@ THD_FUNCTION(bcnThread, arg) {
       }
 
       /* If this is a run once (?APRSP) terminate thread now. */
-      if(conf.run_once) {
+      if (conf.run_once) {
         chHeapFree(s_conf);
         pktThdTerminateSelf();
       }
@@ -152,7 +180,7 @@ THD_FUNCTION(bcnThread, arg) {
        * There is no acknowledgement requested.
        */
       packet = aprs_compose_aprsd_message(conf.call, path, call);
-      if(packet == NULL) {
+      if (packet == NULL) {
         TRACE_ERROR("BCN  > No free packet objects "
             "or badly formed APRSD message");
       } else {

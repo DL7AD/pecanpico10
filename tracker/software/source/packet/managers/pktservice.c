@@ -1,11 +1,19 @@
 /*
-    Aerospace Decoder - Copyright (C) 2018 Bob Anderson (VK2GJ)
+    Aerospace Decoder - Copyright (C) 2018-2019 Bob Anderson (VK2GJ)
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 */
 
+/**
+ * @file    pktservice.c
+ * @brief   Radio service code.
+ *
+ * @addtogroup managers
+ *
+ * @{
+ */
 #include "pktconf.h"
 #include "portab.h"
 #include "console.h"
@@ -181,9 +189,8 @@ bool pktSystemDeinit(void) {
 
 /**
  * @brief   Initializes packet handlers and starts the radio manager.
- * @note    The option to manage multiple radios across the system is incomplete.
  * @note    Once initialized the transmit service is available.
- * @note    To activate receive requires an open to be made.
+ * @note    To activate receive requires a receive open.
  *
  * @param[in]   radio unit ID.
  *
@@ -194,14 +201,8 @@ bool pktSystemDeinit(void) {
  * @api
  */
 bool pktServiceCreate(const radio_unit_t radio) {
-  /*
-   *  TODO: Move most of this into RM startup.
-   *  The check for IDLE state will reject any new create attempt.
-   *
-  */
-  /*
-   * Get service object maps radio IDs to service objects
-   */
+
+  /* Get service object for this radio. */
   packet_svc_t *handler = pktGetServiceObject(radio);
   if(handler == NULL)
     return false;
@@ -223,12 +224,14 @@ bool pktServiceCreate(const radio_unit_t radio) {
   memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
 
   /* Set flags and radio ID. */
-  handler->radio_init = false;
   handler->radio = radio;
-  /* Set service semaphore to available state. */
-  chBSemObjectInit(&handler->close_sem, false);
-  /* Set radio semaphore to free state. */
-  chBSemObjectInit(&handler->radio_sem, false);
+  handler->radio_init = false;
+
+  /* Set service semaphore to locked state. */
+  chBSemObjectInit(&handler->mgr_sem, true);
+
+  /* Set radio semaphore to locked state. */
+  chBSemObjectInit(&handler->radio_sem, true);
 
   /* Send request to create radio manager. */
   if(pktRadioManagerCreate(radio) == NULL)
@@ -240,7 +243,6 @@ bool pktServiceCreate(const radio_unit_t radio) {
 
 /**
  * @brief   Releases packet service.
- * @note    The option to manage multiple radios is not yet implemented.
  * @post    The packet service is no longer available for transmit or receive.
  *
  * @param[in] radio unit ID
@@ -262,153 +264,13 @@ bool pktServiceRelease(const radio_unit_t radio) {
 
   if(handler->state != PACKET_READY)
     return false;
-/* TODO: Should be executed by a radio command. */
-  //pktReleaseBufferSemaphore(radio);
 
+  /* Radio is left in locked state and the service semaphore is left taken. */
   (void)pktRadioManagerRelease(radio);
   handler->state = PACKET_IDLE;
   return true;
 }
-#if 0
-/**
- * @brief   Hibernate a packet service on a radio.
- * @note    The option to manage multiple radios is not yet implemented.
- * @note    In hibernation the receive and transmit services are unavailable.
- * @note    This is an empty function - may not be needed ever.
- *
- * @param[in]   radio unit ID.
- *
- *@return   result of operation.
- *@retval   true    service was put into hibernation state.
- *@retval   false   hibernation request failed.
- *
- * @api
- */
-bool pktServiceHibernate(const radio_unit_t radio) {
 
-  /*
-   * Get service object maps radio IDs to service objects
-   */
-  packet_svc_t *handler = pktGetServiceObject(radio);
-  if(handler == NULL)
-    return false;
-  return false;
-}
-
-/**
- * @brief   Wake up a packet service on a radio from hibernation state.
- * @note    The option to manage multiple radios is not yet implemented.
- * @note    Once woken up the prior services become available.
- * @note    This is an empty function - may not be needed ever.
- *
- * @param[in]   radio unit ID.
- *
- *@return   result of operation.
- *@retval   true    service was woken up.
- *@retval   false   wake up request failed.
- *
- * @api
- */
-bool pktServiceWakeup(const radio_unit_t radio) {
-
-  /*
-   * Lookup radio and assign handler (RPKTDx).
-   */
-  packet_svc_t *handler = pktGetServiceObject(radio);
-  if(handler == NULL)
-    return false;
-  return false;
-}
-#endif
-#if 0
-/**
- * @brief   Opens a packet receive service.
- * @post    The packet service is initialized and ready to be started.
- *
- * @param[in] radio     radio unit identifier.
- * @param[in] encoding  radio link level encoding.
- * @param[in] frequency operating frequency (in Hz).
- * @param[in] ch_step   frequency step per channel (in Hz).
- *
- * @return              status of operation.
- * @retval MSG_OK       if the open request was processed.
- * @retval MSG_TIMEOUT  if the open request timed out waiting for resources.
- * @retval MSG_RESET    if state is invalid or a bad parameter is submitted.
- *
- * @api
- */
-msg_t pktOpenRadioReceive(const radio_unit_t radio,
-                          const radio_mod_t encoding,
-                          const radio_freq_hz_t frequency,
-                          const radio_chan_hz_t ch_step,
-                          const sysinterval_t timeout) {
-
-  packet_svc_t *handler = pktGetServiceObject(radio);
-  if(handler == NULL)
-    return MSG_RESET;
-
-  chDbgCheck(handler->state == PACKET_READY);
-
-  if(handler->state != PACKET_READY)
-    return MSG_RESET;
-
-  /* Wait for any prior session to complete closing. */
-  chBSemWait(&handler->close_sem);
-
-  /* Save radio configuration. */
-  handler->radio_rx_config.type = encoding;
-  handler->radio_rx_config.base_frequency = frequency;
-  handler->radio_rx_config.step_hz = ch_step;
-
-  /* Reset the statistics collection variables. */
-  handler->sync_count = 0;
-  handler->frame_count = 0;
-  handler->valid_count = 0;
-  handler->good_count = 0;
-
-  radio_task_object_t rt = handler->radio_rx_config;
-
-  /* Set parameters for radio command. */
-  rt.command = PKT_RADIO_RX_OPEN;
-
-  /*
-   * Open (init) the radio receive (via submit radio task).
-   */
-  msg_t msg = pktQueueRadioCommand(radio, &rt, timeout, NULL);
-
-  if(msg == MSG_OK)
-    pktAddEventFlags(handler, EVT_PKT_CHANNEL_OPEN);
-  return msg;
-}
-#endif
-
-#if 0
-/**
- * TODO: Should not process this via the outer level callbacks.
- * Should be handled inside RM initiated by a macro level directive.
- * e.g. PKT_RADIO_RX_ENABLE
- */
-static void pktReceiveStartCB(radio_task_object_t *rt) {
-  packet_svc_t *handler = rt->handler;
-  const radio_unit_t radio = handler->radio;
-
-  if(rt->result != MSG_OK) {
-    TRACE_ERROR("RAD  > Open of packet receive on radio %d failed (CB)", radio);
-    return;
-  }
-
-  msg_t msg = pktQueueRadioCommand(radio,
-                                  PKT_RADIO_RX_START,
-                                  &handler->radio_rx_config,
-                                  TIME_MS2I(100),
-                                  NULL);
-  if(msg == MSG_TIMEOUT) {
-    TRACE_ERROR("RAD  > Timeout attempting to start packet receive on radio %d (CB)", radio);
-    return;
-  }
-  TRACE_DEBUG("RAD  > Starting packet receive on radio %d (CB)", radio);
-}
-#endif
 /**
  * @brief   Request start of packet reception service.
  * @pre     The packet receive service is opened if not already.
@@ -472,7 +334,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
      */
     msg_t msg;
 #if 0
-    msg = chBSemWait(&handler->close_sem);
+    msg = chBSemWait(&handler->mgr_sem);
     if(msg != MSG_OK)
       return msg;
 #endif
@@ -505,6 +367,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
     if (msg == MSG_OK) {
       if (result == MSG_OK)
         pktAddEventFlags(handler, EVT_PKT_RECEIVE_OPEN | EVT_PKT_RECEIVE_START);
+      return result;
     }
     return msg;
   }
@@ -828,7 +691,6 @@ pkt_data_object_t *pktIncomingBufferPoolCreate(radio_unit_t radio) {
                                  sizeof(pkt_data_object_t),
                                  sizeof(size_t));
 
-  //extern memory_heap_t *ccm_heap;
   pkt_data_object_t *objects = chHeapAllocAligned(
                             USE_CCM_HEAP_RX_BUFFERS ? ccm_heap
                             : NULL,
@@ -975,7 +837,6 @@ void pktIncomingBufferPoolRelease(packet_svc_t *const handler) {
   cnt_t objects = chGuardedPoolGetCounterI(&handler->rx_packet_pool);
   chDbgAssert(objects == 0, "pool has outstanding objects");
   chHeapFree(handler->packet_heap);
-
 }
 
 

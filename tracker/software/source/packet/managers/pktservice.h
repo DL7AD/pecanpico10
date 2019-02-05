@@ -95,7 +95,6 @@ typedef struct packetHandlerData {
   radio_unit_t              radio;
 
   xtal_osc_t                xtal;      /**< XO frequency of main clock.     */
-  bool                      xo_update; /**< XO update in progress.          */
 
   /**
    * @brief Radio part number.
@@ -175,9 +174,9 @@ typedef struct packetHandlerData {
   uint8_t                   rxcb_ref_count;
 
   /**
-   * @brief Event source object.
+   * @brief The service semaphore. All FIFO requests wait on this.
    */
-  binary_semaphore_t        close_sem;
+  binary_semaphore_t        mgr_sem;
 
   /**
    * @brief Event source object.
@@ -262,10 +261,6 @@ extern "C" {
 /*===========================================================================*/
 
 #define pktIsReceiveInProgress(radio) pktRadioGetInProgress(radio)
-
-/*===========================================================================*/
-/* Module inline functions.                                                  */
-/*===========================================================================*/
 
 /**
  * @name    Macro Functions (packet system drivers)
@@ -356,6 +351,10 @@ extern "C" {
   chEvtUnregister(ip, listener);                                             \
 }
 
+/*===========================================================================*/
+/* Module inline functions.                                                  */
+/*===========================================================================*/
+
 /**
  * @brief   Resets the buffer index of a packet buffer.
  * @details This macro resets the buffer count to zero.
@@ -421,6 +420,23 @@ static inline pkt_svc_state_t pktGetServiceState(const radio_unit_t radio) {
 
   return handler->state;
 }
+
+/**
+ * @brief   Tests if service is available for the radio.
+ *
+ * @param[in] radio    radio unit ID.
+ *
+ * @return        Availability.
+ * @retval true   If service is available.
+ * @retval false  If service is not available.
+ *
+ * @api
+ */
+static inline bool pktIsServiceAvailable(const radio_unit_t radio) {
+  pkt_svc_state_t state = pktGetServiceState(radio);
+  return state == PACKET_READY;
+}
+
 
 /**
  * @brief   Tests if transmit is available for the radio.

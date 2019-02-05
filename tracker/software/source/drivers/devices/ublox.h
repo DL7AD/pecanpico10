@@ -81,6 +81,17 @@ typedef struct {
 	gps_svchn_t svinfo[GPS_MAX_SV_CHANNELS];
 } gps_svinfo_t;
 
+
+typedef struct {
+    uint32_t    iTOW;           // Time ms
+    uint8_t     gpsFix;         // gps fix type
+    uint8_t     flags;          // gpsFixOk is bit 0
+    uint8_t     fixStat;        // fix status information
+    uint8_t     flags2;         // further navigation information
+    uint32_t    ttff;           // time to first fix
+    uint32_t    msss;           // milliseconds since startup
+} gps_navinfo_t;
+
 typedef uint8_t tpidx_t;
 
 typedef struct {
@@ -117,13 +128,14 @@ uint8_t gps_set_portable_model(void);
 uint8_t gps_set_airborne_model(void);
 uint8_t gps_set_power_options(void);
 uint8_t gps_switch_power_save_mode(bool on);
-bool gps_get_fix(gpsFix_t *fix);
-bool gps_get_sv_info(gps_svinfo_t *svinfo, size_t size);
-bool gps_get_timepulse_info(tpidx_t tp, gps_tp5_t *tp5, size_t size);
-bool GPS_Init(void);
-void GPS_Deinit(void);
+bool    gps_get_fix(gpsFix_t *fix);
+bool    gps_get_sv_info(gps_svinfo_t *svinfo, size_t size);
+bool    gps_get_timepulse_info(tpidx_t tp, gps_tp5_t *tp5, size_t size);
+bool    gps_get_nav_status(gps_navinfo_t *navinfo, size_t size);
+bool    GPS_Init(void);
+void    GPS_Deinit(void);
 uint32_t GPS_get_mcu_frequency(void);
-bool gps_calc_ubx_csum(uint8_t *mbuf, uint16_t mlen);
+bool    gps_calc_ubx_csum(uint8_t *mbuf, uint16_t mlen);
 const char *gps_get_model_name(uint8_t index);
 
 #endif

@@ -1,8 +1,17 @@
 /*
- * tcxo.c
+    Aerospace Decoder - Copyright (C) 2018-2019 Bob Anderson (VK2GJ)
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*/
+
+/**
+ * @file        tcxo.c
+ * @brief       TCXO manager.
  *
- *  Created on: 20 Oct 2018
- *      Author: bob
+ * @addtogroup  devices
+ * @{
  */
 
 #include "tcxo.h"
@@ -47,13 +56,6 @@ ICUConfig tcxo_cfg = {
 /**
  *
  */
-static bool pktPPMcheckTCXO(xtal_osc_t f) {
-  return (f >= PKT_TCXO_CLOCK_MIN && PKT_TCXO_CLOCK_MAX >= f);
-}
-
-/**
- *
- */
 static void pktCBWidthTCXO(ICUDriver *icup) {
   (void)icup;
   return;
@@ -87,17 +89,37 @@ static void pktCBOverflowTCXO(ICUDriver *icup) {
 }
 
 /**
+ * @brief  Run a measurement of the TCXO
+ * @param[in] timeout Maximum interval to wait for measurement to complete
  *
+ * @return Measurement result
+ * @retval Frequency count for TCXO.
+ * @retval Zero if count not able to be done.
+ *
+ * @notapi
  */
 static xtal_osc_t pktMeasureTCXO(sysinterval_t timeout) {
+  chDbgCheck((timeout != TIME_INFINITE) && (timeout != TIME_IMMEDIATE));
+#if 0
   if(timeout == TIME_INFINITE || timeout == TIME_IMMEDIATE)
     return 0;
-  /* TODO: The correct test is if GPS is active and locked. */
-  if(!hasGPSacquiredLock(getLastDataPoint()))
-    return 0;
+#endif
+  /* Get exclusive access to TCXO measurement system. */
   msg_t msg = chBSemWait(&tcxo_busy);
   if(msg == MSG_RESET)
     return 0;
+
+  /* Check if GPS has a lock so TP is pulsing. */
+  gps_navinfo_t nav = {0};
+  if (!gps_get_nav_status(&nav, sizeof(nav))) {
+    chBSemSignal(&tcxo_busy);
+    return 0;
+  }
+  /* Check if fix is OK. Note use the fixOK flag versus the fix type. */
+  if ((nav.flags & 1) == 0) {
+    chBSemSignal(&tcxo_busy);
+    return 0;
+  }
 
   /* Start ICU and start capture. */
   icuStart(&PKT_TCXO_TIMER, &tcxo_cfg);
@@ -122,20 +144,53 @@ static xtal_osc_t pktMeasureTCXO(sysinterval_t timeout) {
 }
 
 /**
+ * @brief Run TCXO frequency check and update radios upon change.
  *
+ * @notapi
  */
 THD_FUNCTION(tcxo_thd, arg) {
   (void)arg;
 
-  while(true) {
+  while (true) {
     uint32_t f = pktMeasureTCXO(TIME_S2I(8));
-    if(f != 0) {
-      if(!pktPPMcheckTCXO(f)) {
+    if (f != 0) {
+      if (!pktPPMcheckTCXO(f)) {
         TRACE_WARN("TCXO > Measured frequency %d Hz is outside PPM bounds", f);
+        chThdSleep(TIME_S2I(60));
+        continue;
       }
-      if(f != tcxo_active) {
+      if (f != tcxo_active) {
         tcxo_active = f;
         TRACE_DEBUG("TCXO > Update to %d Hz", f);
+        /* Advise radio managers of update. */
+        uint8_t radios = pktGetNumRadios();
+        const radio_config_t *list = pktGetRadioList();
+        for(uint8_t i = 0; i < radios; i++) {
+          radio_unit_t radio = list->unit;
+          if (!pktIsServiceAvailable(radio))
+            /* Service is not open for this radio. */
+            continue;
+          /* Update xtal frequency in service object and send update to radio. */
+          packet_svc_t *handler = pktGetServiceObject(radio);
+          handler->xtal = tcxo_active;
+          msg_t result;
+          msg_t msg = pktQueueRadioCommand(radio,
+                                           PKT_RADIO_TCXO_UPDATE,
+                                           NULL,
+                                           TIME_MS2I(100),
+                                           &result,
+                                           NULL);
+          if (msg != MSG_OK) {
+            TRACE_ERROR("TCXO > Could not post TCXO update to radio %d",
+                        radio);
+          }
+          if (result != MSG_OK) {
+            TRACE_ERROR("TCXO > TCXO update to radio %d failed with result %d",
+                        radio, result);
+          }
+          /* Next radio data record. */
+          list++;
+        } /* End for radios*/
       } else {
         TRACE_DEBUG("TCXO > Unchanged at %d Hz", f);
       }
@@ -159,13 +214,17 @@ void pktInitTCXO()  {
   /* TODO: Get last known good from flash. */
   tcxo_active = PKT_TCXO_DEFAULT_CLOCK;
   TRACE_INFO("TCXO > Start TCXO continuous measurement");
-  chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(512), "TCXO", LOWPRIO,
-                      tcxo_thd, NULL);
+  if (chThdCreateFromHeap(NULL, THD_WORKING_AREA_SIZE(512), "TCXO", LOWPRIO,
+                      tcxo_thd, NULL) == NULL) {
+    TRACE_ERROR("TCXO > Start TCXO thread failed");
+}
   chThdSleep(TIME_MS2I(10));
 }
 
 /**
+ * @brief Get TCXO frequency
  *
+ * @return  The default if TCXO has not yet been measured else current measurement.
  */
 inline xtal_osc_t pktGetCurrentTCXO()  {
   if(pktPPMcheckTCXO(tcxo_active))
@@ -174,6 +233,9 @@ inline xtal_osc_t pktGetCurrentTCXO()  {
 }
 
 /**
+ * @brief Check if TCXO has been updated
+ *
+ * @return  the new TCXO frequency or 0 if unchanged.
  *
  */
 xtal_osc_t pktCheckUpdatedTCXO(xtal_osc_t current)  {
@@ -182,3 +244,13 @@ xtal_osc_t pktCheckUpdatedTCXO(xtal_osc_t current)  {
   return 0;
 }
 
+/**
+ * @brief Verify that the measure frequency is not out of PPM bounds.
+ *
+ * @return true if within bounds, false if not.
+ */
+bool pktPPMcheckTCXO(xtal_osc_t f) {
+  return (f >= PKT_TCXO_CLOCK_MIN && PKT_TCXO_CLOCK_MAX >= f);
+}
+
+/** @} */

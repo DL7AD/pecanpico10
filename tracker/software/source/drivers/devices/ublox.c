@@ -231,6 +231,23 @@ bool gps_get_sv_info(gps_svinfo_t *svinfo, size_t size) {
 }
 
 /**
+ * gps_get_nav_status
+ */
+bool gps_get_nav_status(gps_navinfo_t *navinfo, size_t size) {
+  if(!gps_enabled)
+    return false;
+  uint8_t navstatus_req[] = {0xB5, 0x62, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00};
+  gps_transmit_string(navstatus_req, sizeof(navstatus_req));
+
+  if(!gps_receive_payload(0x01, 0x03, (unsigned char*)navinfo, size,
+                          TIME_MS2I(3000))) { // Receive request
+      TRACE_ERROR("GPS  > NAV-STATUS Polling FAILED");
+      return false;
+  }
+  return true;
+}
+
+/**
   * gps_get_fix
   *
   * retrieves a GPS fix from the module.

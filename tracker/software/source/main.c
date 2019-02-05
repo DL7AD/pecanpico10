@@ -5,8 +5,8 @@
 #include "threads.h"
 
 /**
-  * Main routine is starting up system, runs the software watchdog (module monitoring), controls LEDs
-  */
+ * Main routine is starting up system, runs the software watchdog (module monitoring), controls LEDs
+ */
 int main(void) {
 	halInit();					// Startup HAL
 	chSysInit();				// Startup RTOS
