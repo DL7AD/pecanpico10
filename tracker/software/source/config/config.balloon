@@ -36,10 +36,14 @@ const conf_t conf_flash_default = {
     .pos_sec = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(15), // Beacon interval
-            .init_delay = TIME_S2I(60 * 150),
+            .cycle = TIME_S2I(10), // Beacon interval
+            .init_delay = TIME_S2I(30),
             .fixed = false
         },
+        /* Altitude controlled settings. */
+        .arm_alt = 20000
+        .run_alt = 15000,
+        /* Radio configuration. */
         .radio_conf = {
             .pwr = 0x7F,
             .freq = FREQ_APRS_AUSTRALIA,
@@ -48,8 +52,8 @@ const conf_t conf_flash_default = {
         },
         // App identity
         .call = "VK2GJ-12",
-        .path = "",
-        .symbol = SYM_ANTENNA,
+        .path = "WIDE2-1",
+        .symbol = SYM_BALLOON,
         .aprs_msg = true, // Enable APRS message reception on this app
     },
 

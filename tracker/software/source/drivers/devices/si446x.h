@@ -19,8 +19,18 @@
 #define Si446x_USE_AFSK_LCM_DATA_RATE           FALSE
 #define Si446x_USE_NB_RECEIVE_FILTER            TRUE
 #define Si446x_USE_TRANSMIT_TIMEOUT             FALSE
+#define Si446x_USE_SEMAPHORE_INTERRUPT_SYNC     TRUE
 #define Si446x_USE_PACKET_END_INTERRUPT         TRUE
+#define Si446x_USE_FIFO_THRESHOLD_INTERRUPT     TRUE
+#define Si446x_USE_STATE_CHANGE_INTERRUPT       TRUE
 #define Si446x_USE_COMMON_TX_THREAD             TRUE
+#if Si446x_USE_PACKET_END_INTERRUPT == TRUE                                 \
+  || Si446x_USE_FIFO_THRESHOLD_INTERRUPT == TRUE                            \
+  || Si446x_USE_STATE_CHANGE_INTERRUPT == TRUE
+#define Si446x_USE_INTERRUPTS                   TRUE
+#else
+#define Si446x_USE_INTERRUPTS                   FALSE
+#endif
 
 /*===========================================================================*/
 /* Driver constants.                                                         */
@@ -299,7 +309,7 @@ typedef uint8_t si446x_reply_t;
 typedef uint8_t si446x_args_t;
 
 /* AFSK encoder/up-sampler control object. */
-typedef struct {
+typedef struct reSampler {
   uint32_t  phase_delta;            // 1200/2200 for standard AX.25
   uint32_t  phase;                  // Fixed point 9.7 (2PI = TABLE_SIZE)
   uint32_t  packet_pos;             // Index of next bit to be sent out
@@ -417,8 +427,15 @@ typedef struct Si446x_DAT {
   radio_patch_t         radio_patch;
   radio_temp_t          lastTemp;
   radio_clock_t         radio_clock;
+#if Si446x_USE_INTERRUPTS
+  bool                  nirq_active;
+#if Si446x_USE_SEMAPHORE_INTERRUPT_SYNC == TRUE
+  binary_semaphore_t    wait_sem;
+#else
   thread_t              *irq_dispatch;
   thread_reference_t    wait_thread;
+#endif
+#endif /* Si446x_USE_INTERRUPTS */
   radio_isr_cb_t        cb;
   si446x_int_status_t   int_status;
 } si446x_data_t;
@@ -460,7 +477,7 @@ extern "C" {
   void Si446x_unlockRadio(const radio_mode_t mode);
   //void Si446x_lockRadioByCamera(void);
   //void Si446x_unlockRadioByCamera(void);
-  bool Si446x_conditional_init(radio_unit_t radio);
+  bool Si446x_driverInit(radio_unit_t radio);
   radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
   ICUDriver *Si446x_attachPWM(const radio_unit_t radio);
   void       Si446x_detachPWM(const radio_unit_t radio);

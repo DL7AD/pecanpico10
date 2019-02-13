@@ -511,11 +511,7 @@ void pktEnableRadioStreamProcessing(const radio_unit_t radio) {
     switch(myDemod->icustate) {
     /* The PWM handling is currently stopped. */
     case PKT_PWM_STOP: {
-      /*
-       * Enable CCA callback from GPIO.
-       * TODO: Enable RSSI interrupt in radio.
-       * - either in the following function or a separate function.
-       */
+      /* Enable CCA callback from GPIO. */
       pktLLDradioCCAEnable(radio, mod, (palcallback_t)pktRadioCCAInput);
 
       /* Start ICU capture. The ICU will sync to the next edge. Notifications
@@ -600,7 +596,6 @@ void pktDisableRadioStreamProcessing(const radio_unit_t radio) {
     case PKT_PWM_ACTIVE: {
       /* PWM incoming active. */
 
-
       /* Disable CCA line event. */
       pktLLDradioCCADisableI(radio, mod);
 
@@ -621,11 +616,12 @@ void pktDisableRadioStreamProcessing(const radio_unit_t radio) {
 
       myDemod->icustate = PKT_PWM_STOP;
 
-      /* Reschedule to avoid a "priority order violation". */
+      /* Reschedule to avoid a "priority order violation" Closing stream
+         can be lengthy. */
       chSchRescheduleS();
       chSysUnlock();
 
-      /* Putting radio in standby stops all output from radio. */
+      /* Putting radio in standby stops all output from device. */
       pktLLDradioStandby(radio);
       return;
     } /* End case PKT_PWM_WAITING or PKT_PWM_ACTIVE */
@@ -691,6 +687,55 @@ void pktDisableRadioStreamProcessing(const radio_unit_t radio) {
     chDbgAssert(false, "wrong PWM state");
     return;
   } /* End switch on link type. */
+}
+
+/**
+ * @brief   Wait for PWM receive inactive.
+ * @pre     The radio must be locked before calling this function.
+ * @notes   Will wait a timeout for any PWM stream currently open.
+ *
+ * @param[in] radio     Radio unit ID.
+ * @param[in] timeout   the number of ticks before the operation times out.
+ *                      the following special values are allowed:
+ *                      - @a TIME_IMMEDIATE immediate timeout.
+ *                      - @a TIME_INFINITE no timeout.
+ *
+ * @return  status of request
+ * @retval  MSG_OK          stream is not active.
+ * @retval  MSG_TIMEOUT     stream closed during allowed timeout.
+ * @retval  MSG_RESET       stream was stopped as it did not cease within t/o.
+ *
+ * @api
+ */
+msg_t pktWaitPWMStreamClose(radio_unit_t radio, sysinterval_t timeout) {
+  msg_t msg = MSG_OK;
+  if (pktRadioGetInProgress(radio)) {
+    /* If PWM receive is in progress wait. */
+    packet_svc_t *handler = pktGetServiceObject(radio);
+    msg = MSG_RESET;
+    if (timeout != TIME_IMMEDIATE) {
+      event_source_t *esp = pktGetEventSource((packet_svc_t *)handler);
+      /* Register for EVT_RAD_STREAM_CLOSE event which is posted by the PWM
+           ISR front end when a stream is closed. */
+      event_listener_t el;
+      pktRegisterEventListener(esp, &el, GTE_RECEIVE_INACTIVE,
+                               EVT_RAD_STREAM_CLOSE);
+      systime_t start = chVTGetSystemTime();
+      if (chEvtWaitAnyTimeout(GTE_RECEIVE_INACTIVE, timeout) == 0) {
+        msg = MSG_RESET;
+        TRACE_DEBUG("RAD  > Timed out in %d ms waiting for in progress receive",
+                    chTimeI2MS(timeout));
+      } else {
+        /* Capture the elapsed time. */
+        systime_t wait = chVTTimeElapsedSinceX(start);
+        TRACE_DEBUG("RAD  > Waited %d ms for in progress receive",
+                    chTimeI2MS(wait));
+        msg = MSG_TIMEOUT;
+      }
+      pktUnregisterEventListener(esp, &el);
+    } /* End test on timeout. */
+  }
+  return msg;
 }
 
 /**
@@ -1329,4 +1374,5 @@ msg_t pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack) {
   }
   return MSG_OK;
 }
+
 /** @} */

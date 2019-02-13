@@ -47,7 +47,7 @@ typedef enum handlerRxStates {
   PACKET_RX_OPEN,
   PACKET_RX_ENABLED,
   PACKET_RX_CLOSE,
-  PACKET_RX_INVALID
+  PACKET_RX_ERROR
 } pkt_rx_state_t;
 
 #include "types.h"

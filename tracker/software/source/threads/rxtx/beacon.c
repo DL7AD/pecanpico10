@@ -45,6 +45,75 @@ THD_FUNCTION(bcnThread, arg) {
    */
   systime_t next_conf_transmission = 0;
 
+  /**
+   * Altitude controlled beaconing.
+   *
+   * This feature is primarily for short latex based flights.
+   * In such case high rate beaconing is preferable on descent to improve
+   *  the chances of beacon reception and location accuracy for recovery.
+   * A second beacon should be assigned for such purpose.
+   *
+   * Ascent based beaconing is also implemented for completeness.
+   *
+   * Altitude control is done with an ARM and RUN field in config.
+   * If not explicitly set in config these values will both be zero and
+   *  normal beacon operation takes place.
+   *
+   * There are two altitude controlled cases.
+   * In both cases an ARM altitude must be reached to enable a beacon.
+   * The altitude control commences after the normal startup delay has expired.
+   * 1. Ascending activated
+   *    If RUN >= ARM then the beacon is of ascending type.
+   *    i.e. the beacon runs after first being enabled and then exceeding the
+   *    activate altitude.
+   *
+   * 2. Descending activated
+   *    If RUN < ARM then the beacon is of descending type.
+   *    i.e. the beacon will run after first being enabled and then falling
+   *    below the RUN altitude level.
+   *
+   * Once activated an altitude controlled beacon runs on the cycle time
+   *  and ignores the ARM and RUN settings from then on.
+   *
+   * Normally ARM would be zero in the case of an ascending beacon
+   *  although it need not be if an altitude delayed start is required.
+   */
+
+  if (conf.run_alt != 0) {
+    /* This is an altitude controlled beacon.
+       Wait for enable altitude. */
+    msg_t dpmsg;
+    dataPoint_t *dataPoint;
+    TRACE_DEBUG("POS  > Altitude controlled beacon waiting for enable at %dM",
+                conf.arm_alt);
+    do {
+      dpmsg = chMsgSend(collector_thd, (msg_t)&conf);
+      dataPoint = (dataPoint_t *)dpmsg;
+    } while (!hasGPSacquiredLock(dataPoint)
+        || dataPoint->gps_alt < conf.arm_alt);
+    TRACE_DEBUG("POS  > Altitude controlled %dM beacon enabled at %dM",
+                conf.arm_alt, dataPoint->gps_alt);
+    if (conf.run_alt >= conf.arm_alt) {
+      /* This is an ascending beacon. */
+      do {
+        dpmsg = chMsgSend(collector_thd, (msg_t)&conf);
+        dataPoint = (dataPoint_t *)dpmsg;
+      } while (!hasGPSacquiredLock(dataPoint)
+          || dataPoint->gps_alt < conf.run_alt);
+      TRACE_DEBUG("POS  > Ascending %dM beacon activated at %dM",
+                  conf.run_alt, dataPoint->gps_alt);
+    } else {
+      /* This is a descending beacon. */
+      do {
+        dpmsg = chMsgSend(collector_thd, (msg_t)&conf);
+        dataPoint = (dataPoint_t *)dpmsg;
+      } while (!hasGPSacquiredLock(dataPoint)
+          || dataPoint->gps_alt > conf.run_alt);
+      TRACE_DEBUG("POS  > Descending %dM beacon activated at %dM",
+                  conf.run_alt, dataPoint->gps_alt);
+    }
+  }
+
   /*
    * Force fast timeout on first attempt from normal BCN app.
    * ?APRSP command can set its own interval to override the timing.
@@ -60,38 +129,7 @@ THD_FUNCTION(bcnThread, arg) {
     char code_s[100];
     pktDisplayFrequencyCode(conf.radio_conf.freq, code_s, sizeof(code_s));
     TRACE_DEBUG("POS  > Do module BEACON cycle for %s on %s%s",
-               conf.call, code_s, conf.run_once ? " (?aprsp response)" : "");
-
-    /* TODO: Implement altitude controlled beaconing.
-     *
-     * This feature is primarily for short latex based flights.
-     * In such case high rate beaconing is preferable on descent to improve
-     *  the chances of beacon reception and location accuracy.
-     * A complementary ascent base beaconing is also included for completeness.
-     *
-     * Altitude control is done with an ENABLE and ACTIVATE field in config.
-     * If not explicitly set in config these values will both be zero and
-     *  normal beacon operation takes place.
-     *
-     * There are two altitude controlled cases.
-     * In both cases an ENABLE altitude must be reached to enable a beacon.
-     * 1. Ascending activated
-     *    If ACTIVATE >= ENABLE then the beacon is of ascending type.
-     *    i.e. the beacon runs after first being enabled and then exceeding the
-     *    activate altitude.
-     *
-     * 2. Descending activated
-     *    If ACTIVATE < ENABLE then the beacon is of descending type.
-     *    i.e. the beacon will run after first being enabled and then falling
-     *    below the ACTIVATE altitude level.
-     *
-     * Once activated an altitude controlled beacon runs on the cycle time
-     *  and ignores the ARM and ACTIVATE settings from then on.
-     *
-     * Normally ENABLE would be zero in the case of an ascending beacon
-     *  although it need not be if an altitude delayed start is required.
-     */
-
+                conf.call, code_s, conf.run_once ? " (?aprsp response)" : "");
 
     /* Pass pointer to beacon config to the collector thread. */
     msg_t dpmsg = chMsgSend(collector_thd, (msg_t)&conf);
@@ -117,12 +155,12 @@ THD_FUNCTION(bcnThread, arg) {
                 " telemetry config transmission %d", type);
           } else {
             if(!pktTransmitOnRadio(packet,
-                                conf.radio_conf.freq,
-                                0,
-                                0,
-                                conf.radio_conf.pwr,
-                                conf.radio_conf.mod,
-                                conf.radio_conf.cca)) {
+                                   conf.radio_conf.freq,
+                                   0,
+                                   0,
+                                   conf.radio_conf.pwr,
+                                   conf.radio_conf.mod,
+                                   conf.radio_conf.cca)) {
               /* Packet is released in transmitOnRadio. */
               TRACE_ERROR("BCN  > Failed to transmit telemetry config");
             }
@@ -145,12 +183,12 @@ THD_FUNCTION(bcnThread, arg) {
             " for position transmission");
       } else {
         if(!pktTransmitOnRadio(packet,
-                            conf.radio_conf.freq,
-                            0,
-                            0,
-                            conf.radio_conf.pwr,
-                            conf.radio_conf.mod,
-                            conf.radio_conf.cca)) {
+                               conf.radio_conf.freq,
+                               0,
+                               0,
+                               conf.radio_conf.pwr,
+                               conf.radio_conf.mod,
+                               conf.radio_conf.cca)) {
           TRACE_ERROR("BCN  > failed to transmit beacon data");
         }
       }
@@ -185,12 +223,12 @@ THD_FUNCTION(bcnThread, arg) {
             "or badly formed APRSD message");
       } else {
         if(!pktTransmitOnRadio(packet,
-                            conf.radio_conf.freq,
-                            0,
-                            0,
-                            conf.radio_conf.pwr,
-                            conf.radio_conf.mod,
-                            conf.radio_conf.cca
+                               conf.radio_conf.freq,
+                               0,
+                               0,
+                               conf.radio_conf.pwr,
+                               conf.radio_conf.mod,
+                               conf.radio_conf.cca
         )) {
           TRACE_ERROR("BCN  > Failed to transmit APRSD data");
         }
@@ -209,8 +247,8 @@ THD_FUNCTION(bcnThread, arg) {
 thread_t * start_beacon_thread(bcn_app_conf_t *conf, const char *name) {
   //extern memory_heap_t *ccm_heap;
   thread_t *th = chThdCreateFromHeap(ccm_heap,
-                               THD_WORKING_AREA_SIZE(PKT_APRS_BEACON_WA_SIZE),
-                               name, LOWPRIO, bcnThread, conf);
+                                     THD_WORKING_AREA_SIZE(PKT_APRS_BEACON_WA_SIZE),
+                                     name, LOWPRIO, bcnThread, conf);
   if(!th) {
     // Print startup error, do not start watchdog for this thread
     TRACE_ERROR("BCN  > Could not start thread (insufficient memory)");

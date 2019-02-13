@@ -44,7 +44,7 @@ const char *gps_get_model_name(uint8_t index) {
 void gps_transmit_string(uint8_t *cmd, uint8_t length) {
   gps_calc_ubx_csum(cmd, length);
 #if UBLOX_USE_I2C == TRUE
-  I2C_writeN(PKT_GPS_I2C, UBLOX_MAX_ADDRESS, cmd, length);
+  I2C_writeN(&PKT_GPS_I2C, UBLOX_MAX_ADDRESS, cmd, length);
 #elif defined(UBLOX_UART_CONNECTED)
   sdWrite(&PKT_GPS_UART, cmd, length);
 #endif
@@ -57,10 +57,10 @@ void gps_transmit_string(uint8_t *cmd, uint8_t length) {
 bool gps_receive_byte(uint8_t *data) {
 #if UBLOX_USE_I2C == TRUE
 	uint16_t len;
-	I2C_read16(PKT_GPS_I2C, UBLOX_MAX_ADDRESS, 0xFD, &len);
+	I2C_read16(&PKT_GPS_I2C, UBLOX_MAX_ADDRESS, 0xFD, &len);
 	if(len) {
-		I2C_read8(PKT_GPS_I2C, UBLOX_MAX_ADDRESS, 0xFF, data);
-		return true;
+      I2C_read8(&PKT_GPS_I2C, UBLOX_MAX_ADDRESS, 0xFF, data);
+      return true;
 	}
 #elif defined(UBLOX_UART_CONNECTED)
 	return sdReadTimeout(&PKT_GPS_UART, data, 1, TIME_IMMEDIATE);
@@ -631,9 +631,8 @@ bool gps_set_model(bool dynamic) {
 bool GPS_Init() {
 	// Initialize pins
     TRACE_DEBUG("GPS  > Init GPS pins");
+    palSetLineMode(LINE_GPS_EN, PAL_MODE_OUTPUT_PUSHPULL);      // GPS off
 	palSetLineMode(LINE_GPS_RESET, PAL_MODE_OUTPUT_PUSHPULL);	// GPS reset
-	palSetLineMode(LINE_GPS_EN, PAL_MODE_OUTPUT_PUSHPULL);		// GPS off
-
 
 #if defined(UBLOX_UART_CONNECTED) && UBLOX_USE_I2C == FALSE
     // Init and start UART
@@ -643,12 +642,17 @@ bool GPS_Init() {
     palSetLineMode(LINE_GPS_TXD, PAL_MODE_ALTERNATE(11));       // UART TXD
 	sdStart(&PKT_GPS_UART, &gps_config);
 #endif
-
+#if defined(UBLOX_UART_CONNECTED)
+    /* Always lock I2C during init. The UBLOX will look on address 0xA0 for
+       an EEPROM. */
+    I2C_Lock(&PKT_GPS_I2C);
+#endif
 	// Switch MOSFET
 	TRACE_DEBUG("GPS  > Power up GPS");
-	palSetLine(LINE_GPS_RESET);	// Pull up GPS reset
-	palSetLine(LINE_GPS_EN);	// Switch on GPS
-	
+    palSetLine(LINE_GPS_RESET); // Pull up GPS reset
+    chThdSleep(TIME_MS2I(10));
+    palSetLine(LINE_GPS_EN);    // Switch on GPS
+
 	// Wait for GPS startup
 	chThdSleep(TIME_S2I(1));
 
@@ -663,6 +667,9 @@ bool GPS_Init() {
 	  TRACE_DEBUG("GPS  > ... Disable NMEA output OK");
 	} else {
 		TRACE_ERROR("GPS  > Communication Error [disable NMEA]");
+#if defined(UBLOX_UART_CONNECTED)
+	    I2C_Unlock(&PKT_GPS_I2C);
+#endif
 		return false;
 	}
     cntr = 3;
@@ -671,8 +678,14 @@ bool GPS_Init() {
       TRACE_DEBUG("GPS  > ... Set power options OK");
     } else {
         TRACE_ERROR("GPS  > Communication Error [power options]");
+#if defined(UBLOX_UART_CONNECTED)
+        I2C_Unlock(&PKT_GPS_I2C);
+#endif
         return false;
     }
+#if defined(UBLOX_UART_CONNECTED)
+    I2C_Unlock(&PKT_GPS_I2C);
+#endif
     gps_enabled = true;
 	return true;
 }

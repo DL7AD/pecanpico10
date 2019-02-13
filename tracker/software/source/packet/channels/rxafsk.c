@@ -630,6 +630,16 @@ uint8_t pktReleasePWMbuffers(AFSKDemodDriver *myDriver) {
 #endif
 }
 
+/**
+ *
+ */
+bool pktIsAFSKReceiveActive(packet_svc_t *handler) {
+  AFSKDemodDriver *myDemod = handler->rx_link_control;
+  chDbgAssert(myDemod != NULL, "no demod driver");
+  return myDemod->icustate == PKT_PWM_ACTIVE
+    || myDemod->icustate == PKT_PWM_WAITING;
+}
+
 /*===========================================================================*/
 /* AFSK Decoder thread.                                                      */
 /*===========================================================================*/

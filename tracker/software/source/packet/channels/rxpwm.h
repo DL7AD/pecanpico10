@@ -190,7 +190,6 @@ typedef struct {
 /* Module macro definitions.                                                 */
 /*===========================================================================*/
 
-
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
@@ -208,7 +207,7 @@ extern "C" {
   void      pktRadioCCAInput(ICUDriver *myICU);
   void      pktStopAllICUtimersI(ICUDriver *myICU);
   void      pktSleepICUI(ICUDriver *myICU);
-  //void      pktPWMInactivityTimeout(ICUDriver *myICU);
+  msg_t     pktWaitPWMStreamClose(radio_unit_t radio, sysinterval_t timeout);
   msg_t     pktWritePWMQueueI(input_queue_t *queue, byte_packed_pwm_t pack);
 #ifdef __cplusplus
 }

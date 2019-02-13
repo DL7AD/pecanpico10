@@ -318,6 +318,7 @@ extern "C" {
 #endif
   AFSKDemodDriver   *pktCreateAFSKDecoder(radio_unit_t radio);
   void              pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver);
+  bool              pktIsAFSKReceiveActive(packet_svc_t *handler);
   void              pktAFSKDecoder(void *arg);
 #ifdef __cplusplus
 }

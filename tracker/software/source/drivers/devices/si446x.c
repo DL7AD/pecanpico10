@@ -1,31 +1,40 @@
+/*
+    Aerospace Decoder - Copyright (C) 2018-2019 Bob Anderson (VK2GJ)
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*/
+
 /**
- * Si446x driver specialized for APRS transmissions. The driver supports APRS
- * transmission and reception.
- * There can be either used the SLabs Si4463 or Si4464.
+ * @file        si446x.c
+ * @brief       SiLabs 446x radio driver.
+ *
+ * @addtogroup  drivers
+ * @{
  */
 
 #include "pktconf.h"
 #include "debug.h"
 #include "radio.h"
-#include "geofence.h"
 #include "si4463_patch.h"
 #include "tcxo.h"
 
 
 /*===========================================================================*/
-/* Module local variables.                                                   */
+/* Driver local variables.                                                   */
 /*===========================================================================*/
 
 /*===========================================================================*/
-/* Module constants.                                                         */
+/* Driver constants.                                                         */
 /*===========================================================================*/
 
 /*===========================================================================*/
-/* Module exported variables.                                                */
+/* Driver exported variables.                                                */
 /*===========================================================================*/
 
 /*===========================================================================*/
-/* Module local definitions.                                                 */
+/* Driver local definitions.                                                 */
 /*===========================================================================*/
 
 static const uint8_t Si4463_Patch_Data_Array[] = {
@@ -35,16 +44,21 @@ static const uint8_t Si4463_Patch_Data_Array[] = {
 
 /*
  * @brief   The SPI configuration.
- * @note    the CS line is set dynamically per radio.
- * @note    the SPI LLD sets the SPI_CR1_MSTR bit
- * @note    baud rate is PCLK/2 when SPI_CR1_BR = 0
+ * @note    The CS line is set dynamically per radio.
+ * @note    The SPI LLD sets the SPI_CR1_MSTR bit
+ * @note    Baud rate is PCLK/2 when SPI_CR1_BR = 0
  */
 static SPIConfig ls_spicfg = {
     .cr1    = 0
 };
 
 /**
- * Get pointer to the radio specific configuration.
+ * @brief Get pointer to the radio specific configuration.
+ *
+ * @param[in] radio radio unit ID
+ *
+ * @return pointer to radio data
+ * @retval NULL if radio ID is invalid
  *
  * @api
  */
@@ -54,7 +68,12 @@ return (si446x_mcucfg_t *)data->cfg;
 }
 
 /**
- * Get pointer to the radio specific volatile data.
+ * @brief Get pointer to the radio volatile data.
+ *
+ * @param[in] radio radio unit ID
+ *
+ * @return pointer to radio volatile data
+ * @retval NULL if radio ID is invalid
  *
  * @api
  */
@@ -64,7 +83,7 @@ return (si446x_data_t *)data->dat;
 }
 
 /**
- * Acquire bus and set the select line in SPI configuration.
+ * @brief Acquire bus and set the select line in SPI configuration.
  *
  * @notapi
  */
@@ -78,9 +97,17 @@ static SPIDriver *Si446x_spiSetupBus(const radio_unit_t radio,
 }
 
 /**
- * SPI write which uses CTS presented on radio GPIO1.
- * Used when starting the radio up from shutdown state.
+ * @brief  SPI write which uses CTS presented on radio GPIO1.
+ * @note   Used when starting the radio up from shutdown state.
  * @pre The MCU GPIO pin connected to 446x GPIO1 must be configured as input.
+ *
+ * @param[in] radio  radio unit ID
+ * @param[in] txData pointer to data to write to SPI
+ * @param[in] len    length of the data
+ *
+ * @return  Status of the operation
+ * @retval  false on success
+ * @retval  true  on failure
  *
  * @notapi
  */
@@ -385,8 +412,8 @@ static bool Si446x_read(const radio_unit_t radio,
 
 /**
  * @brief Read fast response register data from Si446x.
- * @notes Takes an index from 0 - 3 for FRR A-D.
- * @notes Will read FRR in circular fashion to buffer if index wraps around.
+ * @note  Takes an index from 0 - 3 for FRR A-D.
+ * @note  Will read FRR in circular fashion to buffer if index wraps around.
  *
  * @param[in] radio     radio unit ID.
  * @param[in] index     index of FRR to start from (0..3 = A..D)
@@ -428,14 +455,15 @@ static bool Si446x_configureGPIO(const radio_unit_t radio,
                                  const si446x_gpio_t *gpio) {
 
   si446x_args_t gpio_pin_cfg_command[sizeof(si446x_gpio_t) + 1] = {
-      Si446x_GPIO_PIN_CFG_CMD   // Command type = GPIO settings
-  };
+      Si446x_GPIO_PIN_CFG_CMD};
 
   memcpy(&gpio_pin_cfg_command[1], gpio, sizeof(si446x_gpio_t));
   return Si446x_write(radio, gpio_pin_cfg_command, sizeof(gpio_pin_cfg_command));
 }
 
-/* TODO: Make set property a single func with size parameter. */
+/**
+ * TODO: Make set property a single func with size parameter.
+ */
 static bool Si446x_setProperty8(const radio_unit_t radio,
 		uint16_t reg, uint8_t val) {
   si446x_args_t msg[] = {Si446x_SET_PROPERTY_CMD,
@@ -489,7 +517,7 @@ static bool Si446x_setProperty32(const radio_unit_t radio,
  * In this function pending status of interrupts may be cleared or left intact.
  * When PENDING interrupts are cleared the reply stream reflects status prior to clearing.
  */
-bool Si446x_getInterruptStatus(const radio_unit_t radio,
+static bool Si446x_getInterruptStatus(const radio_unit_t radio,
                                si446x_reply_t *status, bool clear) {
   uint8_t status_cmd[] = {Si446x_GET_INT_STATUS_CMD, 0xFF, 0xFF, 0x7F};
   if (clear)
@@ -511,6 +539,8 @@ static bool Si446x_getModemStatus(const radio_unit_t radio,
 
 /**
  * @brief  Reads the current RSSI value from modem status.
+ *
+ * @api
  */
 radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio) {
   /* Get status and return RSSI value. */
@@ -521,16 +551,19 @@ radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio) {
 }
 
 /**
- *
+ * Get device state and channel optionally
  */
 static bool Si446x_requestDeviceState(const radio_unit_t radio,
-                                                si446x_state_t *s) {
+                                                si446x_state_t *s,
+                                                radio_ch_t *c) {
   const si446x_args_t state_info[] = {Si446x_REQUEST_DEVICE_STATE_CMD};
   si446x_reply_t rxData[Si446x_REQUEST_DEVICE_STATE_REPLY_SIZE];
   if (Si446x_read(radio, state_info, sizeof(state_info),
                   rxData, sizeof(rxData)))
       return true;
   *s = (si446x_state_t)(rxData[0] & 0xF);
+  if (c != NULL)
+    *c = (si446x_state_t)(rxData[1]);
   return false;
 }
 
@@ -601,7 +634,7 @@ static bool Si446x_startRXStateWaitCTS(const radio_unit_t radio,
 }
 
 /**
- * Set radio into standby state.
+ * @brief  Set radio into standby state.
  * Returns false on success, true on IO error.
  */
 static bool Si446x_setStandbyState(const radio_unit_t radio) {
@@ -611,7 +644,7 @@ static bool Si446x_setStandbyState(const radio_unit_t radio) {
 }
 
 /**
- * Get temperature of chip.
+ * @brief  Get temperature of chip.
  * Return false on success, true on IO failure.
  */
 static bool Si446x_getTemperature(const radio_unit_t radio) {
@@ -627,7 +660,7 @@ static bool Si446x_getTemperature(const radio_unit_t radio) {
 }
 
 /**
- * Clear interrupt status of chip.
+ * @brief  Clear interrupt status of chip.
  * Returns false on success, true on failure.
  */
 static bool Si446x_clearInterruptStatus(const radio_unit_t radio) {
@@ -637,10 +670,17 @@ static bool Si446x_clearInterruptStatus(const radio_unit_t radio) {
 }
 
 /**
- * Initializes Si446x transceiver chip.
+ * @brief  Put radio hardware in SDN.
+ */
+static void Si446x_powerDownRadio(const radio_unit_t radio) {
+  palSetLine(Si446x_getConfig(radio)->sdn);
+}
+
+/**
+ * @brief  Initializes Si446x transceiver chip.
  * Returns false on success, true on IO fail.
  */
-static bool Si446x_init(const radio_unit_t radio) {
+static bool Si446x_initDevice(const radio_unit_t radio) {
 
   TRACE_DEBUG("SI   > Initialize radio %d", radio);
 
@@ -701,7 +741,7 @@ static bool Si446x_init(const radio_unit_t radio) {
   /* Save the part information and ROM revision. */
   Si446x_getData(radio)->radio_part
                            = (part_info.info[1] << 8) + part_info.info[2];
-  Si446x_getData(radio)->radio_rom_rev = part_info.info[9];
+  Si446x_getData(radio)->radio_rom_rev = part_info.info[7];
   Si446x_getData(radio)->radio_patch = 0;
 
   handler->radio_part = (part_info.info[1] << 8) + part_info.info[2];
@@ -711,10 +751,11 @@ static bool Si446x_init(const radio_unit_t radio) {
    * Check if this radio requires a patch installed.
    * TODO: Probably should be in a table where ROM rev is specified...
    */
-  if (is_Si4463_patch_required(handler->radio_part, handler->radio_rom_rev)) {
+  if (is_Si4463_patch_required(Si446x_getData(radio)->radio_part,
+                               Si446x_getData(radio)->radio_rom_rev)) {
     /* Power cycle radio and apply patch. */
     TRACE_DEBUG("SI   > Restart radio %d to apply patch", radio);
-    Si446x_radioShutdown(radio);
+    Si446x_powerDownRadio(radio);
     chThdSleep(TIME_MS2I(10));
     if (Si446x_radioWakeUp(radio)) {
       TRACE_ERROR("SI   > Wake up of radio %d to load patch failed", radio);
@@ -803,7 +844,7 @@ static bool Si446x_init(const radio_unit_t radio) {
   /* Bit polarity and mapping. */
   error |= Si446x_setProperty8(radio, Si446x_MODEM_MAP_CONTROL, 0x00);
 
-  /* Delta Sigma modulation control for PLL synthesizer. */
+  /* Delta Sigma modulation control for PLL synthesiser. */
   error |= Si446x_setProperty8(radio, Si446x_MODEM_DSM_CTRL, 0x07);
 
   /* Ramp down after TX final symbol. */
@@ -812,7 +853,7 @@ static bool Si446x_init(const radio_unit_t radio) {
   /* PA ramp timing and modulation delay. */
   error |= Si446x_setProperty8(radio, Si446x_PA_TC, 0x3D);
 
-  /* Synthesizer PLL settings. */
+  /* Synthesiser PLL settings. */
 
   /* Antenna settings. */
   error |= Si446x_setProperty8(radio, Si446x_MODEM_ANT_DIV_MODE, 0x01);
@@ -842,23 +883,152 @@ static bool Si446x_init(const radio_unit_t radio) {
   handler->radio_init = true;
   return false;
 }
-#if 0
+
+#if Si446x_USE_INTERRUPTS
 /**
- * @brief Cancel interrupt events in radio.
- * @pre   Can only be called when an interrupt wait times out.
- * @notes MCU GPIO has been set for event and enabled.
- * @notes The radio interrupts to drive NIRQ have been enabled with
- *        INT_CTL_ENABLE and INT_CTL_XX_ENABLE commands for specific interrupts.
- *        This function will clear the INT_CTL_ENABLE register.
+ * @brief  Call back target of NIRQ GPIO event.
+ */
+static void Si446x_NIRQHandler(const radio_unit_t radio) {
+  /*
+   * @brief This simply wakes up the dispatcher thread.
+   * @note  The dispatcher handles the SPI transaction to get interrupt status.
+   * @note  The dispatcher then wakes up the suspended user thread.
+   *
+   * @notapi
+   */
+  chSysLockFromISR();
+#if Si446x_USE_SEMAPHORE_INTERRUPT_SYNC == TRUE
+  if (chBSemGetStateI(&Si446x_getData(radio)->wait_sem))
+    /* Only signal if there is a semaphore owner. */
+    chBSemSignalI(&Si446x_getData(radio)->wait_sem);
+#else
+  chThdResumeI(&Si446x_getData(radio)->irq_dispatch, MSG_OK);
+#endif
+  chSysUnlockFromISR();
+}
+
+/**
+ * @brief  Disable the GPIO assigned to the radio NIRQ.
+ */
+static void Si446x_disableNIRQEvent(const radio_unit_t radio) {
+  /* Disable event for NIRQ.*/
+  palDisableLineEvent(*Si446x_getConfig(radio)->xirq.nirq.line);
+  Si446x_getData(radio)->nirq_active = false;
+}
+
+/**
+ * @brief  Enable the GPIO assigned to the radio NIRQ and set event CB.
+ */
+static void Si446x_enableNIRQEvent(const radio_unit_t radio) {
+  /* If already enabled just exit. */
+  if (Si446x_getData(radio)->nirq_active == true)
+    return;
+  /* Configure MCU GPIO. */
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->xirq.nirq.line,
+                     Si446x_getConfig(radio)->xirq.nirq.mode);
+
+  /* Set callback for NIRQ from radio. */
+  palSetLineCallback(*Si446x_getConfig(radio)->xirq.nirq.line,
+                     (palcallback_t)Si446x_NIRQHandler, (void *)radio);
+
+  /* Enabling events on falling edge of NIRQ.*/
+  palEnableLineEvent(*Si446x_getConfig(radio)->xirq.nirq.line,
+                     PAL_EVENT_MODE_FALLING_EDGE);
+  /* Flag enable is done. */
+  Si446x_getData(radio)->nirq_active = true;
+}
+
+#if Si446x_USE_SEMAPHORE_INTERRUPT_SYNC == TRUE
+/**
+ * @brief   Set interrupt events to drive NIRQ in radio according to mask.
+ * @pre     The MCU GPIO assigned to NIRQ has to be set for event and enabled.
+ * @detail  For radio interrupts to drive NIRQ they need to be enabled with
+ *          INT_CTL_ENABLE and INT_CTL_XX_ENABLE commands in the 446x.
+ *          TODO: May need to use an array of interrupt bits and
+ *          just enable all three groups if interrupts out different registers
+ *          need to be drive NIRQ in the one call.
  *
  * @param[in] radio     radio unit ID
+ * @param[in] reg       the interrupt register number
+ *                      value is 0 (PH), 1 (MODEM) or 2 (CHIP)
+ * @param[in] mask      mask of system radio events
+ * @param[in] timeout   number of system ticks to wait
+ *
+ * @return  status message
+ * @retval  MSG_OK      interrupt enabled
+ * @retval  MSG_TIMEOUT timeout waiting to acquire interrupt system
+ * @retval  MSG_RESET   interrupt system semaphore has been reset
+ * @retval  MSG_ERROR   error in radio I/O
+ *
+ * @api
  */
-bool Si446x_cancelRadioInterrupt(const radio_unit_t radio) {
-  return Si446x_setProperty8(radio, Si446x_INT_CTL_ENABLE, 0);
+msg_t Si446x_setRadioInterruptMask(const radio_unit_t radio,
+                                   const si446x_args_t reg,
+                                   const si446x_args_t mask,
+                                   const sysinterval_t timeout) {
+  chDbgCheck(reg <= Si446x_INT_CTL_CHIP_REG_INDEX);
+  chDbgCheck(mask != 0);
+
+  /* Take the interrupt semaphore. */
+  msg_t msg = chBSemWaitTimeout(&Si446x_getData(radio)->wait_sem, timeout);
+  if (msg != MSG_OK)
+    return msg;
+
+  /* Interrupt system now exclusive. Clear interrupt status. */
+  if (Si446x_clearInterruptStatus(radio)) {
+    chBSemSignal(&Si446x_getData(radio)->wait_sem);
+    return MSG_ERROR;
+  }
+
+  /* Enable the interrupt(s). */
+  if (Si446x_setProperty8(radio, Si446x_INT_CTL_PH_ENABLE + reg, mask)) {
+    chBSemSignal(&Si446x_getData(radio)->wait_sem);
+    return MSG_ERROR;
+  }
+  if (Si446x_setProperty8(radio, Si446x_INT_CTL_ENABLE, 1 << reg)) {
+    chBSemSignal(&Si446x_getData(radio)->wait_sem);
+    return MSG_ERROR;
+  }
+  return msg;
 }
-#endif
+
 /**
- * @brief   Enable interrupt events in radio according to mask.
+ * @brief   Wait interrupt event in radio.
+ * @pre     The interrupt(s) of interest have been set.
+ *
+ * @param[in] radio     radio unit ID
+ * @param[in] timeout   number of system ticks to wait
+ *
+ * @return  status message
+ * @retval  MSG_OK      interrupt processed
+ * @retval  MSG_TIMEOUT timeout waiting for interrupt
+ * @retval  MSG_RESET   interrupt semaphore has been reset
+ * @retval  MSG_ERROR   radio IO error
+ *
+ * @api
+ */
+msg_t Si446x_waitRadioInterrupt(const radio_unit_t radio,
+                               const sysinterval_t timeout) {
+
+ /* Wait on the semaphore. NIRQ handler will signal. If not timeout. */
+  msg_t msg = chBSemWaitTimeout(&Si446x_getData(radio)->wait_sem, timeout);
+  if (msg == MSG_OK) {
+    /* Get status. Will wait if SPI is locked but otherwise should be fast.
+       The interrupt pending status is cleared. */
+    if (Si446x_getInterruptStatus(radio,
+                      (si446x_reply_t *)&Si446x_getData(radio)->int_status,
+                      true)) {
+      /* Radio SPI read error. */
+      msg = MSG_ERROR;
+    }
+    /* Release the waiting thread. */
+    chBSemSignal(&Si446x_getData(radio)->wait_sem);
+  }
+  return msg;
+}
+#else /* Si446x_USE_SEMAPHORE_INTERRUPT_SYNC != TRUE */
+/**
+ * @brief   Wait for interrupt events in radio according to mask.
  * @pre     The MCU GPIO assigned to NIRQ has to be set for event and enabled.
  * @detail  For radio interrupts to drive NIRQ they need to be enabled with
  *          INT_CTL_ENABLE and INT_CTL_XX_ENABLE commands in the 446x.
@@ -869,6 +1039,7 @@ bool Si446x_cancelRadioInterrupt(const radio_unit_t radio) {
  * @param[in] reg       the interrupt register number
  *                      value is 0 (PH), 1 (MODEM) or 2 (CHIP)
  * @param[in] mask      mask of system radio events
+ * @param[in] timeout   number of system ticks to wait
  *
  * @return  status message
  * @retval  MSG_OK      interrupt processed
@@ -886,53 +1057,16 @@ msg_t Si446x_waitRadioInterrupt(const radio_unit_t radio,
   chDbgCheck(mask != 0);
   (void)Si446x_setProperty8(radio, Si446x_INT_CTL_PH_ENABLE + reg, mask);
   (void)Si446x_setProperty8(radio, Si446x_INT_CTL_ENABLE, 1 << reg);
+
   /* Wait for the IRQ handler or OS timeout to wake us up. */
   chSysLock();
-  msg_t msg = chThdSuspendTimeoutS(&Si446x_getData(radio)->wait_thread, timeout);
+  msg_t imsg = chThdSuspendTimeoutS(&Si446x_getData(radio)->wait_thread, timeout);
   chSysUnlock();
-  if (msg == MSG_TIMEOUT)
+
+  if (imsg == MSG_TIMEOUT)
     /* If the interrupt wait period timed out disable interrupts. */
     (void)Si446x_setProperty8(radio, Si446x_INT_CTL_ENABLE, 0);
-    //(void)Si446x_cancelRadioInterrupt(radio);
-  return msg;
-}
-
-/**
- * Call back target of NIRQ GPIO event.
- */
-static void Si446x_NIRQHandler(const radio_unit_t radio) {
-  /*
-   * @brief This simply wakes up the dispatcher thread.
-   * @note  The dispatcher handles the SPI transaction to get interrupt status.
-   * @note  The dispatcher then wakes up the suspended user thread.
-   *
-   * @notapi
-   */
-  chSysLockFromISR();
-  chThdResumeI(&Si446x_getData(radio)->irq_dispatch, MSG_OK);
-  chSysUnlockFromISR();
-}
-
-/**
- * Disable the GPIO assigned to the radio NIRQ.
- */
-static void Si446x_disableNIRQEvent(const radio_unit_t radio) {
-  /* Disable event for NIRQ.*/
-  palDisableLineEvent(*Si446x_getConfig(radio)->xirq.nirq.line);
-}
-
-/**
- * Enable the GPIO assigned to the radio NIRQ.
- */
-static void Si446x_enableNIRQEvent(const radio_unit_t radio,
-                                        const palcallback_t cb) {
-  /* Set callback for NIRQ from radio. */
-  palSetLineCallback(*Si446x_getConfig(radio)->xirq.nirq.line,
-                                               cb, (void *)radio);
-
-  /* Enabling events on falling edge of NIRQ.*/
-  palEnableLineEvent(*Si446x_getConfig(radio)->xirq.nirq.line,
-                     PAL_EVENT_MODE_FALLING_EDGE);
+  return imsg;
 }
 
 /*
@@ -966,9 +1100,6 @@ static THD_FUNCTION(Si446x_interrupt_dispatcher, arg) {
     chMsgRelease(thd, MSG_ERROR);
     chThdExit(MSG_OK);
   }
-
-  /* Configure PAL event handler.  */
-  Si446x_enableNIRQEvent(radio, (palcallback_t)Si446x_NIRQHandler);
 
   /* Release the init process. */
   chMsgRelease(thd, MSG_OK);
@@ -1005,30 +1136,115 @@ static THD_FUNCTION(Si446x_interrupt_dispatcher, arg) {
       Si446x_getData(radio)->cb(imsg);
       Si446x_getData(radio)->cb = NULL;
     }
-
     /* Resume suspended thread if set. */
     chThdResumeS(&Si446x_getData(radio)->wait_thread, imsg);
     chSysUnlock();
   }
 }
+#endif /* Si446x_USE_SEMAPHORE_INTERRUPT_SYNC != TRUE */
+#endif /* Si446x_USE_INTERRUPTS */
 
 /**
- * Set a new radio state and wait for the change interrupt.
+ * @brief Wait for radio to enter state
+ *
+ * @param[in] radio     radio unit ID
+ * @param[in] state     radio state to be set
+ * @param[in] timeout   the number of ticks before the operation times out
+ *                      the following special values are allowed:
+ *                      - @a TIME_IMMEDIATE immediate timeout.
+ *                      - @a TIME_INFINITE no timeout.
+ *
+ * @return status of operation
+ * @retval MSG_OK       if state reached within timeout.
+ * @retval MSG_TIMEOUT  if state not reached within timeout.
+ * @retval MSG_ERROR    if IO error communicating with radio.
+ *
+ * @api
+ *
  */
-static msg_t Si446x_setStateWaitChange(const radio_unit_t radio,
-                                         si446x_state_t state) {
-  const si446x_args_t change_state_command[] = {Si446x_CHANGE_STATE_CMD,
-                                          state};
-  if (Si446x_write(radio, change_state_command, sizeof(change_state_command)))
-    return MSG_ERROR;
-  return Si446x_waitRadioInterrupt(radio,
-                                        Si446x_INT_CTL_CHIP_REG_INDEX,
-                                        Si446x_INT_CTL_CHIP_STATE_CHANGE_MASK,
-                                        TIME_MS2I(100));
+static msg_t Si446x_waitForState(const radio_unit_t radio,
+                                 si446x_state_t state,
+                                 sysinterval_t timeout) {
+  si446x_state_t s;
+  if (timeout == TIME_IMMEDIATE) {
+    if (Si446x_requestDeviceState(radio, &s, NULL))
+        return MSG_ERROR;
+    return s == state ? MSG_OK : MSG_TIMEOUT;
+  }
+  if (timeout == TIME_INFINITE) {
+    do {
+      chThdSleep(TIME_MS2I(10));
+      if (Si446x_requestDeviceState(radio, &s, NULL))
+        return MSG_ERROR;
+    } while (s != state);
+    return MSG_OK;
+  }
+
+  time_msecs_t ms = chTimeI2MS(timeout);
+  do {
+    chThdSleep(TIME_MS2I(1));
+    if (Si446x_requestDeviceState(radio, &s, NULL))
+      return MSG_ERROR;
+  } while (--ms != 0 && s != state);
+  return (ms == 0) ? MSG_TIMEOUT : MSG_OK;
 }
 
 /**
- * Intialize radio if it has been shutdown.
+ * @brief Set a new radio state and wait for radio to enter the state
+ *
+ * @param[in] radio     radio unit ID
+ * @param[in] state     radio state to be set
+ * @param[in] timeout   the number of ticks before the operation times out
+ *                      the following special values are allowed:
+ *                      - @a TIME_IMMEDIATE immediate timeout.
+ *                      - @a TIME_INFINITE no timeout.
+ *
+ * @return status of operation
+ * @retval MSG_OK       if state reached within timeout.
+ * @retval MSG_TIMEOUT  if state not reached within timeout.
+ * @retval MSG_ERROR    if IO error communicating with radio.
+ *
+ * @api
+ *
+ */
+static msg_t Si446x_setStateWaitChange(const radio_unit_t radio,
+                                         si446x_state_t state,
+                                         sysinterval_t timeout) {
+#if Si446x_USE_STATE_CHANGE_INTERRUPT == TRUE
+  /* Clear any interrupts. */
+  if (Si446x_clearInterruptStatus(radio))
+      return MSG_ERROR;
+#endif
+  const si446x_args_t change_state_command[] = {Si446x_CHANGE_STATE_CMD,
+                                          state};
+#if Si446x_USE_STATE_CHANGE_INTERRUPT == TRUE
+#if Si446x_USE_SEMAPHORE_INTERRUPT_SYNC == TRUE
+  msg_t msg = Si446x_setRadioInterruptMask(radio,
+                            Si446x_INT_CTL_CHIP_REG_INDEX,
+                            Si446x_INT_CTL_CHIP_STATE_CHANGE_MASK,
+                            TIME_MS2I(100));
+  if (msg != MSG_OK)
+    return msg;
+  if (Si446x_write(radio, change_state_command, sizeof(change_state_command)))
+    return MSG_ERROR;
+  return Si446x_waitRadioInterrupt(radio, timeout);
+#else
+  if (Si446x_write(radio, change_state_command, sizeof(change_state_command)))
+    return MSG_ERROR;
+  return Si446x_waitRadioInterrupt(radio,
+                                    Si446x_INT_CTL_CHIP_REG_INDEX,
+                                    Si446x_INT_CTL_CHIP_STATE_CHANGE_MASK,
+                                    timeout);
+#endif /* Si446x_USE_SEMAPHORE_INTERRUPT_SYNC */
+#else
+  if (Si446x_write(radio, change_state_command, sizeof(change_state_command)))
+    return MSG_ERROR;
+  return Si446x_waitForState(radio, state, timeout);
+#endif
+}
+
+/**
+ * Initialise radio if it has been shutdown.
  *
  * NOTE: RADIO_CS and RADIO_SDN pins are configured in board.h
  * RADIO_SDN is configured to open drain pullup.
@@ -1041,15 +1257,30 @@ static msg_t Si446x_setStateWaitChange(const radio_unit_t radio,
  * returns false on success, true on fail.
  *
  */
-bool Si446x_conditional_init(const radio_unit_t radio) {
+bool Si446x_driverInit(const radio_unit_t radio) {
   packet_svc_t *handler = pktGetServiceObject(radio);
+  /* If the radio was powered off then full initialise required. */
   if (!handler->radio_init) {
-    /* Intialize IRQ dispatcher thread. Shutdown terminates the dispatcher
-       thread if non NULL. */
-    Si446x_getData(radio)->irq_dispatch = NULL;
-    if (Si446x_init(radio))
+    /* Initialise 446x registers. */
+    if (Si446x_initDevice(radio)) {
+      return true;
+    }
+#if Si446x_USE_INTERRUPTS
+    Si446x_getData(radio)->nirq_active = false;
+    if (Si446x_clearInterruptStatus(radio))
+      return true;
+#if Si446x_USE_SEMAPHORE_INTERRUPT_SYNC == TRUE
+    /* Initialise the interrupt semaphore. */
+    chBSemObjectInit(&Si446x_getData(radio)->wait_sem, false);
+
+    /* Configure radio GPIOs for NIRQ dispatcher. */
+    if (Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->xirq).gpio))
       return true;
 
+    /* Configure PAL event handler and the interrupt semaphore.  */
+    Si446x_enableNIRQEvent(radio);
+
+#else
     /* The radio init is done. Now prepare the interrupt dispatcher. */
     thread_t *irq = chThdCreateFromHeap(NULL,
                              THD_WORKING_AREA_SIZE(SI_NIRQ_HANDLER_WA_SIZE),
@@ -1068,10 +1299,18 @@ bool Si446x_conditional_init(const radio_unit_t radio) {
       chThdWait(irq);
       return true;
     }
+#endif /* Si446x_USE_SEMAPHORE_INTERRUPT_SYNC */
+#endif /* Si446x_USE_INTERRUPTS */
   }
+#if Si446x_USE_INTERRUPTS
+  /* Conditionally enable the NIRQ event system. */
+  Si446x_enableNIRQEvent(radio);
+#endif
   /* Force the radio into ready state. This will terminate any other
      state that was active on the radio. */
-  return Si446x_setReadyState(radio);
+  bool status = Si446x_setReadyState(radio);
+  status |= (Si446x_waitForState(radio, Si446x_READY, TIME_MS2I(100)) != MSG_OK);
+  return status;
 }
 
 /*
@@ -1941,17 +2180,14 @@ static void Si446x_setModem2FSK_RX(const radio_unit_t radio,
 /**
  * Radio Settings
  */
+#if 0
 static uint8_t __attribute__((unused)) Si446x_getChannel(const radio_unit_t radio) {
   const uint8_t state_info[] = {Si446x_REQUEST_DEVICE_STATE_CMD};
   uint8_t rxData[4];
   (void)Si446x_read(radio, state_info, sizeof(state_info), rxData, sizeof(rxData));
   return rxData[1];
 }
-
-/*
- * Radio FIFO
- */
-
+#endif
 /**
  *
  */
@@ -1992,20 +2228,29 @@ static bool Si446x_setFIFOthresholdTX(const radio_unit_t radio,
  */
 bool Si446x_radioStandby(const radio_unit_t radio) {
   TRACE_DEBUG("SI   > Set radio %d to standby state", radio);
+#if Si446x_USE_INTERRUPTS
+  /* Disable the interrupt event system first. */
+  Si446x_disableNIRQEvent(radio);
+#endif
   return Si446x_setStandbyState(radio);
 }
 
 /**
- * The GPIO connected to radio SDN.
- * The GPIO is open drain output with pull-up at board initialization.
- * Thus the radio is in shutdown following board initialization.
- * Si446x GPIO1 is configured to output CTS (option 8) during POR.
- * Hence the MCU GPIO connected to radio GPIO1 can be used to check CTS.
+ * @brief  Wake up radio from shut down (powered off)
+ * @detail The GPIO connected to radio SDN is open drain output with
+ *         pull-up at board initialization. Thus the radio is in shutdown
+ *         following board initialization. Si446x GPIO1 by default
+ *         outputs CTS during POR. Hence the MCU GPIO connected
+ *         to radio GPIO1 can be used to check CTS. The radio GPIOs can
+ *         be reconfigured after radio init is complete.
  *
- * Radio init is performed in the radio manager thread init stage.
- * The radio GPIOs can be reconfigured after radio init is complete.
+ * @param[in] radio  radio unit ID
  *
- * Returns false on success, true on error.
+ * @return Status of operation
+ * @retval false on success
+ * @retval true  on failure
+ *
+ * @api
  */
 bool Si446x_radioWakeUp(const radio_unit_t radio) {
   TRACE_DEBUG("SI   > Wake up radio %i", radio);
@@ -2021,13 +2266,10 @@ bool Si446x_radioWakeUp(const radio_unit_t radio) {
   /* Assert SDN low to perform radio POR wakeup. */
   palClearLine(Si446x_getConfig(radio)->sdn);
 
-  /*
-   * Wait for transceiver to wake up.
-   * During start up the POR state is on radio GPIO0.
-   * GPIO0 goes from zero to one when POR completes.
-   * The specified maximum wake-up time is 6mS.
-   * The 50ms is a timeout to cover a fault condition.
-   */
+  /* Wait for transceiver to wake up. During start up the POR state is
+     on radio GPIO0. GPIO0 goes from zero to one when POR completes.
+     The specified maximum wake-up time is 6mS.
+     The 50ms is a timeout to cover a fault condition. */
   uint8_t timeout = 50;
   while (--timeout && !pktReadGPIOline(Si446x_getConfig(radio)->gpio0)) {
     chThdSleep(TIME_MS2I(1));
@@ -2042,42 +2284,51 @@ bool Si446x_radioWakeUp(const radio_unit_t radio) {
 }
 
 /**
- * The radio is shutdown by setting SDN high.
+ * @brief  The radio is shutdown by setting SDN high.
+ * @note   The radio loses all register settings.
  *
- * When radio is put in shutdown all registers are lost.
+ * @param[in] radio  radio unit ID
+ *
+ * @api
  */
 void Si446x_radioShutdown(const radio_unit_t radio) {
-  TRACE_DEBUG("SI   > Disable radio %i", radio);
+  TRACE_DEBUG("SI   > Shut down radio %i", radio);
   packet_svc_t *handler = pktGetServiceObject(radio);
-
-  palSetLine(Si446x_getConfig(radio)->sdn);
-  /* During init shutdown is called if a patch is to be applied. The
-   * IRQ dispatcher won't be started yet. */
+  Si446x_powerDownRadio(radio);
+#if Si446x_USE_INTERRUPTS
+#if Si446x_USE_SEMAPHORE_INTERRUPT_SYNC == TRUE
+  Si446x_disableNIRQEvent(radio);
+  /* Reset any waiting thread. */
+  chBSemReset(&Si446x_getData(radio)->wait_sem, false);
+#else
+  /* Terminate the dispatcher thread. */
   thread_reference_t trp = Si446x_getData(radio)->irq_dispatch;
   if (trp != NULL) {
     chThdResume(&trp, MSG_RESET);
     chThdWait(Si446x_getData(radio)->irq_dispatch);
   }
+#endif /* Si446x_USE_SEMAPHORE_INTERRUPT_SYNC */
+  Si446x_getData(radio)->nirq_active = false;
+#endif /* Si446x_USE_INTERRUPTS */
   handler->radio_init = false;
   chThdSleep(TIME_MS2I(50));
 }
 
-/*
- * Radio TX/RX
- */
-
-
 /**
  * @brief Used by TX to check CCA over a measurement interval.
- * @notes A maximum of 10 samples are taken in the measurement interval.
+ * @note  A maximum of 10 samples are taken in the measurement interval.
  *
- * @returns CCA count of samples taken over the measurement interval
- * @retval  Special time values are allowed in measurement period
- *          - TIME_INFINITE returns 0
- *          - TIME_IMMEDIATE returns results of one CCA measurement
- * @retval  Other measurement intervals will provide count of 1 - 10 samples
- *          This depends on system time resolution setting
+ * @param[in] radio     radio unit ID
+ * @param[in] mod       modulation type
+ * @param[in] interval  interval over which CCA will be measure
+ *                      Special time values are allowed in measurement interval
+ *                      - TIME_INFINITE returns 0
+ *                      - TIME_IMMEDIATE returns results of one CCA measurement
  *
+ * @return  CCA count of samples taken over the measurement interval
+ * @retval  count of 1 - 10 samples depending on system time resolution
+ *
+ * @api
  */
 static cnt_t Si446x_checkCCAthresholdForTX(const radio_unit_t radio,
                                            const radio_mod_t mod,
@@ -2127,40 +2378,6 @@ static cnt_t Si446x_checkCCAthresholdForTX(const radio_unit_t radio,
   return cca;
 }
 
-/*
- * Wait for radio to enter state
- * Return
- *  MSG_OK if state reached within timeout.
- *  MSG_TIMEOUT if state not reached within timeout.
- *  MSG_ERROR if read error from radio.
- */
-static msg_t Si446x_waitForState(const radio_unit_t radio,
-                                 si446x_state_t state,
-                                 sysinterval_t timeout) {
-  si446x_state_t s;
-  if (timeout == TIME_IMMEDIATE) {
-    if (Si446x_requestDeviceState(radio, &s))
-        return MSG_ERROR;
-    return s == state ? MSG_OK : MSG_TIMEOUT;
-  }
-  if (timeout == TIME_INFINITE) {
-    do {
-      chThdSleep(TIME_MS2I(10));
-      if (Si446x_requestDeviceState(radio, &s))
-        return MSG_ERROR;
-    } while (s != state);
-    return MSG_OK;
-  }
-
-  time_msecs_t ms = chTimeI2MS(timeout);
-  do {
-    chThdSleep(TIME_MS2I(1));
-    if (Si446x_requestDeviceState(radio, &s))
-      return MSG_ERROR;
-  } while (--ms != 0 && s != state);
-  return (ms == 0) ? MSG_TIMEOUT : MSG_OK;
-}
-
 #if Si446x_USE_PACKET_END_INTERRUPT == FALSE
 /*
  * Wait for radio to exit state
@@ -2205,8 +2422,24 @@ static msg_t Si446x_waitTransmitEnd(const radio_unit_t radio, sysinterval_t time
   return Si446x_waitForStateExit(radio, Si446x_TX, timeout);
 }
 #endif
+
 /**
- * Wait for a clear time slot and initiate packet transmission.
+ * @brief  Wait for a clear time slot and initiate packet transmission.
+ *
+ * @param[in]   freq
+ * @param[in]   step
+ * @param[in]   chan
+ * @param[in]   power
+ * @param[in]   mod
+ * @param[in]   size
+ * @param[in]   rssi
+ * @param[in]   cca_timeout
+ *
+ * @return  Status of operation
+ * @retval  true  operation completed successfully
+ * @retval  false an error occurred
+ *
+ * @api
  */
 static bool Si446x_transmitWithCCA(const radio_unit_t radio,
                             const radio_freq_hz_t freq,
@@ -2251,7 +2484,6 @@ static bool Si446x_transmitWithCCA(const radio_unit_t radio,
      *  - The radio is setup for CCA receive mode.
      *  - Set the RSSI threshold in the radio.
      *  - Put the radio into RX state.
-     *  - Allow time for AGC to engage.
      *  - Measure the CCA status.
      */
 
@@ -2278,14 +2510,13 @@ static bool Si446x_transmitWithCCA(const radio_unit_t radio,
     /*
      * Start the receiver.
      * The si446x will not set CTS until RX has started.
-     * We wait on the CTS before proceeding.
+     * So wait on the CTS before proceeding.
      */
-    if (Si446x_startRXStateWaitCTS(radio, chan))
+    if (Si446x_startRXStateWaitCTS(radio, chan)) {
+      TRACE_ERROR("SI   > %s timeout waiting for RX start on radio %d",
+                  getModulation(mod), radio);
       return false;
-
-    /* Allow some time for RX start and AGC to engage. */
-    //chThdSleep(TIME_MS2I(5));
-
+    }
 #define CCA_MEASURE_INTERVAL   TIME_MS2I(50)
 
     systime_t t0 = chVTGetSystemTime();
@@ -2294,30 +2525,22 @@ static bool Si446x_transmitWithCCA(const radio_unit_t radio,
     do {
       if (Si446x_checkCCAthresholdForTX(radio, mod, CCA_MEASURE_INTERVAL) == 0)
         break;
-       if (Si446x_requestDeviceState(radio, &s))
-         return false;
+      if (Si446x_requestDeviceState(radio, &s, NULL))
+        return false;
     } while (s == Si446x_RX
         && cca_timeout > (cca_time = chVTTimeElapsedSinceX(t0)));
 
     /* Clear channel timing. */
     TRACE_DEBUG( "SI   > CCA validated at %d milliseconds on radio %d",
                                          chTimeI2MS(cca_time), radio);
-#if 0
-    /* Set radio back to ready state. */
-    if (Si446x_setReadyState(radio))
-      return false;
 
-    /* Check for ready state. */
-    if (Si446x_waitForState(radio, Si446x_READY, TIME_MS2I(50)) == MSG_TIMEOUT) {
-      TRACE_ERROR("SI   > %s timeout waiting for ready state radio %d",
+    /* Take radio out of receive state now. */
+    msg_t msg = Si446x_setStateWaitChange(radio, Si446x_READY, TIME_MS2I(100));
+    if (msg != MSG_OK) {
+      TRACE_ERROR("SI   > %s error waiting for ready state radio %d",
                   getModulation(mod), radio);
       return false;
     }
-#else
-    msg_t msg = Si446x_setStateWaitChange(radio, Si446x_READY);
-    if (msg != MSG_OK)
-      return false;
-#endif
   } /* End if CCA. */
 
   /* Frequency is an absolute frequency in Hz. */
@@ -2349,8 +2572,7 @@ static bool Si446x_transmitWithCCA(const radio_unit_t radio,
     return false;
   } /* End switch on modulation. */
 
-  // Transmit
-  TRACE_INFO("SI   > Tune radio %d to %d.%03d MHz (TX)",
+  TRACE_INFO("SI   > Transmit with radio %d on %d.%03d MHz",
              radio, op_freq/1000000, (op_freq%1000000)/1000);
 
   /*
@@ -2380,10 +2602,20 @@ static bool Si446x_transmitWithCCA(const radio_unit_t radio,
 }
 
 /*
- * Start or restore reception.
+ * @brief Start or restore reception.
  *
- * return true if RX was enabled and/or resumed OK.
- * return false if RX was not enabled.
+ * @param[in] radio radio unit ID
+ * @param[in] rx_frequency
+ * @param[in] rx_step
+ * @param[in] rx_chan
+ * @param[in] rx_rssi
+ * @param[in] rx_mod
+ *
+ * @return  Status of operation
+ * @retval  true if RX was enabled and/or resumed OK.
+ * @retval  false if RX was not enabled.
+ *
+ * @api
  */
 bool Si4464_enableReceive(const radio_unit_t radio,
                           const radio_freq_hz_t rx_frequency,
@@ -2416,7 +2648,7 @@ bool Si4464_enableReceive(const radio_unit_t radio,
    *  It may have been powered down or in standby state.
    *  Returns true on success, false on fail.
    */
-  if (Si446x_conditional_init(radio)) {
+  if (Si446x_driverInit(radio)) {
     /* Radio did not initialise. */
     TRACE_ERROR("SI   > Radio %d failed to initialise when enabling RX", radio);
     return false;
@@ -2468,7 +2700,7 @@ bool Si4464_enableReceive(const radio_unit_t radio,
     return false;
   } /* End switch on mod type. */
 
-  TRACE_INFO("SI   > Tune radio %d to %d.%03d MHz (RX)",
+  TRACE_INFO("SI   > Receive with radio %d on %d.%03d MHz",
              radio, op_freq/1000000, (op_freq%1000000)/1000);
 
   /* Frequency must be an absolute frequency in Hz. */
@@ -2476,26 +2708,39 @@ bool Si4464_enableReceive(const radio_unit_t radio,
     return false;
 
   /* Set squelch level. */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_RSSI_THRESH, rx_rssi);
+  if (Si446x_setProperty8(radio, Si446x_MODEM_RSSI_THRESH, rx_rssi))
+      return false;
 
+#if 0
   /* Clear any pending interrupts. */
-  (void)Si446x_clearInterruptStatus(radio);
-
+  if (Si446x_clearInterruptStatus(radio))
+    return false;
+#endif
   /*
    * Start the receiver.
    * The si446x will not set CTS until RX has started.
-   * Thus any subsequent commands will wait on CTS.
+   * Thus any subsequent commands will wait on CTS in SPI handler.
    */
   return !Si446x_startRXState(radio, rx_chan);
 }
+
 #if Si446x_USE_COMMON_TX_THREAD == TRUE
 /**
+ * @brief  Initialise a link level packet handler
+ *
+ * @param[in] rto       pointer to a @p radioTask object
+ * @param[in] iterator  pointer to a @p txIterator object
+ * @param[in] sampler   pointer to a @p reSampler object
+ *
+ * @retval size of encoded data stream in bytes
+ *
+ * @api
  *
  */
 static uint16_t Si446x_prepareLinkLevelHandler(radio_task_object_t *rto,
                                        tx_iterator_t *iterator,
                                        re_sampler_t *sampler) {
-  //radio_unit_t radio = rto->handler->radio;
+
   radio_mod_t mod = rto->radio_dat.type;
   packet_t pp = rto->radio_dat.pkt.packet_out;
   switch (mod) {
@@ -2516,7 +2761,10 @@ static uint16_t Si446x_prepareLinkLevelHandler(radio_task_object_t *rto,
      * Tail length (HDLC zeros).
      * Scramble on for 2FSK.
      */
-    pktStreamIteratorInit(iterator, pp, 100, 10, 10, true);
+    pktStreamIteratorInit(iterator, pp->frame_data, pp->frame_len,
+                                          100, 10, 10, true);
+
+    /* For 2FSK the PH is 1:1 with the NRZI bit stream. */
     sampler->sample_rate = 1;
     break;
 
@@ -2530,7 +2778,8 @@ static uint16_t Si446x_prepareLinkLevelHandler(radio_task_object_t *rto,
      * Tail length (HDLC zeros).
      * Scramble off for AFSK.
      */
-    pktStreamIteratorInit(iterator, pp, 30, 10, 10, false);
+    pktStreamIteratorInit(iterator, pp->frame_data, pp->frame_len,
+                                          30, 10, 10, false);
     sampler->phase_delta = PHASE_DELTA_1200;
     sampler->mark_delta = PHASE_DELTA_1200;
     sampler->space_delta = PHASE_DELTA_2200;
@@ -2549,12 +2798,22 @@ static uint16_t Si446x_prepareLinkLevelHandler(radio_task_object_t *rto,
 }
 #endif /* Si446x_USE_COMMON_TX_THREAD */
 
-/*
- * The sampler takes NRZI data and produces the radio PH bit stream.
- * In the case of AFSK the PH is fed up-sampled NRZI data as a bit stream.
- * The transmitter bit rate is run at the decalred sample rate.
- * In the 446x the TX filter is set to shape the resultant up-sampled bit stream.
- * For 2FSK the sample rate is 1 so the data fed to the PH is 1:1 with NRZI.
+/**
+ * @brief  Takes NRZI data and produces the radio PH bit stream.
+ * @detail In the case of AFSK the PH is fed up-sampled NRZI data
+ *         as a bit stream.
+ *         The transmitter bit rate is run at the declared sample rate.
+ *         In the 446x the TX filter is set to shape the resultant
+ *         up-sampled bit stream.
+ *         For 2FSK the sample rate is 1 so the data fed to the
+ *         PH is 1:1 with NRZI.
+ *
+ * @param[in] sampler pointer to a re-sampler object
+ * @param[in] buf     pointer to the buffer to receive the re-sampled data
+ *
+ * @return byte value to be fed to the radio FIFO (packet handler)
+ *
+ * @api
  */
 static uint8_t Si446x_getPacketHandlerBits(re_sampler_t *sampler,
                                            uint8_t *buf) {
@@ -2643,6 +2902,8 @@ static void Si446x_transmitRelease(radio_task_object_t *rto, packet_t pp,
   /* Free packet object memory. */
   if (pp != NULL)
     pktReleaseBufferChain(pp);
+
+  /* Set the status in the RTO and dispatch it back to the RM. */
   radio_unit_t radio = rto->handler->radio;
   radio_mod_t mod = rto->radio_dat.type;
   rto->result = msg;
@@ -2677,13 +2938,23 @@ static void Si446x_transmitRelease(radio_task_object_t *rto, packet_t pp,
   /* We never arrive here. */
 }
 
-/*
- * Simple AFSK send thread with minimised buffering and burst send capability.
- * Uses an iterator to size NRZI output and allocate suitable size buffer.
+/**
+ * @brief  Common send thread.
+ * @detail Controls the entire transmission of a packet or linked sequence
+ *         of packets. Handles NRZI encoding and data whitening as required.
+ *         Also handles up-sampling for AFSK transmission to enable use of
+ *         the radio packet handler for sending. Handles various PHY
+ *         modulation settings within the radio.
+ *         Will perform Clear Channel Assessment to avoid transmitting
+ *         another station. Will also wait for an in progress receive before
+ *         testing CCA.
  *
+ * @param[in] pointer to a radio task object
+ *
+ * @special
  */
 #if Si446x_USE_COMMON_TX_THREAD == TRUE
-THD_FUNCTION(Si446x_transmit_handler, arg) {
+THD_FUNCTION(Si446x_packetTransmitHandler, arg) {
 #else
 THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 #endif
@@ -2724,8 +2995,8 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     chDbgAssert(false, "parameter error");
   }
 
-  /* Initialise the radio. It may be uninitialised or in standby. */
-  if (Si446x_conditional_init(radio)) {
+  /* Initialise the radio. It may be uninitialised (powered down) or in standby. */
+  if (Si446x_driverInit(radio)) {
     /* Radio did not initialise. */
 
     /* Unlock radio. */
@@ -2917,14 +3188,36 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 #endif
     /* Feed the FIFO while data remains to be sent. */
     while ((all - c) > 0) {
-
+#if Si446x_USE_FIFO_THRESHOLD_INTERRUPT == TRUE
       /* Enable TX FIFO interrupt and suspend thread waiting for
              interrupt. */
-      msg_t result = Si446x_waitRadioInterrupt(radio,
-                                               Si446x_INT_CTL_PH_REG_INDEX,
-                                               Si446x_INT_CTL_PH_TX_FIFO_THRESH_MASK,
-                                               TIME_S2I(SI446X_TX_FIFO_TIMEOUT));
+#if Si446x_USE_SEMAPHORE_INTERRUPT_SYNC == TRUE
+      msg_t msg = Si446x_setRadioInterruptMask(radio,
+                                       Si446x_INT_CTL_PH_REG_INDEX,
+                                       Si446x_INT_CTL_PH_TX_FIFO_THRESH_MASK,
+                                       TIME_S2I(SI446X_TX_FIFO_TIMEOUT));
+      if (msg != MSG_OK) {
+        /* Radio did not interrupt. Something failed or the radio
+           has been closed. */
 
+#if Si446x_USE_TRANSMIT_TIMEOUT == TRUE
+        chVTReset(&send_timer);
+#endif
+        /* Set radio to ready state and unlock. */
+        (void)Si446x_setReadyState(radio);
+        pktUnlockRadio(radio);
+
+        /* Abort this TX request. Chained packets are freed and not sent. */
+        Si446x_transmitRelease(rto, pp, msg, "FIFO interrupt set failed");
+        /* We never arrive here. */
+      }
+      msg_t result = Si446x_waitRadioInterrupt(radio, TIME_MS2I(100));
+#else
+      msg_t result = Si446x_waitRadioInterrupt(radio,
+                                     Si446x_INT_CTL_PH_REG_INDEX,
+                                     Si446x_INT_CTL_PH_TX_FIFO_THRESH_MASK,
+                                     TIME_S2I(SI446X_TX_FIFO_TIMEOUT));
+#endif /* Si446x_USE_SEMAPHORE_INTERRUPT_SYNC */
       if (result != MSG_OK) {
 
         /* Radio did not interrupt. Something failed or the radio
@@ -2941,8 +3234,12 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
         Si446x_transmitRelease(rto, pp, result, "FIFO interrupt timeout");
         /* We never arrive here. */
       }
-
-      /* Get current TX FIFO free count. */
+#else /* Si446x_USE_FIFO_THRESHOLD_INTERRUPT != TRUE */
+#if Si446x_USE_TRANSMIT_TIMEOUT == TRUE
+#else
+        chThdSleep(TIME_MS2I(1));
+#endif
+#endif /* Si446x_USE_FIFO_THRESHOLD_INTERRUPT == TRUE */
       uint8_t more;
       if (Si446x_getFIFOfreeTX(radio, 0x00, &more)) {
 
@@ -3009,14 +3306,40 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
 
 #if Si446x_USE_PACKET_END_INTERRUPT == TRUE
     /* Enable TX FIFO interrupt and suspend thread waiting for interrupt. */
+#if Si446x_USE_SEMAPHORE_INTERRUPT_SYNC == TRUE
+    msg_t msg = Si446x_setRadioInterruptMask(radio,
+                                         Si446x_INT_CTL_PH_REG_INDEX,
+                                         Si446x_INT_CTL_PH_PACKET_SENT_MASK,
+                                         TIME_S2I(SI446X_TX_FIFO_TIMEOUT));
+    if (msg != MSG_OK) {
+
+      /* Setting radio interrupt failed. Timeout or the radio
+         has been closed. */
+
+#if Si446x_USE_TRANSMIT_TIMEOUT == TRUE
+      chVTReset(&send_timer);
+#endif
+      /* Set radio to ready state and unlock. */
+      (void)Si446x_setReadyState(radio);
+      pktUnlockRadio(radio);
+
+      /* Abort this TX request. Chained packets are freed and not sent. */
+      Si446x_transmitRelease(rto, pp, msg, "FIFO interrupt set failed");
+      /* We never arrive here. */
+    }
+    msg_t result = Si446x_waitRadioInterrupt(radio, TIME_MS2I(100));
+#else
     msg_t result = Si446x_waitRadioInterrupt(radio,
                                              Si446x_INT_CTL_PH_REG_INDEX,
                                              Si446x_INT_CTL_PH_PACKET_SENT_MASK,
                                              TIME_S2I(SI446X_TX_FIFO_TIMEOUT));
-
+#endif
     if (result != MSG_OK) {
       /* Radio did not interrupt. */
 
+#if Si446x_USE_TRANSMIT_TIMEOUT == TRUE
+      chVTReset(&send_timer);
+#endif
       /* Set radio ready to clear it. */
       (void)Si446x_setReadyState(radio);
 
@@ -3073,7 +3396,7 @@ bool Si446x_blocSendAFSK(radio_task_object_t *const rt) {
                 "tx_afsk_queued",
                 NORMALPRIO - 10,
 #if Si446x_USE_COMMON_TX_THREAD == TRUE
-                Si446x_transmit_handler,
+                Si446x_packetTransmitHandler,
 #else
                 bloc_si_fifo_feeder_afsk,
 #endif
@@ -3134,7 +3457,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   }
 
   /* Initialise the radio. It may be uninitialised, in standby or in receive. */
-  if (Si446x_conditional_init(radio)) {
+  if (Si446x_driverInit(radio)) {
     /* Radio did not initialise. */
     TRACE_ERROR("SI   > Radio %d failed to initialise for %s TX", radio,
                 getModulation(rto->radio_dat.type));
@@ -3480,7 +3803,7 @@ bool Si446x_blocSend2FSK(radio_task_object_t *const rt) {
               "tx_2fsk_queued",
               NORMALPRIO - 10,
 #if Si446x_USE_COMMON_TX_THREAD == TRUE
-              Si446x_transmit_handler,
+              Si446x_packetTransmitHandler,
 #else
               bloc_si_fifo_feeder_fsk,
 #endif
@@ -3527,15 +3850,7 @@ ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
    * This input can be read independently to live check CCA (RSSI > threshold).
    * The use case would be for checking CCA prior to transmit.
    *
-   * For receive:
-   * 1. The MCU GPIO can be enabled to interrupt on CCA.
-   * OR
-   * 2. The radio NIRQ can be used to interrupt on RSSI > threshold.
-   *
-   * Currently the AFSK code uses case 1.
-   * The GPIO interrupt is set up in Si446x_enablePWMevents().
-   *
-   * The interrupt system for case 2 is WIP.
+   * For AFSK receive the MCU GPIO is enabled to interrupt on CCA.
    *
    */
   pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.cca.line,
@@ -3573,8 +3888,12 @@ void Si446x_detachPWM(const radio_unit_t radio) {
  * trailing edge event handler.
  * This is partially due to the fact that the 446x does not have a "lost RSSI"
  * interrupt. So in AFSK mode the loss of RSSI has to be detected by a
- * normal PAL trailing edge event in any case. Using NIRQ would actually just
+ * normal PAL trailing edge event in any case. Using NIRQ would actually
  * add complexity.
+ *
+ * The mod parameter is not used at the moment since the only modulation
+ * requiring the PWM/DSP chain is AFSK. FSK (if implemented) would not use
+ * a PWM handler and would be processed in the 446x PH.
  */
 void Si446x_enablePWMevents(const radio_unit_t radio, const radio_mod_t mod,
                             const palcallback_t cb) {
@@ -3623,11 +3942,18 @@ uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio, const radio_mod_t mod)
   case MOD_NONE:
     break;
   }
-  return 0;
+  return PAL_LOW;
 }
 
 /**
- * return true if clock change was applied else false.
+ * @brief Conditionally update XO frequency of radio
+ *
+ * @param[in] radio Radio unit ID
+ * @param[in] freq  XO frequency
+ *
+ * @return Status of update
+ * @retval true if clock change was applied
+ * @retval false if the clock update was not applied
  */
 bool Si446x_updateClock(const radio_unit_t radio, const xtal_osc_t freq) {
   if (freq == 0)
@@ -3635,7 +3961,13 @@ bool Si446x_updateClock(const radio_unit_t radio, const xtal_osc_t freq) {
   radio_clock_t xo = Si446x_getData(radio)->radio_clock;
   if ((radio_clock_t)freq != xo) {
     Si446x_getData(radio)->radio_clock = (radio_clock_t)freq;
+    /* TODO: The radio is locked when this gets called. If the radio is in
+     * AFSK receive then it could be forced to use the new TCXO by stopping
+     * RX and then re-issuing the RX_START command.
+     */
     return true;
   }
   return false;
 }
+
+/** @} */

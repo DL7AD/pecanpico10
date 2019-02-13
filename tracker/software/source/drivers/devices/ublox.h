@@ -62,6 +62,7 @@ typedef enum {
 
 #define isGPSLocked(pos) ((pos)->type == 3 && (pos)->num_svs >= 4 && (pos)->fixOK == true)
 
+/* UBLOX reply messages. */
 typedef struct {
   uint8_t       chn;            // Channel number
   uint8_t       svid;           // Satellite ID
@@ -71,7 +72,7 @@ typedef struct {
   int8_t        elev;           // Elevation in integer degrees
   int16_t       azim;           // Azimuth in integer degrees
   int32_t       prRes;          // Pseudo range residual in centimetres
-} gps_svchn_t;
+} __attribute__((packed)) gps_svchn_t;
 
 typedef struct {
 	uint32_t    iTOW;		    // Time ms
@@ -79,8 +80,7 @@ typedef struct {
 	uint8_t     globalFlags;    // chip hardware generation
 	uint16_t    reserved2;      // reserved
 	gps_svchn_t svinfo[GPS_MAX_SV_CHANNELS];
-} gps_svinfo_t;
-
+} __attribute__((packed)) gps_svinfo_t;
 
 typedef struct {
     uint32_t    iTOW;           // Time ms
@@ -90,7 +90,7 @@ typedef struct {
     uint8_t     flags2;         // further navigation information
     uint32_t    ttff;           // time to first fix
     uint32_t    msss;           // milliseconds since startup
-} gps_navinfo_t;
+} __attribute__((packed)) gps_navinfo_t;
 
 typedef uint8_t tpidx_t;
 
@@ -106,15 +106,16 @@ typedef struct {
     uint32_t    pulseLenRatioLock;  // Pulse length or duty cycle when locked
     int32_t     userConfigDelay;    // User configurable time pulse delay
     uint32_t    flags;              // Configuration flags
-} gps_tp5_t;
+} __attribute__((packed)) gps_tp5_t;
 
+/* Combination object (not a UBLOX reply). */
 typedef struct {
     ptime_t time;       // Time
     uint8_t type;       // type of fix (validity)
     uint8_t num_svs;    // number of satellites used for solution, range 0 .. 19
     int32_t lat;        // latitude in deg * 10^7, range -90 .. +90 * 10^7
     int32_t lon;        // longitude in deg * 10^7, range -180 .. +180 * 10^7
-    int32_t alt;        // altitude in m, range 0m, up to ~40000m, clamped
+    int32_t alt;        // altitude in m, range 0m, up to 50000m, clamped
     bool    fixOK;      // Flag that is set to true, when DOP is with the limits
     uint16_t pdop;      // Position DOP
     uint8_t  model;     // Dynamic model

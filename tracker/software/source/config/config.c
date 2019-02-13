@@ -39,10 +39,13 @@ const conf_t conf_flash_default = {
     .pos_sec = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(30), // Beacon interval
+            .cycle = TIME_S2I(60), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
         },
+        /* Altitude controlled settings. */
+        .run_alt = 100,
+        /* Radio configuration. */
         .radio_conf = {
             .pwr = 0x1F,
             .freq = 144800000,

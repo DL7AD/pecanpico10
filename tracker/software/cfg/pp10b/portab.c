@@ -70,7 +70,7 @@ const si446x_mcucfg_t radio1_cfg = {
      },
        .nirq = {
          .line = &radio1_cfg.nirq,
-         .mode = (PAL_MODE_INPUT_PULLUP)
+         .mode = PAL_MODE_INPUT_PULLUP
        },
   },
   .rcca    = {            /**< CCA carrier sense radio GPIO settings. */

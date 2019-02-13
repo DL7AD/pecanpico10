@@ -181,7 +181,7 @@ THD_FUNCTION(tcxo_thd, arg) {
                                            &result,
                                            NULL);
           if (msg != MSG_OK) {
-            TRACE_ERROR("TCXO > Could not post TCXO update to radio %d",
+            TRACE_ERROR("TCXO > Could not queue TCXO update for radio %d",
                         radio);
           }
           if (result != MSG_OK) {

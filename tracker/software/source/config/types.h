@@ -121,7 +121,6 @@ typedef struct {
 typedef struct {
   bool              active;
   sysinterval_t     init_delay;
-  //sysinterval_t     send_spacing;
   sleep_conf_t      sleep_conf;
   sysinterval_t     cycle;              // Cycle time (0: continuously)
   sysinterval_t     duration;
@@ -131,10 +130,10 @@ typedef struct {
   gps_coord_t       lat;
   gps_coord_t       lon;
   gps_alt_t         alt;
-} telem_svc_conf_t; // Thread
+} bcn_svc_conf_t; // Thread
 
 typedef struct {
-  telem_svc_conf_t  beacon;
+  bcn_svc_conf_t    beacon;
   radio_tx_conf_t   radio_conf;
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
@@ -142,6 +141,10 @@ typedef struct {
   aprs_sym_t        symbol;
   bool              aprs_msg;
   bool              run_once;
+  int32_t           arm_alt;
+  int32_t           run_alt;
+  ioline_t          arm_line;
+  ioline_t          run_line;
   sysinterval_t     gps_wait;
 } bcn_app_conf_t;
 

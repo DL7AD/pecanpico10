@@ -220,6 +220,7 @@ bool pktServiceCreate(const radio_unit_t radio) {
    */
   chEvtObjectInit(pktGetEventSource(handler));
 
+  /* Reset the radio parameters. */
   memset(&handler->radio_rx_config, 0, sizeof(radio_task_object_t));
   memset(&handler->radio_tx_config, 0, sizeof(radio_task_object_t));
 
@@ -407,7 +408,7 @@ msg_t pktOpenReceiveService(const radio_unit_t radio,
    */
   case PACKET_RX_ENABLED:
   case PACKET_RX_CLOSE:
-  case PACKET_RX_INVALID:
+  case PACKET_RX_ERROR:
 
     break;
   } /* End switch. */
