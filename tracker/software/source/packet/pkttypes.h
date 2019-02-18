@@ -16,8 +16,8 @@
  * @{
  */
 
-#ifndef PKT_PKTTYPES_H_
-#define PKT_PKTTYPES_H_
+#ifndef PKTTYPES_H
+#define PKTTYPES_H
 
 /**
  * @brief Radio operating parameters.
@@ -82,13 +82,17 @@ typedef struct radioBand {
   radio_chan_hz_t   step;
 } radio_band_t;
 
+/**
+ * Structure describing a radio configuration.
+ * Used in portab.c
+ */
 typedef struct radioConfig {
   radio_unit_t      unit;
   radio_type_t      type;
   packet_svc_t      *pkt;
   AFSKDemodDriver   *afsk;
-  void              *cfg;
-  void              *dat;           /**< TODO: Make this struct a common minimum of radio data. */
+  void              *cfg;           /**< Pointer to MCU configuration. */
+  void              *dat;           /**< TODO: pointer to radio data. Make a common subset. */
   radio_freq_hz_t   def_aprs;       /**< A frequency in one of the bands. */
   radio_band_t      **bands;
   indicator_io_t    *ind_set;
@@ -117,4 +121,7 @@ typedef uint32_t statusflags_t;
  */
 typedef void (*radio_isr_cb_t)(uint8_t radio_events);
 
-#endif /* PKT_PKTTYPES_H_ */
+/* Bit array handling. */
+#include "bit_array.h"
+
+#endif /* PKTTYPES_H */

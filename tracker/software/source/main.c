@@ -17,7 +17,7 @@ int main(void) {
      * - Most DSP related data is held in CCM SRAM2 alias.
      * - When using fixed point DSP the use of CCM may improve performance.
      * - No DMA is involved in DSP data so CCM is viable to use.
-     * - The exceptions stack is also located in CCM (see STM32F413xH.ld)
+     * - The exceptions stack is also located in CCM (see STM32F413xH.ld in cfg folder)
      * Configure core IO/bus devices
      * Setup the debug output (UART, USB)
      * Configure radios.

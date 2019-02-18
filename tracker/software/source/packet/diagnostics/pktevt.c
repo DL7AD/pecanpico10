@@ -66,7 +66,7 @@ eventmask_t evt = chEvtGetAndClearEvents(
       TRACE_DEBUG("PKT  > CCA spike on receive");
     }
     if(flags & EVT_PWM_ICU_LIMIT) {
-      TRACE_DEBUG("PKT  > ICU exceeded PWM stream width limit in open frame");
+      TRACE_DEBUG("PKT  > ICU count exceeded PWM stream count limit in open frame");
     }
 #if 0
     if(flags & EVT_RADIO_CCA_GLITCH) {

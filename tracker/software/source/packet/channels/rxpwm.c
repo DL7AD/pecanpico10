@@ -535,6 +535,8 @@ void pktEnableRadioStreamProcessing(const radio_unit_t radio) {
       return;
     } /* End case PKT_PWM_WAITING or PKT_PWM_ACTIVE. */
     } /* End switch on ICU state. */
+    /* Keep GCC 8 happy. */
+    return;
   } /* End case MOD_AFSK. */
 
   case MOD_NONE:
@@ -664,8 +666,9 @@ void pktDisableRadioStreamProcessing(const radio_unit_t radio) {
       pktLLDradioStandby(radio);
       return;
     } /* End case PKT_PWM_READY. */
-
     } /* End switch on ICU state. */
+    /* Keep GCC 8 happy. */
+    return;
   } /* End case AFSK. */
 
   case MOD_NONE:
@@ -690,7 +693,7 @@ void pktDisableRadioStreamProcessing(const radio_unit_t radio) {
 }
 
 /**
- * @brief   Wait for PWM receive inactive.
+ * @brief   Wait for PWM stream inactive.
  * @pre     The radio must be locked before calling this function.
  * @notes   Will wait a timeout for any PWM stream currently open.
  *
@@ -701,9 +704,9 @@ void pktDisableRadioStreamProcessing(const radio_unit_t radio) {
  *                      - @a TIME_INFINITE no timeout.
  *
  * @return  status of request
- * @retval  MSG_OK          stream is not active.
+ * @retval  MSG_OK          stream is not open.
  * @retval  MSG_TIMEOUT     stream closed during allowed timeout.
- * @retval  MSG_RESET       stream was stopped as it did not cease within t/o.
+ * @retval  MSG_RESET       timeout waiting for stream close.
  *
  * @api
  */
@@ -978,7 +981,7 @@ static void pktRadioRSSIreadCB(radio_task_object_t *rt) {
 /**
  * @brief   Converts ICU data and posts to the PWM queue.
  * @pre     The ICU driver is linked to a demod driver (pointer to driver).
- * @details Byte values of packed PWM data are written into an input queue.
+ * @detail  Byte values of packed PWM data are written into an input queue.
  *
  * @param[in] myICU      pointer to the ICU driver structure
  *
@@ -1013,7 +1016,7 @@ static msg_t pktICUQueueAsPWMDataI(ICUDriver *myICU) {
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
  *
- * @api
+ * @special
  */
 void pktRadioICUWidth(ICUDriver *myICU) {
   AFSKDemodDriver *myDemod = myICU->link;
@@ -1116,7 +1119,7 @@ void pktRadioICUWidth(ICUDriver *myICU) {
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
  *
- * @api
+ * @special
  */
 void pktRadioICUPeriod(ICUDriver *myICU) {
   /* ICU data structure is extended with...
@@ -1253,12 +1256,9 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
       chSysUnlockFromISR();
       return;
     } /* End pwm_object != NULL. */
-    /* No next PWM stream buffer object available. */
-    /*
-     * No Next PWM stream buffer available.
-     * Queue has space for one entry only.
-     * Close channel and write in-band message indicating queue full.
-     */
+
+    /* No Next PWM stream buffer available. Queue has space for one entry only.
+       Close channel and write in-band message indicating queue full. */
     radio_unit_t radio = myDemod->packet_handler->radio;
 
     pktLLDradioUpdateIndicator(radio, PKT_INDICATOR_OVERFLOW, PAL_HIGH);
@@ -1305,7 +1305,7 @@ void pktRadioICUPeriod(ICUDriver *myICU) {
  *
  * @param[in]   myICU   pointer to a @p ICUDriver structure
  *
- * @api
+ * @special
  */
 void pktRadioICUOverflow(ICUDriver *myICU) {
 #if PKT_CATCH_ICU_OVERFLOW != TRUE

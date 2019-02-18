@@ -381,23 +381,14 @@ void pktWrite(uint8_t *buf, uint32_t len) {
 }
 
 void pktConfigureCoreIO(void) {
-  /* TODO: Put ALT mode selections in definitions. */
-  /* Setup SPI3. */
-  palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6)
-                 | PAL_STM32_OSPEED_HIGHEST);     // SCK
-  palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6)
-                 | PAL_STM32_OSPEED_HIGHEST);    // MISO
-  palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6)
-                 | PAL_STM32_OSPEED_HIGHEST);    // MOSI
+  /* Setup main SPI. */
+  palSetLineMode(LINE_SPI_SCK, LINE_SPI_SCK_MODE);
+  palSetLineMode(LINE_SPI_MISO, LINE_SPI_MISO_MODE);
+  palSetLineMode(LINE_SPI_MOSI, LINE_SPI_MOSI_MODE);
 
-  /* Setup I2C1. */
-  palSetLineMode(LINE_I2C_SDA, PAL_MODE_ALTERNATE(4)
-                 | PAL_STM32_OSPEED_HIGHEST
-                 | PAL_STM32_OTYPE_OPENDRAIN); // SDA
-  palSetLineMode(LINE_I2C_SCL, PAL_MODE_ALTERNATE(4)
-                 | PAL_STM32_OSPEED_HIGHEST
-                 | PAL_STM32_OTYPE_OPENDRAIN); // SCL
-
+  /* Setup main I2C. */
+  palSetLineMode(LINE_I2C_SDA, LINE_I2C_SDA_MODE);
+  palSetLineMode(LINE_I2C_SCL, LINE_I2C_SCL_MODE);
 }
 
 /** @} */

@@ -8,8 +8,8 @@
  * @{
  */
 
-#ifndef __si446x__H__
-#define __si446x__H__
+#ifndef SI446x_H
+#define SI446x_H
 
 /*===========================================================================*/
 /* Driver pre-compile time settings.                                         */
@@ -44,7 +44,7 @@
 #define SI446X_TX_FIFO_TIMEOUT                  5
 /*
  * Si446x commands.
- * The reply size is reply data only.
+ * The reply size is reply data only (w/o CTS).
  */
 #define Si446x_NOP_CMD                          0x00
 #define Si446x_NOP_REPLY_SIZE                   0
@@ -60,6 +60,10 @@
 #define Si446x_GPIO_PIN_CFG_REPLY_SIZE          7
 #define Si446x_GET_ADC_READING_CMD              0x14
 #define Si446x_GET_ADC_READING_REPLY_SIZE       6
+#define Si446x_GET_ADC_READING_TEMP_MASK        0x10
+#define Si446x_GET_ADC_READING_BATT_MASK        0x08
+#define Si446x_GET_ADC_READING_TEMP_OFFSET      0x04
+#define Si446x_GET_ADC_READING_BATT_OFFSET      0x02
 #define Si446x_FIFO_INFO_CMD                    0x15
 #define Si446x_FIFO_INFO_REPLY_SIZE             2
 #define Si446x_PACKET_INFO_CMD                  0x16
@@ -306,7 +310,7 @@ typedef enum {
 
 /* SPI byte stream arguments and replies. */
 typedef uint8_t si446x_reply_t;
-typedef uint8_t si446x_args_t;
+typedef uint8_t si446x_arg_t;
 
 /* AFSK encoder/up-sampler control object. */
 typedef struct reSampler {
@@ -338,75 +342,75 @@ typedef struct iolineRef {
 
 /* Configuration of GPIO for a radio. */
 typedef struct Si446x_GPIO {
-    uint8_t     gpio0;
-    uint8_t     gpio1;
-    uint8_t     gpio2;
-    uint8_t     gpio3;
-    uint8_t     nirq;
-    uint8_t     sdo;
-    uint8_t     cfg;
-} si446x_gpio_t;
+  si446x_arg_t        gpio0;
+  si446x_arg_t        gpio1;
+  si446x_arg_t        gpio2;
+  si446x_arg_t        gpio3;
+  si446x_arg_t        nirq;
+  si446x_arg_t        sdo;
+  si446x_arg_t        cfg;
+} __attribute__((packed)) si446x_gpio_t;
 
 /* MCU IO configuration for a specific radio. */
 typedef struct Si446x_MCUCFG {
   /* IO line connections from radio GPIO to MCU GPIO. */
-	const ioline_t	    gpio0;
-	const ioline_t      gpio1;
-	const ioline_t      gpio2;
-	const ioline_t      gpio3;
-	const ioline_t      nirq;
-	const ioline_t	    sdn;
-	const ioline_t	    cs;
-	/* SPI bus this radio is connected to. */
-	SPIDriver	        *spi;
-	/* Radio GPIO setting after init. */
-    struct {
-      si446x_gpio_t     gpio;
-    } init;
-    /* Configuration of global IRQ dispatcher. */
-    struct {
-      si446x_gpio_t     gpio;   /**< Radio GPIO config for IRQ mode. */
-      ioline_ref_t      nirq;
-    } xirq;
-    /* CCA detection only. */
-    struct {
-      si446x_gpio_t     gpio;
-      ioline_ref_t      cca;
-    } rcca;
-    /* AFSK receive settings. */
-	struct {
-      si446x_gpio_t     gpio;   /**< Radio GPIO config for this mode. */
-	  ioline_ref_t      pwm;    /**< PWM (RAW_RX) from radio to MCU GPIO. */
-	  ioline_ref_t      cca;    /**< CCA (CCA) from radio to MCU GPIO. */
-	  ICUDriver         *icu;   /**< ICU (TIM) for capturing radio PWM. */
-	  ICUConfig         cfg;
-	} rafsk;
-	/* AFSK transmit settings. */
-	struct {
-	  si446x_gpio_t     gpio;
-      ioline_ref_t      cca;
-	} tafsk;
-	/* 2FSK receive settings. */
-    struct {
-      si446x_gpio_t     gpio;
-      ioline_ref_t      cca;    /**< CCA (CCA) from radio to MCU GPIO. */
-    } r2fsk;
-    /* 2FSK transmit settings. */
-    struct {
-      si446x_gpio_t     gpio;
-      ioline_ref_t      cca;
-    } t2fsk;
+  const ioline_t	  gpio0;
+  const ioline_t      gpio1;
+  const ioline_t      gpio2;
+  const ioline_t      gpio3;
+  const ioline_t      nirq;
+  const ioline_t	  sdn;
+  const ioline_t	  cs;
+  /* SPI bus this radio is connected to. */
+  SPIDriver*	      spi;
+  /* Radio GPIO setting after init. */
+  struct {
+    si446x_gpio_t     gpio;
+  } init;
+  /* Configuration of global IRQ dispatcher. */
+  struct {
+    si446x_gpio_t     gpio;   /**< Radio GPIO config for IRQ mode. */
+    ioline_ref_t      nirq;
+  } xirq;
+  /* CCA detection only. */
+  struct {
+    si446x_gpio_t     gpio;
+    ioline_ref_t      cca;
+  } rcca;
+  /* AFSK receive settings. */
+  struct {
+    si446x_gpio_t     gpio;   /**< Radio GPIO config for this mode. */
+    ioline_ref_t      pwm;    /**< PWM (RAW_RX) from radio to MCU GPIO. */
+    ioline_ref_t      cca;    /**< CCA (CCA) from radio to MCU GPIO. */
+    ICUDriver*        icu;    /**< ICU (TIM) for capturing radio PWM. */
+    ICUConfig         cfg;
+  } rafsk;
+  /* AFSK transmit settings. */
+  struct {
+    si446x_gpio_t     gpio;
+    ioline_ref_t      cca;
+  } tafsk;
+  /* 2FSK receive settings. */
+  struct {
+    si446x_gpio_t     gpio;
+    ioline_ref_t      cca;    /**< CCA (CCA) from radio to MCU GPIO. */
+  } r2fsk;
+  /* 2FSK transmit settings. */
+  struct {
+    si446x_gpio_t     gpio;
+    ioline_ref_t      cca;
+  } t2fsk;
 } si446x_mcucfg_t;
 
 /* Si446x part info. */
 typedef struct {
   si446x_reply_t   info[Si446x_GET_PART_INFO_REPLY_SIZE];
-} si446x_part_t;
+} __attribute__((packed)) si446x_part_t;
 
 /* Si446x func info. */
 typedef struct {
   si446x_reply_t   info[Si446x_GET_FUNC_INFO_REPLY_SIZE];
-} si446x_func_t;
+} __attribute__((packed)) si446x_func_t;
 
 /* Si446x full interrupt status. */
 typedef struct {
@@ -465,18 +469,8 @@ extern "C" {
                             radio_ch_t rx_chan,
                             radio_squelch_t rx_rssi,
                             radio_mod_t rx_mod);
-#if 0
-  bool Si446x_receiveActivate(const radio_unit_t radio,
-                            radio_freq_hz_t rx_frequency,
-                            radio_chan_hz_t rx_step,
-                            radio_ch_t chan,
-                            radio_squelch_t rssi,
-                            radio_mod_t mod);
-#endif
   void Si446x_lockRadio(const radio_mode_t mode);
   void Si446x_unlockRadio(const radio_mode_t mode);
-  //void Si446x_lockRadioByCamera(void);
-  //void Si446x_unlockRadioByCamera(void);
   bool Si446x_driverInit(radio_unit_t radio);
   radio_signal_t Si446x_getCurrentRSSI(const radio_unit_t radio);
   ICUDriver *Si446x_attachPWM(const radio_unit_t radio);
@@ -500,6 +494,6 @@ static inline void Si446x_releaseSendObject(packet_t pp) {
   pktReleaseCommonPacketBuffer(pp);
 }
 
-#endif /* __si446x__H__ */
+#endif /* SI446x_H */
 
 /** @} */

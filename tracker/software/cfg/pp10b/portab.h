@@ -9,11 +9,16 @@
 #ifndef PORTAB_H_
 #define PORTAB_H_
 
-#include "usbcfg2.h"
-
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */
 /*===========================================================================*/
+
+/* Board and hardware capabilities settings. */
+#define PKT_HARDWARE_SUPPORTS_CAM   TRUE
+#define PKT_HARDWARE_SUPPORTS_USB   TRUE
+#define PKT_HARDWARE_SUPPORTS_PWR   TRUE
+
+#define PKT_MEMORY_USE_CCM          TRUE
 
 /* To use IO_TXD/IO_RXD as a UART serial channel. */
 #define ENABLE_UART_SERIAL          TRUE
@@ -58,6 +63,10 @@
 /* Test of re-assigning CCA and NIRQ on radio. */
 #define USE_GPIO0_OF_RADIO_FOR_CCA  TRUE
 #define USE_NIRQ_OF_RADIO_FOR_NIRQ  TRUE
+
+#if PKT_HARDWARE_SUPPORTS_USB
+#include "usbcfg2.h"
+#endif
 
 /*===========================================================================*/
 /* Module constants.                                                         */
@@ -150,13 +159,21 @@
 
 // I2C
 #define LINE_I2C_SCL                PAL_LINE(GPIOB, 8U)
+#define LINE_I2C_SCL_MODE           (PAL_MODE_ALTERNATE(4) |                 \
+                                     PAL_STM32_OSPEED_HIGHEST |              \
+                                     PAL_STM32_OTYPE_OPENDRAIN)
 #define LINE_I2C_SDA                PAL_LINE(GPIOB, 9U)
+#define LINE_I2C_SDA_MODE           (PAL_MODE_ALTERNATE(4) |                 \
+                                     PAL_STM32_OSPEED_HIGHEST |              \
+                                     PAL_STM32_OTYPE_OPENDRAIN)
 
 // GPS
 #define LINE_GPS_EN                 PAL_LINE(GPIOC, 5U)
 #define LINE_GPS_RESET              PAL_LINE(GPIOA, 15U)
 #define LINE_GPS_TXD                PAL_LINE(GPIOB, 13U)
+#define LINE_GPS_TXD_MODE           PAL_MODE_ALTERNATE(11)
 #define LINE_GPS_RXD                PAL_LINE(GPIOB, 12U)
+#define LINE_GPS_RXD_MODE           PAL_MODE_ALTERNATE(11)
 #define LINE_GPS_TIMEPULSE          PAL_LINE(GPIOB, 15U)
 
 // IO
@@ -186,8 +203,14 @@
 
 // SPI
 #define LINE_SPI_SCK                PAL_LINE(GPIOB, 3U)
+#define LINE_SPI_SCK_MODE           (PAL_MODE_ALTERNATE(6) |                 \
+                                     PAL_STM32_OSPEED_HIGHEST)
 #define LINE_SPI_MISO               PAL_LINE(GPIOB, 4U)
+#define LINE_SPI_MISO_MODE          (PAL_MODE_ALTERNATE(6) |                 \
+                                     PAL_STM32_OSPEED_HIGHEST)
 #define LINE_SPI_MOSI               PAL_LINE(GPIOB, 5U)
+#define LINE_SPI_MOSI_MODE          (PAL_MODE_ALTERNATE(6) |                 \
+                                     PAL_STM32_OSPEED_HIGHEST)
 
 /* TODO: Move into pktradio.h? */
 #define BAND_MIN_2M_FREQ            144000000               /* Minimum allowed frequency in Hz */

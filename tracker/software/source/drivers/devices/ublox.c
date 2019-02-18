@@ -2,6 +2,8 @@
   * @see https://github.com/thasti/utrak
   */
 
+#include "pktconf.h"
+/*
 #include "ch.h"
 #include "hal.h"
 
@@ -11,6 +13,7 @@
 #include "config.h"
 #include "collector.h"
 #include "portab.h"
+*/
 
 bool gps_enabled = false;
 uint8_t gps_model = GPS_MODEL_PORTABLE;
@@ -631,27 +634,23 @@ bool gps_set_model(bool dynamic) {
 bool GPS_Init() {
 	// Initialize pins
     TRACE_DEBUG("GPS  > Init GPS pins");
-    palSetLineMode(LINE_GPS_EN, PAL_MODE_OUTPUT_PUSHPULL);      // GPS off
-	palSetLineMode(LINE_GPS_RESET, PAL_MODE_OUTPUT_PUSHPULL);	// GPS reset
+    pktSetGPIOlineMode(LINE_GPS_EN, PAL_MODE_OUTPUT_PUSHPULL);      // GPS off
+    pktSetGPIOlineMode(LINE_GPS_RESET, PAL_MODE_OUTPUT_PUSHPULL);	// GPS reset
 
 #if defined(UBLOX_UART_CONNECTED) && UBLOX_USE_I2C == FALSE
     // Init and start UART
 	TRACE_DEBUG("GPS  > Init GPS UART");
     /* TODO: Put UBLOX UART definition in portab. */
-    palSetLineMode(LINE_GPS_RXD, PAL_MODE_ALTERNATE(11));       // UART RXD
-    palSetLineMode(LINE_GPS_TXD, PAL_MODE_ALTERNATE(11));       // UART TXD
+	pktSetGPIOlineMode(LINE_GPS_RXD, LINE_GPS_RXD_MODE);       // UART RXD
+	pktSetGPIOlineMode(LINE_GPS_TXD, LINE_GPS_TXD_MODE);       // UART TXD
 	sdStart(&PKT_GPS_UART, &gps_config);
 #endif
-#if defined(UBLOX_UART_CONNECTED)
-    /* Always lock I2C during init. The UBLOX will look on address 0xA0 for
-       an EEPROM. */
-    I2C_Lock(&PKT_GPS_I2C);
-#endif
-	// Switch MOSFET
+
+	/* Switch on GPS. */
 	TRACE_DEBUG("GPS  > Power up GPS");
-    palSetLine(LINE_GPS_RESET); // Pull up GPS reset
+	pktWriteGPIOline(LINE_GPS_RESET, PAL_HIGH); // Pull up GPS reset
     chThdSleep(TIME_MS2I(10));
-    palSetLine(LINE_GPS_EN);    // Switch on GPS
+    pktWriteGPIOline(LINE_GPS_EN, PAL_HIGH);    // Switch on GPS
 
 	// Wait for GPS startup
 	chThdSleep(TIME_S2I(1));
@@ -667,9 +666,6 @@ bool GPS_Init() {
 	  TRACE_DEBUG("GPS  > ... Disable NMEA output OK");
 	} else {
 		TRACE_ERROR("GPS  > Communication Error [disable NMEA]");
-#if defined(UBLOX_UART_CONNECTED)
-	    I2C_Unlock(&PKT_GPS_I2C);
-#endif
 		return false;
 	}
     cntr = 3;
@@ -697,14 +693,14 @@ void GPS_Deinit(void)
 {
 	// Switch MOSFET
   TRACE_DEBUG("GPS  > Power down GPS");
-	palClearLine(LINE_GPS_EN);
+  pktWriteGPIOline(LINE_GPS_EN, PAL_LOW);
 
 #if defined(UBLOX_UART_CONNECTED) && UBLOX_USE_I2C == FALSE
     // Stop and deinit UART
 	TRACE_DEBUG("GPS  > Stop GPS UART");
     sdStop(&PKT_GPS_UART);
-    palSetLineMode(LINE_GPS_RXD, PAL_MODE_INPUT);       // UART RXD
-    palSetLineMode(LINE_GPS_TXD, PAL_MODE_INPUT);       // UART TXD
+    pktSetGPIOlineMode(LINE_GPS_RXD, PAL_MODE_INPUT);       // UART RXD
+    pktSetGPIOlineMode(LINE_GPS_TXD, PAL_MODE_INPUT);       // UART TXD
 #endif
     gps_model = GPS_MODEL_PORTABLE;
     gps_enabled = false;

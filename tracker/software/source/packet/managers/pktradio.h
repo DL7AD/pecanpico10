@@ -230,9 +230,9 @@ extern "C" {
                                                const radio_chan_hz_t step,
                                                const radio_ch_t chan,
                                                const radio_mode_t mode);
-  msg_t             pktSetReceiveStreamInactive(const radio_unit_t radio,
+  msg_t             pktSetReceiveStreamStandby(const radio_unit_t radio,
                                                 const sysinterval_t timeout);
-  msg_t             pktSetReceiveStreamActive(const radio_unit_t radio);
+  msg_t             pktSetReceiveStreamReady(const radio_unit_t radio);
   void      		pktRadioSendComplete(radio_task_object_t *const rto);
   ICUDriver         *pktLLDradioAttachStream(const radio_unit_t radio);
   void              pktLLDradioDetachStream(const radio_unit_t radio);

@@ -49,7 +49,7 @@ extern uint8_t current_trace_level;
 #define TRACE_TAB "                                               "
 #elif TRACE_SHOW_TIME && !TRACE_SHOW_FILE
 #define TRACE_TAB "                            "
-#elif !TRACE_TIME && TRACE_SHOW_FILE
+#elif !TRACE_SHOW_TIME && TRACE_SHOW_FILE
 #define TRACE_TAB "                               "
 #else
 #define TRACE_TAB "              "

@@ -501,7 +501,7 @@
 
 /*
  * GPIOC setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
+ *
  * PC0  - SD_CS                     (output pushpull highspeed high).
  * PC1  - IO_BLUE                   (input pulldown).
  * PC2  - ADC_VSOL                  (input pulldown).
@@ -512,7 +512,7 @@
  * PC7  - CAM_EN                    (input pulldown).
  * PC8  - SD_DET                    (input pullup verylowspeed).
  * PC9  - CAM_XCLK                  (input pulldown).
- * PC10 - RADIO_SDN                 (output opendrain pullup high verylowspeed).
+ * PC10 - RADIO_SDN                 (input pullup verylowspeed).
  * PC11 - IO_RXD                    (input floating).
  * PC12 - RADIO_CS                  (output pushpull high).
  * PC13 - TCXO_EN                   (input pulldown).
@@ -529,7 +529,7 @@
                                      PIN_MODE_INPUT(GPIOC_PIN7) |           \
                                      PIN_MODE_INPUT(GPIOC_PIN8) |           \
                                      PIN_MODE_INPUT(GPIOC_PIN9) |           \
-                                     PIN_MODE_OUTPUT(GPIOC_PIN10) |         \
+                                     PIN_MODE_INPUT(GPIOC_PIN10) |          \
                                      PIN_MODE_INPUT(GPIOC_PIN11) |          \
                                      PIN_MODE_OUTPUT(GPIOC_PIN12) |         \
                                      PIN_MODE_INPUT(GPIOC_PIN13) |          \
@@ -545,7 +545,7 @@
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN7) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN8) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN9) |       \
-                                     PIN_OTYPE_OPENDRAIN(GPIOC_PIN10) |     \
+                                     PIN_OTYPE_PUSHPULL(GPIOC_PIN10) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN11) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN12) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN13) |      \

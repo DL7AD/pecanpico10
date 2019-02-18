@@ -1,5 +1,5 @@
-#include "ch.h"
-#include "hal.h"
+#include "pktconf.h"
+
 #include "shell.h"
 #include "debug.h"
 #include <stdlib.h>
@@ -26,7 +26,6 @@ const ShellCommand commands[] = {
     {"log", usb_cmd_printLog},
 	{"config", usb_cmd_printConfig},
 	{"msg", usb_cmd_send_aprs_message},
-
 #if SHELL_CMD_MEM_ENABLED == TRUE
     {"heap", usb_cmd_ccm_heap},
 #else
@@ -124,9 +123,9 @@ void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
   }
   extern uint8_t __ram4_free__[];
   extern uint8_t __ram4_end__[];
-
-  chprintf(chp, SHELL_NEWLINE_STR"CCM heap : size %d (0x%x) starts at : 0x%x"SHELL_NEWLINE_STR,
-           (__ram4_end__ - __ram4_free__), __ram4_free__);
+  size_t ccm_size = (__ram4_end__ - __ram4_free__);
+  chprintf(chp, SHELL_NEWLINE_STR"CCM heap : size %d bytes starts at : 0x%x"SHELL_NEWLINE_STR,
+           ccm_size, __ram4_free__);
   n = chHeapStatus(ccm_heap, &total, &largest);
   chprintf(chp, SHELL_NEWLINE_STR"CCM Heap"SHELL_NEWLINE_STR);
   chprintf(chp, "heap fragments   : %u"SHELL_NEWLINE_STR, n);

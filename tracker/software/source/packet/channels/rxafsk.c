@@ -819,7 +819,7 @@ THD_FUNCTION(pktAFSKDecoder, arg) {
          */
         eventmask_t evt = chEvtGetAndClearEvents(DEC_COMMAND_STOP);
         if(evt) {
-          pktSetReceiveStreamInactive(radio, TIME_INFINITE);
+          pktSetReceiveStreamStandby(radio, TIME_INFINITE);
           myDriver->decoder_state = DECODER_WAIT;
           pktAddEventFlags(myDriver, DEC_STOP_EXEC);
           continue;

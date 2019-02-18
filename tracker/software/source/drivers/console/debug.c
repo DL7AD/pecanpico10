@@ -1,8 +1,9 @@
-#include "ch.h"
-#include "hal.h"
-#include "debug.h"
-#include "portab.h"
-#include "console.h"
+//#include "ch.h"
+//#include "hal.h"
+//#include "debug.h"
+//#include "portab.h"
+//#include "console.h"
+#include "pktconf.h"
 
 mutex_t debug_mtx; // Used internal to synchronize multiple chprintf in debug.h
 
