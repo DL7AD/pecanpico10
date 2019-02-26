@@ -19,10 +19,24 @@
 #ifndef PKTTYPES_H
 #define PKTTYPES_H
 
+#include "hal.h"
+
+/**
+ * @brief GPIO reference objects.
+ */
+typedef struct iolineRef {
+  const ioline_t  *pline;
+  const iomode_t  mode;
+} ioline_ref_t;
+
+typedef struct iolineCfg {
+  const ioline_t  line;
+  const iomode_t  mode;
+} ioline_cfg_t;
+
 /**
  * @brief Radio operating parameters.
  */
-
 typedef uint32_t    radio_freq_hz_t;    /**< Base radio frequency.          */
 typedef uint16_t    radio_chan_hz_t;    /**< Radio channel step size.       */
 typedef uint8_t     radio_ch_t;         /**< Radio channel number.          */

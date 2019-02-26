@@ -228,13 +228,15 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
 
   gps_svinfo_t svinfo;
   if(gps_get_sv_info(&svinfo, sizeof(svinfo))) {
-    TRACE_DEBUG("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d",
-               svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
+    TRACE_DEBUG("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d\r\n"
+                TRACE_TAB" Used for Navigation...",
+         svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
 
     uint8_t i;
     for(i = 0; i < svinfo.numCh; i++) {
       gps_svchn_t *sat = &svinfo.svinfo[i];
-      TRACE_DEBUG("GPS  > Satellite info chn=%03d svid=%03d flags=0x%02x"
+      if (sat->flags & 0x01)
+      TRACE_DEBUG("       Satellite info chn=%03d svid=%03d flags=0x%02x"
           " quality=%02d cno=%03d elev=%03d azim=%06d, prRes=%06d",
            sat->chn, sat->svid, sat->flags, sat->flags,
            sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);

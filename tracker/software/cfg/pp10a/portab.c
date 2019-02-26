@@ -69,7 +69,7 @@ const si446x_mcucfg_t radio1_cfg = {
       .cfg   = 00           /**< HIGH DRIVE. */
      },
        .nirq = {
-         .line = &radio1_cfg.nirq,
+         .pline = &radio1_cfg.nirq,
          .mode = (PAL_MODE_INPUT_PULLUP)
        },
   },
@@ -93,7 +93,7 @@ const si446x_mcucfg_t radio1_cfg = {
     },
     .cca     = {
 #if USE_GPIO0_OF_RADIO_FOR_CCA
-               .line = &radio1_cfg.gpio0,
+               .pline = &radio1_cfg.gpio0,
 #else
                .line = &radio1_cfg.nirq,
 #endif
@@ -123,14 +123,14 @@ const si446x_mcucfg_t radio1_cfg = {
       .cfg   = 00           /**< HIGH DRIVE. */
     },
     .pwm     = {
-               .line = &radio1_cfg.gpio1,
+               .pline = &radio1_cfg.gpio1,
                .mode = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2))
     },
     .cca     = {
 #if USE_GPIO0_OF_RADIO_FOR_CCA
-               .line = &radio1_cfg.gpio0,
+               .pline = &radio1_cfg.gpio0,
 #else
-               .line = &radio1_cfg.nirq,
+               .pline = &radio1_cfg.nirq,
 #endif
                .mode = PAL_MODE_INPUT_PULLUP
     },
@@ -165,9 +165,9 @@ const si446x_mcucfg_t radio1_cfg = {
     },
     .cca     = {
 #if USE_GPIO0_OF_RADIO_FOR_CCA
-               .line = &radio1_cfg.gpio0,
+               .pline = &radio1_cfg.gpio0,
 #else
-               .line = &radio1_cfg.nirq,
+               .pline = &radio1_cfg.nirq,
 #endif
                .mode = PAL_MODE_INPUT_PULLUP
     },
@@ -192,9 +192,9 @@ const si446x_mcucfg_t radio1_cfg = {
     },
     .cca     = {
 #if USE_GPIO0_OF_RADIO_FOR_CCA
-               .line = &radio1_cfg.gpio0,
+               .pline = &radio1_cfg.gpio0,
 #else
-               .line = &radio1_cfg.nirq,
+               .pline = &radio1_cfg.nirq,
 #endif
                .mode = PAL_MODE_INPUT_PULLUP
     },
@@ -219,9 +219,9 @@ const si446x_mcucfg_t radio1_cfg = {
     },
     .cca     = {
 #if USE_GPIO0_OF_RADIO_FOR_CCA
-               .line = &radio1_cfg.gpio0,
+               .pline = &radio1_cfg.gpio0,
 #else
-               .line = &radio1_cfg.nirq,
+               .pline = &radio1_cfg.nirq,
 #endif
                .mode = PAL_MODE_INPUT_PULLUP
     },

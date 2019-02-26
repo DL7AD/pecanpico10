@@ -89,6 +89,8 @@ return (si446x_data_t *)data->dat;
 static SPIDriver *Si446x_spiSetupBus(const radio_unit_t radio,
                                      SPIConfig *const cfg) {
   SPIDriver *spip = Si446x_getConfig(radio)->spi;
+  palSetLine(Si446x_getConfig(radio)->cs);
+  palSetLineMode(Si446x_getConfig(radio)->cs, PAL_MODE_OUTPUT_PUSHPULL);
   spiAcquireBus(spip);
   cfg->ssport = PAL_PORT(Si446x_getConfig(radio)->cs);
   cfg->sspad = PAL_PAD(Si446x_getConfig(radio)->cs);
@@ -461,7 +463,22 @@ static bool Si446x_configureGPIO(const radio_unit_t radio,
 }
 
 /**
- * TODO: Make set property a single func with size parameter.
+ * Set property with size parameter.
+ */
+static bool Si446x_setPropertyN(const radio_unit_t radio,
+        uint16_t reg, si446x_arg_t *val, size_t num) {
+  chDbgCheck(num > 0 && num <= 12);
+  si446x_arg_t msg[4 + num];
+  msg[0] = Si446x_SET_PROPERTY_CMD;
+  msg[1] = (reg >> 8) & 0xFF;
+  msg[2] = num;
+  msg[3] = reg & 0xFF;
+  memcpy(&msg[4], val, num);
+  return Si446x_write(radio, msg, sizeof(msg));
+}
+
+/**
+ *
  */
 static bool Si446x_setProperty8(const radio_unit_t radio,
 		uint16_t reg, uint8_t val) {
@@ -798,8 +815,10 @@ static bool Si446x_initDevice(const radio_unit_t radio) {
                        = (func_info.info[3] << 8) + func_info.info[4];
   handler->radio_patch = (func_info.info[3] << 8) + func_info.info[4];
 
-  TRACE_DEBUG("SI   > Patch ID 0x%x applied to radio %d",
-              Si446x_getData(radio)->radio_patch, radio);
+  if (Si446x_getData(radio)->radio_patch != 0) {
+    TRACE_DEBUG("SI   > Patch ID 0x%x applied to radio %d",
+                Si446x_getData(radio)->radio_patch, radio);
+  }
 
   /* From here on any IO error is flagged and reported at end of init function. */
   bool error = false;
@@ -915,7 +934,7 @@ static void Si446x_NIRQHandler(const radio_unit_t radio) {
  */
 static void Si446x_disableNIRQEvent(const radio_unit_t radio) {
   /* Disable event for NIRQ.*/
-  palDisableLineEvent(*Si446x_getConfig(radio)->xirq.nirq.line);
+  palDisableLineEvent(*Si446x_getConfig(radio)->xirq.nirq.pline);
   Si446x_getData(radio)->nirq_active = false;
 }
 
@@ -928,15 +947,15 @@ static void Si446x_enableNIRQEvent(const radio_unit_t radio) {
     return;
   }
   /* Configure MCU GPIO. */
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->xirq.nirq.line,
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->xirq.nirq.pline,
                      Si446x_getConfig(radio)->xirq.nirq.mode);
 
   /* Set callback for NIRQ from radio. */
-  palSetLineCallback(*Si446x_getConfig(radio)->xirq.nirq.line,
+  palSetLineCallback(*Si446x_getConfig(radio)->xirq.nirq.pline,
                      (palcallback_t)Si446x_NIRQHandler, (void *)radio);
 
   /* Enabling events on falling edge of NIRQ.*/
-  palEnableLineEvent(*Si446x_getConfig(radio)->xirq.nirq.line,
+  palEnableLineEvent(*Si446x_getConfig(radio)->xirq.nirq.pline,
                      PAL_EVENT_MODE_FALLING_EDGE);
   /* Flag enable is done. */
   Si446x_getData(radio)->nirq_active = true;
@@ -1375,12 +1394,10 @@ static bool Si446x_setSynthParameters(const radio_unit_t radio,
 #define Si446x_IF_SCALE     1
 #define Si446x_WSIZE        0x20
 
-  uint8_t set_band_property_command[] = {Si446x_SET_PROPERTY_CMD,
-                                         0x20, 0x01, 0x51,
-                                         (Si446x_PLL_MODE | band)};
-  if (Si446x_write(radio, set_band_property_command,
-		  sizeof(set_band_property_command))) {
-    return false;
+  /* Set MODEM_CLKGEN_BAND */
+  if (Si446x_setProperty8(radio, Si446x_MODEM_CLKGEN_BAND,
+                            (Si446x_PLL_MODE | band))) {
+    return true;
   }
 
   /*
@@ -1416,7 +1433,7 @@ static bool Si446x_setSynthParameters(const radio_unit_t radio,
 
   /* Set channel base frequency int, frac and step size. */
   uint8_t set_frequency_property_command[] = {Si446x_SET_PROPERTY_CMD,
-                                              0x40, 0x04, 0x00, n,
+                                              0x40, 0x06, 0x00, n,
                                               m2, m1, m0, c1, c0};
   if (Si446x_write(radio, set_frequency_property_command,
                sizeof(set_frequency_property_command))) {
@@ -1525,11 +1542,11 @@ static bool Si446x_setModemCCA_Detection(const radio_unit_t radio) {
    * The NIRQ line is configured in the radio to output the CCA condition.
    * TODO: Cater for situation where CCA is not defined in the radio config.
    */
-  if (*Si446x_getConfig(radio)->rcca.cca.line == PAL_NOLINE) {
+  if (*Si446x_getConfig(radio)->rcca.cca.pline == PAL_NOLINE) {
     return true;
   }
 
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rcca.cca.line,
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rcca.cca.pline,
                      Si446x_getConfig(radio)->rcca.cca.mode);
 
   /* Set DIRECT_MODE (asynchronous mode as 2FSK). */
@@ -1683,7 +1700,7 @@ static void Si446x_setModemAFSK_TX(const radio_unit_t radio) {
   (void)Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->tafsk).gpio);
 
   /* Set up GPIO port where the CCA from the radio is connected. */
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->tafsk.cca.line,
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->tafsk.cca.pline,
                      Si446x_getConfig(radio)->tafsk.cca.mode);
 
   /* Setup the NCO modulo and over sampling mode. */
@@ -2178,7 +2195,7 @@ static void Si446x_setModem2FSK_TX(const radio_unit_t radio,
   * The NIRQ line is configured in the radio to output the CCA condition.
   * TODO: Cater for situation where CCA is not defined in the radio config.
   */
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->t2fsk.cca.line,
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->t2fsk.cca.pline,
                      Si446x_getConfig(radio)->t2fsk.cca.mode);
 
   /* Setup the NCO modulo and oversampling mode. */
@@ -2365,7 +2382,7 @@ bool Si446x_radioWakeUp(const radio_unit_t radio) {
     return true;
   }
 
-  /* First re(configure) port and assert SDN high to ensure radio is asleep. */
+  /* First (re)configure port and assert SDN high to ensure radio is asleep. */
   palSetLineMode(sdn, PAL_MODE_OUTPUT_PUSHPULL);
   palSetLine(sdn);
   chThdSleep(TIME_MS2I(100));
@@ -2463,11 +2480,11 @@ static cnt_t Si446x_checkCCAthresholdForTX(const radio_unit_t radio,
   case MOD_2FSK_76k8:
   case MOD_2FSK_96k:
   case MOD_2FSK_115k2:
-    cca_line = *Si446x_getConfig(radio)->t2fsk.cca.line;
+    cca_line = *Si446x_getConfig(radio)->t2fsk.cca.pline;
     break;
 
   case MOD_AFSK: {
-    cca_line = *Si446x_getConfig(radio)->tafsk.cca.line;
+    cca_line = *Si446x_getConfig(radio)->tafsk.cca.pline;
     break;
   }
 
@@ -3956,7 +3973,7 @@ radio_temp_t Si446x_getLastTemperature(const radio_unit_t radio) {
 ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
 
   /* The radio RX_RAW_DATA output is routed to an ICU timer channel.  */
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.pwm.line,
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.pwm.pline,
                      Si446x_getConfig(radio)->rafsk.pwm.mode);
 
   /**
@@ -3967,7 +3984,7 @@ ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
    * For AFSK receive the MCU GPIO is enabled to interrupt on CCA.
    *
    */
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.cca.line,
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.cca.pline,
                      Si446x_getConfig(radio)->rafsk.cca.mode);
 
   /* Initialise and start the ICU. */
@@ -3985,11 +4002,11 @@ void Si446x_detachPWM(const radio_unit_t radio) {
   icuStop(Si446x_getConfig(radio)->rafsk.icu);
 
   /* Timer channel GPIO. */
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.pwm.line,
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.pwm.pline,
   PAL_MODE_INPUT_PULLUP);
 
   /* CCA GPIO. */
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.cca.line,
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.cca.pline,
   PAL_MODE_INPUT_PULLUP);
 }
 
@@ -4012,11 +4029,11 @@ void Si446x_enablePWMevents(const radio_unit_t radio, const radio_mod_t mod,
                             const palcallback_t cb) {
   (void)mod;
   /* Set callback for squelch events. */
-  palSetLineCallback(*Si446x_getConfig(radio)->rafsk.cca.line, cb,
+  palSetLineCallback(*Si446x_getConfig(radio)->rafsk.cca.pline, cb,
                      Si446x_getConfig(radio)->rafsk.icu);
 
   /* Enabling events on both edges of CCA.*/
-  palEnableLineEvent(*Si446x_getConfig(radio)->rafsk.cca.line,
+  palEnableLineEvent(*Si446x_getConfig(radio)->rafsk.cca.pline,
   PAL_EVENT_MODE_BOTH_EDGES);
 }
 
@@ -4025,7 +4042,7 @@ void Si446x_enablePWMevents(const radio_unit_t radio, const radio_mod_t mod,
  */
 void Si446x_disablePWMeventsI(const radio_unit_t radio, radio_mod_t mod) {
   (void)mod;
-  palDisableLineEventI(*Si446x_getConfig(radio)->rafsk.cca.line);
+  palDisableLineEventI(*Si446x_getConfig(radio)->rafsk.cca.pline);
 }
 
 /**
@@ -4043,14 +4060,14 @@ uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio, const radio_mod_t mod)
   case MOD_2FSK_76k8:
   case MOD_2FSK_96k:
   case MOD_2FSK_115k2:
-    return palReadLine(*Si446x_getConfig(radio)->r2fsk.cca.line);
+    return palReadLine(*Si446x_getConfig(radio)->r2fsk.cca.pline);
 
   case MOD_AFSK: {
-    return palReadLine(*Si446x_getConfig(radio)->rafsk.cca.line);
+    return palReadLine(*Si446x_getConfig(radio)->rafsk.cca.pline);
   }
 
   case MOD_CW:
-    return palReadLine(*Si446x_getConfig(radio)->r2fsk.cca.line);
+    return palReadLine(*Si446x_getConfig(radio)->r2fsk.cca.pline);
 
   case MOD_NONE:
     break;

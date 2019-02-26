@@ -72,6 +72,14 @@ void pktThdTerminateSelf(void) {
  * Called from the idle thread hook.
  */
 void pktIdleThread(void) {
+#if 1
+  thread_t *tp = chMsgPoll();
+  if (tp != NULL) {
+    (void)chMsgGet(tp);
+    chMsgRelease(tp, MSG_OK);
+    (void)chThdWait(tp);
+  }
+#else
   chSysLock();
   if(!chMsgIsPendingI(chThdGetSelfX())) {
     chSysUnlock();
@@ -83,5 +91,6 @@ void pktIdleThread(void) {
   (void)chMsgGet(tp);
   chMsgRelease(tp, MSG_OK);
   (void)chThdWait(tp);
+#endif
 }
 

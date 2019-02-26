@@ -324,6 +324,8 @@ typedef struct reSampler {
   uint16_t  space_delta;
 } re_sampler_t;
 
+#include "pkttypes.h"
+
 /* Indexes of GPIO parameters in 446x GPIO command. */
 typedef enum {
   Si446x_GPIO0  = 0,
@@ -334,11 +336,6 @@ typedef enum {
   Si446x_SDO    = 5,
   Si446x_CFG    = 6
 } si446x_gpix_t;
-
-typedef struct iolineRef {
-  const ioline_t  *line;
-  const iomode_t  mode;
-} ioline_ref_t;
 
 /* Configuration of GPIO for a radio. */
 typedef struct Si446x_GPIO {

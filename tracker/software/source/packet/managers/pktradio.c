@@ -989,7 +989,11 @@ THD_FUNCTION(pktRadioManager, arg) {
 
       case MSG_OK:      /* Receive now active. */
       case MSG_TIMEOUT: /* Receive start deferred due TX queued. */
+        break;
+
       case MSG_IDLE:    /* Receive not enabled. */
+        /* TODO: Set radio to standby. */
+        //pktLLDradioStandby(radio);
         break;
       } /* End switch. */
 
