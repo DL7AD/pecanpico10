@@ -2,7 +2,6 @@
  * Put your configuration settings here. See description of all fields in types.h
  */
 
-
 #include "config.h"
 #include "aprs.h"
 #include "geofence.h"
@@ -14,26 +13,21 @@ const conf_t conf_flash_default = {
     // Primary position app
     .pos_pri = {
         .beacon = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 30),
+            .active = true,
+            .cycle = TIME_S2I(30),
             .init_delay = TIME_S2I(5),
-            .fixed = true, // Add lat, lon alt fields when enabling fixed
-            .lat = -337331175, // Degrees (expressed in 1e-7 form)
-            .lon = 1511143478, // Degrees (expressed in 1e-7 form)
-            .alt = 144 // Altitude in metres
+            .fixed = false
         },
-        /* Altitude controlled settings. */
-        .run_alt = 160,
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = FREQ_GEOFENCE,
+            .freq = FREQ_APRS_AUSTRALIA,
             .mod = MOD_AFSK,
             .cca = 0x5F,
         },
         // App identity
-        .call = "VK2GJ-9",
+        .call = "VK2GJ-11",
         .path = "WIDE2-1",
-        .symbol = SYM_ANTENNA,
+        .symbol = SYM_BALLOON,
         .aprs_msg = true, // Enable APRS message reception on this app
     },
 
@@ -41,24 +35,24 @@ const conf_t conf_flash_default = {
     .pos_sec = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 5), // Beacon interval
-            .init_delay = TIME_S2I(10),
+            .cycle = TIME_S2I(5), // Beacon interval
+            .init_delay = TIME_S2I(5),
             .fixed = false
         },
-        /* Altitude controlled settings. */
-        .run_alt = 130,
-        .arm_alt = 150,
+         /* Descending beacon. */
+        .arm_alt = 5000,
+        .run_alt = 2000,
         /* Radio configuration. */
         .radio_conf = {
             .pwr = 0x7F,
-            .freq = FREQ_GEOFENCE,
+            .freq = FREQ_APRS_AUSTRALIA,
             .mod = MOD_AFSK,
             .cca = 0x5F
         },
         // App identity
-        .call = "VK2GJ-8",
+        .call = "VK2GJ-12",
         .path = "WIDE2-1",
-        .symbol = SYM_ANTENNA,
+        .symbol = SYM_BALLOON,
         .aprs_msg = true, // Enable APRS message reception on this app
     },
 
@@ -66,18 +60,19 @@ const conf_t conf_flash_default = {
     .img_pri = {
         .svc_conf = {
             .active = false,
-            .cycle = TIME_S2I(60 * 15),
+            .cycle = TIME_S2I(60 * 10),
             .init_delay = TIME_S2I(60),
-            .send_spacing = TIME_S2I(10)
+            .send_spacing = TIME_S2I(3)
         },
         .radio_conf = {
-            .pwr = 0x7F,
+            .pwr = 0x1F,
             .freq = FREQ_GEOFENCE,
             .mod = MOD_AFSK,
             .cca = 0x5F
+
         },
         // App identity
-        .call = "VK2GJ-6",
+        .call = "VK2GJ-5",
         .path = "",
 
         // Image settings
@@ -91,8 +86,8 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = false,
-            .cycle = TIME_S2I(60 * 5),
-            .init_delay = TIME_S2I(30),
+            .cycle = TIME_S2I(60 * 1),
+            .init_delay = TIME_S2I(10),
             .send_spacing = TIME_S2I(0)
         },
         .radio_conf = {
@@ -141,21 +136,21 @@ const conf_t conf_flash_default = {
                  // Receive is paused and resumed by transmission on that radio
                  // Receive can have a schedule set by cycle and interval
                  // An interval will run receive for the specified time period
-                 // If interval is TIME_IMMEDIATE the radio turns off then on immediately
+                 // If interval is TIME_IMMEDIATE the radio turns off then back on immediately
                  // If interval is TIME_INFINITE then the radio stays on and cycle is ignored
                  // Cycle is checked after the interval has expired
                  // Cycle timing less than interval means the cycle will run immediately after interval
                  // If cycle is CYCLE_CONTINUOUSLY the radio turns off and on at each interval
                  .active = true,
-                 .init_delay = TIME_S2I(10),
-                 .cycle = TIME_S2I(60 * 5),
-                 .interval = TIME_INFINITE //TIME_S2I((60 * 5) - 10)
+                 .init_delay = TIME_S2I(60 * 5),
+                 .cycle = TIME_S2I(60 * 3),
+                 .interval = TIME_S2I(60)
              },
             // Receive radio configuration
             .radio_conf = {
                 .freq = FREQ_APRS_AUSTRALIA,
                 .mod = MOD_AFSK,
-                .rssi = 0x4F
+                .rssi = 0x5F
             },
             // APRS identity used in message responses if digipeat is not enabled
             .call = "VK2GJ-4",
@@ -166,21 +161,22 @@ const conf_t conf_flash_default = {
         .tx = {
            // Transmit radio configuration
            .radio_conf = {
-               .freq = FREQ_RX_APRS,
+               .freq = 144625000,
                .pwr = 0x7F,
                .mod = MOD_AFSK,
                .cca = 0x5F
            },
            // Digipeat transmission identity
-           .call = "VK2GJ-6",
+           .call = "VK2GJ-13",
            .path = "WIDE2-1",
            .symbol = SYM_DIGIPEATER,
            // A digipeater beacon can be added using one of the POS apps
-           // Set the POS identity the same as the dipipeater TX identity
+           // Set the POS identity the same as the digipeater TX identity
            // Alternatively the digipeater can have its own .beacon entry here
+           // A beacon specified here is only active if both RX and DIGI are enabled
            .beacon = {
                .active = true,
-               .cycle = TIME_S2I(60 * 15), // Beacon interval
+               .cycle = TIME_S2I(60 * 5), // Beacon interval
                .init_delay = TIME_S2I(10),
                .fixed = false
            },
@@ -193,7 +189,7 @@ const conf_t conf_flash_default = {
     .keep_cam_switched_on = false,
     .gps_on_vbat = 3300, // mV
     .gps_off_vbat = 3000, // mV
-    .gps_onper_vbat = 3500, // mV
+    .gps_onper_vbat = 3600, // mV
 
     // GPS altitude model control (air pressure controlled using on-board BME280)
     .gps_pressure = 90000, // Air pressure (Pa) threshold for alt model switch

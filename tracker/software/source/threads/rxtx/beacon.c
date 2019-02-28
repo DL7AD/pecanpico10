@@ -200,40 +200,42 @@ THD_FUNCTION(bcnThread, arg) {
       }
 
       chThdSleep(TIME_S2I(5));
-      /* Send direct list. */
-      TRACE_MON("BCN  > Transmit recently heard direct");
-      /*
-       * Encode/Transmit APRSD packet.
-       * This is a tracker originated message (not a reply to a request).
-       * The message will be addressed to the base station if set.
-       * Else send it to device identity.
-       */
-      char *call = conf_sram.base.enabled
-          ? conf_sram.base.call : conf.call;
-      char *path = conf_sram.base.enabled
-          ? conf_sram.base.path : conf.path;
-      /*
-       * Send message from this device.
-       * Use call sign and path as specified in base config.
-       * There is no acknowledgement requested.
-       */
-      packet = aprs_compose_aprsd_message(conf.call, path, call);
-      if (packet == NULL) {
-        TRACE_ERROR("BCN  > No free packet objects "
-            "or badly formed APRSD message");
-      } else {
-        if(!pktTransmitOnRadio(packet,
-                               conf.radio_conf.freq,
-                               0,
-                               0,
-                               conf.radio_conf.pwr,
-                               conf.radio_conf.mod,
-                               conf.radio_conf.cca
-        )) {
-          TRACE_ERROR("BCN  > Failed to transmit APRSD data");
+      if (conf_sram.aprs.rx.svc_conf.active) {
+        /* Send direct list if RX is activated (if even currently off). */
+        TRACE_MON("BCN  > Transmit recently heard direct");
+        /*
+         * Encode/Transmit APRSD packet.
+         * This is a tracker originated message (not a reply to a request).
+         * The message will be addressed to the base station if set.
+         * Else send it to device identity.
+         */
+        char *call = conf_sram.base.enabled
+            ? conf_sram.base.call : conf.call;
+        char *path = conf_sram.base.enabled
+            ? conf_sram.base.path : conf.path;
+        /*
+         * Send message from this device.
+         * Use call sign and path as specified in base config.
+         * There is no acknowledgement requested.
+         */
+        packet = aprs_compose_aprsd_message(conf.call, path, call);
+        if (packet == NULL) {
+          TRACE_ERROR("BCN  > No free packet objects "
+              "or badly formed APRSD message");
+        } else {
+          if(!pktTransmitOnRadio(packet,
+                                 conf.radio_conf.freq,
+                                 0,
+                                 0,
+                                 conf.radio_conf.pwr,
+                                 conf.radio_conf.mod,
+                                 conf.radio_conf.cca
+          )) {
+            TRACE_ERROR("BCN  > Failed to transmit APRSD data");
+          }
+          chThdSleep(TIME_S2I(5));
         }
-        chThdSleep(TIME_S2I(5));
-      }
+      } /* End if (conf_sram.aprs.rx.svc_conf.active) */
     } /* psleep */
     time = waitForTrigger(time, conf.beacon.cycle);
     /* Reset conf to external configuration. */

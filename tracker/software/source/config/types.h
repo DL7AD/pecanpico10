@@ -103,7 +103,7 @@ typedef struct {
 } radio_tx_conf_t; // Radio / Modulation
 
 typedef struct {
-  radio_freq_hz_t      freq;
+  radio_freq_hz_t   freq;
   radio_mod_t       mod;
   link_speed_t      speed;
   radio_squelch_t   rssi;
