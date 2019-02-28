@@ -32,48 +32,48 @@
 
 /** @brief USART1 serial driver identifier.*/
 #if STM32_SERIAL_USE_USART1 || defined(__DOXYGEN__)
-SerialMuxDriver SM1;
+SerialMuxDriver MSD1;
 #endif
 
 /** @brief USART2 serial driver identifier.*/
 #if STM32_SERIAL_USE_USART2 || defined(__DOXYGEN__)
-SerialMuxDriver SM2;
+SerialMuxDriver MSD2;
 #endif
 
 /** @brief USART3 serial driver identifier.*/
 #if STM32_SERIAL_USE_USART3 || defined(__DOXYGEN__)
-SerialMuxDriver SM3;
+SerialMuxDriver MSD3;
 #endif
 
 /** @brief USART3 serial driver identifier.*/
 #if STM32_SERIAL_USE_UART4 || defined(__DOXYGEN__)
-SerialMuxDriver SM4;
+SerialMuxDriver MSD4;
 #endif
 
 /** @brief USART3 serial driver identifier.*/
 #if STM32_SERIAL_USE_UART5 || defined(__DOXYGEN__)
-SerialMuxDriver SM5;
+SerialMuxDriver MSD5;
 #endif
 
 /** @brief USART3 serial driver identifier.*/
 #if STM32_SERIAL_USE_USART6 || defined(__DOXYGEN__)
-SerialMuxDriver SM6;
+SerialMuxDriver MSD6;
 #endif
 
 /** @brief USART3 serial driver identifier.*/
 #if STM32_SERIAL_USE_UART7 || defined(__DOXYGEN__)
-SerialMuxDriver SM7;
+SerialMuxDriver MSD7;
 #endif
 
 /** @brief USART3 serial driver identifier.*/
 #if STM32_SERIAL_USE_UART8 || defined(__DOXYGEN__)
-SerialMuxDriver SM9;
+SerialMuxDriver MSD8;
 #endif
 
 /** @brief USART3 serial driver identifier.*/
 #if STM32_HAS_LPUART1 || defined(__DOXYGEN__)
 #if STM32_SERIAL_USE_LPUART1
-SerialMuxDriver LPSM1;
+SerialMuxDriver MLPSD1;
 #endif
 #endif
 
@@ -89,58 +89,58 @@ SerialMuxDriver LPSM1;
 void smd_lld_init(void) {
 
 #if STM32_SERIAL_USE_USART1
-  chBSemObjectInit(&SM1.msem, false);
-  SM1.sd = &SD1;
-  SM1.esp = NULL;
+  chBSemObjectInit(&MSD1.msem, false);
+  MSD1.sd = &SD1;
+  MSD1.esp = NULL;
 #endif
 
 #if STM32_SERIAL_USE_USART2
-  chBSemObjectInit(&SM2.msem, false);
-  SM2.sd = &SD2;
-  SM2.esp = NULL;
+  chBSemObjectInit(&MSD2.msem, false);
+  MSD2.sd = &SD2;
+  MSD2.esp = NULL;
 #endif
 
 #if STM32_SERIAL_USE_USART3
-  chBSemObjectInit(&SM3.msem, false);
-  SM3.sd = &SD3;
-  SM3.esp = NULL;
+  chBSemObjectInit(&MSD3.msem, false);
+  MSD3.sd = &SD3;
+  MSD3.esp = NULL;
 #endif
 
 #if STM32_SERIAL_USE_UART4
-  chBSemObjectInit(&SM4.msem, false);
-  SM4.sd = &SD4;
-  SM4.esp = NULL;
+  chBSemObjectInit(&MSD4.msem, false);
+  MSD4.sd = &SD4;
+  MSD4.esp = NULL;
 #endif
 
 #if STM32_SERIAL_USE_UART5
-  chBSemObjectInit(&SM5.msem, false);
-  SM5.sd = &SD5;
-  SM5.esp = NULL;
+  chBSemObjectInit(&MSD5.msem, false);
+  MSD5.sd = &SD5;
+  MSD5.esp = NULL;
 #endif
 
 #if STM32_SERIAL_USE_USART6
-  chBSemObjectInit(&SM6.msem, false);
-  SM6.sd = &SD6;
-  SM6.esp = NULL;
+  chBSemObjectInit(&MSD6.msem, false);
+  MSD6.sd = &SD6;
+  MSD6.esp = NULL;
 #endif
 
 #if STM32_SERIAL_USE_UART7
-  chBSemObjectInit(&SM7.msem, false);
-  SM7.sd = &SD7;
-  SM7.esp = NULL;
+  chBSemObjectInit(&MSD7.msem, false);
+  MSD7.sd = &SD7;
+  MSD7.esp = NULL;
 #endif
 
 #if STM32_SERIAL_USE_UART8
-  chBSemObjectInit(&SM8.msem, false);
-  SM8.sd = &SD8;
-  SM8.esp = NULL;
+  chBSemObjectInit(&MSD8.msem, false);
+  MSD8.sd = &SD8;
+  MSD8.esp = NULL;
 #endif
 
 #if STM32_HAS_LPUART1
 #if STM32_SERIAL_USE_LPUART1
-  chBSemObjectInit(&LPSM1.msem, false);
-  LPSM1.sd = &LPSD1;
-  LPSM1.esp = NULL;
+  chBSemObjectInit(&MLPSD1.msem, false);
+  MLPSD1.sd = &LPSD1;
+  MLPSD1.esp = NULL;
 #endif
 #endif
 }
@@ -149,11 +149,30 @@ void smd_lld_init(void) {
  * @brief Connect to multiplexed serial channel
  * @note  Only supports UART/USART based serial channels
  *
+ * @param[in] smd       pointer to serial multiplexer driver.
+ * @param[in] sdcfg     pointer to the serial (SD) configuration.
+ * @param[in] mcfg      pointer the multiplex serial configuration.
+ * @param[in] timeout   the number of ticks before the operation times out.
+ *                      the following special values are allowed:
+ *                      - @a TIME_IMMEDIATE immediate timeout.
+ *                      - @a TIME_INFINITE no timeout.
+ *                      .
+ *
+ * @return              A message specifying the result of the operation.
+ * @retval MSG_OK       if the serial channel has been connected.
+ * @retval MSG_RESET    if the multiplex control semaphore has been reset.
+ * @retval MSG_TIMEOUT  if the multiplex control was not acquired within the
+ *                      time out.
+ *
+ * @api
  */
 msg_t pktOpenMuxedSerial(SerialMuxDriver *const smd,
                          const SerialConfig *sdcfg,
                          const SerialMuxConfig *mcfg,
                          const sysinterval_t timeout) {
+  chDbgCheck(smd != NULL);
+  chDbgCheck(mcfg != NULL);
+
   /* Acquire the multiplexed serial channel. */
   msg_t msg = chBSemWaitTimeout(&smd->msem, timeout);
   if (msg != MSG_OK) {
@@ -173,38 +192,53 @@ msg_t pktOpenMuxedSerial(SerialMuxDriver *const smd,
 /**
  * @brief Disconnect multiplexed serial channel
  * @note  Only supports UART based serial channels
+ *        Data to be written when closing the serial channel can be specified.
+ *        When data out is specified the End Of Transmission is monitored.
+ *        The serial driver will be stopped at EOT or timeout waiting for EOT.
  *
  * @param[in] smd       pointer to serial multiplexer driver.
- * @param[in] timeout   the number of ticks before the operation timeouts, the
- *                      special values are handled as follow:
+ * @param[in] out       pointer to data to be written to serial at close.
+ *                      can be NULL (no data is written and EOT is not checked)
+ * @param[in] len       the number of bytes to write to serial channel.
+ * @param[in] timeout   the number of ticks before the operation times out.
+ *                      If no data is to be written timeout does not apply.
+ *                      The special values are handled as follow:
  *                      - @a TIME_INFINITE is allowed but interpreted as a
  *                        normal time specification.
  *                      - @a TIME_IMMEDIATE this value does not wait for the
- *                        serial transmission to end.
+ *                        serial transmission to end after writing data.
+ *
+ * @return  status of the operation
+ * @retval  MSG_OK      Channel close successfully
+ * @retval  MGS_TIMEOUT Channel did not get EOT within timeout after send
+ *
+ * @api
  */
 msg_t pktCloseMuxedSerial(SerialMuxDriver *const smd,
                           const SerialMuxConfig *mcfg,
                           const uint8_t *out,
                           const size_t len,
                           const sysinterval_t timeout) {
+  chDbgCheck(smd != NULL);
+  chDbgCheck(mcfg != NULL);
+
   msg_t msg = MSG_OK;
   if (out != NULL) {
     smd->esp = chnGetEventSource((BaseAsynchronousChannel *)smd->sd);
-    /* Register for CHN_TRANSMISSION_END. To avoid any conflict with other
-       event codes we register the listener with no event. */
 
-    chEvtRegisterMaskWithFlags(smd->esp, &smd->el, 0, CHN_TRANSMISSION_END);
+    /* Register for CHN_TRANSMISSION_END. No thread event bit is selected.
+       When the source broadcasts it will set no event bit in this thread. */
+    chEvtRegisterMaskWithFlags(smd->esp, &smd->el, (eventmask_t)0,
+                               CHN_TRANSMISSION_END);
 
     /* Write the data to the serial channel. */
     sdWrite(smd->sd, out, len);
 
     if (timeout != TIME_IMMEDIATE) {
-      /* Wait for CHN_TRANSMISSION_END */
-      virtual_timer_t vtp;
-      chVTSet(&vtp, timeout, NULL, NULL);
-      while (chVTIsArmed(&vtp)
-          && (chEvtGetAndClearFlags(&smd->el) | CHN_TRANSMISSION_END) == 0);
-      if (!chVTIsArmed(&vtp)) {
+      /* Wait for event or timeout. */
+      (void)chEvtWaitAnyTimeout((eventmask_t)0, timeout);
+      if ((chEvtGetAndClearFlags(&smd->el) | CHN_TRANSMISSION_END) == 0) {
+        /* No CHN_TRANSMISSION_END flag set at source so this is a timeout. */
         msg = MSG_TIMEOUT;
       }
       pktUnregisterEventListener(smd->esp, &smd->el);
@@ -230,7 +264,7 @@ msg_t pktCloseMuxedSerial(SerialMuxDriver *const smd,
       palSetLineMode(mcfg->close.tx.line, mcfg->close.tx.mode);
     }
   }
-  /* Release port lock. */
+  /* Release multiplex port lock. */
   chBSemSignal(&smd->msem);
   return msg;
 }
