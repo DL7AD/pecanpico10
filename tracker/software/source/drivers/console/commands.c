@@ -258,7 +258,7 @@ void usb_cmd_printLog(BaseSequentialStream *chp, int argc, char *argv[])
 						dp->sen_i1_press/10, dp->sen_i1_press%10, dp->sen_i1_temp/100, abs(dp->sen_i1_temp%100), dp->sen_i1_hum/10, dp->sen_i1_hum%10,
 						dp->sen_e1_press/10, dp->sen_e1_press%10, dp->sen_e1_temp/100, abs(dp->sen_e1_temp%100), dp->sen_e1_hum/10, dp->sen_e1_hum%10,
 						dp->sen_e2_press/10, dp->sen_e2_press%10, dp->sen_e2_temp/100, abs(dp->sen_e2_temp%100), dp->sen_e2_hum/10, dp->sen_e2_hum%10,
-						dp->stm32_temp/100, dp->stm32_temp%100, dp->si446x_temp/100, abs(dp->si446x_temp%100),
+						dp->stm32_temp/100, abs(dp->stm32_temp%100), dp->si446x_temp/100, abs(dp->si446x_temp%100),
 						dp->light_intensity, dp->sys_error
 			);
 		}

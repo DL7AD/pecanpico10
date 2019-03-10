@@ -465,7 +465,7 @@ static bool Si446x_configureGPIO(const radio_unit_t radio,
 /**
  * Set property with size parameter.
  */
-static bool Si446x_setPropertyN(const radio_unit_t radio,
+static bool __attribute__((unused)) Si446x_setPropertyN(const radio_unit_t radio,
         uint16_t reg, si446x_arg_t *val, size_t num) {
   chDbgCheck(num > 0 && num <= 12);
   si446x_arg_t msg[4 + num];
@@ -911,9 +911,7 @@ static bool Si446x_initDevice(const radio_unit_t radio) {
  */
 static void Si446x_NIRQHandler(const radio_unit_t radio) {
   /*
-   * @brief This simply wakes up the dispatcher thread.
-   * @note  The dispatcher handles the SPI transaction to get interrupt status.
-   * @note  The dispatcher then wakes up the suspended user thread.
+   * @brief Resumes the thread waiting on the interrupt event.
    *
    * @notapi
    */
@@ -1032,7 +1030,7 @@ msg_t Si446x_setRadioInterruptMask(const radio_unit_t radio,
  * @api
  */
 msg_t Si446x_waitRadioInterrupt(const radio_unit_t radio,
-                               const sysinterval_t timeout) {
+                                const sysinterval_t timeout) {
 
  /* Wait on the semaphore. NIRQ handler will signal. If not timeout. */
   msg_t msg = chBSemWaitTimeout(&Si446x_getData(radio)->wait_sem, timeout);
@@ -1079,8 +1077,8 @@ msg_t Si446x_waitRadioInterrupt(const radio_unit_t radio,
                                 const sysinterval_t timeout) {
   chDbgCheck(reg <= Si446x_INT_CTL_CHIP_REG_INDEX);
   chDbgCheck(mask != 0);
-  (void)Si446x_setProperty8(radio, Si446x_INT_CTL_PH_ENABLE + reg, mask);
-  (void)Si446x_setProperty8(radio, Si446x_INT_CTL_ENABLE, 1 << reg);
+  (void) Si446x_setProperty8(radio, Si446x_INT_CTL_PH_ENABLE + reg, mask);
+  (void) Si446x_setProperty8(radio, Si446x_INT_CTL_ENABLE, 1 << reg);
 
   /* Wait for the IRQ handler or OS timeout to wake us up. */
   chSysLock();
@@ -1089,7 +1087,7 @@ msg_t Si446x_waitRadioInterrupt(const radio_unit_t radio,
 
   if (imsg == MSG_TIMEOUT) {
     /* If the interrupt wait period timed out disable interrupts. */
-    (void)Si446x_setProperty8(radio, Si446x_INT_CTL_ENABLE, 0);
+    (void) Si446x_setProperty8(radio, Si446x_INT_CTL_ENABLE, 0);
   }
   return imsg;
 }
@@ -1118,7 +1116,7 @@ static THD_FUNCTION(Si446x_interrupt_dispatcher, arg) {
   Si446x_getData(radio)->irq_dispatch = NULL;
 
   /* let the radio init proceed. */
-  (void)chMsgGet(thd);
+  (void) chMsgGet(thd);
 
   /* Configure radio GPIOs for NIRQ dispatcher. */
   if (Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->xirq).gpio)) {
@@ -1188,8 +1186,8 @@ static THD_FUNCTION(Si446x_interrupt_dispatcher, arg) {
  *
  */
 static msg_t Si446x_waitForState(const radio_unit_t radio,
-                                 si446x_state_t state,
-                                 sysinterval_t timeout) {
+                                 const si446x_state_t state,
+                                 const sysinterval_t timeout) {
   si446x_state_t s;
   if (timeout == TIME_IMMEDIATE) {
     if (Si446x_requestDeviceState(radio, &s, NULL)) {
@@ -1236,8 +1234,8 @@ static msg_t Si446x_waitForState(const radio_unit_t radio,
  *
  */
 static msg_t Si446x_setStateWaitChange(const radio_unit_t radio,
-                                         si446x_state_t state,
-                                         sysinterval_t timeout) {
+                                       const si446x_state_t state,
+                                       const sysinterval_t timeout) {
 #if Si446x_USE_STATE_CHANGE_INTERRUPT == TRUE
   /* Clear any interrupts. */
   if (Si446x_clearInterruptStatus(radio)) {
@@ -1484,7 +1482,7 @@ static bool Si446x_setSynthParameters(const radio_unit_t radio,
 
     uint8_t set_deviation[] = {Si446x_SET_PROPERTY_CMD,
                                0x20, 0x03, 0x0a, x2, x1, x0};
-    (void)Si446x_write(radio, set_deviation, sizeof(set_deviation));
+    (void) Si446x_write(radio, set_deviation, sizeof(set_deviation));
   }
 
   /* TODO: Move NCO modulo and data rate setting into here? */
@@ -1492,7 +1490,7 @@ static bool Si446x_setSynthParameters(const radio_unit_t radio,
   /* Measure the chip temperature and update saved value.
    * TODO: Make this accessible via a RTO LLD and have collector read it.
    */
-  (void)Si446x_getTemperature(radio);
+  (void) Si446x_getTemperature(radio);
   return true;
 }
 
@@ -1535,7 +1533,7 @@ static bool Si446x_setModemCCA_Detection(const radio_unit_t radio) {
 */
 
   /* Configure radio GPIOs. */
-  (void)Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->rcca).gpio);
+  (void) Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->rcca).gpio);
 
   /*
    * Set up GPIO port where the NIRQ from the radio is connected.
@@ -1550,25 +1548,25 @@ static bool Si446x_setModemCCA_Detection(const radio_unit_t radio) {
                      Si446x_getConfig(radio)->rcca.cca.mode);
 
   /* Set DIRECT_MODE (asynchronous mode as 2FSK). */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x0A);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x0A);
 
   /* Packet handler disabled in RX. */
-  (void)Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x41);
+  (void) Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x41);
 
   if (is_part_Si4463(handler->radio_part)) {
     /* Run 4463 in 4464 compatibility mode (set SEARCH2 to zero). */
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0x00);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0x00);
   }
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_RAW_CONTROL, 0x8F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH, 0xD6);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_RAW_CONTROL, 0x8F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH, 0xD6);
   if (is_part_Si4463(handler->radio_part))
 #if Si446x_4463_USE_446X_COMPATABILITY == TRUE
-    (void)Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
+    (void) Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
 #else
-    (void)Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x76);
+    (void) Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x76);
 #endif
   else
-    (void)Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
+    (void) Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
 
   /*
    * OOK_MISC settings include parameters related to asynchronous mode.
@@ -1579,113 +1577,113 @@ static bool Si446x_setModemCCA_Detection(const radio_unit_t radio) {
    *  Set 1 the peak detector discharge is disabled when the detected peak is lower than the input signal for low input levels.
    *  Versus 0 which sets peak detector discharges always.
    */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_CNT1, 0x85);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x2A);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_CNT1, 0x85);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x2A);
   if (is_part_Si4463(handler->radio_part)) {
 #if Si446x_4463_USE_446X_COMPATABILITY == TRUE
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
 #else
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
 #endif
   }
   else {
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
   }
 
   /* RX AFC control. */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AFC_GEAR, 0x54);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x02, 0x50);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0xC0); // 0x80
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AFC_GEAR, 0x54);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x02, 0x50);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0xC0); // 0x80
 
   /* RX AGC control. */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0); // 0xE2 (bit 1 not used in 4464. It is used in 4463.)
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0); // 0xE2 (bit 1 not used in 4464. It is used in 4463.)
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
 
   /* RX Bit clock recovery control. */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_MDM_CTRL, 0x80);
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x01, 0xC3);
-  (void)Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x01, 0x22, 0x60);
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x00, 0x91);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_BCR_GEAR, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_BCR_MISC1, 0xC2);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_MDM_CTRL, 0x80);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x01, 0xC3);
+  (void) Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x01, 0x22, 0x60);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x00, 0x91);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_BCR_GEAR, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_BCR_MISC1, 0xC2);
 
   /* RX IF controls. */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_IF_CONTROL, 0x08);
-  (void)Si446x_setProperty24(radio, Si446x_MODEM_IF_FREQ, 0x02, 0x80, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_IF_CONTROL, 0x08);
+  (void) Si446x_setProperty24(radio, Si446x_MODEM_IF_FREQ, 0x02, 0x80, 0x00);
 
   /* RX IF filter decimation controls. */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x70);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x70);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
   if (is_part_Si4463(handler->radio_part)) {
 #if Si446x_4463_USE_446X_COMPATABILITY == TRUE
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x00);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x00);
 #else
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x0C);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x0C);
 #endif
   }
 
   /* RSSI latching disabled. */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL, 0x00);
 
   /*
    *  RX IF filter coefficients.
    *  TODO: Add an RX filter set function.
    */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xC4);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x30);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x7F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0x5F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xB5);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xB8);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xDE);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x05);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x17);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x16);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x0C);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0x03);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xC4);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x30);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x7F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0x5F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xB5);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xB8);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xDE);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x05);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x17);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x16);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x0C);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0x03);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x00);
 
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xC4);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x30);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x7F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0x5F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xB5);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xB8);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xDE);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x05);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x17);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x16);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x0C);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0x03);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xC4);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x30);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x7F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0x5F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xB5);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xB8);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xDE);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x05);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x17);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x16);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x0C);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0x03);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
 
-  (void)Si446x_setProperty8(radio, Si446x_PREAMBLE_CONFIG, 0x21);
+  (void) Si446x_setProperty8(radio, Si446x_PREAMBLE_CONFIG, 0x21);
 
   /* Unused Si4463 features for AFSK RX. */
   if (is_part_Si4463(handler->radio_part)) {
    /* DSA is not enabled. */
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL1, 0x00); // 0xA0
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL2, 0x00); // 0x04
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_SPIKE_DET, 0x00); // 0x03
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_ONE_SHOT_AFC, 0x00); // 0x07
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_DSA_QUAL, 0x00); // 0x06
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_DSA_RSSI, 0x00); // 0x78
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_RSSI_MUTE, 0x00);
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_DSA_MISC, 0x00); // 0x20
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL1, 0x00); // 0xA0
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL2, 0x00); // 0x04
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_SPIKE_DET, 0x00); // 0x03
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_ONE_SHOT_AFC, 0x00); // 0x07
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_DSA_QUAL, 0x00); // 0x06
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_DSA_RSSI, 0x00); // 0x78
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_RSSI_MUTE, 0x00);
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_DSA_MISC, 0x00); // 0x20
   }
   return false;
 }
@@ -1697,7 +1695,7 @@ static bool Si446x_setModemCCA_Detection(const radio_unit_t radio) {
 static void Si446x_setModemAFSK_TX(const radio_unit_t radio) {
 
   /* Configure radio GPIOs. */
-  (void)Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->tafsk).gpio);
+  (void) Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->tafsk).gpio);
 
   /* Set up GPIO port where the CCA from the radio is connected. */
   pktSetGPIOlineMode(*Si446x_getConfig(radio)->tafsk.cca.pline,
@@ -1710,23 +1708,23 @@ static void Si446x_setModemAFSK_TX(const radio_unit_t radio) {
   uint8_t f2 = (s >> 16) & 0xFF;
   uint8_t f1 = (s >>  8) & 0xFF;
   uint8_t f0 = (s >>  0) & 0xFF;
-  (void)Si446x_setProperty32(radio, Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
+  (void) Si446x_setProperty32(radio, Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
 
   // Setup the NCO data rate for APRS
-  (void)Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE, 0x00, 0x33, 0x90);
+  (void) Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE, 0x00, 0x33, 0x90);
 
   /* Use 2FSK mode in conjunction with up-sampled AFSK from FIFO (PH). */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
 
   /* Set PH bit order for AFSK. */
-  (void)Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x01);
+  (void) Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x01);
 
   /* Set AFSK shaping filter. */
   const uint8_t coeff[] = {0x81, 0x9f, 0xc4, 0xee, 0x18, 0x3e, 0x5c, 0x70, 0x76};
   uint8_t i;
   for (i = 0; i < sizeof(coeff); i++) {
     si446x_arg_t data[] = {0x11, 0x20, 0x01, 0x17-i, coeff[i]};
-    (void)Si446x_write(radio, data, 5);
+    (void) Si446x_write(radio, data, 5);
   }
 }
 
@@ -1773,21 +1771,21 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
 # Modulation index: 3.333
 */
   /* Configure radio GPIOs. */
-  (void)Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->rafsk).gpio);
+  (void) Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->rafsk).gpio);
 
   /* Set DIRECT_MODE (asynchronous mode as 2FSK). */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x0A);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x0A);
 
   /* Packet handler disabled in RX. */
-  (void)Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x40);
+  (void) Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x40);
 
   if (is_part_Si4463(handler->radio_part)) {
     /* To run 4463 in 4464 compatibility mode (set SEARCH2 to zero). */
     /* 0xBC (SCH_FROZEN = 1 {Freeze min-max on gear switch, SCHPRD_HI = 6 SCHPRD_LO = 4 {SEARCH_4TB, SEARCH_8TB}) */
 #if Si446x_4463_USE_446X_COMPATABILITY == TRUE
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0x00);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0x00);
 #else
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0xBC);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH2, 0xBC);
 #endif
   }
 
@@ -1799,7 +1797,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    * PM_PATTERN[3:2] = 3 preamble pattern is random
    * RAWGAIN[0] = 3  gain is 1
    */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_RAW_CONTROL, 0xCF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_RAW_CONTROL, 0xCF);
 
   /*
    * Note: When MODEM_RAW_SEARCH2 is non zero MODEM_RAW_SEARCH settings are ignored.
@@ -1808,15 +1806,15 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    * SCHPRD_HI[3:2] = 1 MA/min-max search period window length in bits for slicing threshold prior to gear switch
    * SCHPRD_LO[1:0] = 2 MA/min-max search period window length in bits for slicing threshold after gear switch
   */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH, 0xD6);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_RAW_SEARCH, 0xD6);
   /* MODEM_RAW_EYE[0,10:8][1,7:0] */
 #if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0x3B);
 #else
 #if Si446x_USE_NB_RECEIVE_FILTER == TRUE
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x01, 0x8F);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x01, 0x8F);
 #else
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0xC8);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_RAW_EYE, 0x00, 0xC8);
 #endif
 #endif
   /*
@@ -1826,19 +1824,19 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    * DECAY[3:0]
    */
 #if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x28);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x28);
 #else
 #if Si446x_USE_NB_RECEIVE_FILTER == TRUE
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x29);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x29);
 #else
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x2A);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_PDTC, 0x2A);
 #endif
 #endif
   /*
    * SQUELCH[1:0] = 1 When no signal is received, there is no toggling of RX data output.
    * This is a change from the WDS output.
    */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_CNT1, 0x85);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_CNT1, 0x85);
   /*
    * OOK_MISC settings include parameters related to asynchronous mode.
    * Asynchronous mode is used for AFSK reception passed to DSP decode.
@@ -1850,13 +1848,13 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    */
   if (is_part_Si4463(handler->radio_part)) {
   #if Si446x_4463_USE_446X_COMPATABILITY == TRUE
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
   #else
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x23);
   #endif
   }
   else {
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_OOK_MISC, 0x03);
   }
   /* RX AFC controls. */
 
@@ -1866,7 +1864,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    *  AFC_FAST[5:3] = 2 (higher gain results in slower AFC tracking)
    *  AFC_SLOW[2:0] = 4 (higher gain results in slower AFC tracking)
    */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AFC_GEAR, 0x54);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AFC_GEAR, 0x54);
 
   /*
    * AFC_WAIT
@@ -1874,12 +1872,12 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    *  LGWAIT [3:0] This specifies the wait period per PLL AFC correction cycle after gear switching has occurred.
    */
 #if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
 #else
 #if Si446x_USE_NB_RECEIVE_FILTER == TRUE
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
 #else
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AFC_WAIT, 0x36);
 #endif
 #endif
   /*
@@ -1889,12 +1887,12 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    *  MODEM_AFC_GAIN[0,12:8 1,7:0] base gain scaled by AFC_GEAR (AFC_FAST & AFC_SLOW)
    */
 #if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x82, 0xAA);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x82, 0xAA);
 #else
 #if Si446x_USE_NB_RECEIVE_FILTER == TRUE
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0x55);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0x55);
 #else
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_AFC_GAIN, 0x80, 0xAB);
 #endif
 #endif
   /*
@@ -1902,12 +1900,12 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    *  TODO: Ask Si about the calculation of AFC limiter values.
    */
 #if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x00, 0x95);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x00, 0x95);
 #else
 #if Si446x_USE_NB_RECEIVE_FILTER == TRUE
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x01, 0xF2);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x01, 0xF2);
 #else
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x01, 0xE6);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_AFC_LIMITER, 0x01, 0xE6);
 #endif
 #endif
 
@@ -1915,7 +1913,7 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    * ENAFCFRZ[7] = 1 gear switched but we don't switch,
    * NON_FRZEN[1] = 0 -> 1 (always enabled regardless of 1,0 string)
    */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0x82);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AFC_MISC, 0x82);
 
   /* RX AGC control.
    * AGCOVPKT[7] Selects whether the AGC operates over the entire packet, or only during acquisition of the Preamble.
@@ -1938,46 +1936,46 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    */
   if (is_part_Si4463(handler->radio_part)) {
 #if Si446x_4463_USE_446X_COMPATABILITY == TRUE
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0);
 #else
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE2);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE2);
 #endif
   }
   else {
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_CONTROL, 0xE0);
   }
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_WINDOW_SIZE, 0x11);
 #if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x12);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x12);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x12);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x12);
 #else
 #if Si446x_USE_NB_RECEIVE_FILTER == TRUE
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x31);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x31);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x31);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x31);
 #else
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_RFPD_DECAY, 0x63);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_AGC_IFPD_DECAY, 0x63);
 #endif
 #endif
 
   /* RX Bit clock recovery control. */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_MDM_CTRL, 0x80);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_MDM_CTRL, 0x80);
 #if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x00, 0x52);
-  (void)Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x06, 0x3D, 0x10);
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x03, 0x1F);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x00, 0x52);
+  (void) Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x06, 0x3D, 0x10);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x03, 0x1F);
 #else
 #if Si446x_USE_NB_RECEIVE_FILTER == TRUE
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x00, 0xE2);
-  (void)Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x02, 0x44, 0xC0);
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x01, 0x22);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x00, 0xE2);
+  (void) Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x02, 0x44, 0xC0);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x01, 0x22);
 #else
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x01, 0xC3);
-  (void)Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x01, 0x22, 0x60);
-  (void)Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x00, 0x91);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_BCR_OSR, 0x01, 0xC3);
+  (void) Si446x_setProperty24(radio, Si446x_MODEM_BCR_NCO_OFFSET, 0x01, 0x22, 0x60);
+  (void) Si446x_setProperty16(radio, Si446x_MODEM_BCR_GAIN, 0x00, 0x91);
 #endif
 #endif
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_BCR_GEAR, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_BCR_GEAR, 0x00);
 
   /*
    * BCR_MISC1
@@ -1991,22 +1989,22 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    *  BCR_MISC0
    *   default 0x00
    */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_BCR_MISC0, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_BCR_MISC1, 0xC2);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_BCR_MISC0, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_BCR_MISC1, 0xC2);
 
   /* RX IF frequency controls are set in setSynthParameters() */
 
   /* RX IF CIC filter decimation controls. */
 #if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x20);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x20);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
 #else
 #if Si446x_USE_NB_RECEIVE_FILTER == TRUE
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0xB0);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0xB0);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
 #else
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x70);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG1, 0x70);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG0, 0x10);
 #endif
 #endif
   if (is_part_Si4463(handler->radio_part)) {
@@ -2018,13 +2016,13 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
      * NDEC2AGC[2] = 1 enable AGC control of 2nd stage CIC
      * NDEC2GAIN[4:3] = 1 2nd stage CIC gain is 12dB
      */
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x00);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x00);
 #else
     /*
      * NDEC2AGC[2] = 1 enable AGC control of 2nd stage CIC
      * NDEC2GAIN[4:3] = 1 2nd stage CIC gain is 12dB
      */
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x0C);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_DECIMATION_CFG2, 0x0C);
 #endif
   }
 
@@ -2033,150 +2031,150 @@ static void Si446x_setModemAFSK_RX(const radio_unit_t radio) {
    * LATCH[2:0] = 0 disabled.
    * AVERAGE[4:3] = 0 average over 4*Tb
    */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL, 0x00);
   if (is_part_Si4463(handler->radio_part)) {
     /* RSSI jump control (ENRSSIJMP[3] 1 -> 0 to disable. */
 #if Si446x_4463_USE_446X_COMPATABILITY == TRUE
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL2, 0x00);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL2, 0x00);
 #else
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL2, 0x18);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_RSSI_CONTROL2, 0x18);
 #endif
-    (void)Si446x_setProperty8(radio, Si446x_MODEM_RSSI_JUMP_THRESH, 0x06);
+    (void) Si446x_setProperty8(radio, Si446x_MODEM_RSSI_JUMP_THRESH, 0x06);
   }
 
   /* RX IF filter coefficients. */
 #if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xA2);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xA0);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x97);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x8A);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0x79);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0x66);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0x52);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0x3F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x2E);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x1F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x14);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x0B);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0x06);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0x02);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xA2);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xA0);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x97);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x8A);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0x79);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0x66);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0x52);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0x3F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x2E);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x1F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x14);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x0B);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0x06);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0x02);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x00);
 
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xA2);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xA0);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x97);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x8A);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0x79);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0x66);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0x52);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0x3F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x2E);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x1F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x14);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x0B);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0x06);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0x02);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xA2);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xA0);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x97);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x8A);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0x79);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0x66);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0x52);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0x3F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x2E);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x1F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x14);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x0B);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0x06);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0x02);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x00);
 #else
 #if Si446x_USE_NB_RECEIVE_FILTER == TRUE
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xBA);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x0F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x51);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0xCF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xA9);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xC9);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xFC);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x1B);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x1E);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x0F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x01);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0xFC);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0xFD);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xBA);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x51);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0xCF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xA9);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xC9);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xFC);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x1B);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x1E);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x01);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0xFC);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0xFD);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x0F);
 
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xBA);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x0F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x51);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0xCF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xA9);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xC9);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xFC);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x1B);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x1E);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x0F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x01);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0xFC);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0xFD);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xBA);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x51);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0xCF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xA9);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xC9);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xFC);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x1B);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x1E);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x01);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0xFC);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0xFD);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x0F);
 #else
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xBA);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x0F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x51);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0xCF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xA9);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xC9);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xFC);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x1B);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x1E);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x0F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x01);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0xFC);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0xFD);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE13_7_0, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE12_7_0, 0xBA);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE11_7_0, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE10_7_0, 0x51);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE9_7_0, 0xCF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE8_7_0, 0xA9);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE7_7_0, 0xC9);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE6_7_0, 0xFC);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE5_7_0, 0x1B);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE4_7_0, 0x1E);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE3_7_0, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE2_7_0, 0x01);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE1_7_0, 0xFC);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COE0_7_0, 0xFD);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM0, 0x15);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM1, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM2, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX1_CHFLT_COEM3, 0x0F);
 
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xBA);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x0F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x51);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0xCF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xA9);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xC9);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xFC);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x1B);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x1E);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x0F);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x01);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0xFC);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0xFD);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE13_7_0, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE12_7_0, 0xBA);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE11_7_0, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE10_7_0, 0x51);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE9_7_0, 0xCF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE8_7_0, 0xA9);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE7_7_0, 0xC9);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE6_7_0, 0xFC);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE5_7_0, 0x1B);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE4_7_0, 0x1E);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE3_7_0, 0x0F);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE2_7_0, 0x01);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE1_7_0, 0xFC);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COE0_7_0, 0xFD);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM0, 0x15);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM1, 0xFF);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM2, 0x00);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_CHFLT_RX2_CHFLT_COEM3, 0x0F);
 #endif
 #endif
 
   /* TODO: Not used in UNSTD mode. */
-  (void)Si446x_setProperty8(radio, Si446x_PREAMBLE_CONFIG, 0x21);
+  (void) Si446x_setProperty8(radio, Si446x_PREAMBLE_CONFIG, 0x21);
 
   /* Unused Si4463 features for AFSK RX. */
   if (is_part_Si4463(handler->radio_part)) {
    /* DSA[5] is not enabled. */
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL1, 0x40);
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL2, 0x04);
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_SPIKE_DET, 0x03);
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_ONE_SHOT_AFC, 0x07);
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_DSA_QUAL, 0x06);
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_DSA_RSSI, 0x78);
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_RSSI_MUTE, 0x00);
-   (void)Si446x_setProperty8(radio, Si446x_MODEM_DSA_MISC, 0x20);
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL1, 0x40);
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_DSA_CTRL2, 0x04);
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_SPIKE_DET, 0x03);
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_ONE_SHOT_AFC, 0x07);
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_DSA_QUAL, 0x06);
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_DSA_RSSI, 0x78);
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_RSSI_MUTE, 0x00);
+   (void) Si446x_setProperty8(radio, Si446x_MODEM_DSA_MISC, 0x20);
   }
 }
 
@@ -2188,7 +2186,7 @@ static void Si446x_setModem2FSK_TX(const radio_unit_t radio,
                                    const uint32_t speed) {
 
   /* Configure radio GPIOs. */
-  (void)Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->t2fsk).gpio);
+  (void) Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->t2fsk).gpio);
 
   /*
   * Set up GPIO port where the NIRQ from the radio is connected.
@@ -2205,19 +2203,19 @@ static void Si446x_setModem2FSK_TX(const radio_unit_t radio,
   uint8_t f2 = (s >> 16) & 0xFF;
   uint8_t f1 = (s >>  8) & 0xFF;
   uint8_t f0 = (s >>  0) & 0xFF;
-  (void)Si446x_setProperty32(radio, Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
+  (void) Si446x_setProperty32(radio, Si446x_MODEM_TX_NCO_MODE, f3, f2, f1, f0);
 
   /* Setup the NCO data rate for 2FSK. */
-  (void)Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE,
+  (void) Si446x_setProperty24(radio, Si446x_MODEM_DATA_RATE,
                        (uint8_t)(speed >> 16),
                        (uint8_t)(speed >> 8),
                        (uint8_t)speed);
 
   /* Use 2FSK from FIFO (PH). */
-  (void)Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
+  (void) Si446x_setProperty8(radio, Si446x_MODEM_MOD_TYPE, 0x02);
 
   /* Set PH bit order for 2FSK. */
-  (void)Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x01);
+  (void) Si446x_setProperty8(radio, Si446x_PKT_CONFIG1, 0x01);
 
   /* No TX filtering used for 2FSK mode. */
 }
@@ -2231,11 +2229,11 @@ static void Si446x_setModem2FSK_RX(const radio_unit_t radio,
   packet_svc_t *handler = pktGetServiceObject(radio);
 
   /* Configure radio GPIOs. */
-  (void)Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->r2fsk).gpio);
+  (void) Si446x_configureGPIO(radio, &(Si446x_getConfig(radio)->r2fsk).gpio);
 
   /* TODO: Everything.... */
-  (void)handler;
-  (void)mod;
+  (void) handler;
+  (void) mod;
 }
 
 /**
@@ -2245,7 +2243,7 @@ static void Si446x_setModem2FSK_RX(const radio_unit_t radio,
 static uint8_t __attribute__((unused)) Si446x_getChannel(const radio_unit_t radio) {
   const uint8_t state_info[] = {Si446x_REQUEST_DEVICE_STATE_CMD};
   uint8_t rxData[4];
-  (void)Si446x_read(radio, state_info, sizeof(state_info), rxData, sizeof(rxData));
+  (void) Si446x_read(radio, state_info, sizeof(state_info), rxData, sizeof(rxData));
   return rxData[1];
 }
 #endif
@@ -2606,7 +2604,7 @@ static bool Si446x_transmitWithCCA(const radio_unit_t radio,
   /* Check for ready state. */
   if (Si446x_waitForState(radio, Si446x_READY, TIME_S2I(5)) == MSG_TIMEOUT) {
     /* Force 446x into ready state. */
-    (void)Si446x_setReadyState(radio);
+    (void) Si446x_setReadyState(radio);
     TRACE_ERROR("SI   > %s timeout waiting for ready state radio %d",
                 getModulation(mod), radio);
     return false;
@@ -2623,12 +2621,12 @@ static bool Si446x_transmitWithCCA(const radio_unit_t radio,
      */
 
     /* Frequency is an absolute frequency in Hz. */
-    (void)Si446x_setSynthParameters(radio, op_freq, step, 0);
+    (void) Si446x_setSynthParameters(radio, op_freq, step, 0);
 
     /* Set receiver for CCA detection. CCA may not be supported. */
     if (!Si446x_setModemCCA_Detection(radio)) {
       /* Setup for CCA detection was OK. Set the RSSI threshold. */
-      (void)Si446x_setProperty8(radio, Si446x_MODEM_RSSI_THRESH, rssi);
+      (void) Si446x_setProperty8(radio, Si446x_MODEM_RSSI_THRESH, rssi);
 
       /* Minimum timeout for CCA is 1 second. */
       if (cca_timeout < TIME_S2I(1) || cca_timeout == TIME_INFINITE) {
@@ -2681,7 +2679,7 @@ static bool Si446x_transmitWithCCA(const radio_unit_t radio,
   } /* End if CCA. */
 
   /* Frequency is an absolute frequency in Hz. */
-  (void)Si446x_setSynthParameters(radio, op_freq, step, mp.tx_dev);
+  (void) Si446x_setSynthParameters(radio, op_freq, step, mp.tx_dev);
 
   /* Setup TX configuration. */
   switch (mod) {
@@ -2721,7 +2719,7 @@ static bool Si446x_transmitWithCCA(const radio_unit_t radio,
   }
   if (Si446x_startPacketTXWaitCTS(radio, chan, size)) {
     /* Force 446x out of state. */
-    (void)Si446x_setReadyState(radio);
+    (void) Si446x_setReadyState(radio);
     TRACE_ERROR("SI   > %s transmit failed to start on radio %d",
                 getModulation(mod), radio);
     return false;
@@ -2730,7 +2728,7 @@ static bool Si446x_transmitWithCCA(const radio_unit_t radio,
   /* Wait for transmission to start. */
   if (Si446x_waitForState(radio, Si446x_TX, TIME_MS2I(100)) == MSG_TIMEOUT) {
     /* Force 446x out of state. */
-    (void)Si446x_setReadyState(radio);
+    (void) Si446x_setReadyState(radio);
     TRACE_ERROR("SI   > %s transmit failed to start on radio %d",
                 getModulation(mod), radio);
     return false;
@@ -2800,7 +2798,7 @@ bool Si4464_enableReceive(const radio_unit_t radio,
    */
   if (Si446x_waitTransmitEnd(radio, TIME_S2I(10))) {
     /* Force ready state. */
-    (void)Si446x_setReadyState(radio);
+    (void) Si446x_setReadyState(radio);
     TRACE_ERROR("SI   > Timeout waiting for TX state end "
                  "before starting %s receive on radio %d",
                  getModulation(rx_mod), radio);
@@ -2828,7 +2826,7 @@ bool Si4464_enableReceive(const radio_unit_t radio,
   }
 
   case MOD_CW:
-    (void)Si446x_setModemCCA_Detection(radio);
+    (void) Si446x_setModemCCA_Detection(radio);
     break;
 
   case MOD_NONE:
@@ -3011,7 +3009,7 @@ static uint8_t Si446x_getPacketHandlerBits(re_sampler_t *sampler,
  *
  */
 static void Si446x_transmitTimeoutI(thread_t *thd) {
-  (void)thd;
+  (void) thd;
   chDbgAssert(false, "transmit timeout panic");
   chSysHalt("Transmit timeout");
 }
@@ -3224,7 +3222,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
      */
     if (Si446x_waitForState(radio, Si446x_READY, TIME_S2I(5)) == MSG_TIMEOUT) {
       /* Force 446x out of TX state. */
-      (void)Si446x_setReadyState(radio);
+      (void) Si446x_setReadyState(radio);
 
       /* Unlock radio. */
       pktUnlockRadio(radio);
@@ -3265,7 +3263,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     if (Si446x_writeFIFOdataTX(radio, localBuffer, c)) {
 
       /* Something failed in FIFO load so set radio ready to clear it. */
-      (void)Si446x_setReadyState(radio);
+      (void) Si446x_setReadyState(radio);
 
       /* Unlock radio. */
       pktUnlockRadio(radio);
@@ -3289,7 +3287,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
                                   TIME_S2I(SI446X_TX_CCA_TIMEOUT))) {
 
       /* Transmit start failed. */
-      (void)Si446x_setReadyState(radio);
+      (void) Si446x_setReadyState(radio);
 
       /* Unlock radio. */
       pktUnlockRadio(radio);
@@ -3303,7 +3301,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     if (Si446x_setFIFOthresholdTX(radio, free / 2)) {
 
       /* Something failed so set radio ready to clear it. */
-      (void)Si446x_setReadyState(radio);
+      (void) Si446x_setReadyState(radio);
 
       /* Unlock radio. */
       pktUnlockRadio(radio);
@@ -3335,7 +3333,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
         chVTReset(&send_timer);
 #endif
         /* Set radio to ready state and unlock. */
-        (void)Si446x_setReadyState(radio);
+        (void) Si446x_setReadyState(radio);
         pktUnlockRadio(radio);
 
         /* Abort this TX request. Chained packets are freed and not sent. */
@@ -3358,7 +3356,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
         chVTReset(&send_timer);
 #endif
         /* Set radio to ready state and unlock. */
-        (void)Si446x_setReadyState(radio);
+        (void) Si446x_setReadyState(radio);
         pktUnlockRadio(radio);
 
         /* Abort this TX request. Chained packets are freed and not sent. */
@@ -3379,7 +3377,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
         chVTReset(&send_timer);
 #endif
         /* Set radio to ready state and unlock. */
-        (void)Si446x_setReadyState(radio);
+        (void) Si446x_setReadyState(radio);
         pktUnlockRadio(radio);
 
         /* Abort this TX request. Chained packets are freed and not sent. */
@@ -3408,7 +3406,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
           chVTReset(&send_timer);
 #endif
           /* Set radio to ready state and unlock. */
-          (void)Si446x_setReadyState(radio);
+          (void) Si446x_setReadyState(radio);
           pktUnlockRadio(radio);
 
           /* Abort this TX request. Any chained packets are not sent. */
@@ -3426,7 +3424,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
     if (exit_msg == MSG_TIMEOUT) {
       /* Set radio to ready state and unlock. */
     }
-      (void)Si446x_setReadyState(radio);
+      (void) Si446x_setReadyState(radio);
       pktUnlockRadio(radio);
 
       /* Abort this TX request. Any chained packets are not sent. */
@@ -3451,7 +3449,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       chVTReset(&send_timer);
 #endif
       /* Set radio to ready state and unlock. */
-      (void)Si446x_setReadyState(radio);
+      (void) Si446x_setReadyState(radio);
       pktUnlockRadio(radio);
 
       /* Abort this TX request. Chained packets are freed and not sent. */
@@ -3472,7 +3470,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
       chVTReset(&send_timer);
 #endif
       /* Set radio ready to clear it. */
-      (void)Si446x_setReadyState(radio);
+      (void) Si446x_setReadyState(radio);
 
       /* Unlock radio. */
       pktUnlockRadio(radio);
@@ -3501,7 +3499,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_afsk, arg) {
   if ((exit_msg = Si446x_waitForState(radio, Si446x_READY,
                                       TIME_S2I(5))) != MSG_OK) {
     /* Force 446x out of TX state. */
-    (void)Si446x_setReadyState(radio);
+    (void) Si446x_setReadyState(radio);
     TRACE_ERROR("SI   > %s transmit failed to cease on radio %d",
                 getModulation(rto->radio_dat.type), radio);
   }
@@ -3653,7 +3651,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     /* Wait for current radio activity to stop. */
     if (Si446x_waitForState(radio, Si446x_READY, TIME_S2I(5)) == MSG_TIMEOUT) {
       /* Force 446x out of TX state. */
-      (void)Si446x_setReadyState(radio);
+      (void) Si446x_setReadyState(radio);
       TRACE_ERROR("SI   > %s transmit failed to get radio ready on radio %d",
                   getModulation(rto->radio_dat.type), radio);
 
@@ -3693,7 +3691,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     if (Si446x_writeFIFOdataTX(radio, bufp, c)) {
 
       /* Something failed so set radio ready to clear it. */
-      (void)Si446x_setReadyState(radio);
+      (void) Si446x_setReadyState(radio);
 
       /* Radio did not initialise. */
       TRACE_ERROR("SI   > Radio %d write to FIFO failed for %s TX",
@@ -3735,7 +3733,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
       if (Si446x_setFIFOthresholdTX(radio, free / 2)) {
 
         /* Something failed so set radio ready to clear it. */
-        (void)Si446x_setReadyState(radio);
+        (void) Si446x_setReadyState(radio);
 
         /* Unlock radio. */
         pktUnlockRadio(radio);
@@ -3767,12 +3765,12 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
                set radio ready to clear it. */
 #if 0
           if (result == MSG_TIMEOUT)
-            (void)Si446x_cancelRadioInterrupt(radio);
+            (void) Si446x_cancelRadioInterrupt(radio);
 #endif
 #if Si446x_USE_TRANSMIT_TIMEOUT == TRUE
           chVTReset(&send_timer);
 #endif
-          (void)Si446x_setReadyState(radio);
+          (void) Si446x_setReadyState(radio);
 
           /* Radio did not interrupt. */
           TRACE_ERROR("SI   > Radio %d FIFO interrupt timeout for %s TX",
@@ -3792,7 +3790,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
 #if Si446x_USE_TRANSMIT_TIMEOUT == TRUE
           chVTReset(&send_timer);
 #endif
-          (void)Si446x_setReadyState(radio);
+          (void) Si446x_setReadyState(radio);
 
           /* Radio did not initialise. */
           TRACE_ERROR("SI   > Radio %d read of FIFO free failed for %s TX",
@@ -3817,7 +3815,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
           if (Si446x_writeFIFOdataTX(radio, bufp, more)) {
 
             /* Something failed so set radio READY. */
-            (void)Si446x_setReadyState(radio);
+            (void) Si446x_setReadyState(radio);
 
             /* Unlock radio. */
             pktUnlockRadio(radio);
@@ -3857,14 +3855,14 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
     if (exit_msg == MSG_OK) {
 
       /* Send was OK. Release the just completed packet. */
-      (void)pktReleaseBufferObject(pp);
+      (void) pktReleaseBufferObject(pp);
     }
     else {
       /* Send failed so release any queue and terminate. */
       pktReleaseBufferChain(pp);
       np = NULL;
       /* Force 446x out of TX state. */
-      (void)Si446x_setReadyState(radio);
+      (void) Si446x_setReadyState(radio);
     }
 
     /* Tide warning at 75%. */
@@ -3886,9 +3884,9 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
          timer and set radio ready to clear it. */
 #if 0
       if (result == MSG_TIMEOUT)
-        (void)Si446x_cancelRadioInterrupt(radio);
+        (void) Si446x_cancelRadioInterrupt(radio);
 #endif
-      (void)Si446x_setReadyState(radio);
+      (void) Si446x_setReadyState(radio);
 
       /* Radio did not interrupt. */
       TRACE_ERROR("SI   > Radio %d packet sent interrupt timeout for %s TX",
@@ -3907,7 +3905,7 @@ THD_FUNCTION(bloc_si_fifo_feeder_fsk, arg) {
   if ((exit_msg = Si446x_waitForState(radio, Si446x_READY,
                                       TIME_S2I(5))) != MSG_OK) {
     /* Force 446x out of TX state. */
-    (void)Si446x_setReadyState(radio);
+    (void) Si446x_setReadyState(radio);
     TRACE_ERROR("SI   > %s transmit failed to cease on radio %d",
                 getModulation(rto->radio_dat.type), radio);
   }
@@ -3954,7 +3952,7 @@ bool Si446x_blocSend2FSK(radio_task_object_t *const rt) {
  * Return false on failure
  */
 bool Si446x_blocSendCW(radio_task_object_t *rt) {
-  (void)rt;
+  (void) rt;
   return false;
 }
 
@@ -4027,7 +4025,7 @@ void Si446x_detachPWM(const radio_unit_t radio) {
  */
 void Si446x_enablePWMevents(const radio_unit_t radio, const radio_mod_t mod,
                             const palcallback_t cb) {
-  (void)mod;
+  (void) mod;
   /* Set callback for squelch events. */
   palSetLineCallback(*Si446x_getConfig(radio)->rafsk.cca.pline, cb,
                      Si446x_getConfig(radio)->rafsk.icu);
@@ -4041,7 +4039,7 @@ void Si446x_enablePWMevents(const radio_unit_t radio, const radio_mod_t mod,
  * TODO: Switch on mod type (only if there is another mode that uses PWM)
  */
 void Si446x_disablePWMeventsI(const radio_unit_t radio, radio_mod_t mod) {
-  (void)mod;
+  (void) mod;
   palDisableLineEventI(*Si446x_getConfig(radio)->rafsk.cca.pline);
 }
 
