@@ -13,6 +13,10 @@
 /* Module pre-compile time settings.                                         */
 /*===========================================================================*/
 
+/* Community extensions. */
+#define HAL_USE_COMMUNITY           TRUE
+#define STM32_SERIAL_USE_MUX        TRUE
+
 /* Board and hardware capabilities settings. */
 #define PKT_HARDWARE_SUPPORTS_CAM   TRUE
 #define PKT_HARDWARE_SUPPORTS_USB   TRUE
@@ -59,10 +63,6 @@
  */
 #define USE_CCM_BASED_PWM_HEAP      TRUE
 #define TRACE_PWM_BUFFER_STATS      FALSE
-
-/* Test of re-assigning CCA and NIRQ on radio. */
-#define USE_GPIO0_OF_RADIO_FOR_CCA  TRUE
-#define USE_NIRQ_OF_RADIO_FOR_NIRQ  TRUE
 
 #if PKT_HARDWARE_SUPPORTS_USB
 #include "usbcfg2.h"
@@ -171,9 +171,14 @@
 #define LINE_GPS_EN                 PAL_LINE(GPIOC, 5U)
 #define LINE_GPS_RESET              PAL_LINE(GPIOA, 15U)
 #define LINE_GPS_TXD                PAL_LINE(GPIOB, 13U)
-#define LINE_GPS_TXD_MODE           PAL_MODE_ALTERNATE(11)
+#define LINE_GPS_TXD_MODE           (PAL_MODE_ALTERNATE(11)     |            \
+                                     PAL_STM32_OTYPE_PUSHPULL   |            \
+                                     PAL_STM32_PUPDR_FLOATING   |            \
+                                     PAL_STM32_OSPEED_HIGHEST)
 #define LINE_GPS_RXD                PAL_LINE(GPIOB, 12U)
-#define LINE_GPS_RXD_MODE           PAL_MODE_ALTERNATE(11)
+#define LINE_GPS_RXD_MODE           (PAL_MODE_ALTERNATE(11)     |            \
+                                     PAL_STM32_MODE_INPUT       |            \
+                                     PAL_STM32_PUPDR_FLOATING)
 #define LINE_GPS_TIMEPULSE          PAL_LINE(GPIOB, 15U)
 
 // IO

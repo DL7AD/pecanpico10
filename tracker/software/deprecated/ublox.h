@@ -9,21 +9,6 @@
 #include "hal.h"
 #include "ptime.h"
 
-
-/*===========================================================================*/
-/* Module pre-compile time settings.                                         */
-/*===========================================================================*/
-
-#define GPS_USE_SERIAL_MUX      FALSE
-#define GPS_USE_UBX_ATOMIC      TRUE
-#define UBLOX_ALLOW_POWER_SAVE  FALSE
-
-/*===========================================================================*/
-/* Module constants.                                                         */
-/*===========================================================================*/
-
-#define UBX_COMMAND_ACK         1
-#define UBX_COMMAND_NAK         0
 /**
  * @brief   GPS model values.
  */
@@ -35,6 +20,7 @@
 #define GPS_MODEL_AIRBORNE1G    6
 #define GPS_MODEL_AIRBORNE2G    7
 #define GPS_MODEL_AIRBORNE4G    8
+
 
 /* Model limits. */
 #define GPS_MODEL_MAX           GPS_MODEL_AIRBORNE4G
@@ -64,15 +50,17 @@ typedef enum {
 
 #define GPS_MAX_SV_CHANNELS     30
 
-/*===========================================================================*/
-/* Driver macros.                                                            */
-/*===========================================================================*/
+#define UBLOX_MAX_ADDRESS	    0x42
+
+// You can either use I2C (TRUE) or UART if available (FALSE)
+#define UBLOX_USE_I2C           FALSE
+#define UBLOX_UART_CONNECTED
+
+#if     UBLOX_USE_I2C == FALSE && !defined(UBLOX_UART_CONNECTED)
+#warning "UBLOX has no I2C or UART communications enabled"
+#endif
 
 #define isGPSLocked(pos) ((pos)->type == 3 && (pos)->num_svs >= 4 && (pos)->fixOK == true)
-
-/*===========================================================================*/
-/* Driver data structures and types.                                         */
-/*===========================================================================*/
 
 /* UBLOX reply messages. */
 typedef struct {
@@ -122,42 +110,34 @@ typedef struct {
 
 /* Combination object (not a UBLOX reply). */
 typedef struct {
-    ptime_t     time;       // Time
-    uint8_t     type;       // type of fix (validity)
-    uint8_t     num_svs;    // number of satellites used for solution, range 0 .. 19
-    int32_t     lat;        // latitude in deg * 10^7, range -90 .. +90 * 10^7
-    int32_t     lon;        // longitude in deg * 10^7, range -180 .. +180 * 10^7
-    int32_t     alt;        // altitude in m, range 0m, up to 50000m, clamped
-    bool        fixOK;      // Flag that is set to true, when DOP is with the limits
-    uint16_t    pdop;       // Position DOP
-    uint8_t     model;      // Dynamic model
+    ptime_t time;       // Time
+    uint8_t type;       // type of fix (validity)
+    uint8_t num_svs;    // number of satellites used for solution, range 0 .. 19
+    int32_t lat;        // latitude in deg * 10^7, range -90 .. +90 * 10^7
+    int32_t lon;        // longitude in deg * 10^7, range -180 .. +180 * 10^7
+    int32_t alt;        // altitude in m, range 0m, up to 50000m, clamped
+    bool    fixOK;      // Flag that is set to true, when DOP is with the limits
+    uint16_t pdop;      // Position DOP
+    uint8_t  model;     // Dynamic model
 } gpsFix_t;
 
+uint8_t gps_set_gps_only(void);
+uint8_t gps_disable_nmea_output(void);
+bool    gps_set_model(bool dynamic);
+uint8_t gps_set_stationary_model(void);
+uint8_t gps_set_portable_model(void);
+uint8_t gps_set_airborne_model(void);
+uint8_t gps_set_power_options(void);
+uint8_t gps_switch_power_save_mode(bool on);
+bool    gps_get_fix(gpsFix_t *fix);
+bool    gps_get_sv_info(gps_svinfo_t *svinfo, size_t size);
+bool    gps_get_timepulse_info(tpidx_t tp, gps_tp5_t *tp5, size_t size);
+bool    gps_get_nav_status(gps_navinfo_t *navinfo, size_t size);
+bool    GPS_Init(void);
+void    GPS_Deinit(void);
+uint32_t GPS_get_mcu_frequency(void);
+bool    gps_calc_ubx_csum(uint8_t *mbuf, uint16_t mlen);
+const char *gps_get_model_name(uint8_t index);
 
-/*===========================================================================*/
-/* External declarations.                                                    */
-/*===========================================================================*/
-
-#ifdef __cplusplus
-extern "C" {
 #endif
-  uint8_t gps_disable_nmea_output(void);
-  bool    gps_set_model(bool dynamic);
-  uint8_t gps_set_stationary_model(void);
-  uint8_t gps_set_portable_model(void);
-  uint8_t gps_set_airborne_model(void);
-  uint8_t gps_set_power_options(void);
-  uint8_t gps_switch_power_save_mode(bool on);
-  bool    gps_get_fix(gpsFix_t *fix);
-  bool    gps_get_sv_info(gps_svinfo_t *svinfo, size_t size);
-  bool    gps_get_timepulse_info(tpidx_t tp, gps_tp5_t *tp5, size_t size);
-  bool    gps_get_nav_status(gps_navinfo_t *navinfo, size_t size);
-  bool    GPS_Init(void);
-  void    GPS_Deinit(void);
-  const char *gps_get_model_name(uint8_t index);
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __MAX_H__ */
 

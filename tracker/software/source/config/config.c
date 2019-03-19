@@ -189,7 +189,7 @@ const conf_t conf_flash_default = {
 
     // GPS altitude model control (air pressure controlled using on-board BME280)
     .gps_pressure = 90000, // Air pressure (Pa) threshold for alt model switch
-    .gps_low_alt = GPS_STATIONARY,
+    .gps_low_alt = GPS_AUTOMOTIVE,
     .gps_high_alt = GPS_AIRBORNE_1G,
 
     // APRS

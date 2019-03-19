@@ -16,6 +16,10 @@
 /* Module pre-compile time settings.                                         */
 /*===========================================================================*/
 
+/* Community extensions. */
+#define HAL_USE_COMMUNITY           TRUE
+#define STM32_SERIAL_USE_MUX        FALSE
+
 /* Board and hardware capabilities settings. */
 #define PKT_HARDWARE_SUPPORTS_CAM   TRUE
 #define PKT_HARDWARE_SUPPORTS_USB   TRUE
@@ -62,10 +66,6 @@
  */
 #define USE_CCM_BASED_PWM_HEAP      TRUE
 #define TRACE_PWM_BUFFER_STATS      FALSE
-
-/* Test of re-assigning CCA and NIRQ on radio. */
-#define USE_GPIO0_OF_RADIO_FOR_CCA  TRUE
-#define USE_NIRQ_OF_RADIO_FOR_NIRQ  TRUE
 
 #if PKT_HARDWARE_SUPPORTS_USB
 #include "usbcfg2.h"

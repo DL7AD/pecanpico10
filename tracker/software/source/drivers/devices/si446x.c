@@ -63,7 +63,7 @@ static SPIConfig ls_spicfg = {
  */
 static const si446x_mcucfg_t *Si446x_getConfig(const radio_unit_t radio) {
   const radio_config_t *data = pktGetRadioData(radio);
-return (si446x_mcucfg_t *)data->cfg;
+  return (si446x_mcucfg_t *)data->cfg;
 }
 
 /**
@@ -759,13 +759,21 @@ static bool Si446x_initDevice(const radio_unit_t radio) {
                         sizeof(part_info)))
     return true;
 
+  /* Check if the radio responded with a valid ID. 0x0000 or 0xFFFF
+     are treated as invalid and likely represent a failure of SPI. */
+  uint16_t radio_part = (part_info.info[1] << 8) + part_info.info[2];
+  if (radio_part == 0 || radio_part == 0xFFFF) {
+    TRACE_ERROR("SI   > Part info of radio %d is invalid. Possible SPI fault",
+                radio);
+    return true;
+  }
+
   /* Save the part information and ROM revision. */
-  Si446x_getData(radio)->radio_part
-                           = (part_info.info[1] << 8) + part_info.info[2];
+  Si446x_getData(radio)->radio_part = radio_part;
   Si446x_getData(radio)->radio_rom_rev = part_info.info[7];
   Si446x_getData(radio)->radio_patch = 0;
 
-  handler->radio_part = (part_info.info[1] << 8) + part_info.info[2];
+  handler->radio_part = radio_part;
   handler->radio_rom_rev = part_info.info[7];
 
   /*
@@ -2372,9 +2380,11 @@ bool Si446x_radioWakeUp(const radio_unit_t radio) {
 bool Si446x_radioWakeUp(const radio_unit_t radio) {
   TRACE_DEBUG("SI   > Wake up radio %i", radio);
 
-  /* Get the SDN and CTS line MCU GPIO connections. */
+  /* Get the SDN, POR and CTS line MCU GPIO connections. */
   ioline_t sdn = Si446x_getConfig(radio)->sdn;
+  ioline_t por = Si446x_getConfig(radio)->gpio0;
   ioline_t cts = Si446x_getConfig(radio)->gpio1;
+
   /* Can't boot without SDN and CTS line control. */
   if (sdn == PAL_NOLINE || cts == PAL_NOLINE) {
     return true;
@@ -2385,14 +2395,12 @@ bool Si446x_radioWakeUp(const radio_unit_t radio) {
   palSetLine(sdn);
   chThdSleep(TIME_MS2I(100));
 
-  /* Assert SDN low to perform radio POR wakeup. */
-  palClearLine(sdn);
-
-  /* Get MCU GPIO input for POR (GPIO0) and CTS (GPIO1). */
-  ioline_t por = Si446x_getConfig(radio)->gpio0;
   if (por != PAL_NOLINE) {
     /* There is an MCU port connected to device GPIO0. Configure it. */
-    palSetLineMode(Si446x_getConfig(radio)->gpio0, PAL_MODE_INPUT_PULLDOWN);
+    palSetLineMode(por, PAL_MODE_INPUT_PULLDOWN);
+
+    /* Assert SDN low to perform radio POR wakeup. */
+    palClearLine(sdn);
 
     /* Wait for device to complete POR. The spec says 6ms maximum. */
     uint8_t timeout = 10;
@@ -2404,11 +2412,15 @@ bool Si446x_radioWakeUp(const radio_unit_t radio) {
       return true;
     }
   } else {
+
+    /* Assert SDN low to perform radio POR wakeup. */
+    palClearLine(sdn);
+
     /* Just use a blind timeout for POR time. */
     chThdSleep(TIME_MS2I(10));
   }
   /* Configure MCU port connected to gpio1. */
-  palSetLineMode(Si446x_getConfig(radio)->gpio1, PAL_MODE_INPUT_PULLDOWN);
+  palSetLineMode(cts, PAL_MODE_INPUT_PULLDOWN);
   chThdSleep(TIME_MS2I(10));
 
   /* Return state of CTS. */
@@ -3971,8 +3983,8 @@ radio_temp_t Si446x_getLastTemperature(const radio_unit_t radio) {
 ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
 
   /* The radio RX_RAW_DATA output is routed to an ICU timer channel.  */
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.pwm.pline,
-                     Si446x_getConfig(radio)->rafsk.pwm.mode);
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.stream.pwm.pline,
+                     Si446x_getConfig(radio)->rafsk.stream.pwm.mode);
 
   /**
    * Set up GPIO port where the radio line outputting CCA is connected.
@@ -3982,13 +3994,13 @@ ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
    * For AFSK receive the MCU GPIO is enabled to interrupt on CCA.
    *
    */
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.cca.pline,
-                     Si446x_getConfig(radio)->rafsk.cca.mode);
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.stream.cca.pline,
+                     Si446x_getConfig(radio)->rafsk.stream.cca.mode);
 
   /* Initialise and start the ICU. */
-  ICUDriver *picu = Si446x_getConfig(radio)->rafsk.icu;
+  ICUDriver *picu = Si446x_getConfig(radio)->rafsk.stream.icu;
   icuObjectInit(picu);
-  icuStart(picu, &Si446x_getConfig(radio)->rafsk.cfg);
+  icuStart(picu, &Si446x_getConfig(radio)->rafsk.stream.cfg);
   return picu;
 }
 
@@ -3997,14 +4009,14 @@ ICUDriver *Si446x_attachPWM(const radio_unit_t radio) {
  * Any GPIO interrupt/event settings should have been disabled already.
  */
 void Si446x_detachPWM(const radio_unit_t radio) {
-  icuStop(Si446x_getConfig(radio)->rafsk.icu);
+  icuStop(Si446x_getConfig(radio)->rafsk.stream.icu);
 
   /* Timer channel GPIO. */
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.pwm.pline,
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.stream.pwm.pline,
   PAL_MODE_INPUT_PULLUP);
 
   /* CCA GPIO. */
-  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.cca.pline,
+  pktSetGPIOlineMode(*Si446x_getConfig(radio)->rafsk.stream.cca.pline,
   PAL_MODE_INPUT_PULLUP);
 }
 
@@ -4027,11 +4039,11 @@ void Si446x_enablePWMevents(const radio_unit_t radio, const radio_mod_t mod,
                             const palcallback_t cb) {
   (void) mod;
   /* Set callback for squelch events. */
-  palSetLineCallback(*Si446x_getConfig(radio)->rafsk.cca.pline, cb,
-                     Si446x_getConfig(radio)->rafsk.icu);
+  palSetLineCallback(*Si446x_getConfig(radio)->rafsk.stream.cca.pline, cb,
+                     Si446x_getConfig(radio)->rafsk.stream.icu);
 
   /* Enabling events on both edges of CCA.*/
-  palEnableLineEvent(*Si446x_getConfig(radio)->rafsk.cca.pline,
+  palEnableLineEvent(*Si446x_getConfig(radio)->rafsk.stream.cca.pline,
   PAL_EVENT_MODE_BOTH_EDGES);
 }
 
@@ -4040,7 +4052,7 @@ void Si446x_enablePWMevents(const radio_unit_t radio, const radio_mod_t mod,
  */
 void Si446x_disablePWMeventsI(const radio_unit_t radio, radio_mod_t mod) {
   (void) mod;
-  palDisableLineEventI(*Si446x_getConfig(radio)->rafsk.cca.pline);
+  palDisableLineEventI(*Si446x_getConfig(radio)->rafsk.stream.cca.pline);
 }
 
 /**
@@ -4048,7 +4060,7 @@ void Si446x_disablePWMeventsI(const radio_unit_t radio, radio_mod_t mod) {
  */
 uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio, const radio_mod_t mod) {
 
-  /* Read CAA as setup by mod type. */
+  /* Read CCA as setup by mod type. */
   switch (mod) {
   case MOD_2FSK_300:
   case MOD_2FSK_9k6:
@@ -4061,7 +4073,7 @@ uint8_t Si446x_readCCAlineForRX(const radio_unit_t radio, const radio_mod_t mod)
     return palReadLine(*Si446x_getConfig(radio)->r2fsk.cca.pline);
 
   case MOD_AFSK: {
-    return palReadLine(*Si446x_getConfig(radio)->rafsk.cca.pline);
+    return palReadLine(*Si446x_getConfig(radio)->rafsk.stream.cca.pline);
   }
 
   case MOD_CW:

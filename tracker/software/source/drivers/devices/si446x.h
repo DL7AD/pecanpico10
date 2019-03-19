@@ -364,12 +364,12 @@ typedef struct Si446x_MCUCFG {
   struct {
     si446x_gpio_t     gpio;
   } init;
-  /* Configuration of global IRQ dispatcher. */
+  /* Configuration of radio IRQ handler. */
   struct {
     si446x_gpio_t     gpio;   /**< Radio GPIO config for IRQ mode. */
     ioline_ref_t      nirq;
   } xirq;
-  /* CCA detection only. */
+  /* CCA detection for TX. */
   struct {
     si446x_gpio_t     gpio;
     ioline_ref_t      cca;
@@ -377,10 +377,18 @@ typedef struct Si446x_MCUCFG {
   /* AFSK receive settings. */
   struct {
     si446x_gpio_t     gpio;   /**< Radio GPIO config for this mode. */
+    struct {
+      ioline_ref_t      pwm;    /**< PWM (RAW_RX) from radio to MCU GPIO. */
+      ioline_ref_t      cca;    /**< CCA (CCA) from radio to MCU GPIO. */
+      ICUDriver*        icu;    /**< ICU (TIM) for capturing radio PWM. */
+      ICUConfig         cfg;
+    } stream;
+#if 0
     ioline_ref_t      pwm;    /**< PWM (RAW_RX) from radio to MCU GPIO. */
     ioline_ref_t      cca;    /**< CCA (CCA) from radio to MCU GPIO. */
     ICUDriver*        icu;    /**< ICU (TIM) for capturing radio PWM. */
     ICUConfig         cfg;
+#endif
   } rafsk;
   /* AFSK transmit settings. */
   struct {

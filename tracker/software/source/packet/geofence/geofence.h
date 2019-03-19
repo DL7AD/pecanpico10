@@ -17,6 +17,8 @@
 #define FREQ_APRS_ARGENTINA			144930000
 #define FREQ_APRS_BRAZIL			145575000
 
+#define FREQ_GEOFENCE_DEFAULT       144800000
+
 typedef struct {
 	int32_t lat;
 	int32_t lon;

@@ -26,12 +26,12 @@
  * @{
  */
 /**
- * @brief   Multiplexed serial driver for USART1 enable switch.
- * @details If set to @p TRUE support for multiplexed serial using USART1 is included.
+ * @brief   Multiplexed serial driver enable switch.
+ * @details If set to @p TRUE support for multiplexed serial is included.
  * @note    The default is @p FALSE.
  */
 #if !defined(STM32_SERIAL_USE_MUX) || defined(__DOXYGEN__)
-#define STM32_SERIAL_USE_MUX             TRUE
+//#define STM32_SERIAL_USE_MUX             TRUE
 #endif
 
 /*===========================================================================*/
@@ -50,12 +50,14 @@ typedef struct {
     ioline_cfg_t rx;
     ioline_cfg_t tx;
   } close;
+  SerialConfig    sdcfg;
 } SerialMuxConfig;
 
 /* Driver structure. */
 typedef struct {
   binary_semaphore_t    msem;
   SerialDriver          *sd;
+  const SerialMuxConfig *mcfg;
   event_source_t        *esp;
   event_listener_t      el;
 } SerialMuxDriver;
@@ -67,15 +69,14 @@ typedef struct {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  msg_t pktOpenMuxedSerial(SerialMuxDriver *const smd,
-                           const SerialConfig *scfg,
+  msg_t pktOpenMuxedSerial(SerialMuxDriver *const msd,
                            const SerialMuxConfig *mcfg,
                            const sysinterval_t timeout);
-  msg_t pktCloseMuxedSerial(SerialMuxDriver *const smd,
-                            const SerialMuxConfig *gpio,
+  msg_t pktCloseMuxedSerial(SerialMuxDriver *const msd,
                             const uint8_t *out,
                             const size_t len,
                             const sysinterval_t timeout);
+  void smd_lld_init(void);
 #ifdef __cplusplus
 }
 #endif
