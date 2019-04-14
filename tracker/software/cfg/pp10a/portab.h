@@ -1,5 +1,5 @@
 /*
-    Aerospace Decoder - Copyright (C) 2018 Bob Anderson (VK2GJ)
+    Aerospace Decoder - Copyright (C) 2018-2019 Bob Anderson (VK2GJ)
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
@@ -9,21 +9,20 @@
 #ifndef PORTAB_H_
 #define PORTAB_H_
 
-#include "usbcfg2.h"
-
-
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */
 /*===========================================================================*/
 
 /* Community extensions. */
 #define HAL_USE_COMMUNITY           TRUE
+
 #define STM32_SERIAL_USE_MUX        FALSE
 
 /* Board and hardware capabilities settings. */
 #define PKT_HARDWARE_SUPPORTS_CAM   TRUE
 #define PKT_HARDWARE_SUPPORTS_USB   TRUE
 #define PKT_HARDWARE_SUPPORTS_PWR   TRUE
+#define PKT_HARDWARE_SUPPORTS_ADC   TRUE
 
 #define PKT_MEMORY_USE_CCM          TRUE
 
@@ -144,10 +143,55 @@
 #define LINE_SD_CS                  PAL_LINE(GPIOC, 0U)
 #define LINE_SD_DET                 PAL_LINE(GPIOC, 8U)
 
-// ADC
+/* ADC GPIO pins. */
 #define LINE_ADC_VSOL               PAL_LINE(GPIOC, 2U)
 #define LINE_ADC_VBAT               PAL_LINE(GPIOB, 1U)
 #define LINE_ADC_VUSB               PAL_LINE(GPIOC, 4U)
+
+/* ADC Internal channels.*/
+#define PKT_ADC_TEMP_INDEX          0
+#define PKT_ADC_VREF_INDEX          1
+
+/* ADC GPIO channels.*/
+#define PKT_ADC_NUM_GPIO_CHANNELS   3
+
+#define PKT_ADC_VSOL_INDEX          2
+#define PKT_ADC_VBAT_INDEX          3
+#define PKT_ADC_VUSB_INDEX          4
+
+/* ADC total channels. Add GPIO channels to STM32 temp and vref channels. */
+#define PKT_ADC_NUM_CHANNELS        (PKT_ADC_NUM_GPIO_CHANNELS + 2)
+
+/* ADC voltage divider network feeding GPIO pins. */
+#define PKT_ADC_VSOL_DIVIDER        (205 / 64)  /* VSol -- 22kOhm -- ADC -- 10kOhm -- GND */
+#define PKT_ADC_VBAT_DIVIDER        (205 / 64)  /* VBat -- 22KOhm -- ADC -- 10kOhm -- GND */
+#define PKT_ADC_VUSB_DIVIDER        (205 / 64)  /* VUSB -- 22KOhm -- ADC -- 10kOhm -- GND */
+
+/** ADC hardware dependent configuration.
+ * Mode:        Linear buffer
+ * Channels:    0 - The STM32 temp              ADC1_IN18
+ *              1 - The Stm32 Vdda              ADC1_IN17
+ *              2 - Battery voltage divider     ADC1_IN9
+ *              3 - USB voltage divider         ADC1_IN14
+ *              4 - Solar voltage divider       ADC1_IN12
+ */
+
+#define PKT_ADC_DRIVER_CONFIG                                               \
+    .cfgr = 0,                                                              \
+    .cfgr2 = 0,                                                             \
+    .smpr =                                                                 \
+    ADC_SMPR1_SMP_SENSOR(ADC_SAMPLE_144) |                                  \
+    ADC_SMPR1_SMP_AN17(ADC_SAMPLE_144)   |                                  \
+    ADC_SMPR1_SMP_AN14(ADC_SAMPLE_144)   |                                  \
+    ADC_SMPR1_SMP_AN12(ADC_SAMPLE_144)   |                                  \
+    ADC_SMPR2_SMP_AN9(ADC_SAMPLE_144),                                      \
+    .sqr =                                                                  \
+    ADC_SQR1_NUM_CH(ADC_NUM_CHANNELS)   |                                   \
+    ADC_SQR1_SQ1_N(ADC_CHANNEL_SENSOR)  |                                   \
+    ADC_SQR1_SQ2_N(ADC_CHANNEL_IN17)    |                                   \
+    ADC_SQR1_SQ3_N(ADC_CHANNEL_IN9)     |                                   \
+    ADC_SQR1_SQ4_N(ADC_CHANNEL_IN14),                                       \
+    ADC_SQR2_SQ1_N(ADC_CHANNEL_IN12)
 
 // USB
 #define LINE_USB_ID                 PAL_LINE(GPIOA, 10U)

@@ -388,7 +388,7 @@ void usb_cmd_time(BaseSequentialStream *chp, int argc, char *argv[]) {
   if(argc == 0) {
     chprintf(chp, "RTC time %04d-%02d-%02d %02d:%02d:%02d\r\n",
                             time.year, time.month, time.day,
-                            time.hour, time.minute, time.day);
+                            time.hour, time.minute, time.second);
     chprintf(chp, "\r\nTo set time: time [YYYY-MM-DD HH:MM:SS]\r\n");
     return;
   }

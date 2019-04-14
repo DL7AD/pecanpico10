@@ -148,23 +148,29 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
       return false;
     }
   }
+
   /* If a Pa pressure is set then GPS model depends on BME reading.
    * If BME is OK then stationary model will be used until Pa < airborne.
    * Then airborne model will be set.
    * If the BME is not OK then airborne model will be used immediately.
    */
   bool dynamic = conf_sram.gps_pressure != 0;
-  TRACE_DEBUG("COLL > GPS %s in dynamic mode switching at %dPa", dynamic
-             ? "is" : "is not", conf_sram.gps_pressure);
+  if (dynamic) {
+    TRACE_DEBUG("COLL > GPS in dynamic mode switching at %dPa",
+                conf_sram.gps_pressure);
+    gps_set_model(dynamic);
+  }
+
   /*
    *  Search for GPS lock within the timeout period and while battery is good.
    *  Search timeout=cycle-1sec (-3sec in order to keep synchronization)
    */
   uint32_t x = 0;
-  gps_set_model(dynamic);
   do {
     batt = stm32_get_vbat();
-    if (++x % 30) gps_set_model(dynamic); // Set model periodically
+    if (dynamic && ++x % 30) {
+      gps_set_model(dynamic); // Set model periodically
+    }
     chThdSleepMilliseconds(100);
     gps_get_fix(&gpsFix);
   } while (!isGPSLocked(&gpsFix)

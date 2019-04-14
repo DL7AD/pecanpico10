@@ -66,7 +66,7 @@ typedef struct indicatorIO {
   indicator_pos_t   pos;    /*<< Position of indicator in output device. */
   union addr {
     ioline_t    line;       /*<< GPIO for direct output or SPI select. */
-    i2caddr_t   addr;
+    i2caddr_t   i2c;
   } address;
   union driver {
     I2CDriver   i2c;

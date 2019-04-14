@@ -582,7 +582,7 @@ THD_FUNCTION(pktRadioManager, arg) {
     chFactoryReleaseObjectsFIFO(the_radio_fifo);
 
     /* Forget the references. */
-    handler->radio_manager = NULL;
+    //handler->radio_manager = NULL;
 #endif
     /* Failed to initialise/get buffer pool. */
     chMsgRelease(initiator, MSG_ERROR);

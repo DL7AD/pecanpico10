@@ -738,6 +738,11 @@ uint8_t gps_switch_power_save_mode(bool on) {
   * Selects nav model based on air pressure
   */
 bool gps_set_model(bool dynamic) {
+
+  if (!dynamic) {
+    return true;
+  }
+
   uint8_t cntr;
   bool status;
 

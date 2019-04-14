@@ -142,10 +142,15 @@
 #define LINE_SD_CS                  PAL_LINE(GPIOC, 0U)
 #define LINE_SD_DET                 PAL_LINE(GPIOC, 8U)
 
-// ADC
+/* ADC definitions. */
 #define LINE_ADC_VSOL               PAL_LINE(GPIOC, 2U)
 #define LINE_ADC_VBAT               PAL_LINE(GPIOB, 1U)
 #define LINE_ADC_VUSB               PAL_LINE(GPIOC, 4U)
+
+/* Voltage divider network. */
+#define PKT_ADC_VSOL_DIVIDER        205/64  /* VSol -- 22kOhm -- ADC -- 10kOhm -- GND */
+#define PKT_ADC_VBAT_DIVIDER        205/64  /* VBat -- 22KOhm -- ADC -- 10kOhm -- GND */
+#define PKT_ADC_VUSB_DIVIDER        205/64  /* VUSB -- 22KOhm -- ADC -- 10kOhm -- GND */
 
 // USB
 #define LINE_USB_ID                 PAL_LINE(GPIOA, 10U)
