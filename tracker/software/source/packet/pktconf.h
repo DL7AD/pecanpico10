@@ -461,26 +461,6 @@ static inline msg_t pktQueuePriorityRadioCommand(const radio_unit_t radio,
 }
 
 /**
- * @brief   Release a send packet object memory.
- * @post    The object memory is released.
- *
- * @param[in]   pp     pointer to a @p packet send object
- *
- * @return  next linked packet reference or NULL if none
- *
- * @api
- */
-static inline packet_t pktReleaseBufferObject(packet_t pp) {
-  chDbgAssert(pp != NULL, "no packet pointer");
-#if USE_CCM_HEAP_FOR_PKT == TRUE
-  pktAssertCCMdynamicCheck(pp);
-#endif
-  packet_t np = pp->nextp;
-  pktReleaseCommonPacketBuffer(pp);
-  return np;
-}
-
-/**
  * @brief   Release memory from one or more send object(s).
  * @notes   A linked list will have all members released.
  * @post    The object memory is released.

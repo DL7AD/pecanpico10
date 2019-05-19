@@ -89,7 +89,7 @@ const conf_t conf_flash_default = {
     .img_sec = {
         .svc_conf = {
             .active = false,
-            .cycle = TIME_S2I(60 * 5),
+            .cycle = TIME_S2I(30),
             .init_delay = TIME_S2I(30),
             .send_spacing = TIME_S2I(0)
         },
@@ -108,7 +108,7 @@ const conf_t conf_flash_default = {
         .quality = 4,
         .buf_size = 20 * 1024,
         .redundantTx = false,
-        .no_burst = true
+        .no_burst = false
     },
 
     // Log app

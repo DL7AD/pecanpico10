@@ -18,7 +18,7 @@
 
 systime_t watchdog_tracking;
 
-void start_essential_threads(void)
+void pktStartSystemServices(void)
 {
 	init_watchdog();				// Init watchdog
 	pac1720_init();					// Initialize current measurement
@@ -26,7 +26,7 @@ void start_essential_threads(void)
 	chThdSleep(TIME_MS2I(300));		// Wait for tracking manager to initialize
 }
 
-void start_user_threads(void) {
+void pktStartApplicationServices(void) {
 	// Copy 
 	memcpy(&conf_sram, &conf_flash_default, sizeof(conf_t));
 

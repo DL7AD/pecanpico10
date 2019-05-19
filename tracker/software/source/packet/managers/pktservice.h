@@ -252,6 +252,7 @@ extern "C" {
   pkt_data_object_t*    pktAssignReceivePacketObject(packet_svc_t *const handler,
                                                      const sysinterval_t timeout);
   void                  pktReleaseDataBuffer(pkt_data_object_t *const object);
+  packet_t              pktReleaseBufferObject(const packet_t pp);
 #ifdef __cplusplus
 }
 #endif
