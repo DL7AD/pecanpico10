@@ -1009,6 +1009,9 @@ static bool send_image_packets(const uint8_t *image,
          */
         base91_encode(&pkt[6], pkt_base91, 174);
 
+        /* Setup buffer for next iteration. */
+        ssdv_enc_set_buffer(&ssdv, pkt);
+
         packet_t packet = aprs_encode_data_packet(conf->call, conf->path,
                                                   'I', pkt_base91);
         if(packet == NULL) {
