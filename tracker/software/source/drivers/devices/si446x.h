@@ -23,7 +23,7 @@
 #define Si446x_USE_PACKET_END_INTERRUPT         TRUE
 #define Si446x_USE_FIFO_THRESHOLD_INTERRUPT     TRUE
 #define Si446x_USE_STATE_CHANGE_INTERRUPT       TRUE
-#define Si446x_USE_COMMON_TX_THREAD             TRUE
+//#define Si446x_USE_COMMON_TX_THREAD             TRUE
 #if Si446x_USE_PACKET_END_INTERRUPT == TRUE                                 \
   || Si446x_USE_FIFO_THRESHOLD_INTERRUPT == TRUE                            \
   || Si446x_USE_STATE_CHANGE_INTERRUPT == TRUE

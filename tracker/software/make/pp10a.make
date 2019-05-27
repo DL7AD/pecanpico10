@@ -72,8 +72,11 @@ endif
 # Enables the use of FPU (no, softfp, hard).
 ifeq ($(USE_FPU),)
   USE_FPU = hard
-  USE_FPU_OPT = -mfloat-abi=$(USE_FPU) \
-   -mfpu=fpv4-sp-d16 -fsingle-precision-constant
+endif
+
+# FPU-related options.
+ifeq ($(USE_FPU_OPT),)
+  USE_FPU_OPT = -mfloat-abi=$(USE_FPU) -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 endif
 
 #

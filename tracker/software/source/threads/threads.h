@@ -28,8 +28,8 @@ extern systime_t watchdog_tracking; // Last update time for module TRACKING
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void start_essential_threads(void);
-  void start_user_threads(void);
+  void pktStartSystemServices(void);
+  void pktStartApplicationServices(void);
   void pktThdTerminateSelf(void);
   void pktIdleThread(void);
 #ifdef __cplusplus

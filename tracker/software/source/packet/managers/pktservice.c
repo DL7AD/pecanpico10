@@ -160,8 +160,8 @@ bool pktSystemInit(void) {
 
     TRACE_INFO("MAIN > Starting application and ancillary threads");
     // Startup threads
-    start_essential_threads();  // Startup required modules (tracking manager, watchdog)
-    start_user_threads();       // Startup optional modules (eg. POSITION, LOG, ...)
+    pktStartSystemServices();  // Startup required modules (tracking manager, watchdog)
+    pktStartApplicationServices();       // Startup optional modules (eg. POSITION, LOG, ...)
   return result;
 }
 
@@ -922,4 +922,23 @@ void pktReleaseDataBuffer(pkt_data_object_t *const object) {
   chGuardedPoolFree(&handler->rx_packet_pool, object);
 }
 
+/**
+ * @brief   Release a send packet object memory.
+ * @post    The object memory is released.
+ *
+ * @param[in]   pp     pointer to a @p packet send object
+ *
+ * @return  next linked packet reference or NULL if none
+ *
+ * @api
+ */
+packet_t pktReleaseBufferObject(const packet_t pp) {
+  chDbgAssert(pp != NULL, "no packet pointer");
+#if USE_CCM_HEAP_FOR_PKT == TRUE
+  pktAssertCCMdynamicCheck(pp);
+#endif
+  packet_t np = pp->nextp;
+  pktReleaseCommonPacketBuffer(pp);
+  return np;
+}
 /** @} */
