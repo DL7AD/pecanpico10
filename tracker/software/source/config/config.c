@@ -62,8 +62,8 @@ const conf_t conf_flash_default = {
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 10),
+            .active = true,
+            .cycle = TIME_S2I(60 * 2),
             .init_delay = TIME_S2I(60),
             .send_spacing = TIME_S2I(3)
         },
@@ -88,8 +88,8 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(30),
+            .active = true,
+            .cycle = TIME_S2I(20),
             .init_delay = TIME_S2I(30),
             .send_spacing = TIME_S2I(0)
         },
@@ -107,7 +107,7 @@ const conf_t conf_flash_default = {
         .res = RES_QVGA,
         .quality = 4,
         .buf_size = 20 * 1024,
-        .redundantTx = false,
+        .redundantTx = true,
         .no_burst = false
     },
 
@@ -189,7 +189,7 @@ const conf_t conf_flash_default = {
 
     // GPS altitude model control (air pressure controlled using on-board BME280)
     .gps_pressure = 90000, // Air pressure (Pa) threshold for alt model switch
-    .gps_low_alt = GPS_AUTOMOTIVE,
+    .gps_low_alt = GPS_STATIONARY,
     .gps_high_alt = GPS_AIRBORNE_1G,
 
     // APRS
