@@ -31,7 +31,17 @@ void I2C_Unlock(I2CDriver *bus) {
   (void)bus;
 #endif
 }
-
+/**
+ * @note Error codes from i2cGetErrors()
+ *
+ * 0x01 I2C_BUS_ERROR
+ * 0x02 I2C_ARBITRATION_LOST
+ * 0x04 I2C_ACK_FAILURE
+ * 0x08 I2C_OVERRUN
+ * 0x10 I2C_PEC_ERROR
+ * 0x20 I2C_TIMEOUT
+ * 0x40 I2C_SMB_ALERT
+ */
 static bool I2C_transmit(I2CDriver *bus, uint8_t addr, uint8_t *txbuf, uint32_t txbytes, uint8_t *rxbuf, uint32_t rxbytes, sysinterval_t timeout) {
 	i2cAcquireBus(bus);
 	i2cStart(bus, &_i2cfg);
@@ -43,8 +53,9 @@ static bool I2C_transmit(I2CDriver *bus, uint8_t addr, uint8_t *txbuf, uint32_t 
 		TRACE_ERROR("I2C  > TIMEOUT (ADDR 0x%02x)", addr);
 		error = 0x1;
 	} else if(i2c_status == MSG_RESET) {
-		TRACE_ERROR("I2C  > RESET (ADDR 0x%02x)", addr);
-		error = 0x0;
+		TRACE_ERROR("I2C  > RESET (ADDR 0x%02x) with errors %x", addr,
+		            i2cGetErrors(bus));
+		error = 0x1;
 	} else {
 		error = 0x0;
 	}

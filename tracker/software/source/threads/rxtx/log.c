@@ -61,7 +61,7 @@ THD_FUNCTION(logThread, arg)
 	              TRACE_WARN("LOG  > No free packet objects for log transmission");
 	            } else {
 				// Transmit packet
-                  transmitOnRadio(packet,
+                  pktTransmitOnRadio(packet,
                                   conf->radio_conf.freq,
                                   0,
                                   0,

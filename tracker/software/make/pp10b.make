@@ -72,8 +72,11 @@ endif
 # Enables the use of FPU (no, softfp, hard).
 ifeq ($(USE_FPU),)
   USE_FPU = hard
-  USE_FPU_OPT = -mfloat-abi=$(USE_FPU) \
-   -mfpu=fpv4-sp-d16 -fsingle-precision-constant
+endif
+
+# FPU-related options.
+ifeq ($(USE_FPU_OPT),)
+  USE_FPU_OPT = -mfloat-abi=$(USE_FPU) -mfpu=fpv4-sp-d16 -fsingle-precision-constant
 endif
 
 #
@@ -94,6 +97,11 @@ BUILDDIR := ${CURDIR}/build/$(PROJECT)
 DEPDIR := ${CURDIR}/.dep/$(PROJECT)
 CMSISINC = ${CURDIR}/CMSIS/include
 CMSISLIB = ${CURDIR}/CMSIS/Lib/GCC
+ifeq ($(USE_FPU), hard)
+   CMSISFILE = libarm_cortexM4lf_math.a
+else
+   CMSISFILE = libarm_cortexM4l_math.a
+endif
 
 # ChibiOS versions of system calls
 ALLCSRC := $(CHIBIOS)/os/various/syscalls.c
@@ -133,8 +141,7 @@ LDSCRIPT= $(CONFDIR)/STM32F413xH.ld
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(ALLCSRC) \
-       $(TESTSRC) \
-       main.c \
+       $(TESTSRC)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -214,9 +221,10 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4 -DSHELL_CMD_TEST_ENABLED=0 \
-        -DSHELL_CMD_EXIT_ENABLED=1 -DSET_TRACE_LEVEL=2 -DPDCMI_USE_DMA_DBM=1 \
-        -DSHELL_CMD_MEM_ENABLED=0 -DDISABLE_HW_WATCHDOG=1
+UDEFS = -D_GNU_SOURCE -DARM_MATH_CM4 -DSHELL_CMD_TEST_ENABLED=0              \
+        -DSHELL_CMD_EXIT_ENABLED=1 -DSET_TRACE_LEVEL=3 -DPDCMI_USE_DMA_DBM=1 \
+        -DSHELL_CMD_MEM_ENABLED=0 -DTRACE_SHOW_THREAD=1                      \
+        -DDISABLE_HW_WATCHDOG=1 -DUSE_UART_FOR_CONSOLE=1
 
 # Define ASM defines here
 UADEFS =
@@ -228,7 +236,7 @@ UINCDIR = $(CMSISINC)
 ULIBDIR = $(CMSISLIB)
 
 # List all user libraries here
-ULIBS = -lm $(CMSISLIB)/libarm_cortexM4l_math.a
+ULIBS = -lm $(CMSISLIB)/$(CMSISFILE)
 
 #
 # End of user defines

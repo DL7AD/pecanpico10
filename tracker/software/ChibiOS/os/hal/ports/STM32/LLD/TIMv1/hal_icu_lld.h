@@ -105,6 +105,15 @@
 #endif
 
 /**
+ * @brief   ICUD12 driver enable switch.
+ * @details If set to @p TRUE the support for ICUD12 is included.
+ * @note    The default is @p TRUE.
+ */
+#if !defined(STM32_ICU_USE_TIM12) || defined(__DOXYGEN__)
+#define STM32_ICU_USE_TIM12                  FALSE
+#endif
+
+/**
  * @brief   ICUD1 interrupt priority level setting.
  */
 #if !defined(STM32_ICU_TIM1_IRQ_PRIORITY) || defined(__DOXYGEN__)
@@ -152,6 +161,13 @@
 #if !defined(STM32_ICU_TIM9_IRQ_PRIORITY) || defined(__DOXYGEN__)
 #define STM32_ICU_TIM9_IRQ_PRIORITY         7
 #endif
+
+/**
+ * @brief   ICUD12 interrupt priority level setting.
+ */
+#if !defined(STM32_ICU_TIM12_IRQ_PRIORITY) || defined(__DOXYGEN__)
+#define STM32_ICU_TIM12_IRQ_PRIORITY        7
+#endif
 /** @} */
 
 /*===========================================================================*/
@@ -186,10 +202,14 @@
 #error "TIM9 not present in the selected device"
 #endif
 
+#if STM32_ICU_USE_TIM12 && !STM32_HAS_TIM12
+#error "TIM12 not present in the selected device"
+#endif
+
 #if !STM32_ICU_USE_TIM1 && !STM32_ICU_USE_TIM2 &&                           \
     !STM32_ICU_USE_TIM3 && !STM32_ICU_USE_TIM4 &&                           \
     !STM32_ICU_USE_TIM5 && !STM32_ICU_USE_TIM8 &&                           \
-    !STM32_ICU_USE_TIM9
+    !STM32_ICU_USE_TIM9 && !STM32_ICU_USE_TIM12
 #error "ICU driver activated but no TIM peripheral assigned"
 #endif
 
@@ -250,6 +270,14 @@
 #endif
 #endif
 
+#if STM32_ICU_USE_TIM12
+#if defined(STM32_TIM12_IS_USED)
+#error "ICUD12 requires TIM12 but the timer is already used"
+#else
+#define STM32_TIM12_IS_USED
+#endif
+#endif
+
 /* IRQ priority checks.*/
 #if STM32_ICU_USE_TIM1 && !defined(STM32_TIM1_SUPPRESS_ISR) &&              \
     !OSAL_IRQ_IS_VALID_PRIORITY(STM32_ICU_TIM1_IRQ_PRIORITY)
@@ -284,6 +312,11 @@
 #if STM32_ICU_USE_TIM9 && !defined(STM32_TIM9_SUPPRESS_ISR) &&              \
     !OSAL_IRQ_IS_VALID_PRIORITY(STM32_ICU_TIM9_IRQ_PRIORITY)
 #error "Invalid IRQ priority assigned to TIM9"
+#endif
+
+#if STM32_ICU_USE_TIM12 && !defined(STM32_TIM12_SUPPRESS_ISR) &&            \
+    !OSAL_IRQ_IS_VALID_PRIORITY(STM32_ICU_TIM12_IRQ_PRIORITY)
+#error "Invalid IRQ priority assigned to TIM12"
 #endif
 
 /*===========================================================================*/
@@ -462,6 +495,10 @@ extern ICUDriver ICUD8;
 
 #if STM32_ICU_USE_TIM9 && !defined(__DOXYGEN__)
 extern ICUDriver ICUD9;
+#endif
+
+#if STM32_ICU_USE_TIM12 && !defined(__DOXYGEN__)
+extern ICUDriver ICUD12;
 #endif
 
 #ifdef __cplusplus

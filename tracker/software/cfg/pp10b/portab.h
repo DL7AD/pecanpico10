@@ -10,15 +10,86 @@
 #define PORTAB_H_
 
 /*===========================================================================*/
+/* Module pre-compile time settings.                                         */
+/*===========================================================================*/
+
+/* Community extensions. */
+#define HAL_USE_COMMUNITY           TRUE
+#define STM32_SERIAL_USE_MUX        TRUE
+
+/* Board and hardware capabilities settings. */
+#define PKT_HARDWARE_SUPPORTS_CAM   TRUE
+#define PKT_HARDWARE_SUPPORTS_USB   TRUE
+#define PKT_HARDWARE_SUPPORTS_PWR   TRUE
+
+#define PKT_MEMORY_USE_CCM          TRUE
+
+/* To use IO_TXD/IO_RXD as a UART serial channel. */
+#define ENABLE_UART_SERIAL          TRUE
+
+/* To direct diagnostic to a serial channel. */
+#define ENABLE_SERIAL_STREAM        TRUE
+
+/* To direct trace to a serial channel. */
+#define ENABLE_SERIAL_TRACE         TRUE
+
+/* If set to true, the console will be started. */
+#define ACTIVATE_CONSOLE            TRUE
+
+/* Console selection. */
+#if !defined(USE_UART_FOR_CONSOLE)
+#define USE_UART_FOR_CONSOLE        FALSE
+#endif
+
+/* The external port can be used for bit bang I2C. */
+#define ENABLE_EXTERNAL_I2C         TRUE
+
+/* External BME fitting setting. */
+#define BME280_E1_IS_FITTED         FALSE
+#define BME280_E2_IS_FITTED         FALSE
+
+/*
+ *  Configure PWM stream data.
+ *  Packed 12 bit saves memory but has reduced PWM range.
+ */
+#define USE_12_BIT_PWM              TRUE
+
+/*
+ * Allocate PWM buffers from a CCM heap/pool.
+ * Implements fragmented queue/buffer objects.
+ * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
+ * Decoder side swaps queue/buffer on in-band message.
+ * The retired buffer is reticulated to the pool ready for re-use.
+ */
+#define USE_CCM_BASED_PWM_HEAP      TRUE
+#define TRACE_PWM_BUFFER_STATS      FALSE
+
+#if PKT_HARDWARE_SUPPORTS_USB
+#include "usbcfg2.h"
+#endif
+
+/*===========================================================================*/
 /* Module constants.                                                         */
 /*===========================================================================*/
 
 /*
  * Serial port definitions
  */
-#define SERIAL_DEBUG_DRIVER		    SD3
-#define SERIAL_CONSOLE_DRIVER       SDU2
-#define SERIAL_STREAM_DRIVER        SDU1
+#define SERIAL_UART_DRIVER          SD3
+#define SERIAL_USB1_DRIVER          SDU1
+#define SERIAL_USB2_DRIVER          SDU2
+
+
+/* Serial channel mapping. */
+#if USE_UART_FOR_CONSOLE == TRUE
+#define SERIAL_CONSOLE_DRIVER       SERIAL_UART_DRIVER
+#define SERIAL_TRACE_DRIVER         SERIAL_USB2_DRIVER
+#else
+#define SERIAL_CONSOLE_DRIVER       SERIAL_USB2_DRIVER
+#define SERIAL_TRACE_DRIVER         SERIAL_UART_DRIVER
+#endif
+#define SERIAL_DEBUG_DRIVER         SERIAL_UART_DRIVER
+#define SERIAL_STREAM_DRIVER        SERIAL_USB1_DRIVER
 
 /*
  * SPI definitions
@@ -71,10 +142,15 @@
 #define LINE_SD_CS                  PAL_LINE(GPIOC, 0U)
 #define LINE_SD_DET                 PAL_LINE(GPIOC, 8U)
 
-// ADC
+/* ADC definitions. */
 #define LINE_ADC_VSOL               PAL_LINE(GPIOC, 2U)
 #define LINE_ADC_VBAT               PAL_LINE(GPIOB, 1U)
 #define LINE_ADC_VUSB               PAL_LINE(GPIOC, 4U)
+
+/* Voltage divider network. */
+#define PKT_ADC_VSOL_DIVIDER        205/64  /* VSol -- 22kOhm -- ADC -- 10kOhm -- GND */
+#define PKT_ADC_VBAT_DIVIDER        205/64  /* VBat -- 22KOhm -- ADC -- 10kOhm -- GND */
+#define PKT_ADC_VUSB_DIVIDER        205/64  /* VUSB -- 22KOhm -- ADC -- 10kOhm -- GND */
 
 // USB
 #define LINE_USB_ID                 PAL_LINE(GPIOA, 10U)
@@ -88,13 +164,26 @@
 
 // I2C
 #define LINE_I2C_SCL                PAL_LINE(GPIOB, 8U)
+#define LINE_I2C_SCL_MODE           (PAL_MODE_ALTERNATE(4) |                 \
+                                     PAL_STM32_OSPEED_HIGHEST |              \
+                                     PAL_STM32_OTYPE_OPENDRAIN)
 #define LINE_I2C_SDA                PAL_LINE(GPIOB, 9U)
+#define LINE_I2C_SDA_MODE           (PAL_MODE_ALTERNATE(4) |                 \
+                                     PAL_STM32_OSPEED_HIGHEST |              \
+                                     PAL_STM32_OTYPE_OPENDRAIN)
 
 // GPS
 #define LINE_GPS_EN                 PAL_LINE(GPIOC, 5U)
 #define LINE_GPS_RESET              PAL_LINE(GPIOA, 15U)
 #define LINE_GPS_TXD                PAL_LINE(GPIOB, 13U)
+#define LINE_GPS_TXD_MODE           (PAL_MODE_ALTERNATE(11)     |            \
+                                     PAL_STM32_OTYPE_PUSHPULL   |            \
+                                     PAL_STM32_PUPDR_FLOATING   |            \
+                                     PAL_STM32_OSPEED_HIGHEST)
 #define LINE_GPS_RXD                PAL_LINE(GPIOB, 12U)
+#define LINE_GPS_RXD_MODE           (PAL_MODE_ALTERNATE(11)     |            \
+                                     PAL_STM32_MODE_INPUT       |            \
+                                     PAL_STM32_PUPDR_FLOATING)
 #define LINE_GPS_TIMEPULSE          PAL_LINE(GPIOB, 15U)
 
 // IO
@@ -124,8 +213,14 @@
 
 // SPI
 #define LINE_SPI_SCK                PAL_LINE(GPIOB, 3U)
+#define LINE_SPI_SCK_MODE           (PAL_MODE_ALTERNATE(6) |                 \
+                                     PAL_STM32_OSPEED_HIGHEST)
 #define LINE_SPI_MISO               PAL_LINE(GPIOB, 4U)
+#define LINE_SPI_MISO_MODE          (PAL_MODE_ALTERNATE(6) |                 \
+                                     PAL_STM32_OSPEED_HIGHEST)
 #define LINE_SPI_MOSI               PAL_LINE(GPIOB, 5U)
+#define LINE_SPI_MOSI_MODE          (PAL_MODE_ALTERNATE(6) |                 \
+                                     PAL_STM32_OSPEED_HIGHEST)
 
 /* TODO: Move into pktradio.h? */
 #define BAND_MIN_2M_FREQ            144000000               /* Minimum allowed frequency in Hz */
@@ -142,103 +237,94 @@
 #error "Default operating frequency must be an absolute value in Hz"
 #endif
 
+/* TCXO calibrator setup. */
+#define PKT_TCXO_TIMER              ICUD12
+#define PKT_TCXO_TIMER_CLOCK        STM32_TIMCLK1
+#define PKT_TCXO_TIMER_CHANNEL      ICU_CHANNEL_2
+#define PKT_TCXO_CLOCK              STM32_HSECLK
+#define PKT_TCXO_DEFAULT_ERROR_HZ   712      /**< Manual error adjust in Hz  */
+
 /* Si446x clock setup. */
-#define Si446x_CLK					STM32_HSECLK			/* Oscillator frequency in Hz */
-#define Si446x_CLK_OFFSET			22						/* Oscillator frequency drift in ppm */
-#define Si446x_CLK_TCXO_EN			true					/* Set this true, if a TCXO is used, false for XTAL */
+#define Si446x_CLK                  PKT_TCXO_CLOCK            /* Clock in Hz */
+#define Si446x_CLK_ERROR            PKT_TCXO_DEFAULT_ERROR_HZ /* Error in Hz */
+#define Si446x_CLK_TCXO_EN          true                    /* Xtal or external. */
+#define Si446x_XO_TUNE              0x40                    /* Xtal trim. */
 
 /* LED status indicators (set to PAL_NOLINE if not available). */
-#define LINE_OVERFLOW_LED               PAL_NOLINE
-#define LINE_DECODER_LED                LINE_IO_BLUE
-#define LINE_SQUELCH_LED                PAL_NOLINE
-#define LINE_NO_FIFO_LED                PAL_NOLINE
-#define LINE_NO_BUFF_LED                PAL_NOLINE
-#define LINE_PWM_ERROR_LED              PAL_NOLINE
+#define LINE_OVERFLOW_LED           PAL_NOLINE
+#define LINE_DECODER_LED            LINE_IO_BLUE
+#define LINE_SQUELCH_LED            PAL_NOLINE
+#define LINE_NO_FIFO_LED            PAL_NOLINE
+#define LINE_NO_BUFF_LED            PAL_NOLINE
+#define LINE_PWM_ERROR_LED          PAL_NOLINE
 
 /* Diagnostic PWM mirror port. */
-#define LINE_PWM_MIRROR                 PAL_NOLINE
+#define LINE_PWM_MIRROR             PAL_NOLINE
 
 //#define LINE_UART4_TX               PAL_LINE(GPIOA, 12U)
 //#define LINE_UART4_RX               PAL_LINE(GPIOA, 11U)
 
 /* The external port can be used for bit bang I2C. */
-#define ENABLE_EXTERNAL_I2C             TRUE
+#define EI2C_SCL                    LINE_GPIO_PIN1 /* SCL */
+#define EI2C_SDA                    LINE_GPIO_PIN2 /* SDA */
 
-#define EI2C_SCL                        LINE_GPIO_PIN1 /* SCL */
-#define EI2C_SDA                        LINE_GPIO_PIN2 /* SDA */
-
-/* To use IO_TXD/IO_RXD for UART debug channel. */
-#define ENABLE_SERIAL_DEBUG             TRUE
-
-#if ENABLE_SERIAL_DEBUG == TRUE
-#define LINE_USART3_TX                  LINE_IO_TXD
-#define LINE_USART3_RX                  LINE_IO_RXD
+#if ENABLE_UART_SERIAL == TRUE
+#define LINE_USART3_TX              LINE_IO_TXD
+#define LINE_USART3_RX              LINE_IO_RXD
 #endif
 
-/* If set to true, the console using USB interface will be switched on.
- * The tracker is also switched to 3V, because USB would not work at 1.8V.
- * Note that the transmission power is increased too when operating at 3V.
- * This option will also run the STM32 at 48MHz (AHB) permanently.
- * USB needs 48MHz speed to operate.
- */
-#define ACTIVATE_CONSOLE                TRUE
-
 /**
- *  ICU related definitions.
+ *  PWM ICU related definitions.
  */
-#define PKT_RADIO1_ICU                  ICUD4
+#define PKT_RADIO1_PWM_ICU          ICUD4
+#if    ((defined(ICUD1) && PKT_RADIO1_PWM_ICU == ICUD1))                     \
+    || ((defined(ICUD8) && PKT_RADIO1_PWM_ICU == ICUD8))                     \
+    || ((defined(ICUD9) && PKT_RADIO1_PWM_ICU == ICUD9))
+/**
+ * Clock of ICU timers connected to APB2 (Timers 1, 8, 9).
+ */
 
-#define PWM_ICU_CLK                     STM32_TIMCLK1
+#define PWM_ICU_RADIO1_CLK          STM32_TIMCLK2
+#else
+/**
+ * Clock of ICU timers connected to APB1 (Timers 2, 3, 4, 5, 6, 7, 12).
+ */
+#define PWM_ICU_RADIO1_CLK          STM32_TIMCLK1
+
+#endif
 
 /* ICU counter frequency. */
 /*
  * TODO: This should be calculated using timer clock.
  * ICU has to run at an integer divide from APBx clock.
  */
+#if USE_12_BIT_PWM
+#define PWM_ICU_COUNT_FREQUENCY     2000000U
+#else
+#define PWM_ICU_COUNT_FREQUENCY     6000000U
+#endif
 
-#define ICU_COUNT_FREQUENCY             6000000U
-
-#if ((PWM_ICU_CLK % ICU_COUNT_FREQUENCY) != 0)
+#if ((PWM_ICU_RADIO1_CLK % PWM_ICU_COUNT_FREQUENCY) != 0)
 #error "Invalid ICU frequency for APBx clock setting"
 #endif
 
-#define USE_12_BIT_PWM                  FALSE
-
-/*
- * Allocate PWM buffers from a CCM heap/pool.
- * Implements fragmented queue/buffer objects.
- * PWM side swaps in new queue/buffer as each fills with PWM stream from radio.
- * Decoder side swaps queue/buffer on in-band message.
- * The retired buffer is reticulated to the pool ready for re-use.
- */
-#define USE_HEAP_PWM_BUFFER             TRUE
-#define USE_CCM_BASED_PWM_HEAP          TRUE
-#define TRACE_PWM_BUFFER_STATS          FALSE
-
 /* Definitions for ICU FIFO implemented using chfactory. */
-#if USE_HEAP_PWM_BUFFER == TRUE
 /* Use factory FIFO as stream control with separate chained PWM buffers. */
-#define NUMBER_PWM_FIFOS                5U
-/* Number of PWM data entries per queue object. */
-#define PWM_DATA_SLOTS                  200
+#define NUMBER_PWM_FIFOS            5U
+/* Number of PWM data entries (stream symbols) per queue object. */
+#define PWM_DATA_SLOTS              200
 /* Number of PWM queue objects in total. */
-#define PWM_DATA_BUFFERS                30
-#else /* USE_HEAP_PWM_BUFFER != TRUE */
-/* Use factory FIFO as stream control with integrated PWM buffer. */
-#define NUMBER_PWM_FIFOS                3U
-#define PWM_DATA_SLOTS                  6000
-#endif /* USE_HEAP_PWM_BUFFER == TRUE */
+#define PWM_DATA_BUFFERS            30
 
-/* Number of frame receive buffers. */
-#define NUMBER_RX_PKT_BUFFERS           5U
-#define USE_CCM_HEAP_RX_BUFFERS         TRUE
 
-/* Set TRUE to use the idle thread sweeper to release terminated threads. */
-#define PKT_RX_RLS_USE_NO_FIFO          TRUE
+
+/* Number of frame receive buffers per radio. */
+#define NUMBER_RX_PKT_BUFFERS       5U
+#define USE_CCM_HEAP_RX_BUFFERS     TRUE
 
 /*
  * Number of general AX25/APRS processing & frame send buffers.
- * Can configured as being in CCM to save system core memory use.
+ * Can be configured as being in CCM.
  */
 #define NUMBER_COMMON_PKT_BUFFERS       30U
 #define RESERVE_BUFFERS_FOR_INTERNAL    10U
@@ -292,8 +378,8 @@ extern "C" {
   ioline_t  pktSetLineModeRadioGPIO1(const radio_unit_t radio);
   ioline_t  pktSetLineModeRadioGPIO0(const radio_unit_t radio);
   void      pktSerialStart(void);
-  void      dbgWrite(uint8_t level, uint8_t *buf, uint32_t len);
-  int       dbgPrintf(uint8_t level, const char *format, ...);
+  void      strmWrite(uint8_t level, uint8_t *buf, uint32_t len);
+  int       strmPrintf(uint8_t level, const char *format, ...);
   void      pktWrite(uint8_t *buf, uint32_t len);
   uint8_t   pktReadIOlines(void);
   void      pktRadioICUWidth(ICUDriver *icup);

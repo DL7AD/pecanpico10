@@ -2,30 +2,40 @@
 #include "hal.h"
 #include "debug.h"
 #include "portab.h"
+#include "pktconf.h"
 
-#ifndef DISABLE_HW_WATCHDOG
+#if DISABLE_HW_WATCHDOG != TRUE
 // Hardware Watchdog configuration
 static const WDGConfig wdgcfg = {
+#if STM32_IWDG_IS_WINDOWED
+    .winr = STM32_IWDG_WIN_DISABLED,
+#endif
 	.pr =	STM32_IWDG_PR_256,
 	.rlr =	STM32_IWDG_RL(10000)
 };
 #endif
 
 static void flash_led(void) {
-	palSetLine(LINE_IO_GREEN);
-	chThdSleep(TIME_MS2I(50));
-	palClearLine(LINE_IO_GREEN);
+  pktWriteGPIOline(LINE_IO_GREEN, PAL_HIGH);
+  chThdSleep(TIME_MS2I(50));
+  pktWriteGPIOline(LINE_IO_GREEN, PAL_LOW);
+  if (I2C_hasError()) {
+    /* Double blink if I2C device has an error (PAC1720 primarily). */
+    chThdSleep(TIME_MS2I(100));
+    pktWriteGPIOline(LINE_IO_GREEN, PAL_HIGH);
+    chThdSleep(TIME_MS2I(50));
+    pktWriteGPIOline(LINE_IO_GREEN, PAL_LOW);
+  }
 }
 
 THD_FUNCTION(wdgThread, arg) {
 	(void)arg;
 
 	// Setup LED
-	palSetLineMode(LINE_IO_GREEN, PAL_MODE_OUTPUT_PUSHPULL);
+    pktSetGPIOlineMode(LINE_IO_GREEN, PAL_MODE_OUTPUT_PUSHPULL);
 
 	uint8_t counter = 0;
-	while(true)
-	{
+	while(true) {
 		chThdSleep(TIME_MS2I(500));
 
 		bool healthy = true;
@@ -40,7 +50,7 @@ THD_FUNCTION(wdgThread, arg) {
 		}*/
 
 		if(healthy)
-#ifndef DISABLE_HW_WATCHDOG
+#if DISABLE_HW_WATCHDOG != TRUE
 			wdgReset(&WDGD1);	// Reset hardware watchdog at no error
 #endif
 		// Switch LEDs
@@ -51,9 +61,12 @@ THD_FUNCTION(wdgThread, arg) {
 	}
 }
 
+/**
+ *
+ */
 void init_watchdog(void)
 {
-#ifndef DISABLE_HW_WATCHDOG
+#if DISABLE_HW_WATCHDOG != TRUE
 	// Initialize Watchdog
 	TRACE_INFO("WDG  > Initialize hardware watchdog");
 	wdgStart(&WDGD1, &wdgcfg);

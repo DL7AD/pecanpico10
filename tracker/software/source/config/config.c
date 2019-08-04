@@ -15,7 +15,7 @@ const conf_t conf_flash_default = {
     .pos_pri = {
         .beacon = {
             .active = true,
-            .cycle = TIME_S2I(60 * 10),
+            .cycle = TIME_S2I(60 * 30),
             .init_delay = TIME_S2I(5),
             .fixed = true, // Add lat, lon alt fields when enabling fixed
             .lat = -337331175, // Degrees (expressed in 1e-7 form)
@@ -32,37 +32,40 @@ const conf_t conf_flash_default = {
         .call = "VK2GJ-5",
         .path = "WIDE1-1",
         .symbol = SYM_DIGIPEATER,
-        .aprs_msg = false, // Enable APRS message reception on this app
+        .aprs_msg = true, // Enable APRS message reception on this app
     },
 
     // Secondary position app
     .pos_sec = {
         .beacon = {
-            .active = false,
-            .cycle = TIME_S2I(10), // Beacon interval
+            .active = true,
+            .cycle = TIME_S2I(60), // Beacon interval
             .init_delay = TIME_S2I(10),
             .fixed = false
         },
+        /* Altitude controlled settings. */
+        .run_alt = 100,
+        /* Radio configuration. */
         .radio_conf = {
             .pwr = 0x1F,
-            .freq = 144850000,
-            .mod = MOD_AFSK,
+            .freq = 144800000,
+            .mod = MOD_2FSK_9k6,
             .cca = 0x4F
         },
         // App identity
-        .call = "VK2GJ-11",
+        .call = "VK2GJ-2",
         .path = "WIDE2-1",
         .symbol = SYM_ANTENNA,
-        .aprs_msg = false, // Enable APRS message reception on this app
+        .aprs_msg = true, // Enable APRS message reception on this app
     },
 
     // Primary image app
     .img_pri = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 30),
+            .active = true,
+            .cycle = TIME_S2I(60 * 2),
             .init_delay = TIME_S2I(60),
-            .send_spacing = TIME_S2I(10)
+            .send_spacing = TIME_S2I(3)
         },
         .radio_conf = {
             .pwr = 0x1F,
@@ -85,10 +88,10 @@ const conf_t conf_flash_default = {
     // Secondary image app
     .img_sec = {
         .svc_conf = {
-            .active = false,
-            .cycle = TIME_S2I(60 * 2),
-            .init_delay = TIME_S2I(10),
-            .send_spacing = TIME_S2I(5)
+            .active = true,
+            .cycle = TIME_S2I(20),
+            .init_delay = TIME_S2I(30),
+            .send_spacing = TIME_S2I(0)
         },
         .radio_conf = {
             .pwr = 0x7F,
@@ -101,10 +104,10 @@ const conf_t conf_flash_default = {
         .path = "",
 
         // Image settings
-        .res = RES_VGA,
+        .res = RES_QVGA,
         .quality = 4,
-        .buf_size = 90 * 1024,
-        .redundantTx = false,
+        .buf_size = 20 * 1024,
+        .redundantTx = true,
         .no_burst = false
     },
 
@@ -133,16 +136,18 @@ const conf_t conf_flash_default = {
         .rx = {
              .svc_conf = {
                  // The packet receive service is enabled if true
-                 // Receive is paused and resumed by transmission
-                 // Receive can have a schedule set by cycle and on (interval) time
-                 // If there is no cycle time or interval then run continuously.
-                 // If there is a duration only then it is a run once setup.
-                 // The APRS schedule thread terminates and leaves the radio active.
-                 // If duration is TIME_INFINITE then the radio stays active while the thread waits forever.
+                 // Receive is paused and resumed by transmission on that radio
+                 // Receive can have a schedule set by cycle and interval
+                 // An interval will run receive for the specified time period
+                 // If interval is TIME_IMMEDIATE the radio turns off then on immediately
+                 // If interval is TIME_INFINITE then the radio stays on and cycle is ignored
+                 // Cycle is checked after the interval has expired
+                 // Cycle timing less than interval means the cycle will run immediately after interval
+                 // If cycle is CYCLE_CONTINUOUSLY the radio turns off and on at each interval
                  .active = true,
-                 .init_delay = TIME_S2I(20),
-                 .cycle = TIME_S2I(60 * 10),
-                 .interval = TIME_S2I(60 * 9)
+                 .init_delay = TIME_S2I(0),
+                 .cycle = TIME_S2I(60 * 5),
+                 .interval = TIME_S2I((60 * 5) - 10)
              },
             // Receive radio configuration
             .radio_conf = {
@@ -154,7 +159,7 @@ const conf_t conf_flash_default = {
             .call = "VK2GJ-4",
             .symbol = SYM_ANTENNA
         },
-        .aprs_msg = false, // Set true to enable messages to be accepted on RX call sign
+        .aprs_msg = true, // Set true to enable messages to be accepted on RX call sign
         .digi = true,
         .tx = {
            // Transmit radio configuration

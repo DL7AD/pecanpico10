@@ -16,11 +16,11 @@ bool initSD(void)
    * This is OK for in flight.
    */
   if(palReadLine(LINE_SD_DET)) {
-      TRACE_INFO("SD   > No SD card inserted");
+    TRACE_DEBUG("SD   > No SD card inserted");
       sdInitialized = false;
       return false;
   }
-  TRACE_INFO("SD   > Access SD card");
+  TRACE_DEBUG("SD   > Access SD card");
 
     /* NOTE: SD_CS line is set in board.h and initialized to HIGH. */
 
@@ -53,7 +53,7 @@ bool initSD(void)
 		TRACE_ERROR("SD   > SD card connection error");
         sdInitialized = false;
 	} else {
-		TRACE_INFO("SD   > SD card connection OK");
+	  TRACE_DEBUG("SD   > SD card connection OK");
 		sdInitialized = true;
 	}
 	spiReleaseBus(&SPI_BUS1_DRIVER);
@@ -74,7 +74,7 @@ bool writeBufferToFile(const char *filename, const uint8_t *buffer, uint32_t len
 	bool gres = true; // Optimist
 
 	// Mount SD card
-	TRACE_INFO("SD   > Mount");
+	TRACE_DEBUG("SD   > Mount");
 	res = f_mount(&fs, "/", 0);
 	if(res != FR_OK)
 	{
@@ -85,7 +85,7 @@ bool writeBufferToFile(const char *filename, const uint8_t *buffer, uint32_t len
 	} else {
 
 		// Open file
-		TRACE_INFO("SD   > Open file %s", filename);
+	    TRACE_DEBUG("SD   > Open file %s", filename);
 		res = f_open(&fdst, (TCHAR*)filename, FA_CREATE_ALWAYS | FA_WRITE);
 		if(res != FR_OK)
 		{
@@ -96,7 +96,7 @@ bool writeBufferToFile(const char *filename, const uint8_t *buffer, uint32_t len
 		} else {
 
 			// Write buffer into file
-			TRACE_INFO("SD   > Write buffer to file (len=%d)", len);
+		   TRACE_DEBUG("SD   > Write buffer to file (len=%d)", len);
 			uint32_t len_written;
 			f_write(&fdst, buffer, len, (UINT*)&len_written);
 			if(len_written != len)
@@ -106,7 +106,7 @@ bool writeBufferToFile(const char *filename, const uint8_t *buffer, uint32_t len
 			}
 
 			// Close file
-			TRACE_INFO("SD   > Close file");
+			TRACE_DEBUG("SD   > Close file");
 			res = f_close(&fdst);
 			if(res != FR_OK)
 			{
@@ -117,7 +117,7 @@ bool writeBufferToFile(const char *filename, const uint8_t *buffer, uint32_t len
 		}
 
 		// Unmount
-		TRACE_INFO("SD   > Unmount");
+		TRACE_DEBUG("SD   > Unmount");
 		res = f_mount(0, "", 0);
 		if(res != FR_OK)
 		{

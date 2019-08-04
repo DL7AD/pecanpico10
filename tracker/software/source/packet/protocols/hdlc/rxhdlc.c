@@ -9,149 +9,208 @@
 #include "pktconf.h"
 
 /**
- * @brief   Extract HDLC from AFSK.
- * @post    The HDLC state will be updated.
- * @notes   In the case of an HDLC_RESET HDLC sync can be restarted.
- * @notes   This is done where the AX25 payload is below minimum size.
- * @notes   If the payload is above minimum size state HDLC_RESET is set.
- * @notes   In that case it is left to the decoder to determine an action.
+ * Array for looking up model name
+ */
+static const char *token[] = {HDLC_TOKEN_NAMES};
+
+/**
+ * Get pointer to token name as string
+ */
+const char *pktGetHDLCTokenName(uint8_t index) {
+  return (index > HDLC_TOKEN_MAX ? "INVALID" : token[index]);
+}
+
+/**
+ * @brief   Reset HDLC processor.
+ * @post    The HDLC decode control object will be reset.
  *
- * @param[in]   myDriver   pointer to an @p AFSKDemodDriver structure.
- *
- * @return  status of operation
- * @retval  true    character processed and HDLC state updated on flags.
- * @retval  false   frame buffer full.
+ * @param[in]   myDriver   pointer to an @p decodeHDLC structure.
  *
  * @api
  */
-bool pktExtractHDLCfromAFSK(AFSKDemodDriver *myDriver) {
+void pktResetHDLCProcessor(pkt_hdlc_decode_t *myHDLC) {
+    myHDLC->frame_state = HDLC_FLAG_SEARCH;
+#if HDLC_SYNC_USE_COUNTER == TRUE
+    myHDLC->flag_count = 0;
+    myHDLC->lead_type = HDLC_LEAD_NONE;
+#endif
+ myHDLC->tone_freq = TONE_NONE;
+ myHDLC->prior_freq = TONE_NONE;
+ myHDLC->bit_index = 0;
+ myHDLC->hdlc_bits = (int32_t)-1;
+}
 
-  packet_svc_t *myHandler = myDriver->packet_handler;
+/**
+ * @brief   Extract HDLC from AFSK.
+ * @post    The HDLC decode control object will be updated.
+ *
+ * @param[in]   myDriver   pointer to an @p decodeHDLC structure.
+ *
+ * @return  status of operation as a token code
+ *
+ * @api
+ */
+hdlc_token_t pktExtractHDLCfromAFSK(pkt_hdlc_decode_t *myHDLC) {
 
   /* Shift prior HDLC bits up before adding new bit. */
-  myDriver->hdlc_bits <<= 1;
-  myDriver->hdlc_bits &= 0xFE;
+  myHDLC->hdlc_bits <<= 1;
   /* Same tone indicates a 1. */
-  if(myDriver->tone_freq == myDriver->prior_freq) {
-    myDriver->hdlc_bits |= 1;
-  }
+  myHDLC->hdlc_bits |= (myHDLC->tone_freq == myHDLC->prior_freq) ? 0x01 : 0x00;
   /* Update the prior frequency. */
-  myDriver->prior_freq = myDriver->tone_freq;
+  myHDLC->prior_freq = myHDLC->tone_freq;
 
-  /*
-   * Check if we are in AX25 data capture mode.
-   * If so check and act on HDLC codes otherwise just store data.
-   */
-  switch(myDriver->frame_state) {
-  case FRAME_OPEN: {
-    switch(myDriver->hdlc_bits & HDLC_CODE_MASK) {
+  if((myHDLC->hdlc_bits & HDLC_BIT_MASK) == HDLC_RLL_BIT) {
+    /*
+     * The stuffed bit is discarded.
+     * We just wait for next HDLC bit.
+     */
+    return (myHDLC->last_token = HDLC_TOK_RLL);
+  }
+
+  /* Shift the prior AX25 bits and add the new bit. */
+  myHDLC->current_byte >>= 1;
+  myHDLC->current_byte &= 0x7F;
+  myHDLC->current_byte |= (myHDLC->hdlc_bits & 0x01) ? 0x80 : 0x00;
+
+  /* Check if a byte has been accumulated or if still searching for sync. */
+  if((++myHDLC->bit_index % 8U == 0)
+      || (myHDLC->frame_state == HDLC_FLAG_SEARCH)) {
+
+    /* Process HDLC stream based on frame state.  */
+    switch(myHDLC->frame_state) {
+
+    /* Frame opening sync pattern searching. The decoder PLL will search at
+       an aggressive rate for bit sync when HDLC processor is in this state.
+       Two search patterns are looked for. One with pure HDLC flags the other
+       with leading zeros followed by HDLC flags. Leading zeros are used by
+       some TNCs as that results in constant NRZI transitions. */
+    case HDLC_FLAG_SEARCH: {
+      /* Search bit pattern as it slides by looking for a sync sequence. */
+      if ((myHDLC->hdlc_bits & HDLC_SYNC_MASK_FLAG) == HDLC_SYNC_OPEN_FLAG)
+        myHDLC->lead_type = HDLC_LEAD_FLAG;
+      if ((myHDLC->hdlc_bits & HDLC_SYNC_MASK_ZERO) == HDLC_SYNC_OPEN_ZERO)
+        myHDLC->lead_type = HDLC_LEAD_ZERO;
+      if (myHDLC->lead_type != HDLC_LEAD_NONE) {
+        /* Reset data bit/byte index. */
+        myHDLC->bit_index = 0;
+#if HDLC_SYNC_USE_COUNTER == TRUE
+        /* Reset PLL sync counter. */
+        myHDLC->flag_count = 0;
+#endif
+        /*
+         * Contiguous HDLC flags in the preamble will be handled in SYNC state.
+         */
+        myHDLC->frame_state = HDLC_FRAME_SYNC;
+        return (myHDLC->last_token = HDLC_TOK_SYNC);
+      }
+      return (myHDLC->last_token = HDLC_TOK_FEED);
+    } /* End case FRAME_SEARCH. */
+
+    /* An opening bit sync pattern has been detected. */
+    case HDLC_FRAME_SYNC: {
+      switch (myHDLC->hdlc_bits & HDLC_BIT_MASK) {
       case HDLC_FLAG: {
         /*
-         * An HDLC flag after minimum packet size terminates the AX25 frame.
+         * Another preamble HDLC flag. Continue waiting for data.
          */
-        if(myHandler->active_packet_object->packet_size >= PKT_MIN_FRAME) {
-          /*
-           * Frame size is valid.
-           * Dump any bits already put into the AX25 byte.
-           */
-          myDriver->bit_index = 0;
-          /* Inform decoder thread of end of frame. */
-          myDriver->frame_state = FRAME_CLOSE;
-          return true;
-        } /* End AX25 frame size check. */
-
-        /*
-         * Frame size is not valid.
-         * HDLC sync still in progress.
-         * Reset AX25 counts and wait for next HDLC bit.
-         */
-        pktResetDataCount(myHandler->active_packet_object);
-        myDriver->bit_index = 0;
-        return true;
-      } /* End case. */
+#if HDLC_SYNC_USE_COUNTER == TRUE
+        myHDLC->flag_count++;
+#endif
+        return (myHDLC->last_token = HDLC_TOK_FEED);
+      } /* End case HDLC_FLAG. */
 
       case HDLC_RESET: {
         /*
-         *  Can be a real HDLC reset or most likely incorrect bit sync.
+         *  Can be a real HDLC reset or more likely incorrect bit sync.
+         *  Since the decoder is in sync phase just go back to search.
+         *  No data has been captured.
          */
+        myHDLC->frame_state = HDLC_FLAG_SEARCH;
+        return (myHDLC->last_token = HDLC_TOK_RESET);
+      } /* End case HDLC_FRAME_SYNC. */
 
-        //myDriver->active_demod_object->status |= STA_HDLC_RESET_RCVD;
-        pktAddEventFlags(myHandler, EVT_HDLC_RESET_RCVD);
-        if(myHandler->active_packet_object->packet_size < PKT_MIN_FRAME) {
-          /* No data payload stored yet so go back to sync search. */
-          myHandler->active_packet_object->packet_size = 0;
-          myDriver->frame_state = FRAME_SEARCH;
-          myHandler->sync_count--;
-          break;
+      default:
+        /* Not an HDLC pattern. */
+#if HDLC_SYNC_USE_COUNTER == TRUE
+        /* Check number of contiguous flags received. This sequence is
+           intended to settle the decoder PLL. */
+        if (
+            (myHDLC->lead_type == HDLC_LEAD_ZERO && myHDLC->flag_count >= HDLC_SYNC_COUNT_ZERO)
+            ||
+            (myHDLC->lead_type == HDLC_LEAD_FLAG && myHDLC->flag_count >= HDLC_SYNC_COUNT_FLAG)
+            ) {
+          /* A data byte is available. */
+          myHDLC->frame_state = HDLC_FRAME_OPEN;
+          return (myHDLC->last_token = HDLC_TOK_OPEN);
         }
-        /* Else let the decoder determine what to do. */
-        myDriver->frame_state = FRAME_RESET;
-        return true;
-      } /* End case. */
-
-      default: {
-       /* Check for RLL encoding inserted ("stuffed") bit in the bit stream. */
-       if((myDriver->hdlc_bits & HDLC_RLL_MASK) == HDLC_RLL_BIT) {
-         /*
-          * The stuffed bit is discarded.
-          * We just wait for next HDLC bit.
-          */
-         return true;
-       }
-       /*
-        * Else we have a non-special pattern.
-        * Just put the bit into the AX25 data.
-        * AX25 data bits arrive MSB -> LSB.
-        */
-       myDriver->current_byte &= 0x7F;
-       if((myDriver->hdlc_bits & 0x01) == 1) {
-         myDriver->current_byte |= 0x80;
-       }
-       /* Check if we have a byte accumulated. */
-       if(++myDriver->bit_index == 8U) {
-         myDriver->bit_index = 0;
-         if(pktStoreReceiveData(myHandler->active_packet_object,
-                         myDriver->current_byte)) {
-           return true;
-         }
-         pktAddEventFlags(myHandler, EVT_PKT_BUFFER_FULL);
-         return false;
-       }
-       /* Else shift the prior bit to make space for next bit. */
-       myDriver->current_byte >>= 1;
-       return true;
-      } /* End case default. */
-    } /* End switch. */
-  } /* Else not frame_open... */
-
-  case FRAME_SEARCH: {
-  /*
-   *  Frame start not yet detected.
-   * Check for opening HDLC flag sequence.
-   */
-  if(
-      ((myDriver->hdlc_bits & HDLC_FRAME_MASK_A) == HDLC_FRAME_OPEN_A)
-      ||
-      ((myDriver->hdlc_bits & HDLC_FRAME_MASK_B) == HDLC_FRAME_OPEN_B)
-    ) {
-
-      myDriver->frame_state = FRAME_OPEN;
-      myHandler->sync_count++;
-      /* Reset AX25 data indexes. */
-      myHandler->active_packet_object->packet_size = 0;
-      myDriver->bit_index = 0;
-
-      /*
-       * AX25 data buffering is now enabled.
-       * Data bytes will be written to the AX25 buffer.
-       */
+        else {
+        /* Discard as this is likely junk. Go back to bit level sync */
+        myHDLC->frame_state = HDLC_FLAG_SEARCH;
+        return (myHDLC->last_token = HDLC_TOK_FEED);
       }
-      return true;
-    }
+#else
+        /* A data byte is available. */
+        myHDLC->frame_state = HDLC_FRAME_OPEN;
+        return (myHDLC->last_token = HDLC_TOK_OPEN);
+#endif
+      } /* End switch on HDLC code. */
+    } /* End case HDLC_FRAME_SYNC. */
 
-  default:
-    return true;
-  } /* End switch on frame state. */
-} /* End function. */
+    /* Data (non HDLC) has been processed. Handle both data and HDLC now. */
+    case HDLC_FRAME_OPEN: {
+      switch(myHDLC->hdlc_bits & HDLC_BIT_MASK) {
+      case HDLC_FLAG: {
+
+        /*
+         * An HDLC flag here should close the frame.
+         * If the frame has sufficient data the AFSK decoder can close it.
+         * If not then the decoder will reset itself and HDLC processor.
+         * In the case that a decode is valid we setup to consume the HDLC tail.
+         */
+        myHDLC->frame_state = HDLC_FRAME_TAIL;
+
+        /* Reset HDLC processor data bit/byte index. */
+        myHDLC->bit_index = 0;
+        return (myHDLC->last_token = HDLC_TOK_FLAG);
+      } /* End case HDLC_FRAME_OPEN. */
+
+      case HDLC_RESET: {
+        /*
+         *  Can be a real HDLC reset or more likely incorrect bit sync.
+         *  The HDLC processor stays in frame open state.
+         *  The AFSK decoder will decide what to do.
+         */
+        //myHDLC->frame_state = HDLC_FLAG_SEARCH;
+
+        /* Reset HDLC processor data bit/byte index. */
+        myHDLC->bit_index = 0;
+
+        return (myHDLC->last_token = HDLC_TOK_RESET);
+      } /* End case HDLC_RESET. */
+
+      default:
+        /* Otherwise indicate there is a data byte. */
+        return (myHDLC->last_token = HDLC_TOK_DATA);
+      } /* End switch on HDLC code. */
+    } /* End case HDLC_FRAME_OPEN. */
+
+    /* Frame closing flag processed. */
+    case HDLC_FRAME_TAIL: {
+      switch(myHDLC->hdlc_bits & HDLC_BIT_MASK) {
+      case HDLC_FLAG: {
+        /* Consume the frame tail flags. */
+        return (myHDLC->last_token = HDLC_TOK_FEED);
+      } /* End case HDLC_FRAME_OPEN. */
+
+      default:
+        /* If not a flag then go into bit sync. */
+        myHDLC->frame_state = HDLC_FLAG_SEARCH;
+        return (myHDLC->last_token = HDLC_TOK_FEED);
+      } /* End switch on HDLC code. */
+    } /* End case HDLC_FRAME_TAIL. */
+    } /* End switch on decoder state. */
+  } /* End if byte. */
+  return (myHDLC->last_token = HDLC_TOK_FEED);
+}
 
 /** @} */

@@ -23,6 +23,8 @@
 #include "types.h"
 #include "si446x.h"
 #include "pktradio.h"
+#include "pktconf.h"
+#include "serialmux.h"
 #include <stdarg.h>
 
 /*===========================================================================*/
@@ -39,100 +41,132 @@
  * @details The mapping between the radio and MCU is defined.
  */
 const si446x_mcucfg_t radio1_cfg = {
-  .gpio0 	= LINE_RADIO1_GPIO0,
-  .gpio1 	= LINE_RADIO1_GPIO1,
-  .gpio2 	= PAL_NOLINE,
-  .gpio3 	= PAL_NOLINE,
-  .nirq	    = LINE_RADIO1_NIRQ,
-  .sdn	    = LINE_RADIO1_SDN,
-  .cs		= LINE_RADIO1_CS,
-  .spi	    = &PKT_RADIO1_SPI,
-  .init     = {
+  .gpio0    = LINE_RADIO1_GPIO0,
+  .gpio1    = LINE_RADIO1_GPIO1,
+  .gpio2    = PAL_NOLINE,
+  .gpio3    = PAL_NOLINE,
+  .nirq     = LINE_RADIO1_NIRQ,
+  .sdn      = LINE_RADIO1_SDN,
+  .cs       = LINE_RADIO1_CS,
+  .spi      = &PKT_RADIO1_SPI,
+  .init     = {            /**< Default reset radio GPIO settings. */
     .gpio       = {
-     .gpio0 = 00,          /**< DONOTHING. */
-     .gpio1 = 00,          /**< DONOTHING. */
-     .gpio2 = 0x21,        /**< RX_STATE. */
-     .gpio3 = 0x20,        /**< TX_STATE. */
-     .nirq  = 00,          /**< DONOTHING. */
-     .sdo   = 00,          /**< DONOTHING. */
+     .gpio0 = 00,          /**< DONOTHING.  */
+     .gpio1 = 00,          /**< DONOTHING.  */
+     .gpio2 = 0x21,        /**< RX_STATE.   */
+     .gpio3 = 0x20,        /**< TX_STATE.   */
+     .nirq  = 03,          /**< DRIVE1.     */
+     .sdo   = 00,          /**< DONOTHING.  */
      .cfg   = 00           /**< HIGH DRIVE. */
     }
   },
-  .rafsk    = {
+  .xirq      = {           /**< Settings for global IRQ dispatcher. */
+     .gpio       = {
+      .gpio0 = 00,          /**< DONOTHING.  */
+      .gpio1 = 00,          /**< DONOTHING.  */
+      .gpio2 = 00,          /**< DONOTHING.  */
+      .gpio3 = 00,          /**< DONOTHING.  */
+      .nirq  = 0x27,        /**< NIRQ.       */
+      .sdo   = 00,          /**< DONOTHING.  */
+      .cfg   = 00           /**< HIGH DRIVE. */
+     },
+       .nirq = {
+         .pline = &radio1_cfg.nirq,
+         .mode = (PAL_MODE_INPUT_PULLUP)
+       },
+  },
+  .rcca    = {            /**< CCA carrier sense radio GPIO settings. */
     .gpio       = {
-      .gpio0 = 00,          /**< DONOTHING. */
-      .gpio1 = 0x15,        /**< RAW_RX_DATA. */
+      .gpio0 = 0x1B,        /**< CCA.       */
+      .gpio1 = 00,        /**< RX_DATA. */
       .gpio2 = 00,          /**< DONOTHING. */
       .gpio3 = 00,          /**< DONOTHING. */
-      .nirq  = 0x1B,        /**< CCA. */
+      .nirq  = 00,           /**< DONOTHING. */
       .sdo   = 00,          /**< DONOTHING. */
       .cfg   = 00           /**< HIGH DRIVE. */
     },
-    .pwm     = {
-               .line = &radio1_cfg.gpio1,
-               .mode = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2))
-    },
     .cca     = {
-               .line = &radio1_cfg.nirq,
+               .pline = &radio1_cfg.gpio0,
                .mode = PAL_MODE_INPUT_PULLUP
-    },
-    .icu     = &PKT_RADIO1_ICU,
-    .cfg     = {
-       ICU_INPUT_ACTIVE_HIGH,
-       ICU_COUNT_FREQUENCY,      /**< ICU clock frequency. */
-     #if LINE_PWM_MIRROR != PAL_NOLINE
-       pktRadioICUWidth,         /**< ICU width callback. */
-     #else
-       NULL,                     /**< ICU width callback. */
-     #endif
-       pktRadioICUPeriod,        /**< ICU period callback. */
-       pktRadioICUOverflow,      /**< ICU overflow callback. */
-       ICU_CHANNEL_1,            /**< Timer channel. */
-       0                         /**< DIER bits. */
     }
   },
-  .tafsk    = {
+  .rafsk    = {            /**< AFSK RX radio GPIO settings. */
     .gpio       = {
-     .gpio0 = 00,          /**< DONOTHING. */
-     .gpio1 = 00,          /**< DONOTHING. */
-     .gpio2 = 00,          /**< DONOTHING. */
-     .gpio3 = 00,          /**< DONOTHING. */
-     .nirq  = 0x1B,        /**< CCA. */
-     .sdo   = 00,          /**< DONOTHING. */
-     .cfg   = 00           /**< HIGH DRIVE. */
+      .gpio0 = 0x1B,        /**< CCA.       */
+#if Si446x_USE_AFSK_LCM_DATA_RATE == TRUE
+      .gpio1 = 0x14,        /**< RX_DATA. */
+#else
+      .gpio1 = 0x15,        /**< RAW_RX_DATA. */
+#endif
+      .gpio2 = 00,          /**< DONOTHING. */
+      .gpio3 = 00,          /**< DONOTHING. */
+      .nirq  = 00,           /**< DONOTHING. */
+      .sdo   = 00,          /**< DONOTHING. */
+      .cfg   = 00           /**< HIGH DRIVE. */
+    },
+    .stream = {
+      .pwm     = {
+                 .pline = &radio1_cfg.gpio1,
+                 .mode = (PAL_MODE_INPUT | PAL_MODE_ALTERNATE(2))
+      },
+      .cca     = {
+                 .pline = &radio1_cfg.gpio0,
+                 .mode = PAL_MODE_INPUT_PULLUP
+      },
+      .icu     = &PKT_RADIO1_PWM_ICU,
+      .cfg     = {
+         ICU_INPUT_ACTIVE_HIGH,
+         PWM_ICU_COUNT_FREQUENCY,   /**< ICU clock frequency. */
+         pktRadioICUWidth,          /**< ICU width callback. */
+         pktRadioICUPeriod,         /**< ICU period callback. */
+         pktRadioICUOverflow,       /**< ICU overflow callback. */
+         ICU_CHANNEL_1,             /**< Timer channel. */
+         0                          /**< DIER bits. */
+      }
+    }
+  },
+  .tafsk    = {            /**< AFSK TX radio GPIO settings. */
+    .gpio       = {
+      .gpio0 = 0x1B,        /**< CCA.       */
+      .gpio1 = 00,          /**< DONOTHING. */
+      .gpio2 = 00,          /**< DONOTHING. */
+      .gpio3 = 00,          /**< DONOTHING. */
+      .nirq  = 00,          /**< DONOTHING. */
+      .sdo   = 00,          /**< DONOTHING. */
+      .cfg   = 00           /**< HIGH DRIVE. */
     },
     .cca     = {
-               .line = &radio1_cfg.nirq,
+               .pline = &radio1_cfg.gpio0,
                .mode = PAL_MODE_INPUT_PULLUP
     },
   },
-  .r2fsk    = {
+  .r2fsk    = {            /**< 2FSK RX radio GPIO settings. */
     .gpio       = {
-     .gpio0 = 00,          /**< DONOTHING. */
-     .gpio1 = 00,          /**< DONOTHING. */
-     .gpio2 = 00,          /**< DONOTHING. */
-     .gpio3 = 00,          /**< DONOTHING. */
-     .nirq  = 0x1B,        /**< CCA. */
-     .sdo   = 00,          /**< DONOTHING. */
-     .cfg   = 00           /**< HIGH DRIVE. */
+      .gpio0 = 0x1B,        /**< CCA.       */
+      .gpio1 = 00,          /**< DONOTHING. */
+      .gpio2 = 00,          /**< DONOTHING. */
+      .gpio3 = 00,          /**< DONOTHING. */
+      .nirq  = 00,          /**< DONOTHING. */
+      .sdo   = 00,          /**< DONOTHING. */
+      .cfg   = 00           /**< HIGH DRIVE. */
     },
     .cca     = {
-               .line = &radio1_cfg.nirq,
+               .pline = &radio1_cfg.gpio0,
                .mode = PAL_MODE_INPUT_PULLUP
     },
   },
-  .t2fsk    = {
+  .t2fsk    = {            /**< 2FSK TX radio GPIO settings. */
     .gpio       = {
-     .gpio0 = 00,          /**< DONOTHING. */
-     .gpio1 = 00,          /**< DONOTHING. */
-     .gpio2 = 00,          /**< DONOTHING. */
-     .gpio3 = 00,          /**< DONOTHING. */
-     .nirq  = 0x1B,        /**< CCA. */
-     .sdo   = 00,          /**< DONOTHING. */
-     .cfg   = 00           /**< HIGH DRIVE. */
+      .gpio0 = 0x1B,        /**< CCA.       */
+      .gpio1 = 00,          /**< DONOTHING. */
+      .gpio2 = 00,          /**< DONOTHING. */
+      .gpio3 = 00,          /**< DONOTHING. */
+      .nirq  = 00,          /**< DONOTHING. */
+      .sdo   = 00,          /**< DONOTHING. */
+      .cfg   = 00           /**< HIGH DRIVE. */
     },
     .cca     = {
-               .line = &radio1_cfg.nirq,
+               .pline = &radio1_cfg.gpio0,
                .mode = PAL_MODE_INPUT_PULLUP
     },
   }
@@ -140,10 +174,11 @@ const si446x_mcucfg_t radio1_cfg = {
 
 /* Variable data for a radio. */
 si446x_data_t radio1_dat = {
-        .lastTemp = 0x7FFF
-        /* TODO: Move part and func structs into here
-         * Add functions to set/get values
-         */
+        .lastTemp = 0x7FFF,
+        .radio_clock = Si446x_CLK + Si446x_CLK_ERROR,
+        .radio_part = 0,
+        .radio_rom_rev = 0,
+        .radio_patch = 0
 };
 
 /* List of bands in this radio. */
@@ -153,7 +188,7 @@ const radio_band_t *const radio_bands[] = {
 };
 
 /* List of indicators controlled by this radio. */
-const indicator_io_t const radio1_ind[] = {
+const indicator_io_t radio1_ind[] = {
   {
    .ind = PKT_INDICATOR_DECODE,
    .type = PKT_IND_GPIO_LINE,
@@ -186,7 +221,17 @@ const radio_config_t radio_list[] = {
  * Debug serial port setting.
  */
 const SerialConfig debug_config = {
-  115200,
+  230400,
+  0,
+  0,
+  0
+};
+
+/**
+ * Stream serial port setting.
+ */
+const SerialConfig stream_config = {
+  230400,
   0,
   0,
   0
@@ -208,8 +253,14 @@ const SerialConfig debug_config = {
 /* Module exported functions.                                                */
 /*===========================================================================*/
 
+void halCommunityInit(void) {
+#if (HAL_USE_SERIAL && STM32_SERIAL_USE_MUX)
+  smd_lld_init();
+#endif
+}
+
 void pktConfigSerialDiag(void) {
-#if ENABLE_EXTERNAL_I2C == FALSE
+#if ENABLE_EXTERNAL_I2C == FALSE && ENABLE_UART_SERIAL == TRUE
   /* USART3 TX.       */
   palSetLineMode(LINE_USART3_TX, PAL_MODE_ALTERNATE(7));
   /* USART3 RX.       */
@@ -226,39 +277,41 @@ void pktConfigSerialDiag(void) {
  * @return State of lines regardless of general or specific use.
  */
 uint8_t pktReadIOlines() {
-  return palReadLine(LINE_GPIO_PIN)
-      | palReadLine(LINE_IO_TXD) << 1
-      | palReadLine(LINE_IO_RXD) << 2;
+  return pktReadGPIOline(LINE_GPIO_PIN)
+      | pktReadGPIOline(LINE_IO_TXD) << 1
+      | pktReadGPIOline(LINE_IO_RXD) << 2;
 }
 
 void pktSerialStart(void) {
-#if ENABLE_SERIAL_DEBUG == TRUE
+#if ENABLE_UART_SERIAL == TRUE
   pktConfigSerialDiag();
-  sdStart(SERIAL_CFG_DEBUG_DRIVER, &debug_config);
+  sdStart(&SERIAL_UART_DRIVER, &debug_config);
 #endif
+#if ENABLE_SERIAL_STREAM == TRUE
   /* Setup diagnostic resource access semaphore. */
-  //extern binary_semaphore_t debug_out_sem;
-  //chBSemObjectInit(&debug_out_sem, false);
+  extern binary_semaphore_t stream_out_sem;
+  chBSemObjectInit(&stream_out_sem, false);
+#endif
 }
 
-void dbgWrite(uint8_t level, uint8_t *buf, uint32_t len) {
+void strmWrite(uint8_t level, uint8_t *buf, uint32_t len) {
   (void)level;
-#if ENABLE_SERIAL_DEBUG == TRUE
-  chnWrite((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, buf, len);
+#if ENABLE_SERIAL_STREAM == TRUE
+  chnWrite((BaseSequentialStream*)&SERIAL_STREAM_DRIVER, buf, len);
 #else
   (void)buf;
   (void)len;
 #endif
 }
 
-int dbgPrintf(uint8_t level, const char *format, ...) {
+int strmPrintf(uint8_t level, const char *format, ...) {
   (void)level;
-#if ENABLE_SERIAL_DEBUG == TRUE
+#if ENABLE_SERIAL_STREAM == TRUE
   va_list arg;
   int done;
 
   va_start(arg, format);
-  done = chvprintf((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, format, arg);
+  done = chvprintf((BaseSequentialStream*)SERIAL_STREAM_DRIVER, format, arg);
   va_end(arg);
 
   return done;
@@ -269,8 +322,8 @@ int dbgPrintf(uint8_t level, const char *format, ...) {
 }
 
 void pktWrite(uint8_t *buf, uint32_t len) {
-#if ENABLE_SERIAL_DEBUG == TRUE
-  chnWrite((BaseSequentialStream*)SERIAL_CFG_DEBUG_DRIVER, buf, len);
+#if ENABLE_SERIAL_STREAM == TRUE
+  chnWrite((BaseSequentialStream*)&SERIAL_STREAM_DRIVER, buf, len);
 #else
   (void)buf;
   (void)len;
@@ -278,23 +331,14 @@ void pktWrite(uint8_t *buf, uint32_t len) {
 }
 
 void pktConfigureCoreIO(void) {
-  /* TODO: Put ALT mode selections in definitions. */
-  /* Setup SPI3. */
-  palSetLineMode(LINE_SPI_SCK, PAL_MODE_ALTERNATE(6)
-                 | PAL_STM32_OSPEED_HIGHEST);     // SCK
-  palSetLineMode(LINE_SPI_MISO, PAL_MODE_ALTERNATE(6)
-                 | PAL_STM32_OSPEED_HIGHEST);    // MISO
-  palSetLineMode(LINE_SPI_MOSI, PAL_MODE_ALTERNATE(6)
-                 | PAL_STM32_OSPEED_HIGHEST);    // MOSI
+  /* Setup main SPI. */
+  palSetLineMode(LINE_SPI_SCK, LINE_SPI_SCK_MODE);
+  palSetLineMode(LINE_SPI_MISO, LINE_SPI_MISO_MODE);
+  palSetLineMode(LINE_SPI_MOSI, LINE_SPI_MOSI_MODE);
 
-  /* Setup I2C1. */
-  palSetLineMode(LINE_I2C_SDA, PAL_MODE_ALTERNATE(4)
-                 | PAL_STM32_OSPEED_HIGHEST
-                 | PAL_STM32_OTYPE_OPENDRAIN); // SDA
-  palSetLineMode(LINE_I2C_SCL, PAL_MODE_ALTERNATE(4)
-                 | PAL_STM32_OSPEED_HIGHEST
-                 | PAL_STM32_OTYPE_OPENDRAIN); // SCL
-
+  /* Setup main I2C. */
+  palSetLineMode(LINE_I2C_SDA, LINE_I2C_SDA_MODE);
+  palSetLineMode(LINE_I2C_SCL, LINE_I2C_SCL_MODE);
 }
 
 /** @} */

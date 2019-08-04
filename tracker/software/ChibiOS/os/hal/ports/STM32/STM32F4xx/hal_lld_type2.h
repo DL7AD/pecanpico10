@@ -1077,6 +1077,7 @@
  * @brief   PLLI2S activation flag.
  */
 #define STM32_ACTIVATE_PLLI2S       TRUE
+#define STM32_CK48MSEL_PLLALT       STM32_CK48MSEL_PLLI2S
 #else
 #define STM32_ACTIVATE_PLLI2S       FALSE
 #endif
@@ -1168,6 +1169,12 @@
  * @brief   PLLI2S R output clock frequency.
  */
 #define STM32_PLLI2S_R_CLKOUT       (STM32_PLLI2SVCO / STM32_PLLI2SR_VALUE)
+
+/**
+ * @brief   PLLI2SP enable bit.
+ * @note    Always 0, there is no PLLI2SP.
+ */
+#define STM32_PLLI2SP               0
 
 /**
  * @brief   PLLSAI activation flag.

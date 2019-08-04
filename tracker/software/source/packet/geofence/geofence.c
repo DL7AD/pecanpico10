@@ -692,6 +692,6 @@ uint32_t getAPRSRegionFrequency() {
 	if(isPointInBrazil(point->gps_lat, point->gps_lon))
 		return FREQ_APRS_BRAZIL;
 
-	return FREQ_INVALID;
+	return FREQ_GEOFENCE_DEFAULT;
 }
 

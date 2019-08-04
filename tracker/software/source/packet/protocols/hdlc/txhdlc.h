@@ -41,26 +41,26 @@ typedef enum {
   ITERATE_END
 } txit_state_t;
 
-typedef struct {
+typedef struct txIterator {
   txit_state_t  state;
-  bool      no_write;
-  uint16_t  qty;
-  uint16_t  out_count;
-  uint8_t   hdlc_count;
-  uint8_t   hdlc_post;
-  uint8_t   hdlc_tail;
-  uint8_t   *data_buff;
-  uint16_t  data_size;
-  uint8_t   *out_buff;
-  uint8_t   hdlc_code;
-  uint8_t   crc[sizeof(uint16_t)];
-  uint8_t   nrzi_hist;
-  uint8_t   hdlc_hist;
-  uint32_t  inp_index;
-  uint32_t  out_index;
-  uint8_t   rll_count;
-  bool      scramble;
-  uint32_t  lfsr;
+  bool          no_write;
+  uint16_t      qty;
+  uint16_t      out_count;
+  uint8_t       hdlc_count;
+  uint8_t       hdlc_post;
+  uint8_t       hdlc_tail;
+  ax25char_t*   data_buff;
+  uint16_t      data_size;
+  hdlc_octet_t* out_buff;
+  uint8_t       hdlc_code;
+  uint8_t       crc[sizeof(uint16_t)];
+  uint8_t       nrzi_hist;
+  uint8_t       hdlc_hist;
+  uint32_t      inp_index;
+  uint32_t      out_index;
+  uint8_t       rll_count;
+  bool          scramble;
+  uint32_t      lfsr;
 } tx_iterator_t;
 
 /*===========================================================================*/
@@ -70,10 +70,12 @@ typedef struct {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  uint16_t pktStreamEncodingIterator(tx_iterator_t *iterator,
+  uint16_t  pktStreamEncodingIterator(tx_iterator_t *iterator,
                                      uint8_t *stream, uint16_t qty);
-  void pktStreamIteratorInit(tx_iterator_t *iterator,
-                             packet_t pp,
+  void      pktStreamIteratorInit(tx_iterator_t *iterator,
+                             ax25char_t* pkt,
+                             size_t len,
+                             //packet_t pp,
                              uint8_t pre,
                              uint8_t post,
                              uint8_t tail,

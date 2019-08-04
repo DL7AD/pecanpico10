@@ -740,9 +740,9 @@ static char ssdv_have_marker_data(ssdv_t *s)
 		s->height = (d[1] << 8) | d[2];
 		
 		/* Display information about the image... */
-		TRACE_INFO("SSDV > Precision: %i", d[0]);
-		TRACE_INFO("SSDV > Resolution: %ix%i", s->width, s->height);
-		TRACE_INFO("SSDV > Components: %i", d[5]);
+		TRACE_DEBUG("SSDV > Precision: %i", d[0]);
+		TRACE_DEBUG("SSDV > Resolution: %ix%i", s->width, s->height);
+		TRACE_DEBUG("SSDV > Components: %i", d[5]);
 		
 		/* The image must have a precision of 8 */
 		if(d[0] != 8)
@@ -783,7 +783,7 @@ static char ssdv_have_marker_data(ssdv_t *s)
 				return(SSDV_ERROR);
 			}
 			
-			TRACE_INFO("SSDV > DQT table for component %i: %02X, Sampling factor: %ix%i", dq[0], dq[2], dq[1] & 0x0F, dq[1] >> 4);
+			TRACE_DEBUG("SSDV > DQT table for component %i: %02X, Sampling factor: %ix%i", dq[0], dq[2], dq[1] & 0x0F, dq[1] >> 4);
 			
 			/* The first (Y) component must have a factor of 2x2,2x1,1x2 or 1x1 */
 			if(dq[0] == 1)
@@ -823,7 +823,7 @@ static char ssdv_have_marker_data(ssdv_t *s)
 		case 3: l = (s->width >> 3) * (s->height >> 3); break;
 		}
 		
-		TRACE_INFO("SSDV > MCU blocks: %i", (int) l);
+		TRACE_DEBUG("SSDV > MCU blocks: %i", (int) l);
 		
 		if(l > 0xFFFF)
 		{
@@ -836,7 +836,7 @@ static char ssdv_have_marker_data(ssdv_t *s)
 		break;
 	
 	case J_SOS:
-		TRACE_INFO("SSDV > Components: %i", d[0]);
+	    TRACE_DEBUG("SSDV > Components: %i", d[0]);
 		
 		/* The image must have 1 or 3 components (Y'Cb'Cr) */
 		if(d[0] != 1 && d[0] != 3)
@@ -854,7 +854,7 @@ static char ssdv_have_marker_data(ssdv_t *s)
 				return(SSDV_ERROR);
 			}
 			
-			TRACE_INFO("SSDV > Component %i DHT: %02X", dh[0], dh[1]);
+			TRACE_DEBUG("SSDV > Component %i DHT: %02X", dh[0], dh[1]);
 		}
 		
 		/* Do I need to look at the last three bytes of the SOS data? */
@@ -920,7 +920,7 @@ static char ssdv_have_marker_data(ssdv_t *s)
 	
 	case J_DRI:
 		s->dri = (d[0] << 8) + d[1];
-		TRACE_INFO("SSDV > Reset interval: %i blocks", s->dri);
+		TRACE_DEBUG("SSDV > Reset interval: %i blocks", s->dri);
 		break;
 	}
 	
@@ -1313,12 +1313,12 @@ char ssdv_dec_feed(ssdv_t *s, uint8_t *packet)
 		}
 		
 		/* Display information about the image */
-		TRACE_INFO("SSDV > Callsign: %s", decode_callsign(callsign, s->callsign));
-		TRACE_INFO("SSDV > Image ID: %02X", s->image_id);
-		TRACE_INFO("SSDV > Resolution: %ix%i", s->width, s->height);
-		TRACE_INFO("SSDV > MCU blocks: %i", s->mcu_count);
-		TRACE_INFO("SSDV > Sampling factor: %s", factor);
-		TRACE_INFO("SSDV > Quality level: %d", s->quality);
+		TRACE_DEBUG("SSDV > Callsign: %s", decode_callsign(callsign, s->callsign));
+		TRACE_DEBUG("SSDV > Image ID: %02X", s->image_id);
+		TRACE_DEBUG("SSDV > Resolution: %ix%i", s->width, s->height);
+		TRACE_DEBUG("SSDV > MCU blocks: %i", s->mcu_count);
+		TRACE_DEBUG("SSDV > Sampling factor: %s", factor);
+		TRACE_DEBUG("SSDV > Quality level: %d", s->quality);
 		
 		/* Output JPEG headers and enable byte stuffing */
 		ssdv_out_headers(s);

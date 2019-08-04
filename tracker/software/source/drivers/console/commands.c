@@ -1,5 +1,5 @@
-#include "ch.h"
-#include "hal.h"
+#include "pktconf.h"
+
 #include "shell.h"
 #include "debug.h"
 #include <stdlib.h>
@@ -13,9 +13,12 @@
 #include <string.h>
 #include <time.h>
 #include "ov5640.h"
+#include "tcxo.h"
 
-//static uint8_t usb_buffer[16*1024] __attribute__((aligned(32))); // USB image buffer
-
+/**
+ * Commands handled by this module.
+ *
+ */
 const ShellCommand commands[] = {
     {"trace", usb_cmd_set_trace_level},
 	{"picture", usb_cmd_printPicture},
@@ -23,50 +26,74 @@ const ShellCommand commands[] = {
     {"log", usb_cmd_printLog},
 	{"config", usb_cmd_printConfig},
 	{"msg", usb_cmd_send_aprs_message},
-
 #if SHELL_CMD_MEM_ENABLED == TRUE
     {"heap", usb_cmd_ccm_heap},
 #else
     {"mem", usb_cmd_ccm_heap},
 #endif
-    {"sats", usb_cmd_get_gps_sat_info},
+    {"gps", usb_cmd_get_gps_info},
     {"error_list", usb_cmd_get_error_list},
     {"errors", usb_cmd_get_error_list},
     {"time", usb_cmd_time},
     {"radio", usb_cmd_radio},
+    {"tcxo", usb_cmd_tcxo},
 	{NULL, NULL}
 };
 
 /**
  *
  */
-void usb_cmd_get_gps_sat_info(BaseSequentialStream *chp, int argc, char *argv[]) {
-  (void)argv;
-
+void usb_cmd_get_gps_info(BaseSequentialStream *chp, int argc, char *argv[]) {
   if(argc > 0) {
-    shellUsage(chp, "sats");
-    return;
+    if(strcmp(argv[0], "sats") == 0 && argc == 1) {
+      chprintf(chp, "Checking for satellite information\r\n");
+      gps_svinfo_t svinfo = {0};
+      if(!gps_get_sv_info(&svinfo, sizeof(svinfo))) {
+        chprintf(chp, "No information available\r\n");
+        return;
+      }
+      if(svinfo.numCh == 0) {
+        chprintf(chp, "No satellites found\r\n");
+        return;
+      }
+      chprintf(chp, "Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d\r\n",
+               svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
+      uint8_t i;
+      for(i = 0; i < svinfo.numCh; i++) {
+        gps_svchn_t *sat = &svinfo.svinfo[i];
+        chprintf(chp, "chn=%03d svid=%03d flags=0x%02x quality=%02d"
+                 " cno=%03d elev=%03d azim=%06d prRes=%06d\r\n",
+                 sat->chn, sat->svid, sat->flags, sat->flags,
+                 sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
+      }
+      return;
+    }
+    if(strcmp(argv[0], "tpulse") == 0) {
+      tpidx_t n = 0;
+      if(argc == 2) {
+        n = atoi(argv[1]);
+        if(n > 1) {
+          shellUsage(chp, "invalid timepulse index. Must be 0 or 1");
+          return;
+        }
+      }
+      chprintf(chp, "Checking for timepulse information\r\n");
+      gps_tp5_t tp5 = {0};
+      if(!gps_get_timepulse_info(n, &tp5, sizeof(tp5))) {
+        chprintf(chp, "No timepulse information available\r\n");
+        return;
+      }
+      chprintf(chp, "Timepulse %d information\r\n", tp5.tpIdx);
+      chprintf(chp, "antD=%05d rfD=%05d ForP %08d ForPL %08d pLenR %08d "
+               "pLenRL %08d UDelay %08d flags=0x%02x\r\n",
+               tp5.antCableDelay, tp5.rfGroupDelay, tp5.freqPeriod,
+               tp5.freqPeriodLock, tp5.pulseLenRatio,
+               tp5.pulseLenRatioLock, tp5.userConfigDelay, tp5.flags);
+      return;
+    }
   }
-  chprintf(chp, "Checking for satellite information\r\n");
-  gps_svinfo_t svinfo;
-  if(!gps_get_sv_info(&svinfo, sizeof(svinfo))) {
-    chprintf(chp, "No information available\r\n");
-    return;
-  }
-  if(svinfo.numCh == 0) {
-    chprintf(chp, "No satellites found\r\n");
-    return;
-  }
-  chprintf(chp, "Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d\r\n",
-           svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
-  uint8_t i;
-  for(i = 0; i < svinfo.numCh; i++) {
-    gps_svchn_t *sat = &svinfo.svinfo[i];
-    chprintf(chp, "chn=%03d svid=%03d flags=0x%02x quality=%02d"
-             " cno=%03d elev=%03d azim=%06d prRes=%06d\r\n",
-             sat->chn, sat->svid, sat->flags, sat->flags,
-             sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
-  }
+  shellUsage(chp, "gps sats | tpulse [0 | 1]");
+  return;
 }
 
 /*
@@ -96,9 +123,9 @@ void usb_cmd_ccm_heap(BaseSequentialStream *chp, int argc, char *argv[]) {
   }
   extern uint8_t __ram4_free__[];
   extern uint8_t __ram4_end__[];
-
-  chprintf(chp, SHELL_NEWLINE_STR"CCM heap : size %x starts at : %x"SHELL_NEWLINE_STR,
-           (__ram4_end__ - __ram4_free__), __ram4_free__);
+  size_t ccm_size = (__ram4_end__ - __ram4_free__);
+  chprintf(chp, SHELL_NEWLINE_STR"CCM heap : size %d bytes starts at : 0x%x"SHELL_NEWLINE_STR,
+           ccm_size, __ram4_free__);
   n = chHeapStatus(ccm_heap, &total, &largest);
   chprintf(chp, SHELL_NEWLINE_STR"CCM Heap"SHELL_NEWLINE_STR);
   chprintf(chp, "heap fragments   : %u"SHELL_NEWLINE_STR, n);
@@ -231,7 +258,7 @@ void usb_cmd_printLog(BaseSequentialStream *chp, int argc, char *argv[])
 						dp->sen_i1_press/10, dp->sen_i1_press%10, dp->sen_i1_temp/100, abs(dp->sen_i1_temp%100), dp->sen_i1_hum/10, dp->sen_i1_hum%10,
 						dp->sen_e1_press/10, dp->sen_e1_press%10, dp->sen_e1_temp/100, abs(dp->sen_e1_temp%100), dp->sen_e1_hum/10, dp->sen_e1_hum%10,
 						dp->sen_e2_press/10, dp->sen_e2_press%10, dp->sen_e2_temp/100, abs(dp->sen_e2_temp%100), dp->sen_e2_hum/10, dp->sen_e2_hum%10,
-						dp->stm32_temp/100, dp->stm32_temp%100, dp->si446x_temp/100, abs(dp->si446x_temp%100),
+						dp->stm32_temp/100, abs(dp->stm32_temp%100), dp->si446x_temp/100, abs(dp->si446x_temp%100),
 						dp->light_intensity, dp->sys_error
 			);
 		}
@@ -314,7 +341,7 @@ void usb_cmd_send_aprs_message(BaseSequentialStream *chp, int argc, char *argv[]
       TRACE_WARN("CMD  > No free packet objects");
       return;
     }
-	transmitOnRadio(packet,
+	pktTransmitOnRadio(packet,
 	                conf_sram.aprs.tx.radio_conf.freq,
                     0,
                     0,
@@ -361,7 +388,7 @@ void usb_cmd_time(BaseSequentialStream *chp, int argc, char *argv[]) {
   if(argc == 0) {
     chprintf(chp, "RTC time %04d-%02d-%02d %02d:%02d:%02d\r\n",
                             time.year, time.month, time.day,
-                            time.hour, time.minute, time.day);
+                            time.hour, time.minute, time.second);
     chprintf(chp, "\r\nTo set time: time [YYYY-MM-DD HH:MM:SS]\r\n");
     return;
   }
@@ -421,4 +448,22 @@ void usb_cmd_radio(BaseSequentialStream *chp, int argc, char *argv[]) {
                    "patch ID %04x\r\n",
                    radio, handler->radio_part,
                    handler->radio_rom_rev, handler->radio_patch);
+}
+
+/**
+ * Get TCXO count.
+ */
+void usb_cmd_tcxo(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
+
+  if(argc > 0) {
+    shellUsage(chp, "tcxo");
+    return;
+  }
+/*  uint32_t f_tcxo = pktMeasureTCXO(TIME_S2I(30));*/
+  uint32_t f_tcxo = pktGetCurrentTCXO();
+  if(f_tcxo == 0)
+    chprintf(chp, "Unable to get TCXO frequency\r\n");
+  else
+    chprintf(chp, "TCXO frequency is %d Hz\r\n", f_tcxo);
 }

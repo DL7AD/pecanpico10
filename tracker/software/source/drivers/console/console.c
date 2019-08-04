@@ -6,6 +6,10 @@
 #include "pktconf.h"
 #include "console.h"
 
+#if USE_UART_FOR_CONSOLE == TRUE
+#warning "Console is set to UART"
+#endif
+
 /*===========================================================================*/
 /* Module macros.                  .                                         */
 /*===========================================================================*/
@@ -68,7 +72,7 @@ static void pktConsoleConnected(eventid_t id) {
   }
 
   case CON_CHN_TRACE: {
-    TRACE_ERROR("CON  > Connect event when in TRACE");
+    TRACE_DEBUG("CON  > Connect event when in TRACE");
     break;
   }
 
@@ -194,7 +198,7 @@ static void pktConsoleInputAvailable(eventid_t id) {
   case CON_CHN_TRACE: {
     if(CON_DEBUG_TRACE)
       TRACE_DEBUG("CON  > Input available event when in TRACE");
-    TRACE_INFO("CON  > Enter command mode");
+    TRACE_INFO("CON  > Enter command mode on console channel");
     console_state = CON_CHN_FLUSH;
     break;
   }
@@ -247,17 +251,10 @@ THD_FUNCTION(pktConsole, arg) {
   event_listener_t con_el;
   event_listener_t shell_el;
 
-  /*Wait for start permission. */
-  thread_t *initiator = chMsgWait();
-  (void)chMsgGet(initiator);
-
-  console_state = CON_CHN_INIT;
-
-  /* Signal that basic init is done. */
-  chMsgRelease(initiator, MSG_OK);
+  console_state = CON_CHN_TRACE;
 
   /* Wait for serial channel to be started for us. */
-  initiator = chMsgWait();
+  thread_t *initiator = chMsgWait();
   (void)chMsgGet(initiator);
 
   /* Attach event listener to serial channel. */
@@ -272,6 +269,9 @@ THD_FUNCTION(pktConsole, arg) {
                                       pktConsoleInputAvailable,
                                       NULL
   };
+
+  (void)chEvtGetAndClearEvents(CONSOLE_CHANNEL_EVT);
+  (void)chEvtGetAndClearFlags(&con_el);
 
   /* Flag that channel setup is done. */
   chMsgRelease(initiator, MSG_OK);
@@ -334,7 +334,7 @@ THD_FUNCTION(pktConsole, arg) {
         console_state = CON_CHN_SHELL;
         /* Wait for next event. */
         continue;
-      } /* End case CON_CHN_CONNECT or CON_CHN_WAIT. */
+      } /* End case CON_CHN_CONNECT, CON_CHN_WAIT or CON_CHN_FLUSH. */
 
       default:
         /* Check if there was a shell event. */
@@ -355,8 +355,8 @@ THD_FUNCTION(pktConsole, arg) {
        * If the channel disconnected go to IDLE else resume TRACE
        */
       if(CON_DEBUG_TRACE)
-        TRACE_DEBUG("CON  > Terminating shell thread %x with events %x & flags %x"
-                          " in state %s",
+        TRACE_DEBUG("CON  > Terminating shell thread %x with events"
+                          " %x & flags %x in state %s",
                   shelltp, evt, evtf, console_state_name(console_state));
       if(shelltp != NULL) {
         chEvtUnregister(&shell_terminated, &shell_el);
@@ -370,7 +370,7 @@ THD_FUNCTION(pktConsole, arg) {
         chprintf(chp, "\r\n*** Trace resumed by user ***\r\n");
         chThdSleep(TIME_MS2I(100));
         console_state = CON_CHN_TRACE;
-        TRACE_INFO("CON  > Resume trace mode");
+        TRACE_INFO("CON  > Resume trace mode on console channel");
         continue;
       }
       /*
@@ -388,7 +388,7 @@ THD_FUNCTION(pktConsole, arg) {
 /*
  *
  */
-msg_t pktStartConsole(BaseAsynchronousChannel *ser) {
+msg_t pktStartConsole(BaseSequentialStream *ser) {
 
   /* Start the console handler. */
   thread_t *con_thd = chThdCreateFromHeap(NULL,
@@ -402,9 +402,6 @@ msg_t pktStartConsole(BaseAsynchronousChannel *ser) {
 
   /* Wait for thread to initialise. */
   msg_t smsg = chMsgSend(con_thd, MSG_OK);
-
-  /* Signal thread to enter trace output and shell request monitoring. */
-  smsg = chMsgSend(con_thd, MSG_OK);
 
   return smsg;
 }

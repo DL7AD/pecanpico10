@@ -276,7 +276,7 @@
  * PA6  - CAM_D8                    (input pulldown).
  * PA7  - CAM_D9                    (input pulldown).
  * PA8  - IO_PA8                    (input floating).
- * PA9  - USB_VBUS                  (input floating).
+ * PA9  - USB_VBUS                  (input pulldown).
  * PA10 - USB_ID                    (alternate 10).
  * PA11 - USB_DM                    (alternate 10).
  * PA12 - USB_DP                    (alternate 10).
@@ -341,7 +341,7 @@
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN6) |       \
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN7) |       \
                                      PIN_PUPDR_FLOATING(GPIOA_PIN8) |       \
-                                     PIN_PUPDR_FLOATING(GPIOA_USB_VBUS) |   \
+                                     PIN_PUPDR_PULLDOWN(GPIOA_USB_VBUS) |   \
                                      PIN_PUPDR_FLOATING(GPIOA_USB_ID) |     \
                                      PIN_PUPDR_FLOATING(GPIOA_USB_DM) |     \
                                      PIN_PUPDR_FLOATING(GPIOA_USB_DP) |     \

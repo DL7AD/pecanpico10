@@ -3,16 +3,12 @@
 
 #include "ch.h"
 
-void start_essential_threads(void);
-void start_user_threads(void);
-void pktThdTerminateSelf(void);
-void pktIdleThread(void);
-
 /*===========================================================================*/
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-/* Thread names.
+/*
+ * Thread names.
  * Note: Keep the names unique as they are used to lookup threads by name.
  */
 #define PKT_POS_PRI_THD_NAME    "POS1"
@@ -24,9 +20,20 @@ void pktIdleThread(void);
 #define PKT_RCV_PRI_THD_NAME    "APRS"
 
 /*===========================================================================*/
-/* Module inline functions.                                                  */
+/* External declarations.                                                    */
 /*===========================================================================*/
 
 extern systime_t watchdog_tracking; // Last update time for module TRACKING
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+  void pktStartSystemServices(void);
+  void pktStartApplicationServices(void);
+  void pktThdTerminateSelf(void);
+  void pktIdleThread(void);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __THREADS_H__ */

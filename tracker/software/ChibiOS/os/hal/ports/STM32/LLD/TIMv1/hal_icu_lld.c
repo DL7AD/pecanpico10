@@ -94,6 +94,14 @@ ICUDriver ICUD8;
 ICUDriver ICUD9;
 #endif
 
+/**
+ * @brief   ICUD12 driver identifier.
+ * @note    The driver ICUD12 allocates the timer TIM12 when enabled.
+ */
+#if STM32_ICU_USE_TIM12 || defined(__DOXYGEN__)
+ICUDriver ICUD12;
+#endif
+
 /*===========================================================================*/
 /* Driver local variables and types.                                         */
 /*===========================================================================*/
@@ -323,6 +331,27 @@ OSAL_IRQ_HANDLER(STM32_TIM9_HANDLER) {
 #endif /* !defined(STM32_TIM9_SUPPRESS_ISR) */
 #endif /* STM32_ICU_USE_TIM9 */
 
+#if STM32_ICU_USE_TIM12 || defined(__DOXYGEN__)
+#if !defined(STM32_TIM12_SUPPRESS_ISR)
+#if !defined(STM32_TIM12_HANDLER)
+#error "STM32_TIM12_HANDLER not defined"
+#endif
+/**
+ * @brief   TIM12 interrupt handler.
+ *
+ * @isr
+ */
+OSAL_IRQ_HANDLER(STM32_TIM12_HANDLER) {
+
+  OSAL_IRQ_PROLOGUE();
+
+  icu_lld_serve_interrupt(&ICUD12);
+
+  OSAL_IRQ_EPILOGUE();
+}
+#endif /* !defined(STM32_TIM12_SUPPRESS_ISR) */
+#endif /* STM32_ICU_USE_TIM12 */
+
 /*===========================================================================*/
 /* Driver exported functions.                                                */
 /*===========================================================================*/
@@ -374,6 +403,12 @@ void icu_lld_init(void) {
   /* Driver initialization.*/
   icuObjectInit(&ICUD9);
   ICUD9.tim = STM32_TIM9;
+#endif
+
+#if STM32_ICU_USE_TIM12
+  /* Driver initialization.*/
+  icuObjectInit(&ICUD12);
+  ICUD12.tim = STM32_TIM12;
 #endif
 }
 
@@ -496,6 +531,21 @@ void icu_lld_start(ICUDriver *icup) {
       icup->clock = STM32_TIM9CLK;
 #else
       icup->clock = STM32_TIMCLK2;
+#endif
+    }
+#endif
+
+#if STM32_ICU_USE_TIM12
+    if (&ICUD12 == icup) {
+      rccEnableTIM12(true);
+      rccResetTIM12();
+#if !defined(STM32_TIM12_SUPPRESS_ISR)
+      nvicEnableVector(STM32_TIM12_NUMBER, STM32_ICU_TIM12_IRQ_PRIORITY);
+#endif
+#if defined(STM32_TIM12CLK)
+      icup->clock = STM32_TIM12CLK;
+#else
+      icup->clock = STM32_TIMCLK1;
 #endif
     }
 #endif
@@ -648,6 +698,15 @@ void icu_lld_stop(ICUDriver *icup) {
       nvicDisableVector(STM32_TIM9_NUMBER);
 #endif
       rccDisableTIM9();
+    }
+#endif
+
+#if STM32_ICU_USE_TIM12
+    if (&ICUD12 == icup) {
+#if !defined(STM32_TIM12_SUPPRESS_ISR)
+      nvicDisableVector(STM32_TIM12_NUMBER);
+#endif
+      rccDisableTIM12();
     }
 #endif
   }

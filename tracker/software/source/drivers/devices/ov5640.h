@@ -19,10 +19,20 @@
 #include "types.h"
 
 /*===========================================================================*/
-/* Module constants.                                                         */
+/* Driver pre-compile time settings.                                         */
+/*===========================================================================*/
+
+#define PDCMI_USE_THREAD_SUSPEND    TRUE
+
+/*===========================================================================*/
+/* Driver constants.                                                         */
 /*===========================================================================*/
 
 #define OV5640_I2C_ADR		        0x3C
+
+#if !STM32_DMA_ADVANCED
+#error "PDCMI driver requires advanced DMA"
+#endif
 
 #if !defined(PDCMI_USE_DMA_DBM)
 #define PDCMI_USE_DMA_DBM           FALSE
@@ -33,7 +43,7 @@
 #define PDCMI_DMA_IRQ_PRIO          2
 
 /*===========================================================================*/
-/* Module data structures and types.                                         */
+/* Driver data structures and types.                                         */
 /*===========================================================================*/
 
 /* Error codes for PDCMI. */
@@ -78,6 +88,9 @@ typedef struct pdcmiControl {
   uint8_t                   *buffer_base;
   uint8_t                   *buffer_limit;
   int16_t                   page_count;
+#if PDCMI_USE_THREAD_SUSPEND == TRUE
+  thread_reference_t        suspend_thread;
+#endif
   volatile bool             terminate;
   uint32_t                  dma_flags;
   volatile pdcmi_state_t    pdcmi_state;
@@ -103,8 +116,8 @@ bool            OV5640_isAvailable(void);
 void            OV5640_setLightIntensity(void);
 uint32_t        OV5640_getLastLightIntensity(void);
 pdcmi_error_t   OV5640_hasError(void);
-msg_t           OV5640_LockPDCMI(void);
-void            OV5640_UnlockPDCMI(void);
+msg_t           OV5640_PDCMIlock(sysinterval_t timeout);
+void            OV5640_PDCMIunlock(void);
 bool            OV5640_GetPDCMILockStateI(void);
 
 #ifdef __cplusplus

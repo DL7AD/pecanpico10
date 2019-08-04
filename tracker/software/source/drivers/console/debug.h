@@ -7,9 +7,14 @@
 #include "ptime.h"
 #include "config.h"
 #include <string.h>
-//#include "usbcfg.h"
-//#include "console.h"
 
+/* TODO: Add a trace system which does not in-line process the trace data to stream.
+ * The system should be useable from Interrupt level as well as thread level.
+ * e.g. Trace events submit a time stamped, function, etc. entry to a queue.
+ * The format string for a trace message remains in the originating code.
+ * A pointer to the format string is in the trace data.
+ * The variables in the trace are put in the queue data (limited to some number TBD)
+ */
 #define ERROR_LIST_LENGTH	64
 #define ERROR_LIST_SIZE		32
 
@@ -19,26 +24,32 @@ extern char error_list[ERROR_LIST_SIZE][ERROR_LIST_LENGTH];
 extern uint8_t error_counter;
 extern uint8_t current_trace_level;
 
-#define TRACE_DEBUG(format, args...) if(current_trace_level > 4) { debug_print("DEBUG", __FILENAME__, __LINE__, format, ##args); }
-#define TRACE_INFO(format, args...)  if(current_trace_level > 3) { debug_print("     ", __FILENAME__, __LINE__, format, ##args); }
-#define TRACE_MON(format, args...)  if(current_trace_level > 2) { debug_print("     ", __FILENAME__, __LINE__, format, ##args); }
-#define TRACE_WARN(format, args...)  if(current_trace_level > 1) { debug_print("WARN ", __FILENAME__, __LINE__, format, ##args); }
-#define TRACE_ERROR(format, args...) { \
-	if(current_trace_level > 0) { \
-		debug_print("ERROR", __FILENAME__, __LINE__, format, ##args); \
-	} \
-	\
-	uint8_t strcnt = chsnprintf(error_list[error_counter], ERROR_LIST_LENGTH, "[%8d.%03d] ", chVTGetSystemTime()/CH_CFG_ST_FREQUENCY, (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000); \
-	chsnprintf(&error_list[error_counter][strcnt], ERROR_LIST_LENGTH-strcnt, (format), ##args); \
-	error_counter = (error_counter+1)%ERROR_LIST_SIZE; \
-}
-#if TRACE_TIME && TRACE_FILE && TRACE_THREAD
+#define TRACE_DEBUG(format, args...) {if(current_trace_level > 4)             \
+      {debug_print("DEBUG", __FILENAME__, __LINE__, format, ##args); }}
+#define TRACE_INFO(format, args...)  {if(current_trace_level > 3)             \
+      {debug_print("     ", __FILENAME__, __LINE__, format, ##args); }}
+#define TRACE_MON(format, args...)   {if(current_trace_level > 2)             \
+      {debug_print("     ", __FILENAME__, __LINE__, format, ##args); }}
+#define TRACE_WARN(format, args...)  {if(current_trace_level > 1)             \
+      {debug_print("WARN ", __FILENAME__, __LINE__, format, ##args); }}
+#define TRACE_ERROR(format, args...) {if(current_trace_level > 0)             \
+      {debug_print("ERROR", __FILENAME__, __LINE__, format, ##args); }        \
+                                                                              \
+	    uint8_t strcnt = chsnprintf(error_list[error_counter],                \
+	    ERROR_LIST_LENGTH, "[%8d.%03d] ",                                     \
+	    chVTGetSystemTime()/CH_CFG_ST_FREQUENCY,                              \
+	    (chVTGetSystemTime()*1000/CH_CFG_ST_FREQUENCY)%1000);                 \
+	    chsnprintf(&error_list[error_counter][strcnt],                        \
+	    ERROR_LIST_LENGTH-strcnt, (format), ##args);                          \
+	    error_counter = (error_counter+1)%ERROR_LIST_SIZE; }
+
+#if TRACE_SHOW_TIME && TRACE_SHOW_FILE && TRACE_SHOW_THREAD
 #define TRACE_TAB "                                                           "
-#elif TRACE_TIME && TRACE_FILE
+#elif TRACE_SHOW_TIME && TRACE_SHOW_FILE
 #define TRACE_TAB "                                               "
-#elif TRACE_TIME && !TRACE_FILE
+#elif TRACE_SHOW_TIME && !TRACE_SHOW_FILE
 #define TRACE_TAB "                            "
-#elif !TRACE_TIME && TRACE_FILE
+#elif !TRACE_SHOW_TIME && TRACE_SHOW_FILE
 #define TRACE_TAB "                               "
 #else
 #define TRACE_TAB "              "
@@ -76,6 +87,9 @@ static inline heap_header_t *pktSystemHeapIntegrityCheck(memory_heap_t *heap) {
 /*===========================================================================*/
 
 extern mutex_t debug_mtx;
+extern BaseSequentialStream *console;
+extern BaseSequentialStream *serial;
+extern BaseSequentialStream *stream;
 
 void pktConfigureSerialIO(void);
 void debug_print(char *type, char* filename, uint32_t line, char* format, ...);

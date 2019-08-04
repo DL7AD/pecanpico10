@@ -14,17 +14,19 @@
 #include "ax25_pad.h"
 #include "flash.h"
 #include "threads.h"
+#include "tcxo.h"
 
 systime_t watchdog_tracking;
 
-void start_essential_threads(void)
+void pktStartSystemServices(void)
 {
 	init_watchdog();				// Init watchdog
 	pac1720_init();					// Initialize current measurement
+	pktInitTCXO();                  // Start TCXO calibrator
 	chThdSleep(TIME_MS2I(300));		// Wait for tracking manager to initialize
 }
 
-void start_user_threads(void) {
+void pktStartApplicationServices(void) {
 	// Copy 
 	memcpy(&conf_sram, &conf_flash_default, sizeof(conf_t));
 
@@ -49,7 +51,7 @@ void start_user_threads(void) {
     }
 
 	if(conf_sram.aprs.rx.svc_conf.active) {
-	  start_aprs_threads(&conf_sram.aprs, PKT_RCV_PRI_THD_NAME);
+	  pktStartAPRSthreads(&conf_sram.aprs, PKT_RCV_PRI_THD_NAME);
 	}
 }
 
@@ -70,6 +72,14 @@ void pktThdTerminateSelf(void) {
  * Called from the idle thread hook.
  */
 void pktIdleThread(void) {
+#if 1
+  thread_t *tp = chMsgPoll();
+  if (tp != NULL) {
+    (void)chMsgGet(tp);
+    chMsgRelease(tp, MSG_OK);
+    (void)chThdWait(tp);
+  }
+#else
   chSysLock();
   if(!chMsgIsPendingI(chThdGetSelfX())) {
     chSysUnlock();
@@ -81,5 +91,6 @@ void pktIdleThread(void) {
   (void)chMsgGet(tp);
   chMsgRelease(tp, MSG_OK);
   (void)chThdWait(tp);
+#endif
 }
 

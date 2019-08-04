@@ -39,25 +39,7 @@ bool p_sleep(const sleep_conf_t *config)
 
 sysinterval_t waitForTrigger(sysinterval_t prev, sysinterval_t timeout)
 {
-	/*switch(config->type)
-	{
-		case TRIG_NEW_POINT: // Wait for new data point
-			waitForNewDataPoint();
-			return chVTGetSystemTimeX();
-		
-		case TRIG_TIMEOUT: // Wait for specified timeout
-			return chThdSleepUntilWindowed(prev, prev + TIME_S2I(config->timeout));
-
-		case TRIG_CONTINUOUSLY: // Immediate trigger
-			return chVTGetSystemTimeX();
-
-		case TRIG_ONCE: // No trigger defined
-			chThdSleep(TIME_S2I(10));
-	}
-
-	return chVTGetSystemTimeX();*/
-
-	return chThdSleepUntilWindowed(prev, prev + timeout);
+	return chThdSleepUntilWindowed(prev, chTimeAddX(prev, timeout));
 }
 
 void trigger_new_data_point(void)

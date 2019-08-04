@@ -188,13 +188,12 @@ static void obnotify(io_buffers_queue_t *bqp) {
 
   /* Checking if there is already a transaction ongoing on the endpoint.*/
   if (!usbGetTransmitStatusI(sdup->config->usbp, sdup->config->bulk_in)) {
-    /* Trying to get a full buffer.*/
+    /* Transaction is active so get a buffer to send.*/
     uint8_t *buf = obqGetFullBufferI(&sdup->obqueue, &n);
-    osalDbgAssert(buf != NULL, "full output buffer not found in queue");
-    if (buf != NULL) {
-      /* Buffer found, starting a new transaction.*/
-      usbStartTransmitI(sdup->config->usbp, sdup->config->bulk_in, buf, n);
-    }
+
+    osalDbgAssert(buf != NULL, "queue is empty");
+
+    usbStartTransmitI(sdup->config->usbp, sdup->config->bulk_in, buf, n);
   }
 }
 
@@ -351,7 +350,7 @@ void sduConfigureHookI(SerialUSBDriver *sdup) {
   obqResetI(&sdup->obqueue);
   bqResumeX(&sdup->obqueue);
   chnAddFlagsI(sdup, CHN_CONNECTED);
-  (void)sdu_start_receive(sdup);
+  (void) sdu_start_receive(sdup);
 }
 
 /**
@@ -419,6 +418,8 @@ void sduSOFHookI(SerialUSBDriver *sdup) {
   if (obqTryFlushI(&sdup->obqueue)) {
     size_t n;
     uint8_t *buf = obqGetFullBufferI(&sdup->obqueue, &n);
+
+    osalDbgAssert(buf != NULL, "queue is empty");
 
     usbStartTransmitI(sdup->config->usbp, sdup->config->bulk_in, buf, n);
   }
@@ -509,11 +510,12 @@ void sduDataReceived(USBDriver *usbp, usbep_t ep) {
      so a packet is in the buffer for sure. Trying to get a free buffer
      for the next transaction.*/
   (void)sdu_start_receive(sdup);
+
   osalSysUnlockFromISR();
 }
 
 /**
- * @brief   Default data received callback.
+ * @brief   Default data transmitted callback.
  * @details The application must use this function as callback for the IN
  *          interrupt endpoint.
  *

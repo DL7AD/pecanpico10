@@ -141,9 +141,10 @@ static struct {
 
 	unsigned short checksum;	/* Some sort of checksum for the */
 					/* source, destination, and information. */
-					/* is is not used anywhere else. */
+					/* it is not used anywhere else. */
 
-	short xmit_channel;		/* Radio channel number. */
+	radio_freq_hz_t tx_frequency;		/* Radio transmit frequency. */
+    radio_freq_hz_t rx_frequency;       /* Radio receive frequency. */
 
 } history[HISTORY_MAX];
 
@@ -164,7 +165,7 @@ void dedupe_init (sysinterval_t ttl) {
  *
  * Input:	pp	- Pointer to packet object.
  *		
- *		chan	- Radio channel for transmission.
+ *		    freq	- Radio frequency for transmission.
  *		
  * Returns:	None
  *
@@ -191,10 +192,11 @@ void dedupe_init (sysinterval_t ttl) {
  *		
  *------------------------------------------------------------------------------*/
 
-void dedupe_remember (packet_t pp, int chan) {
+void dedupe_remember (packet_t pp, radio_freq_hz_t freq) {
 	history[insert_next].time_stamp = chVTGetSystemTime();
 	history[insert_next].checksum = ax25_dedupe_crc(pp);
-	history[insert_next].xmit_channel = chan;
+	history[insert_next].tx_frequency = freq;
+    history[insert_next].rx_frequency = pp->freq;
 
 	insert_next++;
 	if (insert_next >= HISTORY_MAX) {
@@ -215,26 +217,26 @@ void dedupe_remember (packet_t pp, int chan) {
  *
  * Input:	pp	- Pointer to packet object.
  *		
- *		chan	- Radio channel for transmission.
+ *		chan	- Radio frequency for transmission.
  *		
  * Returns:	True if it is a duplicate.
  *
  *		
  *------------------------------------------------------------------------------*/
 
-int dedupe_check (packet_t pp, int chan) {
+bool dedupe_check (packet_t pp, radio_freq_hz_t freq) {
 	unsigned short crc = ax25_dedupe_crc(pp);
-	///sysinterval_t now = chVTGetSystemTime();
 	int j;
 
-	for (j=0; j<HISTORY_MAX; j++) {
-	  if (chVTTimeElapsedSinceX(history[j].time_stamp) > history_time &&
+	for (j = 0; j < HISTORY_MAX; j++) {
+	  if (chVTTimeElapsedSinceX(history[j].time_stamp) < history_time &&
 	      history[j].checksum == crc && 
-	      history[j].xmit_channel == chan) {
-	    return 1;
+	      history[j].tx_frequency == freq &&
+	      history[j].rx_frequency == pp->freq) {
+	    return true;
 	  }
 	}
-	return 0;
+	return false;
 }
 
 

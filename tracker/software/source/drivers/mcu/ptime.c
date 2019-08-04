@@ -66,7 +66,7 @@ void unixTimestamp2Date(ptime_t *date, uint32_t time) {
   * @return Date in Julian calendar format
   */
 void getTime(ptime_t *date) {
-	TRACE_INFO("STM  > Get time from RTC");
+    TRACE_DEBUG("STM  > Get time from RTC");
 	RTCDateTime timespec;
 	rtcGetTime(&RTCD1, &timespec);
 
@@ -83,7 +83,7 @@ void getTime(ptime_t *date) {
   * @param date Date in Julian calendar format
   */
 void setTime(ptime_t *date) {
-	TRACE_INFO("STM  > Calibrate RTC");
+    TRACE_DEBUG("STM  > Calibrate RTC");
 	RTCDateTime timespec;
 	timespec.year = date->year - RTC_BASE_YEAR;
 	timespec.month = date->month;

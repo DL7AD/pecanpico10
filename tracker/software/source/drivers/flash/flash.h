@@ -14,9 +14,10 @@
 
 /**
  * @brief Number of sectors in the flash memory.
+ * TODO: The flash driver needs to be dynamically defined based on MCU.
  */
 #if !defined(FLASH_SECTOR_COUNT) || defined(__DOXYGEN__)
-#define FLASH_SECTOR_COUNT 12
+#define FLASH_SECTOR_COUNT 16
 #endif
 
 /* Error codes */
@@ -90,7 +91,7 @@ flashaddr_t flashSectorBegin(flashsector_t sector);
  * @param sector Sector to retrieve the end address of.
  * @return End address (exclusive) of @p sector (i.e. beginning address of the next sector).
  */
-flashaddr_t flashSectorEnd(flashsector_t sector);
+flashaddr_t flashSectorNext(flashsector_t sector);
 
 /**
  * @brief Get the sector containing @p address.

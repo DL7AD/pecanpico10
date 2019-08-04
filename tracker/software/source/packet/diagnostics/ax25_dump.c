@@ -21,7 +21,7 @@ char serial_buf[1024];
 int serial_out;
 
 /* Access control semaphore. */
-//extern binary_semaphore_t debug_out_sem;
+extern binary_semaphore_t stream_out_sem;
 
 void pktDumpAX25Frame(ax25char_t *frame_buffer,
                       ax25size_t frame_size, ax25_select_t which) {
@@ -93,11 +93,11 @@ void pktDumpAX25Frame(ax25char_t *frame_buffer,
   } /* End raw dump. */
 }
 
-
+#if 0
 void pktDiagnosticOutput(packet_svc_t *packetHandler,
                          pkt_data_object_t *myPktFIFO) {
-  chMtxLock(&debug_mtx);
-  //chBSemWait(&debug_out_sem);
+  //chMtxLock(&debug_mtx);
+  chBSemWait(&stream_out_sem);
   /* Buffer and size params for serial terminal output. */
     char serial_buf[1024];
     int serial_out;
@@ -129,19 +129,19 @@ void pktDiagnosticOutput(packet_svc_t *packetHandler,
           frame_size,
           magicCRC
       );
-      dbgWrite(DBG_INFO, (uint8_t *)serial_buf, serial_out);
+      strmWrite(DBG_INFO, (uint8_t *)serial_buf, serial_out);
       /* Dump the frame contents out. */
       pktDumpAX25Frame(frame_buffer, frame_size, AX25_DUMP_RAW);
   } else { /* End if valid frame. */
     serial_out = chsnprintf(serial_buf, sizeof(serial_buf),
                         "Invalid frame, status %x, bytes %u\r\n",
                         myPktFIFO->status, myPktFIFO->packet_size);
-    dbgWrite(DBG_INFO, (uint8_t *)serial_buf, serial_out);
+    strmWrite(DBG_INFO, (uint8_t *)serial_buf, serial_out);
   }
 
-  //chBSemSignal(&debug_out_sem);
-  chMtxUnlock(&debug_mtx);
+  chBSemSignal(&stream_out_sem);
+  //chMtxUnlock(&debug_mtx);
 }
-
+#endif
 
 /** @} */

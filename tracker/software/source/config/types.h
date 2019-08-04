@@ -58,6 +58,7 @@ typedef struct {
 
 typedef enum { // Modulation type
     MOD_NONE,
+    MOD_CW,
 	MOD_AFSK,
 	MOD_2FSK_300,
 	MOD_2FSK_9k6,
@@ -74,7 +75,8 @@ typedef enum {
 	RES_QQVGA,
 	RES_QVGA,
 	RES_VGA,
-	RES_VGA_ZOOMED,
+	RES_VGA_ZOOM2,
+	RES_VGA_ZOOM4,
 	RES_XGA,
 	RES_UXGA,
 	RES_MAX
@@ -82,7 +84,7 @@ typedef enum {
 
 typedef struct {
   radio_pwr_t       pwr;
-  radio_freq_t      freq;
+  radio_freq_hz_t      freq;
   radio_mod_t       mod;
   union {
     radio_squelch_t   cca;
@@ -92,7 +94,7 @@ typedef struct {
 
 typedef struct {
   radio_pwr_t       pwr;
-  radio_freq_t      freq;
+  radio_freq_hz_t      freq;
   radio_mod_t       mod;
   link_speed_t      speed;
   radio_squelch_t   cca;
@@ -101,7 +103,7 @@ typedef struct {
 } radio_tx_conf_t; // Radio / Modulation
 
 typedef struct {
-  radio_freq_t      freq;
+  radio_freq_hz_t   freq;
   radio_mod_t       mod;
   link_speed_t      speed;
   radio_squelch_t   rssi;
@@ -119,7 +121,6 @@ typedef struct {
 typedef struct {
   bool              active;
   sysinterval_t     init_delay;
-  //sysinterval_t     send_spacing;
   sleep_conf_t      sleep_conf;
   sysinterval_t     cycle;              // Cycle time (0: continuously)
   sysinterval_t     duration;
@@ -129,10 +130,10 @@ typedef struct {
   gps_coord_t       lat;
   gps_coord_t       lon;
   gps_alt_t         alt;
-} telem_svc_conf_t; // Thread
+} bcn_svc_conf_t; // Thread
 
 typedef struct {
-  telem_svc_conf_t  beacon;
+  bcn_svc_conf_t    beacon;
   radio_tx_conf_t   radio_conf;
   // Protocol
   char              call[AX25_MAX_ADDR_LEN];
@@ -140,6 +141,10 @@ typedef struct {
   aprs_sym_t        symbol;
   bool              aprs_msg;
   bool              run_once;
+  int32_t           arm_alt;
+  int32_t           run_alt;
+  ioline_t          arm_line;
+  ioline_t          run_line;
   sysinterval_t     gps_wait;
 } bcn_app_conf_t;
 
@@ -222,7 +227,7 @@ typedef struct {
 
   //APRS global
   sysinterval_t     tel_enc_cycle;          // Cycle for sending of telemetry config headers
-  radio_freq_t      freq;                   // Default APRS frequency if geolocation not available
+  radio_freq_hz_t      freq;                   // Default APRS frequency if geolocation not available
   // Base station call sign for receipt of tracker initiated sends
   // These are sends by the tracker which are not in response to a query.
   thd_base_conf_t   base;

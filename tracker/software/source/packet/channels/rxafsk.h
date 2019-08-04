@@ -20,6 +20,7 @@
 /*===========================================================================*/
 /* Module constants.                                                         */
 /*===========================================================================*/
+
 /*
  * AFSK decoding definitions.
  */
@@ -32,15 +33,16 @@
 #define AFSK_SPACE_INDEX            1U
 #define AFSK_SPACE_FREQUENCY        2200U
 
-/* Thread working area size. */
-#define PKT_AFSK_DECODER_WA_SIZE    (1024 * 1)
 
 /* AFSK decoder type selection. */
 #define AFSK_NULL_DECODE            0
 #define AFSK_DSP_QCORR_DECODE       1
-#define AFSK_DSP_FCORR_DECODE       2 /* Currently unimplemented. */
+#define AFSK_DSP_FCORR_DECODE       2 /* Currently under test. */
 
-#define AFSK_DECODE_TYPE            AFSK_DSP_QCORR_DECODE
+#define AFSK_DECODE_TYPE            AFSK_DSP_FCORR_DECODE
+#if !defined(AFSK_DECODE_TYPE)
+#error "AFSK decoder not specified"
+#endif
 
 /* Debug output type selection. */
 #define AFSK_NO_DEBUG               0
@@ -58,15 +60,15 @@
 
 /* Error output type selection. */
 #define AFSK_NO_ERROR               0
-#define AFSK_QSQRT_ERROR            1
+#define AFSK_SQRT_ERROR             1
 
 #define AFSK_ERROR_TYPE             AFSK_NO_ERROR
 
-//#define PRE_FILTER_GEN_COEFF        TRUE
+/* Pre-filter f1 & f2 definitions. */
 #define PRE_FILTER_LOW              925
 #define PRE_FILTER_HIGH             2475
 
-//#define MAG_FILTER_GEN_COEFF        TRUE
+/* Decoder magnitude filter cutoff. */
 #define MAG_FILTER_HIGH             1400
 
 #define PRE_FILTER_NUM_TAPS         55U
@@ -76,6 +78,7 @@
 #endif
 
 #define USE_QCORR_MAG_LPF           TRUE
+#define USE_FCORR_MAG_LPF           TRUE
 
 #define MAG_FILTER_NUM_TAPS         15U
 #define MAG_FILTER_BLOCK_SIZE       1U
@@ -103,10 +106,50 @@
  *
  */
 
+/* Decimation slices. All filter coefficients are dynamically recalculated. */
 #define SYMBOL_DECIMATION           (12U)
+
 /* Sample rate in Hz. */
 #define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
+
+/* The IQ decoder has a sliding window of two symbol periods. */
 #define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
+
+/* Thread working area size. */
+#define PKT_AFSK_DECODER_WA_SIZE    (1024 * 1)
+
+#endif
+
+#if AFSK_DECODE_TYPE == AFSK_DSP_FCORR_DECODE
+/* BPF followed by floating point IQ correlation decoder.
+ * Changing decimation changes the filter sample rate.
+ * Coefficients created dynamically are calculated at run-time.
+ * Coefficients for fixed arrays can be generated externally in Matlab/Octave.
+ *
+ * Pre-filter (BPF) coefficients.
+ * Fs=sample_rate, f1 = low_corner, f2 = high_corner, number of taps = N
+ * Matlab/Octave parameters:
+ * hc = fir1(N-1, [low_corner, high_corner]/(Fs/2), 'pass');
+ *
+ * Magnitude (LPF) coefficients.
+ * Fs=sample_rate, f1 = high_corner, number of taps = N
+ * Matlab/Octave parameters:
+ * hc = fir1(N-1, high_corner/(Fs/2), 'low');
+ *
+ */
+
+/* Decimation slices. All filter coefficients are dynamically recalculated. */
+#define SYMBOL_DECIMATION           (12U)
+
+/* Sample rate in Hz. */
+#define FILTER_SAMPLE_RATE          (SYMBOL_DECIMATION * AFSK_BAUD_RATE)
+
+/* The IQ decoder has a sliding window of two symbol periods. */
+#define DECODE_FILTER_LENGTH        (2U * SYMBOL_DECIMATION)
+
+/* Thread working area size. */
+#define PKT_AFSK_DECODER_WA_SIZE    (1024 * 2)
+
 #endif
 
 /* Named services. */
@@ -152,6 +195,7 @@ typedef float32_t   pwm_accum_t;
 typedef int16_t     dsp_phase_t;
 
 #include "rxpwm.h"
+#include "rxhdlc.h"
 #include "pktservice.h"
 /**
  * @brief   Structure representing an AFSK demod driver.
@@ -176,17 +220,12 @@ typedef struct AFSK_data {
   thread_t                  *decoder_thd;
 
   /**
-   * @brief Frame byte being built.
+   * @brief Control object for HDLC processor.
    */
-  ax25char_t                current_byte;
+  pkt_hdlc_decode_t         rx_hdlc;
 
   /**
-   * @brief HDLC bit count.
-   */
-  uint8_t                   bit_index;
-
-  /**
-   * @brief AFSK decoder states. TODO: non volatile?
+   * @brief AFSK decoder states.
    */
   afskdemodstate_t          decoder_state;
 
@@ -246,31 +285,15 @@ typedef struct AFSK_data {
   radio_pwm_fifo_t          *active_demod_stream;
 
   /**
-   * @brief current symbol frequency.
-   */
-  tone_t                    tone_freq;
-
-  /**
-   * @brief Prior symbol frequency.
-   */
-  tone_t                    prior_freq;
-
-  /**
    * @brief     Pointer to a decoder data structure.
    * @details   This may be Q31 or F32 type.
    */
   void                      *tone_decoder;
 
   /**
-   * @brief Symbol incoming bit stream.
+   * @brief Thread reference of initiating thread.
    */
-  /* TODO: Should typdef this? */
-  uint32_t                  hdlc_bits;
-
-  /**
-   * @brief Opening HDLC flag sequence found.
-   */
-  frame_state_t             frame_state;
+  thread_t                  *caller;
 } AFSKDemodDriver;
 
 /*===========================================================================*/
@@ -281,12 +304,6 @@ typedef struct AFSK_data {
 /* Module inline functions.                                                  */
 /*===========================================================================*/
 
-static inline void pktResyncAFSKDecoder(AFSKDemodDriver *myDriver) {
-  packet_svc_t *myHandler = myDriver->packet_handler;
-  myDriver->frame_state = FRAME_OPEN;
-  myHandler->active_packet_object->packet_size = 0;
-}
-
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
@@ -295,15 +312,14 @@ extern float32_t pre_filter_coeff_f32[];
 extern float32_t mag_filter_coeff_f32[];
 extern struct AFSK_data AFSKD1;
 extern struct qCorrFilter QCORR1;
-//extern struct QFIRFilter QMAGM1;
-//extern struct QFIRFilter QMAGS1;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-  AFSKDemodDriver *pktCreateAFSKDecoder(packet_svc_t *pktDriver);
-  void pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver);
-  void pktAFSKDecoder(void *arg);
+  AFSKDemodDriver   *pktCreateAFSKDecoder(radio_unit_t radio);
+  void              pktReleaseAFSKDecoder(AFSKDemodDriver *myDriver);
+  bool              pktIsAFSKReceiveActive(packet_svc_t *handler);
+  void              pktAFSKDecoder(void *arg);
 #ifdef __cplusplus
 }
 #endif

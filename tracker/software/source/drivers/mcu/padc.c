@@ -7,6 +7,28 @@
 #include <stdlib.h>
 #include "portab.h"
 
+#if defined(STM32L072xx) || defined(STM32L073xx)
+#define ADC_VDD_CALIB           ((uint16_t) (3000))
+#define ADC_VREFINT_CAL         ((uint16_t*) ((uint32_t) 0x1FF80078))
+#define ADC_TSENSE_CAL30        ((uint16_t*) ((uint32_t) 0x1FF8007A))
+#define ADC_TSENSE_CAL130       ((uint16_t*) ((uint32_t) 0x1FF8007E))
+#endif
+
+#if defined(STM32F412xx) || defined(STM32F413xx)
+#define ADC_VDD_CALIB           ((uint16_t) (3300))
+#define ADC_VREFINT_CAL         ((uint16_t*) ((uint32_t) 0x1FFF7A2A))
+#define ADC_TSENSE_CAL30        ((uint16_t*) ((uint32_t) 0x1FFF7A2D))
+#define ADC_TSENSE_CAL130       ((uint16_t*) ((uint32_t) 0x1FFF7A2F))
+#endif
+
+#if defined(STM32L4R5xx) || defined(STM32L4R7xx) || defined(STM32L4R9xx) || \
+    defined(STM32L4S5xx) || defined(STM32L4S7xx) || defined(STM32L4S9xx)
+#define ADC_VDD_CALIB           ((uint16_t) (3000))
+#define ADC_VREFINT_CAL         ((uint16_t*) ((uint32_t) 0x1FFF75AA))
+#define ADC_TSENSE_CAL30        ((uint16_t*) ((uint32_t) 0x1FFF75A8))
+#define ADC_TSENSE_CAL130       ((uint16_t*) ((uint32_t) 0x1FFF75CA))
+#endif
+
 #define ADC_NUM_CHANNELS	4		/* Amount of channels (solar, battery, temperature) */
 #define VCC_REF				3100	/* mV */
 

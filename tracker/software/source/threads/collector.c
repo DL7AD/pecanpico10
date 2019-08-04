@@ -39,7 +39,7 @@ static uint8_t bme280_error;
 static const char *state[] = {GPS_STATE_NAMES};
 
 /* Remembers power state. */
-static bool stay_on = false;
+static bool gps_stay_on = false;
 
 /*===========================================================================*/
 /* Module external variables.                                                */
@@ -51,7 +51,7 @@ thread_t *collector_thd;
  * Get pointer to state name as string
  */
 const char *get_gps_state_name(uint8_t index) {
-  if(index > GPS_STATE_MAX)
+  if (index > GPS_STATE_MAX)
     return "INVALID";
   return state[index];
 }
@@ -62,15 +62,6 @@ const char *get_gps_state_name(uint8_t index) {
 dataPoint_t* getLastDataPoint(void) {
 	return lastDataPoint;
 }
-
-/**
- *
- */
-/*void waitForNewDataPoint(void) {
-	uint32_t old_id = getLastDataPoint()->id;
-	while(old_id == getLastDataPoint()->id)
-		chThdSleep(TIME_S2I(1));
-}*/
 
 /**
  * @brief   Determine best fallback data when GPS not operable.
@@ -94,7 +85,7 @@ static void getPositionFallback(dataPoint_t* tp,
   tp->gps_sats = 0;
   tp->gps_ttff = 0;
   tp->gps_pdop = 0;
-  if(isPositionFromSV(ltp)) {
+  if (isPositionFromSV(ltp)) {
     tp->gps_lat = ltp->gps_lat;
     tp->gps_lon = ltp->gps_lon;
     tp->gps_alt = ltp->gps_alt;
@@ -105,7 +96,7 @@ static void getPositionFallback(dataPoint_t* tp,
   }
   ptime_t time;
   getTime(&time);
-  if(time.year != RTC_BASE_YEAR)
+  if (time.year != RTC_BASE_YEAR)
     /* The RTC has been set so use RTC time. */
     tp->gps_time = date2UnixTimestamp(&time);
 }
@@ -140,45 +131,53 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
    * Is there enough battery voltage for GPS?
    */
   uint16_t batt = stm32_get_vbat();
-  if(batt < conf_sram.gps_on_vbat) {
+  if (batt < conf_sram.gps_on_vbat) {
     getPositionFallback(tp, ltp, GPS_LOWBATT1);
     /* In case GPS was already on then power it off. */
-    stay_on = false;
+    gps_stay_on = false;
     GPS_Deinit();
     return false;
   }
 
-  /* Try to switch on GPS. If there is an error switch off. */
-  if(!GPS_Init()) {
-    getPositionFallback(tp, ltp, GPS_ERROR);
-    stay_on = false;
-    GPS_Deinit();
-    return false;
+  if(!gps_stay_on) {
+    /* Try to switch on GPS. If there is an error switch off. */
+    if (!GPS_Init()) {
+      getPositionFallback(tp, ltp, GPS_ERROR);
+      gps_stay_on = false;
+      GPS_Deinit();
+      return false;
+    }
   }
+
   /* If a Pa pressure is set then GPS model depends on BME reading.
    * If BME is OK then stationary model will be used until Pa < airborne.
    * Then airborne model will be set.
    * If the BME is not OK then airborne model will be used immediately.
    */
   bool dynamic = conf_sram.gps_pressure != 0;
-  TRACE_INFO("COLL > GPS %s in dynamic mode switching at %dPa", dynamic
-             ? "is" : "is not", conf_sram.gps_pressure);
+  if (dynamic) {
+    TRACE_DEBUG("COLL > GPS in dynamic mode switching at %dPa",
+                conf_sram.gps_pressure);
+    gps_set_model(dynamic);
+  }
+
   /*
    *  Search for GPS lock within the timeout period and while battery is good.
    *  Search timeout=cycle-1sec (-3sec in order to keep synchronization)
    */
   uint32_t x = 0;
-  gps_set_model(dynamic);
   do {
     batt = stm32_get_vbat();
-    if(++x % 30) gps_set_model(dynamic); // Set model periodically
+    if (dynamic && ++x % 30) {
+      gps_set_model(dynamic); // Set model periodically
+    }
     chThdSleepMilliseconds(100);
     gps_get_fix(&gpsFix);
-  } while(!isGPSLocked(&gpsFix)
+  } while (!isGPSLocked(&gpsFix)
       && batt >= conf_sram.gps_off_vbat
       && chVTIsSystemTimeWithin(start, chTimeAddX(start, timeout)));
 
-  if(batt < conf_sram.gps_off_vbat) {
+  if (batt < conf_sram.gps_off_vbat) {
     /*
      * GPS was switched on but battery fell below threshold during acquisition.
      * Switch off GPS and set fallback position data.
@@ -186,7 +185,7 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
 
     TRACE_WARN("COLL > GPS acquisition stopped due low battery");
     getPositionFallback(tp, ltp, GPS_LOWBATT2);
-    stay_on = false;
+    gps_stay_on = false;
     GPS_Deinit();
     return false;
   }
@@ -198,25 +197,22 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
    * - not a fixed beacon (just wants RTC to be set).
    * This is an OR of the multiple users of the GPS.
    */
-  stay_on |= !config->run_once
+  gps_stay_on |= !config->run_once
       && (conf_sram.gps_onper_vbat != 0
           && batt >= conf_sram.gps_onper_vbat)
           && !config->beacon.fixed;
 
-  if(!isGPSLocked(&gpsFix)) {
-    /*
-     * GPS was switched on but it failed to get a lock within timeout period.
-
-     */
+  if (!isGPSLocked(&gpsFix)) {
+    /* GPS was switched on but failed to lock within a timeout period. */
     TRACE_WARN("COLL > GPS sampling finished GPS LOSS");
     getPositionFallback(tp, ltp, GPS_LOSS);
 
-    if(stay_on) {
-        TRACE_INFO("COLL > Keep GPS switched on. VBAT >= %dmV",
+    if (gps_stay_on) {
+        TRACE_DEBUG("COLL > Keep GPS switched on. VBAT >= %dmV",
                    conf_sram.gps_onper_vbat);
       } else {
         GPS_Deinit();
-        TRACE_INFO("COLL > Switching off GPS");
+        TRACE_DEBUG("COLL > Switching off GPS");
       }
     return false;
   }
@@ -226,18 +222,20 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
    * Output SV info.
    * Switch off GPS (unless cycle is less than 60 seconds).
    */
-  TRACE_INFO("GPS  > Lock acquired. Model in use is %s",
+  TRACE_DEBUG("GPS  > Lock acquired. Model in use is %s",
              gps_get_model_name(gpsFix.model));
 
   gps_svinfo_t svinfo;
-  if(gps_get_sv_info(&svinfo, sizeof(svinfo))) {
-    TRACE_INFO("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d",
-               svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
+  if (gps_get_sv_info(&svinfo, sizeof(svinfo))) {
+    TRACE_DEBUG("GPS  > Space Vehicle info iTOW=%d numCh=%02d globalFlags=%d\r\n"
+                TRACE_TAB" Used for Navigation...",
+         svinfo.iTOW, svinfo.numCh, svinfo.globalFlags);
 
     uint8_t i;
     for(i = 0; i < svinfo.numCh; i++) {
       gps_svchn_t *sat = &svinfo.svinfo[i];
-      TRACE_INFO("GPS  > Satellite info chn=%03d svid=%03d flags=0x%02x"
+      if (sat->flags & 0x01)
+      TRACE_DEBUG("       Satellite info chn=%03d svid=%03d flags=0x%02x"
           " quality=%02d cno=%03d elev=%03d azim=%06d, prRes=%06d",
            sat->chn, sat->svid, sat->flags, sat->flags,
            sat->quality, sat->cno, sat->elev, sat->azim, sat->prRes);
@@ -247,30 +245,32 @@ static bool aquirePosition(dataPoint_t* tp, dataPoint_t* ltp,
   }
 
   /* Enable power saving mode. */
-  gps_switch_power_save_mode(true);
+  if (!gps_switch_power_save_mode(true)) {
+    TRACE_INFO("GPS  > Power saving mode not activated");
+  }
 
   /* Leave GPS on if cycle time is less than 60 seconds. */
-  if(timeout < TIME_S2I(60)) {
-    TRACE_INFO("COLL > Keep GPS switched on. Cycle < 60sec");
+  if (timeout < TIME_S2I(60)) {
+    TRACE_DEBUG("COLL > Keep GPS switched on. Cycle < 60sec");
     tp->gps_state = GPS_LOCKED2;
     /* Leave GPS on if power conditions good. */
-  } else if(stay_on) {
-    TRACE_INFO("COLL > Keep GPS switched on. VBAT >= %dmV",
+  } else if (gps_stay_on) {
+    TRACE_DEBUG("COLL > Keep GPS switched on. VBAT >= %dmV",
                conf_sram.gps_onper_vbat);
     tp->gps_state = GPS_LOCKED2;
   } else {
-    TRACE_INFO("COLL > Switching off GPS");
+    TRACE_DEBUG("COLL > Switching off GPS");
     GPS_Deinit();
     tp->gps_state = GPS_LOCKED1;
   }
 
   // Debug
-  TRACE_INFO("COLL > GPS sampling finished GPS LOCK");
+  TRACE_DEBUG("COLL > GPS sampling finished GPS LOCK");
 
   /* Set RTC if not already. */
   ptime_t time;
   getTime(&time);
-  if(time.year == RTC_BASE_YEAR) {
+  if (time.year == RTC_BASE_YEAR) {
     /* Snapshot the RTC time. Old time entries can be adjusted using this data. */
     ltp->gps_state = GPS_TIME;
     ltp->gps_time = date2UnixTimestamp(&time);
@@ -326,7 +326,7 @@ void getSensors(dataPoint_t* tp) {
 	bme280_t handle;
 
 	// Internal BME280
-	if(BME280_isAvailable(BME280_I1)) {
+	if (BME280_isAvailable(BME280_I1)) {
 		BME280_Init(&handle, BME280_I1);
 		tp->sen_i1_press = BME280_getPressure(&handle, 32);
 		tp->sen_i1_hum = BME280_getHumidity(&handle);
@@ -342,7 +342,7 @@ void getSensors(dataPoint_t* tp) {
 #if     ENABLE_EXTERNAL_I2C == TRUE
 #if     BME280_E1_IS_FITTED == TRUE
 	// External BME280 Sensor 1
-	if(BME280_isAvailable(BME280_E1)) {
+	if (BME280_isAvailable(BME280_E1)) {
 		BME280_Init(&handle, BME280_E1);
 		tp->sen_e1_press = BME280_getPressure(&handle, 32);
 		tp->sen_e1_hum = BME280_getHumidity(&handle);
@@ -360,7 +360,7 @@ void getSensors(dataPoint_t* tp) {
 
 #if     BME280_E2_IS_FITTED == TRUE
 	// External BME280 Sensor 2
-	if(BME280_isAvailable(BME280_E2)) {
+	if (BME280_isAvailable(BME280_E2)) {
 		BME280_Init(&handle, BME280_E2);
 		tp->sen_e2_press = BME280_getPressure(&handle, 32);
 		tp->sen_e2_hum = BME280_getHumidity(&handle);
@@ -464,13 +464,12 @@ THD_FUNCTION(collectorThread, arg) {
   dataPoints[1].gps_time = date2UnixTimestamp(&time);
 
   lastDataPoint = &dataPoints[0];
-  //dataPoint_t *newDataPoint = lastDataPoint++;
 
-  // Get last data point from memory
+  /* Get last data point from memory. */
   TRACE_INFO("COLL > Read last data point from flash memory");
   dataPoint_t* lastLogPoint = flash_getNewestLogEntry();
 
-  if(lastLogPoint != NULL) { // If there is stored data point, then get it.
+  if (lastLogPoint != NULL) { // If there is stored data point, then get it.
     dataPoints[0].reset     = lastLogPoint->reset+1;
     dataPoints[1].reset     = lastLogPoint->reset+1;
     unixTimestamp2Date(&time, lastDataPoint->gps_time);
@@ -500,7 +499,7 @@ THD_FUNCTION(collectorThread, arg) {
     );
     lastDataPoint->gps_state = GPS_LOG; // Mark dataPoint as LOG packet
   } else {
-    TRACE_INFO("COLL > No data point found in flash memory");
+    TRACE_DEBUG("COLL > No data point found in flash memory");
     /* State indicates that no valid stored position is available. */
     lastDataPoint->gps_lat = 0;
     lastDataPoint->gps_lon = 0;
@@ -510,35 +509,36 @@ THD_FUNCTION(collectorThread, arg) {
     lastDataPoint->gps_sats = 0;
     lastDataPoint->gps_state = GPS_OFF;
 
-    // Measure telemetry
+    /* Measure telemetry. */
     measureVoltage(lastDataPoint);
     getSensors(lastDataPoint);
     getGPIO(lastDataPoint);
     setSystemStatus(lastDataPoint);
 
-    // Write data point to Flash memory
+    /* Write data point to Flash memory. */
     flash_writeLogDataPoint(lastDataPoint);
   }
   /* Now check if the controller has been reset (RTC not set). */
   getTime(&time);
   /* Let initializer know if this is a normal or cold start (power loss). */
-  (void)chMsgSend(caller, time.year == RTC_BASE_YEAR ? MSG_RESET : MSG_OK);
+  (void) chMsgSend(caller, time.year == RTC_BASE_YEAR ? MSG_RESET : MSG_OK);
 
   /*
    * Done with initialization now.
    * lastDataPoint becomes the first history entry for the loop.
    */
-  while(true) { /* Primary loop. */
+  while (true) { /* Primary loop. */
     /* Wait for a request from a client. */
     caller = chMsgWait();
     /* Fetch the message. */
     bcn_app_conf_t *config;
     config = (bcn_app_conf_t *)chMsgGet(caller);
 
-    TRACE_INFO("COLL > Respond to request for DATA COLLECTOR cycle");
+    TRACE_DEBUG("COLL > Respond to request for DATA COLLECTOR cycle");
 
-    dataPoint_t* tp  = &dataPoints[(id+1) % 2]; // Current data point (the one which is processed now)
-    dataPoint_t* ltp = &dataPoints[ id    % 2]; // Last data point
+    /* Get the current data point and prior data point. */
+    dataPoint_t* tp  = &dataPoints[(id+1) % 2];
+    dataPoint_t* ltp = &dataPoints[ id    % 2];
 
     /* Gather telemetry and system status data. */
     measureVoltage(tp);
@@ -550,34 +550,35 @@ THD_FUNCTION(collectorThread, arg) {
     sysinterval_t gps_wait_fix = TIME_S2I(60);
 
     /* If there is wait time specified get it. */
-    if(config->gps_wait != 0)
+    if (config->gps_wait != 0)
       gps_wait_fix = config->gps_wait;
 
     /*
      * When cycle is less than minimum then use cycle but limit to 1 second
      */
-    if(config->beacon.cycle < gps_wait_fix) {
+    if (config->beacon.cycle < gps_wait_fix) {
       gps_wait_fix = (config->beacon.cycle == 0) ? TIME_S2I(1)
                                                   : config->beacon.cycle;
     }
     getTime(&time);
-    if(time.year == RTC_BASE_YEAR) {
+    if (time.year == RTC_BASE_YEAR) {
       /*
        * The RTC is not set.
+       * Note: This test is only good until RTC ticks over the base year.
        * There may be a fixed location beacon requiring time only.
        * Alternatively this can be a normal request for a full fix.
        * Enable the GPS and attempt a lock which results in setting the RTC.
        * Allow up to half the fix timeout for time acquisition.
-      */
+       */
       sysinterval_t gps_wait_time = gps_wait_fix / 2;
-      TRACE_INFO("COLL > Attempt time acquisition using GPS "
+      TRACE_DEBUG("COLL > Attempt time acquisition using GPS "
                         "for up to %d.%d seconds",
                  chTimeI2MS(gps_wait_time) / 1000,
                  chTimeI2MS(gps_wait_time) % 1000);
 
-      if(aquirePosition(tp, ltp, config, gps_wait_time)) {
+      if (aquirePosition(tp, ltp, config, gps_wait_time)) {
         /* Acquisition succeeded. */
-        if(ltp->gps_state == GPS_TIME) {
+        if (ltp->gps_state == GPS_TIME) {
           /* Write the time stamp where RTC was calibrated. */
           ltp->gps_sats = 0;
           ltp->gps_ttff = 0;
@@ -588,22 +589,22 @@ THD_FUNCTION(collectorThread, arg) {
           /* Increment to next ID for new datapoint. */
           tp->id++;
         }
-        TRACE_INFO("COLL > RTC update acquired from GPS");
+        TRACE_DEBUG("COLL > RTC update acquired from GPS");
       } else {
         /* Time is stale record. */
-        TRACE_INFO("COLL > RTC update not acquired from GPS");
+        TRACE_DEBUG("COLL > RTC update not acquired from GPS");
       }
       /* Let the acquisition run and set the datapoint. */
       gps_wait_fix /= 2;
     }
 
-    if(config->beacon.fixed) {
+    if (config->beacon.fixed) {
       /*
        * Use fixed position data.
        * Update set fixed position.
        * Set GPS time from RTC.
        */
-      TRACE_INFO("COLL > Using fixed location for %s", config->call);
+      TRACE_DEBUG("COLL > Using fixed location for %s", config->call);
       tp->gps_alt = config->beacon.alt;
       tp->gps_lat = config->beacon.lat;
       tp->gps_lon = config->beacon.lon;
@@ -620,22 +621,22 @@ THD_FUNCTION(collectorThread, arg) {
        *  If lock not attained fallback data is set.
        *  Timeout will be remainder of time if RTC set was done.
        */
-      TRACE_INFO("COLL > Acquire position using GPS for up to %d.%d seconds",
+      TRACE_DEBUG("COLL > Acquire position using GPS for up to %d.%d seconds",
                                    chTimeI2MS(gps_wait_fix) / 1000,
                                    chTimeI2MS(gps_wait_fix) % 1000);
-      if(aquirePosition(tp, ltp, config, gps_wait_fix)) {
-        if(ltp->gps_state == GPS_TIME) {
+      if (aquirePosition(tp, ltp, config, gps_wait_fix)) {
+        if (ltp->gps_state == GPS_TIME) {
           /* Write the time stamp where RTC was calibrated. */
           ltp->gps_sats = 0;
           ltp->gps_ttff = 0;
           ltp->gps_pdop = 0;
           flash_writeLogDataPoint(ltp);
-          TRACE_INFO("COLL > RTC update acquired from GPS");
+          TRACE_DEBUG("COLL > RTC update acquired from GPS");
         }
-        TRACE_INFO("COLL > Acquired fresh GPS data");
+        TRACE_DEBUG("COLL > Acquired fresh GPS data");
       } else {
         /* Historical data has been carried forward. */
-        TRACE_INFO("COLL > Unable to acquire fresh GPS data");
+        TRACE_DEBUG("COLL > Unable to acquire fresh GPS data");
       }
     }
 
@@ -659,7 +660,7 @@ THD_FUNCTION(collectorThread, arg) {
         TRACE_TAB, tp->gps_lat/10000000, (tp->gps_lat > 0 ? 1:-1)*(tp->gps_lat/100)%100000, tp->gps_lon/10000000, (tp->gps_lon > 0 ? 1:-1)*(tp->gps_lon/100)%100000, tp->gps_alt,
         TRACE_TAB, tp->gps_sats, tp->gps_ttff,
         TRACE_TAB, tp->adc_vbat/1000, (tp->adc_vbat%1000), tp->adc_vsol/1000, (tp->adc_vsol%1000), tp->pac_pbat / 10,
-        TRACE_TAB, tp->sen_i1_press/10, tp->sen_i1_press%10, tp->sen_i1_temp/100, tp->sen_i1_temp%100, tp->sen_i1_hum/10, tp->sen_i1_hum%10,
+        TRACE_TAB, tp->sen_i1_press/10, tp->sen_i1_press%10, tp->sen_i1_temp/100, abs(tp->sen_i1_temp%100), tp->sen_i1_hum/10, tp->sen_i1_hum%10,
         TRACE_TAB, tp->gpio & 1, (tp->gpio >> 1) & 1, (tp->gpio >> 2) & 1, (tp->gpio >> 3) & 1,
         TRACE_TAB, config->call
     );
@@ -678,7 +679,7 @@ THD_FUNCTION(collectorThread, arg) {
  *
  */
 void init_data_collector() {
-  if(!threadStarted) {
+  if (!threadStarted) {
 
     threadStarted = true;
     TRACE_INFO("COLL > Startup data collector thread");
@@ -687,7 +688,7 @@ void init_data_collector() {
                                        "COL", LOWPRIO,
                                        collectorThread, chThdGetSelfX());
     collector_thd = th;
-    if(!th) {
+    if (!th) {
       // Print startup error, do not start watchdog for this thread
       TRACE_ERROR("COLL > Could not start"
           " thread (not enough memory available)");
@@ -695,11 +696,11 @@ void init_data_collector() {
       /* Wait for collector to start. */
       thread_t *tp = chMsgWait();
       msg_t msg = chMsgGet(tp);
-      if(msg == MSG_RESET) {
-        TRACE_INFO("COLL > Executed cold start");
+      if (msg == MSG_RESET) {
+        TRACE_DEBUG("COLL > Executed cold start");
       }
       else {
-        TRACE_INFO("COLL > Executed warm start");
+        TRACE_DEBUG("COLL > Executed warm start");
       }
       chMsgRelease(tp, MSG_OK);
     }

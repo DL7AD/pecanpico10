@@ -21,18 +21,27 @@
 #define APRS_FREQ_ARGENTINA			144930000
 #define APRS_FREQ_BRAZIL			145575000
 
-thread_t *start_aprs_threads(thd_aprs_conf_t *conf, const char *name);
-bool transmitOnRadio(packet_t pp, radio_freq_t freq, channel_hz_t step,
-                     radio_ch_t chan, radio_pwr_t pwr, radio_mod_t mod,
-                     radio_squelch_t rssi);
-bool transmitOnRadioWithCallback(packet_t pp, const radio_freq_t base_freq,
-                     const channel_hz_t step, radio_ch_t chan,
-                     const radio_pwr_t pwr, const radio_mod_t mod,
-                     const radio_squelch_t cca,
-                     const radio_task_cb_t cb);
+#define PKT_DUMP_BAD_PACKETS        TRUE
+
+thread_t *pktStartAPRSthreads(thd_aprs_conf_t *conf, const char *name);
+bool pktTransmitOnRadio(packet_t pp,
+                        const radio_freq_hz_t freq,
+                        const radio_chan_hz_t step,
+                        const radio_ch_t chan,
+                        const radio_pwr_t pwr,
+                        const radio_mod_t mod,
+                        const radio_squelch_t rssi);
+bool pktTransmitOnRadioWithCallback(packet_t pp,
+                                    const radio_freq_hz_t base_freq,
+                                    const radio_chan_hz_t step,
+                                    const radio_ch_t chan,
+                                    const radio_pwr_t pwr,
+                                    const radio_mod_t mod,
+                                    const radio_squelch_t cca,
+                                    const radio_task_cb_t cb);
 
 inline const char *getModulation(radio_mod_t key) {
-    const char *val[] = {"NONE", "AFSK", "2FSK 300", "2FSK 9k6", "2FSK 19k2",
+    const char *val[] = {"NONE", "CW", "AFSK", "2FSK 300", "2FSK 9k6", "2FSK 19k2",
                          "2FSK 38k4", "2FSK 57k6", "2FSK 76k8", "2FSK 96k",
                          "2FSK 115k2"};
     return val[key];

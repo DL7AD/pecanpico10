@@ -239,9 +239,6 @@
 #define GPIOK_PIN14                 14U
 #define GPIOK_PIN15                 15U
 
-/*
- * IO lines assignments.
- */
 
 /* For enabling TCXO. Done in early_init. */
 #define LINE_TCXO_EN                PAL_LINE(GPIOC, 13U)
@@ -280,7 +277,7 @@
  * PA6  - CAM_D8                    (input pulldown).
  * PA7  - CAM_D9                    (input pulldown).
  * PA8  - IO_PA8                    (input floating).
- * PA9  - USB_VBUS                  (input floating).
+ * PA9  - USB_VBUS                  (input pulldown).
  * PA10 - USB_ID                    (alternate 10).
  * PA11 - USB_DM                    (alternate 10).
  * PA12 - USB_DP                    (alternate 10).
@@ -345,7 +342,7 @@
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN6) |       \
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN7) |       \
                                      PIN_PUPDR_FLOATING(GPIOA_PIN8) |       \
-                                     PIN_PUPDR_FLOATING(GPIOA_USB_VBUS) |   \
+                                     PIN_PUPDR_PULLDOWN(GPIOA_USB_VBUS) |   \
                                      PIN_PUPDR_FLOATING(GPIOA_USB_ID) |     \
                                      PIN_PUPDR_FLOATING(GPIOA_USB_DM) |     \
                                      PIN_PUPDR_FLOATING(GPIOA_USB_DP) |     \
@@ -504,7 +501,7 @@
 
 /*
  * GPIOC setup:
- * TODO: Enter correct assignment (versus NUCLEO pins)
+ *
  * PC0  - SD_CS                     (output pushpull highspeed high).
  * PC1  - IO_BLUE                   (input pulldown).
  * PC2  - ADC_VSOL                  (input pulldown).
@@ -515,7 +512,7 @@
  * PC7  - CAM_EN                    (input pulldown).
  * PC8  - SD_DET                    (input pullup verylowspeed).
  * PC9  - CAM_XCLK                  (input pulldown).
- * PC10 - RADIO_SDN                 (output opendrain pullup high verylowspeed).
+ * PC10 - RADIO_SDN                 (input pullup verylowspeed).
  * PC11 - IO_RXD                    (input floating).
  * PC12 - RADIO_CS                  (output pushpull high).
  * PC13 - TCXO_EN                   (input pulldown).
@@ -532,7 +529,7 @@
                                      PIN_MODE_INPUT(GPIOC_PIN7) |           \
                                      PIN_MODE_INPUT(GPIOC_PIN8) |           \
                                      PIN_MODE_INPUT(GPIOC_PIN9) |           \
-                                     PIN_MODE_OUTPUT(GPIOC_PIN10) |         \
+                                     PIN_MODE_INPUT(GPIOC_PIN10) |          \
                                      PIN_MODE_INPUT(GPIOC_PIN11) |          \
                                      PIN_MODE_OUTPUT(GPIOC_PIN12) |         \
                                      PIN_MODE_INPUT(GPIOC_PIN13) |          \
@@ -548,7 +545,7 @@
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN7) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN8) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN9) |       \
-                                     PIN_OTYPE_OPENDRAIN(GPIOC_PIN10) |     \
+                                     PIN_OTYPE_PUSHPULL(GPIOC_PIN10) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN11) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN12) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOC_PIN13) |      \
