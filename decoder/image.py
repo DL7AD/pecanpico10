@@ -6,6 +6,10 @@ import time
 import threading
 from shutil import copyfile
 import base91
+from terminal import Terminal
+
+cache = {}
+timeout = 600 # 10 minutes
 
 def ssdv_decode_callsign(code):
 	callsign = ''
@@ -57,9 +61,8 @@ def imgproc():
 
 		time.sleep(1)
 
-w = time.time()
 def insert_image(db, call, data_b91, rxtime):
-	global imageProcessor,imageData,w
+	global imageProcessor,imageData,w,timeout,cache
 
 	data = base91.decode(data_b91)
 	if len(data) != 174: # APRS message has invalid type or length (or both)
@@ -87,55 +90,92 @@ def insert_image(db, call, data_b91, rxtime):
 	data += "%08x" % (binascii.crc32(binascii.unhexlify(data)) & 0xffffffff)
 
 	# Find image ID (or generate new one)
-	_id = None
-	cur.execute("""
-		SELECT `id`,`packetID`
-		FROM `image`
-		WHERE `call` = %s
-		AND `imageID` = %s
-		AND `rxtime`+5*60 >= %s
-		ORDER BY `rxtime`
-		DESC LIMIT 1""",
-		(call, imageID, str(rxtime))
-	)
-	fetch = cur.fetchall()
-	if len(fetch):
-		_id = fetch[0][0]
-		lastPacketId = fetch[0][1]
+	serverID = None
+	
+	# Search Server ID cache
+	for k in cache:
+		e = cache[k]
+		if e['call'] == call and e['imageID'] == imageID and e['time']+timeout >= rxtime:
+			serverID = e['serverID'] # Found Server ID in cache
 
-	if _id is None:
+	# Search Server ID in Database
+	if serverID == None:
+		cur.execute("""
+			SELECT `id`,`packetID`
+			FROM `image`
+			WHERE `call` = %s
+			AND `imageID` = %s
+			AND `rxtime`+%s >= %s
+			ORDER BY `rxtime`
+			DESC LIMIT 1""",
+			(call, imageID, str(timeout), str(rxtime))
+		)
+		fetch = cur.fetchall()
+		if len(fetch):
+			serverID = fetch[0][0]
+
+	# Generate new Server ID if no ID found
+	if serverID is None:
 		# Generate ID
 		cur.execute("SELECT `id`+1 FROM `image` ORDER BY `id` DESC LIMIT 1")
 		fetch = cur.fetchall()
 		if len(fetch):
-			_id = fetch[0][0]
+			serverID = fetch[0][0]
 		else: # No entries in the database
-			_id = 0
+			serverID = 0
+
+		serverIDcreated = True
+	else:
+		serverIDcreated = False
 
 	# Debug
-	print('Received image packet Call=%s ImageID=%d PacketID=%d ServerID=%d' % (call, imageID, packetID, _id))
+	Terminal().info('Received image packet Call=%s ImageID=%d PacketID=%d ServerID=%d' % (call, imageID, packetID, serverID))
 
 	# Insert into database
 	cur.execute("""
 		INSERT IGNORE INTO `image` (`call`,`rxtime`,`imageID`,`packetID`,`data`,`id`)
 		VALUES (%s,%s,%s,%s,%s,%s)""",
-		(call, str(rxtime), imageID, packetID, data, _id)
+		(call, str(rxtime), imageID, packetID, data, serverID)
 	)
 
-	if w+0.5 < time.time():
-		db.commit()
-		w = time.time()
-
 	with lock:
-		allData = ''
-		cur.execute("SELECT `data` FROM `image` WHERE `id` = %s ORDER BY `packetID`", (_id,))
-		for data, in cur.fetchall():
-			allData += '55' + data + (144*'0')
-		imageData[_id] = (call, binascii.unhexlify(allData))
 
+		if serverID not in cache:
+			# Create cache
+			cache[serverID] = {
+				'call': call,
+				'imageID': imageID,
+				'serverID': serverID,
+				'data': [],
+				'time': time.time()
+			}
+
+			if not serverIDcreated: # Packets already in database
+				cur.execute("SELECT `packetID`,`data` FROM `image` WHERE `id` = %s", (serverID,))
+				for sql_data in cur.fetchall():
+					cache[serverID]['data'].append(sql_data)
+		else:
+			# Append to cache
+			cache[serverID]['data'].append([packetID, data])
+			cache[serverID]['time'] = time.time()
+
+		# From now on only work on cache
+
+		allData = ''
+		for dummy,data in sorted(cache[serverID]['data'], key=lambda x: x[0]):
+			allData += '55' + data + (144*'0')
+		imageData[serverID] = (call, binascii.unhexlify(allData))
+
+	# Start decoder thread if it hasn't already been done before
 	if imageProcessor is None:
 		imageProcessor = threading.Thread(target=imgproc)
 		imageProcessor.start()
 
-	return {'type': 'img', 'imageID': imageID, 'packetID': packetID, 'serverID': _id}
+	# Clear up cache (timeout)
+	for k in cache:
+		if cache[k]['time']+timeout < time.time():
+			del cache[k]
+			break
 
+
+	return {'type': 'img', 'imageID': imageID, 'packetID': packetID, 'serverID': serverID}

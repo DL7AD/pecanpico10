@@ -8,13 +8,24 @@ html, body {
 	margin: 3px;
 	border: solid 1px #666666;
 }
-.bluish {
+.navitem {
 	background-color: #ccdaec;
 	padding: 5px;
 	margin: 4px 0;
 }
-.raw {
+.bluish {
+	background-color: #ccdaec;
+	padding: 5px;
 	overflow-wrap: break-word;
+	border: solid 1px #777777;
+	margin: 3px 3px;
+}
+.bluish td {
+	border: solid 1px #ffffff;
+	padding: 3px;
+}
+.data {
+	margin-left: 264px;
 }
 a {
 	text-decoration: none;

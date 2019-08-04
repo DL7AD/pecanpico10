@@ -8,21 +8,21 @@ range = <?=$range?>;
 call = '<?=$_GET['call']?>';
 filter = '<?=$_GET['filter']?>';
 
-function loadImages() {
+function loadRaw() {
 	updateData(true);
 	setInterval(function(){updateData(true);}, 1000);
 }
 </script>
 <script type="text/javascript" src="script.js"></script>
 </head>
-<body onload="loadImages()">
+<body onload="loadRaw()">
 
 <?php
 include "sidebar.inc.php";
 include "topbar.inc.php";
 ?>
 
-<div style="width:1330px;float:left;" id="raw"></div>
+<div id="raw" class="data"></div>
 
 </body>
 </html>

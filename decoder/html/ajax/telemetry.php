@@ -9,8 +9,9 @@ header("Content-Type: application/json");
 $tracker = new Tracker($_GET['call']);
 echo json_encode(array(
 	"telemetry"    => $tracker->getTelemetry($_GET['from']),
-	"raw"          => isset($_GET['withraw']) ? $tracker->getRaw($_GET['from']) : "[]",
+	"raw"          => isset($_GET['withraw']) ? $tracker->getRaw($_GET['from']) : array(),
 	"images"       => $tracker->getPictures($_GET['from']),
+	"directs"      => $tracker->getDirects($_GET['from']),
 	"lastActivity" => $tracker->getLastActivity(),
 	"packetCount"  => $tracker->getPacketCount(),
 	"time"         => time()

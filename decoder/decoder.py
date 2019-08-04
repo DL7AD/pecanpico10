@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description='APRS/SSDV decoder')
 parser.add_argument('-c', '--call', help='Callsign of the station', default='DL7AD')
 parser.add_argument('-d', '--device', help='Serial device (\'-\' for stdin)', default='-')
 parser.add_argument('-b', '--baudrate', help='Baudrate for serial device', default=9600, type=int)
-parser.add_argument('-v', '--verbose', help='Activates more debug messages', action="store_true")
+parser.add_argument('-v', '--verbose', help='Activates more debug messages', type=int, default=Terminal.LEVEL_INFO)
 args = parser.parse_args()
 
 # Open SQLite database
@@ -112,6 +112,16 @@ db.cursor().execute("""
 	)
 """)
 
+# Create printer
+Terminal(args.verbose)
+
+last_db_commit = time.time()
+def db_commit():
+	global last_db_commit
+	if last_db_commit+1 < time.time():
+		db.commit()
+		last_db_commit = time.time()
+
 """ Packet handler for received APRS packets"""
 def received_data(data):
 
@@ -167,10 +177,10 @@ def received_data(data):
 			elif re_dir:
 				meta = position.insert_directs(db, call, re_dir.group(4), rxtime)
 
-			term.packet_apecan(rxtime, rawdata, meta)
+			Terminal().packet_apecan(rxtime, rawdata, meta)
 
 		else:
-			term.packet_apecan(rxtime, rawdata, 'Unrecognized APECAN packet')
+			Terminal().packet_apecan(rxtime, rawdata, 'Unrecognized APECAN packet')
 
 		# Insert into raw database
 		db.cursor().execute("""
@@ -183,13 +193,13 @@ def received_data(data):
 
 		re_un = re_loc_uncomp_no_time if re_loc_uncomp_no_time.group(0) != '' else re_loc_uncomp_wi_time
 
-		call = re_un.group(1)	
+		call = re_un.group(1)
 		try:
 			lat = (1 if re_un.group(3) == 'N' else -1) * round(float(re_un.group(2)) / 100, 4)
 			lon = (1 if re_un.group(5) == 'E' else -1) * round(float(re_un.group(4)) / 100, 4)
 
 			# Debug
-			term.packet_ext_info(rxtime, rawdata, 'Position call=%s lat=%f lon=%f' % (call, lat, lon))
+			Terminal().packet_ext_info(rxtime, rawdata, 'Position call=%s lat=%f lon=%f' % (call, lat, lon))
 
 			db.cursor().execute("""
 				INSERT INTO `location` (`call`,`rxtime`,`lat`,`lon`)
@@ -200,37 +210,32 @@ def received_data(data):
 			)
 
 		except ValueError:
-			term.packet_ext_error(rxtime, rawdata, 'Value error in packet')
-			print(rawdata)
-
-
+			Terminal().packet_ext_error(rxtime, rawdata, 'Value error in packet')
 
 	else:
 
 		if re_call == None:
 			# Invalid callsign: Must comply with APRS e.g. DL7AD-C => Inalid SSID
-			term.packet_ext_error(rxtime, rawdata, 'Invalid APRS callsign: ' + rawdata.split('>')[0])
+			Terminal().packet_ext_error(rxtime, rawdata, 'Invalid APRS callsign: ' + rawdata.split('>')[0])
 		else:
-			term.packet_ext_error(rxtime, rawdata, 'Unknown format')
+			Terminal().packet_ext_error(rxtime, rawdata, 'Unknown format')
 
 if args.device == 'I': # Source APRS-IS
 
 	from aprsis import AprsIS
 	conn = AprsIS()
-	last_db_commit = time.time()
 	while True:
 		data = conn.getData()
 		if data is not None:
 			received_data(data)
-		if last_db_commit+1 < time.time():
-			db.commit()
-			last_db_commit = time.time()
+
+		db_commit()
 
 elif args.device is '-': # Source stdin
 
 	while True:
 		received_data(sys.stdin.readline())
-		db.commit()
+		db_commit()
 
 else: # Source Serial connection
 
@@ -255,5 +260,4 @@ else: # Source Serial connection
 			data += chr(b[0])
 
 		received_data(data)
-		db.commit()
-
+		db_commit()

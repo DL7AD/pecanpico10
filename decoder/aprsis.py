@@ -1,6 +1,7 @@
 import telnetlib
 import time
 import socket
+from terminal import Terminal
 
 class AprsIS(object):
 
@@ -28,19 +29,19 @@ class AprsIS(object):
 
 	def connect(self):
 
-		print('Connect to APRS-IS')
+		Terminal().info('Connect to APRS-IS')
 
 		while True:
 			try:
-				self.tn = telnetlib.Telnet("euro.aprs2.net", 14580, 3)
+				self.tn = telnetlib.Telnet("rotate.aprs2.net", 14580, 3)
 				self.tn.write(("user N0CALL filter u/APECAN filter t/p\n").encode('ascii'))
-				print('Connected')
+				Terminal().info('Connected')
 				self.resetWatchdog()
 				return
 
 			except Exception as e:
-				print('Could not connect to APRS-IS: %s' % str(e))
-				print('Try again in 5 seconds...')
+				Terminal().error('Could not connect to APRS-IS: %s' % str(e))
+				Terminal().info('Try again in 5 seconds...')
 				time.sleep(5)
 
 	def disconnect(self):
@@ -58,7 +59,7 @@ class AprsIS(object):
 		try:
 			buf = self.tn.read_until(b"\n").decode('charmap')
 		except EOFError: # Server has connection closed
-			print('APRS-IS connection lost (EOFError)... reconnect')
+			Terminal().error('APRS-IS connection lost (EOFError)... reconnect')
 			self.reconnect()
 			return
 		except UnicodeDecodeError:
@@ -70,13 +71,13 @@ class AprsIS(object):
 
 		# Watchdog reconnection
 		if self.hasWatchdogTimeout():
-			print('APRS-IS connection lost (Watchdog)... reconnect')
+			Terminal().error('APRS-IS connection lost (Watchdog)... reconnect')
 			self.reconnect()
 
 		self.resetWatchdog()
 
 		if '# aprsc' in buf: # Watchdog reload
-			print('Ping from APRS-IS')
+			Terminal().debug('Ping from APRS-IS')
 			return None
 		else: # Data handling
 			return buf

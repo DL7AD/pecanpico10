@@ -13,6 +13,8 @@ var lastChartUpdate = 0;
 var last = null;
 var init = false;
 var lastraw = null;
+var map;
+var items = [];
 
 // Chart 1
 var batteryChart;
@@ -320,7 +322,7 @@ function get_alt(p) {
 
 function updateData(withraw = false) {
 
-	if(!init && typeof google !== 'undefined') {
+	if(!init && typeof google !== 'undefined' && typeof google.visualization !== 'undefined') {
 		// Chart 1
 		dataBattery = new google.visualization.DataTable();
 		dataBattery.addColumn('date', 'Time');
@@ -403,6 +405,7 @@ function updateData(withraw = false) {
 		images = json['images'];
 		tel = json['telemetry'];
 		raw = json['raw'];
+		directs = json['directs'];
 
 		// Update telemetry
 		if(tel.length) {
@@ -757,10 +760,77 @@ function updateData(withraw = false) {
 							meta += "<b>Meta:</b> reset=" + data['meta'].reset + " id=" + data['meta'].id;
 							break;
 					}
-					$('#raw').prepend("<p class=\"bluish raw\"><b>" + time_format(data['rxtime']*1000, true) + "</b>" + meta + "<br style=\"margin-bottom:8px;\">" + data['data'].replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>");
+					$('#raw').prepend("<div class=\"bluish bigright\"><b>" + time_format(data['rxtime']*1000, true) + "</b>" + meta + "<br style=\"margin-bottom:8px;\">" + data['data'].replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</div>");
 				} else {
-					$('#raw').prepend("<p class=\"bluish raw\"><b>" + time_format(data['rxtime']*1000, true) +  "</b> <i>no meta data from server</i><br>" + data['data'] + "</p>");
+					$('#raw').prepend("<div class=\"bluish bigright\"><b>" + time_format(data['rxtime']*1000, true) +  "</b> <i>no meta data from server</i><br>" + data['data'] + "</div>");
 				}
+
+				lastraw = data.rxtime;
+			});
+		}
+
+
+		// Remove old items
+		//while(true) {
+		//	try {
+		//		items.pop().setMap(null);
+		//	} catch(err) {
+		//		break;
+		//	}
+		//}
+
+		// Add new items on map
+
+		// Update map
+		if(tel.length > 0 && typeof google !== 'undefined') {
+
+			$.each(tel, function(key, data) {
+
+				if(data.gps_lat || data.gps_lon) {
+					// Line between points
+					if(last) {
+						if(last.gps_lat != last.gps_lon || data.gps_lat != data.gps_lon) {
+							var line = new google.maps.Polyline({
+								path: [{lng:last.gps_lon/10000000, lat:last.gps_lat/10000000},{lng:data.gps_lon/10000000, lat:data.gps_lat/10000000}],
+								geodesic: true,
+								strokeColor: last.org == 'log' || data.org == 'log' ? '#FF0000' : '#008000',
+								strokeOpacity: 0.4,
+								strokeWeight: 5,
+								map: map
+							});
+						}
+						items.push(line);
+					}
+					last = data;
+				}
+			});
+
+
+			lastChartUpdate = json['time'];
+		}
+
+		// Update raw
+		if(directs.length) {
+			if(lastrxtime < raw[raw.length-1].rxtime+1)
+				lastrxtime = raw[raw.length-1].rxtime+1;
+
+			$.each(directs, function(key, data) {
+				var dir;
+				if(Object.keys(data.dir).length > 0) {
+					dir = "<table>";
+					dir += "<tr><td>Callsign</td><td>Last position from this station</td><td>Latitude</td><td>Longitude</td></tr>";
+					$.each(data.dir, function(d_call, d_data) {
+						if(d_data.rxtime != undefined)
+							dir += "<tr><td>" + d_call + "</td><td>" + time_format(d_data.rxtime*1000, true) + "</td><td>" + d_data.lat + "</td><td>" + d_data.lon + "</td></tr>";
+						else
+							dir += "<tr><td>" + d_call + "</td><td colspan=\"3\"><i>Callsign not in database</i></td></tr>";
+						console.log();
+					});
+					dir += "</table>";
+				} else {
+					dir = "<i>No directs</i>";
+				}
+				$('#directs').prepend("<div class=\"bluish bigright\"><b>" + time_format(data['rxtime']*1000, true) + "</b><br style=\"margin-bottom:8px;\">" + dir + "</div>");
 
 				lastraw = data.rxtime;
 			});
@@ -768,5 +838,13 @@ function updateData(withraw = false) {
 
 	});
 
+}
+
+function initMap() {
+	map = new google.maps.Map(document.getElementById('map'), {
+		zoom: 8,
+		center: new google.maps.LatLng(0,0),
+		gestureHandling: 'greedy'
+	});
 }
 

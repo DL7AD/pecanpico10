@@ -30,7 +30,7 @@
 			$amonthago = true;
 		}
 
-		echo "<div class=\"bluish\">
+		echo "<div class=\"navitem\">
 		<b><a href=\"telemetry.php?call=" . $tr->getCall() . "\">" . $tr->getCall() . "</a> ...
 		<a href=\"map.php?call=" . $tr->getCall() . "\">Map</a>
 		<a href=\"images.php?call=" . $tr->getCall() . "\">Images</a>
@@ -38,7 +38,7 @@
 		Last Activity: " . time_format($act) . "<br>";
 
 		if($act <= 3600) {
-			$cnt = $tr->getPacketCount();
+			//$cnt = $tr->getPacketCount();
 			echo "Packets: " . number_format($cnt['img']['cnt300'] + $cnt['pos']['cnt300']) . " (5m), " . number_format($cnt['img']['cnt3600'] + $cnt['pos']['cnt3600']) . " (1h)";
 		} else {
 			echo "Packets: 0 (5m), 0 (1h)";

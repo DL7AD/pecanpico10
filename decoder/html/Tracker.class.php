@@ -3,6 +3,7 @@ require_once "Database.class.php";
 require_once "Telemetry.class.php";
 require_once "Image.class.php";
 require_once "Raw.class.php";
+require_once "Directs.class.php";
 
 class Tracker {
 
@@ -182,6 +183,32 @@ class Tracker {
 	}
 	function getCall() {
 		return $this->call;
+	}
+	function getDirects($from, $to=NULL) {
+		if(is_null($to))
+			$to = time() + 1;
+
+		if($from > $to)
+			return array(); // Error $from is larger than $to
+
+		if($to - $from > 64281600)
+			$from = $to - 64281600; // Max. 744 days (2 non leap years + 14 weeks)
+
+		$query = Database::getInstance()->query("
+			SELECT *
+			FROM `directs`
+			WHERE " . intval($from) . " <= `rxtime`
+			AND `rxtime` <= " . intval($to) . "
+			AND `call` = '" . Database::getInstance()->escape_string($this->call) . "'
+			ORDER BY `rxtime` ASC
+		");
+
+		$datasets = array();
+		while($row = $query->fetch_assoc()) {
+			$datasets[] = new Directs($row);
+		}
+
+		return $datasets;
 	}
 }
 ?>
