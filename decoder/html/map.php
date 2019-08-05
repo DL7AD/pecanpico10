@@ -14,7 +14,7 @@ function initPage() {
 }
 </script>
 <script type="text/javascript" src="script.js"></script>
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCdZi_9pTemN0IOE2KO_LMkR1-jJh92qhU&callback=initMap"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=key&callback=initMap"></script>
 </head>
 <body onload="initPage()">
 
