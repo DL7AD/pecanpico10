@@ -45,9 +45,12 @@ class AprsIS(object):
 				time.sleep(5)
 
 	def disconnect(self):
-		self.tn.get_socket().shutdown(socket.SHUT_WR)
-		self.tn.read_all()
-		self.tn.close()
+		try:
+			self.tn.get_socket().shutdown(socket.SHUT_WR)
+			self.tn.read_all()
+			self.tn.close()
+		except:
+			Terminal().error('Error raised at disconnection')
 
 	def reconnect(self):
 		self.disconnect()
